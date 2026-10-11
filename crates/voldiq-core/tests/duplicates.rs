@@ -202,3 +202,41 @@ fn locked_content_is_reported_without_a_false_match() {
     assert_eq!(result.errors, 1);
     assert!(result.groups.is_empty());
 }
+
+#[cfg(windows)]
+#[test]
+fn offline_files_are_excluded_before_reading_content() {
+    use windows_sys::Win32::Storage::FileSystem::*;
+    let dir = tempfile::tempdir().unwrap();
+    for name in ["a", "b"] {
+        let path = dir.path().join(name);
+        std::fs::write(&path, [1; 32]).unwrap();
+        let native = voldiq_core::windows::wide(&path);
+        let attributes = unsafe { GetFileAttributesW(native.as_ptr()) };
+        assert_ne!(attributes, INVALID_FILE_ATTRIBUTES);
+        assert_ne!(
+            unsafe { SetFileAttributesW(native.as_ptr(), attributes | FILE_ATTRIBUTE_OFFLINE) },
+            0
+        );
+    }
+    let result = find(
+        &index(dir.path()),
+        NodeId(0),
+        0,
+        &AtomicBool::new(false),
+        &mut HashCache::default(),
+        |_| {},
+    )
+    .unwrap();
+    for name in ["a", "b"] {
+        let native = voldiq_core::windows::wide(&dir.path().join(name));
+        let attributes = unsafe { GetFileAttributesW(native.as_ptr()) };
+        assert_ne!(
+            unsafe { SetFileAttributesW(native.as_ptr(), attributes & !FILE_ATTRIBUTE_OFFLINE) },
+            0
+        );
+    }
+    assert_eq!(result.errors, 2);
+    assert_eq!(result.bytes_read, 0);
+    assert!(result.groups.is_empty());
+}

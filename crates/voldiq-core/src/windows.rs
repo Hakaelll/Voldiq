@@ -192,3 +192,145 @@ pub fn is_reparse(metadata: &std::fs::Metadata) -> bool {
         metadata.is_symlink()
     }
 }
+
+pub fn requires_recall(metadata: &std::fs::Metadata) -> bool {
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        use windows_sys::Win32::Storage::FileSystem::*;
+        metadata.file_attributes()
+            & (FILE_ATTRIBUTE_OFFLINE
+                | FILE_ATTRIBUTE_RECALL_ON_OPEN
+                | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS)
+            != 0
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = metadata;
+        false
+    }
+}
+
+#[cfg(windows)]
+pub fn final_path(file: &std::fs::File) -> Result<std::path::PathBuf> {
+    use std::os::windows::{ffi::OsStringExt, io::AsRawHandle};
+    use windows_sys::Win32::Storage::FileSystem::*;
+    let mut buffer = vec![0_u16; 260];
+    loop {
+        let length = unsafe {
+            GetFinalPathNameByHandleW(
+                file.as_raw_handle(),
+                buffer.as_mut_ptr(),
+                buffer.len() as u32,
+                FILE_NAME_NORMALIZED | VOLUME_NAME_DOS,
+            )
+        } as usize;
+        if length == 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        if length >= buffer.len() {
+            if length >= 32768 {
+                return Err(crate::Error::Invalid(
+                    "Native path exceeds Windows bounds.".into(),
+                ));
+            }
+            buffer.resize(length + 1, 0);
+            continue;
+        }
+        return Ok(std::path::PathBuf::from(std::ffi::OsString::from_wide(
+            &buffer[..length],
+        )));
+    }
+}
+
+#[cfg(windows)]
+pub fn hard_link_names(path: &Path) -> Result<Vec<std::path::PathBuf>> {
+    use std::os::windows::ffi::OsStringExt;
+    use windows_sys::Win32::{Foundation::*, Storage::FileSystem::*};
+    struct Enumeration(HANDLE);
+    impl Drop for Enumeration {
+        fn drop(&mut self) {
+            unsafe {
+                FindClose(self.0);
+            }
+        }
+    }
+    let input = wide(path);
+    let mut root = vec![0_u16; 32768];
+    if unsafe { GetVolumePathNameW(input.as_ptr(), root.as_mut_ptr(), root.len() as u32) } == 0 {
+        return Err(std::io::Error::last_os_error().into());
+    }
+    let root_length = root
+        .iter()
+        .position(|unit| *unit == 0)
+        .ok_or_else(|| crate::Error::Invalid("Invalid hard-link volume path.".into()))?;
+    let root = std::fs::canonicalize(std::path::PathBuf::from(std::ffi::OsString::from_wide(
+        &root[..root_length],
+    )))?;
+    let mut buffer = vec![0_u16; 260];
+    let handle = loop {
+        let mut length = buffer.len() as u32;
+        let handle =
+            unsafe { FindFirstFileNameW(input.as_ptr(), 0, &mut length, buffer.as_mut_ptr()) };
+        if handle != INVALID_HANDLE_VALUE {
+            break Enumeration(handle);
+        }
+        let error = std::io::Error::last_os_error();
+        if error.raw_os_error() != Some(ERROR_MORE_DATA as i32) {
+            return Err(error.into());
+        }
+        grow_name_buffer(&mut buffer, length)?;
+    };
+    let mut names = Vec::new();
+    loop {
+        let length = buffer
+            .iter()
+            .position(|unit| *unit == 0)
+            .ok_or_else(|| crate::Error::Invalid("Unterminated hard-link name.".into()))?;
+        let relative = std::path::PathBuf::from(std::ffi::OsString::from_wide(&buffer[..length]));
+        let relative = relative
+            .strip_prefix(Path::new("\\"))
+            .map_err(|_| crate::Error::Invalid("Invalid hard-link name prefix.".into()))?;
+        if relative.as_os_str().is_empty()
+            || relative
+                .components()
+                .any(|part| !matches!(part, std::path::Component::Normal(_)))
+        {
+            return Err(crate::Error::Invalid(
+                "Invalid hard-link filename components.".into(),
+            ));
+        }
+        names.push(root.join(relative));
+        if names.len() >= 65536 {
+            return Err(crate::Error::Invalid(
+                "Hard-link name limit reached.".into(),
+            ));
+        }
+        loop {
+            let mut length = buffer.len() as u32;
+            if unsafe { FindNextFileNameW(handle.0, &mut length, buffer.as_mut_ptr()) } != 0 {
+                break;
+            }
+            let error = std::io::Error::last_os_error();
+            match error.raw_os_error() {
+                Some(code) if code == ERROR_HANDLE_EOF as i32 => return Ok(names),
+                Some(code) if code == ERROR_MORE_DATA as i32 => {
+                    grow_name_buffer(&mut buffer, length)?
+                }
+                _ => return Err(error.into()),
+            }
+        }
+    }
+}
+
+#[cfg(windows)]
+fn grow_name_buffer(buffer: &mut Vec<u16>, required: u32) -> Result<()> {
+    let required = required as usize;
+    if required <= buffer.len() || required > 32768 {
+        return Err(crate::Error::Invalid(
+            "Invalid native filename buffer length.".into(),
+        ));
+    }
+    buffer.resize(required, 0);
+    Ok(())
+}

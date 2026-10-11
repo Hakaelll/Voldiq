@@ -12,6 +12,8 @@ USN records provide identity, parent and names; they do not supply logical or al
 
 ## Verification limits
 
+Native hard-link enumeration preserves UTF-16 names, grows bounded buffers for long paths and closes search handles on every exit. A real two-name fixture with a Unicode path longer than 260 characters verifies both aliases and their shared identity. Handle-based final-path resolution is also verified. These helpers are ready for index integration; they do not change the scan method by themselves.
+
 Four parser and continuity tests pass. The actual host probe reports raw-volume access denied. The conventional temporary fixture still scans correctly. Elevated NTFS enumeration, hierarchy integration, hard-link alias coverage, journal application and volume performance comparison remain pending. The native scan command currently uses directory enumeration.
 
 The next integration stage must retain live partial results, distinguish unsupported capability from indexing errors, and fall back before publishing unrelated IDs. Incomplete or changed journal coverage must never label an old index current.

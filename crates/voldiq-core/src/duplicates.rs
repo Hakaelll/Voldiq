@@ -214,15 +214,16 @@ pub fn find(
 }
 
 fn open_content(path: &Path) -> Result<File> {
+    validate_content_metadata(&std::fs::symlink_metadata(path)?)?;
     let mut options = OpenOptions::new();
     options.read(true);
     #[cfg(windows)]
     {
         use std::os::windows::fs::OpenOptionsExt;
         use windows_sys::Win32::Storage::FileSystem::*;
-        options
-            .share_mode(FILE_SHARE_READ)
-            .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_SEQUENTIAL_SCAN);
+        options.share_mode(FILE_SHARE_READ).custom_flags(
+            FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_OPEN_NO_RECALL | FILE_FLAG_SEQUENTIAL_SCAN,
+        );
     }
     #[cfg(unix)]
     {
@@ -230,13 +231,22 @@ fn open_content(path: &Path) -> Result<File> {
         options.custom_flags(libc::O_NOFOLLOW);
     }
     let file = options.open(path)?;
-    let metadata = file.metadata()?;
-    if !metadata.is_file() || windows::is_reparse(&metadata) {
+    validate_content_metadata(&file.metadata()?)?;
+    Ok(file)
+}
+
+fn validate_content_metadata(metadata: &std::fs::Metadata) -> Result<()> {
+    if windows::requires_recall(metadata) {
+        return Err(Error::Invalid(
+            "Offline file excluded from content reads.".into(),
+        ));
+    }
+    if !metadata.is_file() || windows::is_reparse(metadata) {
         return Err(Error::Invalid(
             "Reparse points and non-files are excluded from content reads.".into(),
         ));
     }
-    Ok(file)
+    Ok(())
 }
 
 fn stamp(file: &File) -> Result<(Stamp, windows::FileIdentity)> {
