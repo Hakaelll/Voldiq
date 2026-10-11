@@ -17,6 +17,8 @@ The Rust integration tests create temporary fixtures. They check real size aggre
 
 The treemap test checks 100 measured rectangle areas, pairwise non-overlap and viewport bounds. It also checks empty and invalid inputs.
 
+Five duplicate tests verify full BLAKE3 content, matching samples with different middle bytes, unique-size exclusion, sample-only rejection, validated hash reuse, same-size changes, hard-link deduplication, locked and vanished files, and cancellation before full hashing. All data is generated in temporary fixtures.
+
 ## Manual application checks
 
 ```powershell

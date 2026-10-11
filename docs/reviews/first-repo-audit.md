@@ -6,6 +6,8 @@ The audit read the entry points, build configuration, dependency manifests, scan
 
 ## Must fix before complete-product release
 
+Update: findings 1 and 4 are resolved by shared partial-index publication and frontend request generations. Native populated interaction and large-query workload checks remain open. Duplicate hashing now has five real-filesystem tests; cleanup, snapshots, NTFS and distribution remain pending.
+
 1. **Working scan results are not queryable yet** (`crates/voldiq-core/src/scanner.rs`, `src-tauri/src/main.rs`). A long scan reports counts, but the index reaches the interface only after completion or cancellation. Add a bounded partial-query publication mechanism and test the real command flow. Otherwise the requested partial explorer workflow remains unavailable.
 
 2. **The main native interaction flow is not validated yet** (`frontend/App.svelte`, `src-tauri/src/main.rs`). The executable launches, engine fixtures pass and the browser shows initial states. A real scan must still be driven through the native UI to check map selection, navigation, scrolling, search and Explorer reveal. Otherwise a command or state bug could escape the engine-only tests.

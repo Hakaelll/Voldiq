@@ -7,6 +7,7 @@ pub struct Index {
     pub entries: Vec<Entry>,
     pub issues: Vec<Issue>,
     pub error_count: u64,
+    pub native_names: std::collections::HashMap<NodeId, std::ffi::OsString>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -51,6 +52,7 @@ pub struct Page {
 pub struct Details {
     pub entry: Entry,
     pub path: String,
+    pub path_exact: bool,
     pub ancestors: Vec<Entry>,
 }
 
@@ -72,7 +74,12 @@ impl Index {
         let mut names = Vec::new();
         let mut node = self.entry(id)?;
         while let Some(parent) = node.parent {
-            names.push(&node.name);
+            names.push(
+                self.native_names
+                    .get(&node.id)
+                    .map(|name| name.as_os_str())
+                    .unwrap_or_else(|| std::ffi::OsStr::new(&node.name)),
+            );
             node = self.entry(parent)?;
         }
         let mut path = self.root.clone();
@@ -92,9 +99,11 @@ impl Index {
             parent = node.parent;
         }
         ancestors.reverse();
+        let path = self.path(id)?;
         Ok(Details {
             entry,
-            path: self.path(id)?.to_string_lossy().into_owned(),
+            path: path.to_string_lossy().into_owned(),
+            path_exact: path.to_str().is_some(),
             ancestors,
         })
     }

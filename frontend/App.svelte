@@ -4,6 +4,7 @@
   import Icon from './components/Icon.svelte';
   import Treemap from './components/Treemap.svelte';
   import FileTable from './components/FileTable.svelte';
+  import Duplicates from './components/Duplicates.svelte';
   import {
     bytes,
     date,
@@ -16,11 +17,12 @@
     type Query,
     type Volume,
   } from './lib/types';
-  type View = 'overview' | 'explorer' | 'large' | 'settings';
+  type View = 'overview' | 'explorer' | 'large' | 'duplicates' | 'settings';
   const navigation: { id: View; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: 'overview' },
     { id: 'explorer', label: 'Explorer', icon: 'folder' },
     { id: 'large', label: 'Large files', icon: 'large' },
+    { id: 'duplicates', label: 'Duplicates', icon: 'duplicate' },
   ];
   let view = $state<View>('overview');
   let expanded = $state(true);
@@ -51,8 +53,9 @@
   let search: HTMLInputElement;
   let refreshToken = 0;
   let interactionToken = 0;
+  let analysisBusy = $state(false);
   let volume = $derived(volumes.find((v) => v.path === volumePath));
-  let busy = $derived(operation?.phase === 'scanning');
+  let busy = $derived(operation?.phase === 'scanning' || analysisBusy);
   let query = $derived<Query>({
     ...(view === 'large' || text ? { scope } : { parent: scope }),
     text,
@@ -212,7 +215,7 @@
   async function cancel(): Promise<void> {
     if (scanId !== null)
       try {
-        await invoke('cancel_scan', { id: scanId });
+        await invoke('cancel_operation', { id: scanId });
       } catch (problem) {
         report(problem);
       }
@@ -226,7 +229,7 @@
       }
   }
   async function copy(): Promise<void> {
-    if (details)
+    if (details?.path_exact)
       try {
         await navigator.clipboard.writeText(details.path);
       } catch (problem) {
@@ -325,6 +328,7 @@
       {#each navigation as item}<button
           class:active={view === item.id}
           title={item.label}
+          disabled={analysisBusy}
           aria-label={item.label}
           aria-current={view === item.id ? 'page' : undefined}
           onclick={() => {
@@ -345,6 +349,7 @@
         </div>{/if}<button
         class:active={view === 'settings'}
         title="Settings"
+        disabled={analysisBusy}
         aria-label="Settings"
         onclick={() => {
           view = 'settings';
@@ -375,7 +380,7 @@
           bind:value={text}
           placeholder="Search files and folders"
           aria-label="Search files and folders"
-          disabled={!ready || view === 'settings'}
+          disabled={!ready || view === 'settings' || view === 'duplicates'}
         /><kbd>Ctrl K</kbd>
       </div>
     </header>
@@ -389,7 +394,9 @@
                 ? 'Explorer'
                 : view === 'large'
                   ? 'Large files'
-                  : 'Settings'}
+                  : view === 'duplicates'
+                    ? 'Duplicates'
+                    : 'Settings'}
           </h1>
           {#if view !== 'settings' && scanPath}<p>{scanPath}</p>{/if}
         </div>
@@ -408,7 +415,10 @@
             }}><Icon name="close" /></button
           >
         </div>{/if}
-      {#if operation && view !== 'settings'}<div class="scan-status" aria-live="polite">
+      {#if operation && view !== 'settings' && view !== 'duplicates'}<div
+          class="scan-status"
+          aria-live="polite"
+        >
           <span class:working={busy} class="status-dot"></span><span
             >{busy
               ? 'Scanning'
@@ -458,7 +468,10 @@
           >
         </section>
       {:else}
-        {#if volume}<section class="capacity-strip" aria-label="Volume capacity">
+        {#if volume && view !== 'duplicates'}<section
+            class="capacity-strip"
+            aria-label="Volume capacity"
+          >
             <div><span>Total capacity</span><strong>{bytes(volume.total)}</strong></div>
             <div>
               <span>Used on volume</span><strong>{bytes(volume.total - volume.free)}</strong><small
@@ -480,7 +493,7 @@
               >
             </div>
           </section>{/if}
-        {#if !ready}<section class="welcome">
+        {#if !ready && view !== 'duplicates'}<section class="welcome">
             <div class="welcome-art">
               <img src="/symbol.png" alt="Voldiq logo" width="72" height="72" />
             </div>
@@ -497,20 +510,21 @@
             </div>
           </section>
         {:else}
-          <div class="breadcrumbs">
-            <button title="Scan root" onclick={() => open(0)}><Icon name="disk" />Scan root</button
-            >{#each directory?.ancestors.filter((entry) => entry.id !== 0) ?? [] as ancestor}<Icon
-                name="expand"
-                size={12}
-              /><button onclick={() => open(ancestor.id)}>{ancestor.name}</button
-              >{/each}{#if directory && scope !== 0}<Icon name="expand" size={12} /><span
-                >{directory.entry.name}</span
-              >{/if}{#if directory?.entry.parent !== null && directory?.entry.parent !== undefined}<button
-                class="back-button"
-                onclick={() => open(directory?.entry.parent ?? 0)}
-                ><Icon name="back" />Parent folder</button
-              >{/if}
-          </div>
+          {#if ready}<div class="breadcrumbs">
+              <button title="Scan root" onclick={() => open(0)}
+                ><Icon name="disk" />Scan root</button
+              >{#each directory?.ancestors.filter((entry) => entry.id !== 0) ?? [] as ancestor}<Icon
+                  name="expand"
+                  size={12}
+                /><button onclick={() => open(ancestor.id)}>{ancestor.name}</button
+                >{/each}{#if directory && scope !== 0}<Icon name="expand" size={12} /><span
+                  >{directory.entry.name}</span
+                >{/if}{#if directory?.entry.parent !== null && directory?.entry.parent !== undefined}<button
+                  class="back-button"
+                  onclick={() => open(directory?.entry.parent ?? 0)}
+                  ><Icon name="back" />Parent folder</button
+                >{/if}
+            </div>{/if}
           {#if directory?.entry.incomplete}<div class="notice">Incomplete coverage</div>{/if}
           {#if view === 'overview'}<div class="overview-grid">
               <section class="panel map-panel">
@@ -594,6 +608,22 @@
                   >{/each}
               </div>
             </section>
+          {:else if view === 'duplicates'}
+            <Duplicates
+              {scope}
+              enabled={ready && !busy}
+              onbusy={(value) => {
+                analysisBusy = value;
+              }}
+              onselect={(id) => {
+                void select(id);
+              }}
+              onissues={(items) => {
+                issues = items;
+                showIssues = true;
+              }}
+              onerror={report}
+            />
           {:else}<section class="panel explorer-panel">
               <div class="filter-bar">
                 <label>Extension<input bind:value={extension} placeholder="All extensions" /></label
@@ -664,11 +694,15 @@
               </dl>
               <div class="detail-actions">
                 <button onclick={reveal}><Icon name="external" />Show in Explorer</button><button
-                  onclick={copy}><Icon name="copy" />Copy path</button
+                  onclick={copy}
+                  disabled={!details.path_exact}
+                  title={details.path_exact ? 'Copy path' : 'Path contains non-Unicode characters'}
+                  ><Icon name="copy" />Copy path</button
                 >{#if details.entry.kind === 'directory'}<button
                     onclick={() => {
                       void open(details?.entry.id ?? 0);
-                    }}><Icon name="folder" />Explore folder</button
+                    }}
+                    disabled={analysisBusy}><Icon name="folder" />Explore folder</button
                   >{/if}
               </div>
             </section>{/if}

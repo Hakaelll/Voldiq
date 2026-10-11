@@ -26,6 +26,12 @@ After live partial-index publication, the same 10,000-file benchmark measured 1,
 
 The first production build produces approximately 70.01 kB of JavaScript and 13.20 kB of CSS, or 27.11 kB and 3.35 kB respectively after gzip. Local logo files are separate. These are frontend bundle sizes, not executable or installer sizes.
 
+## Duplicate fixture
+
+`cargo run --release -p voldiq-core --example duplicate_benchmark` creates 200 real 64 KiB files in four content groups. Their sampled first and last blocks match, while middle bytes distinguish the four groups; full BLAKE3 verification is therefore required. Both passes check four groups, 200 member files and zero errors. On this host the first pass took 266.486 ms and read 14,745,600 bytes. The second pass took 19.845 ms, reused 200 validated hashes and read zero content bytes. Metadata was still checked through newly opened handles.
+
+The fixture was just written, cache conditions are warm, and only two passes were measured. This demonstrates effective content-read avoidance for unchanged files, not a general throughput or speedup claim.
+
 ## Measurement plan
 
 The pending performance gate includes million-file workloads, broad and deep directory shapes, query latency during indexing, NTFS versus fallback scans, hard-link and sparse-file accuracy, total application memory, cold and warm startup, idle CPU, cancellation latency and Canvas frame times. No 60 FPS or sub-two-second startup guarantee has been validated yet.

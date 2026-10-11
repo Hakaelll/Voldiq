@@ -6,6 +6,31 @@ use std::{
 use voldiq_core::{Kind, ScanOptions, scanner::scan};
 
 #[test]
+fn unpaired_utf16_names_keep_the_original_native_path() {
+    use std::os::windows::ffi::OsStringExt;
+    let dir = tempfile::tempdir().unwrap();
+    let name = std::ffi::OsString::from_wide(&[b'a' as u16, 0xd800, b'b' as u16]);
+    let native = dir.path().join(name);
+    std::fs::write(&native, [1; 17]).unwrap();
+    let index = scan(
+        dir.path(),
+        &ScanOptions::default(),
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    let item = index
+        .entries
+        .iter()
+        .find(|entry| entry.kind == Kind::File)
+        .unwrap();
+    let path = index.path(item.id).unwrap();
+    assert_eq!(std::fs::read(path).unwrap(), vec![1; 17]);
+    assert!(!index.details(item.id).unwrap().path_exact);
+    assert_eq!(index.native_names.len(), 1);
+}
+
+#[test]
 fn deep_long_paths_preserve_totals() {
     let root = tempfile::tempdir().unwrap();
     let mut path = std::fs::canonicalize(root.path()).unwrap();

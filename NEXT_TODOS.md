@@ -8,7 +8,7 @@ Voldiq is under active development. A task becomes DONE only after its acceptanc
 | V02 | Native volumes and conventional scan | P0 | IN_PROGRESS | V01 | Real fixtures, cancellation, errors, links, aggregation, bounded queries, partial results, calibrated concurrency | crates/voldiq-core |
 | V03 | NTFS enumeration and metadata | P0 | TODO | V02 | Validated binary records, fallback, volume comparison benchmark | crates/voldiq-core/src/ntfs.rs |
 | V04 | Visual explorer and search | P0 | IN_PROGRESS | V02 | Canvas navigation, virtual rows, real IPC data, keyboard navigation | frontend |
-| V05 | Large files and duplicates | P1 | TODO | V02 | Filters, BLAKE3 content verification, cancellation, hard-link handling | crates/voldiq-core |
+| V05 | Large files and duplicates | P1 | IN_PROGRESS | V02 | Filters, BLAKE3 content verification, cancellation, hard-link handling, reviewed selections, native interaction | crates/voldiq-core, frontend/components/Duplicates.svelte |
 | V06 | Safe cleanup and developer storage | P0 | TODO | V05 | Preview, exclusions, identity validation, confirmation, controlled fixture execution | crates/voldiq-core |
 | V07 | Persistent snapshots | P1 | TODO | V02 | SQLite transaction, restart, additions/deletions/growth comparison | crates/voldiq-core |
 | V08 | Incremental NTFS index | P1 | TODO | V03, V07 | Journal continuity validation and full resynchronization | crates/voldiq-core |
@@ -29,3 +29,9 @@ The frontend includes a real command bridge, custom map, virtual explorer, searc
 Live partial queries now share one Rust index and update ancestor totals on insertion. A seventh Rust test checks live reads, partial totals and cancellation. Visible UI copy was reduced at the user's request. The updated benchmark is slower; its measured values and uncertainty are recorded in `docs/PERFORMANCE.md`.
 
 Next: validate native IPC on controlled fixtures, calibrate scanner concurrency, and implement NTFS enumeration with metadata acquisition and explicit fallback. Duplicate analysis, cleanup, snapshots, incremental indexing and distribution remain open.
+
+## Duplicate analysis delivery
+
+The real BLAKE3 engine filters unique sizes, samples at most 8 KiB, verifies complete content, reuses stamps validated with file identity, modification time and native change time, and reports locked or vanished files. Five tests cover matching samples with different middle content, cache reuse and invalidation, hard links, unique sizes, sampling, cancellation and locked files. Duplicate groups and members cross IPC in bounded pages. Duplicate results retain their original index to avoid reinterpreting IDs after a rescan.
+
+The duplicate view uses minimal labels and measured data. Management selection, confirmation and recycling remain part of the safe-cleanup work; no deletion command is exposed yet. Native populated interactions and cross-volume fixtures remain open.

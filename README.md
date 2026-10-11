@@ -5,7 +5,7 @@
 
 Voldiq maps the files on a drive or in a folder so you can understand where space goes. Its Rust engine owns the filesystem index; a compact Svelte interface requests bounded pages and draws a custom Canvas treemap.
 
-> **Development status:** Voldiq is under active construction. The current source includes real volume discovery, conventional scanning, size aggregation, search, a virtual file list and a proportional treemap. The complete product acceptance checklist remains open. See [NEXT_TODOS.md](NEXT_TODOS.md).
+> **Development status:** Voldiq is under active construction. The current source includes real volume discovery, live conventional scanning, search, a virtual file list, a proportional treemap and BLAKE3 duplicate analysis. The complete product acceptance checklist remains open. See [NEXT_TODOS.md](NEXT_TODOS.md).
 
 ## Principles
 
@@ -54,6 +54,12 @@ The conventional scanner walks directories iteratively. It tolerates inaccessibl
 Logical size includes each visible hard-link name. Unique allocated size counts a file identity once across the scan. Allocation within an individual folder therefore reflects the link encountered first. Windows volume usage includes metadata and inaccessible or unindexed content; it should not equal the logical total.
 
 Progress reports actual file counts and bytes. Partial results can be explored while scanning; cancellation retains the measured index. No estimated percentage appears when the total is unknown. The initial index has a five-million-entry limit. Reaching the limit yields explicitly incomplete results.
+
+## Duplicate analysis
+
+Duplicate discovery groups indexed files by size, samples at most 8 KiB and verifies matching content with complete BLAKE3 hashes. Locked, changed and vanished files produce reported issues. Hard links to the same file identity are represented once. Repeated analysis reuses hashes only after validating file identity, size, modification time and native change time.
+
+Potential allocation conservatively retains the largest independently allocated copy. Files with multiple hard links contribute no reclaimable estimate, because links may exist outside the scan. This estimate does not imply that moving files to the Recycle Bin frees volume space. Selection and recycling are still pending.
 
 ## Project documentation
 

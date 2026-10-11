@@ -71,6 +71,7 @@ pub fn scan_live(
         }],
         issues: Vec::new(),
         error_count: 0,
+        native_names: Default::default(),
     }));
     publish(shared.clone());
     let start = Instant::now();
@@ -197,6 +198,10 @@ pub fn scan_live(
             }
             let mut index = shared.write().map_err(|e| Error::Invalid(e.to_string()))?;
             entry.id = NodeId(index.entries.len() as u32);
+            let native_name = item.file_name();
+            if native_name.to_str().is_none() {
+                index.native_names.insert(entry.id, native_name);
+            }
             if kind == Kind::Directory {
                 stack.push((path, entry.id));
             }

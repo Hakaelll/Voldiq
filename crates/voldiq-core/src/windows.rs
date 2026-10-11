@@ -17,6 +17,7 @@ pub struct FileIdentity {
     pub key: (u64, u64),
     pub allocated: u64,
     pub links: u32,
+    pub change_time: u64,
 }
 
 #[cfg(windows)]
@@ -43,17 +44,39 @@ pub fn identity(path: &Path) -> Result<FileIdentity> {
         if handle == INVALID_HANDLE_VALUE {
             return Err(std::io::Error::last_os_error().into());
         }
+        let result = handle_identity(handle);
+        CloseHandle(handle);
+        result
+    }
+}
+
+#[cfg(windows)]
+pub fn file_identity(file: &std::fs::File) -> Result<FileIdentity> {
+    use std::os::windows::io::AsRawHandle;
+    handle_identity(file.as_raw_handle())
+}
+
+#[cfg(windows)]
+fn handle_identity(handle: windows_sys::Win32::Foundation::HANDLE) -> Result<FileIdentity> {
+    use windows_sys::Win32::Storage::FileSystem::*;
+    unsafe {
         let mut info: BY_HANDLE_FILE_INFORMATION = std::mem::zeroed();
         let mut standard: FILE_STANDARD_INFO = std::mem::zeroed();
+        let mut basic: FILE_BASIC_INFO = std::mem::zeroed();
         let ok = GetFileInformationByHandle(handle, &mut info) != 0
             && GetFileInformationByHandleEx(
                 handle,
                 FileStandardInfo,
                 &mut standard as *mut _ as *mut _,
                 std::mem::size_of_val(&standard) as u32,
+            ) != 0
+            && GetFileInformationByHandleEx(
+                handle,
+                FileBasicInfo,
+                &mut basic as *mut _ as *mut _,
+                std::mem::size_of_val(&basic) as u32,
             ) != 0;
         let error = std::io::Error::last_os_error();
-        CloseHandle(handle);
         if !ok {
             return Err(error.into());
         }
@@ -64,6 +87,7 @@ pub fn identity(path: &Path) -> Result<FileIdentity> {
             ),
             allocated: standard.AllocationSize.max(0) as u64,
             links: info.nNumberOfLinks,
+            change_time: basic.ChangeTime as u64,
         })
     }
 }
@@ -76,6 +100,23 @@ pub fn identity(path: &Path) -> Result<FileIdentity> {
         key: (metadata.dev(), metadata.ino()),
         allocated: metadata.blocks() * 512,
         links: metadata.nlink() as u32,
+        change_time: (metadata.ctime() as u64)
+            .wrapping_mul(1_000_000_000)
+            .wrapping_add(metadata.ctime_nsec() as u64),
+    })
+}
+
+#[cfg(unix)]
+pub fn file_identity(file: &std::fs::File) -> Result<FileIdentity> {
+    use std::os::unix::fs::MetadataExt;
+    let metadata = file.metadata()?;
+    Ok(FileIdentity {
+        key: (metadata.dev(), metadata.ino()),
+        allocated: metadata.blocks() * 512,
+        links: metadata.nlink() as u32,
+        change_time: (metadata.ctime() as u64)
+            .wrapping_mul(1_000_000_000)
+            .wrapping_add(metadata.ctime_nsec() as u64),
     })
 }
 

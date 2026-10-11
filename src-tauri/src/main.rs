@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use serde::Serialize;
 use std::{
     path::PathBuf,
     sync::{
@@ -10,6 +11,7 @@ use std::{
 use tauri::{State, ipc::Channel};
 use voldiq_core::{
     NodeId, Progress, ScanOptions, ScanPhase,
+    duplicates::{self, Analysis, HashCache},
     index::{Details, FileType, Page, Query},
     scanner::{self, SharedIndex},
     windows::Volume,
@@ -20,9 +22,26 @@ struct Engine {
     index: Mutex<Option<SharedIndex>>,
     active: Mutex<Option<(u64, Arc<AtomicBool>)>>,
     sequence: AtomicU64,
+    duplicates: Mutex<Option<Arc<DuplicateRun>>>,
+    hash_cache: Mutex<HashCache>,
+}
+
+struct DuplicateRun {
+    index: SharedIndex,
+    analysis: Analysis,
 }
 
 impl Engine {
+    fn begin(&self) -> Result<(u64, Arc<AtomicBool>), String> {
+        let mut active = self.active.lock().map_err(|e| e.to_string())?;
+        if active.is_some() {
+            return Err("Another analysis is running.".into());
+        }
+        let id = self.sequence.fetch_add(1, Ordering::Relaxed) + 1;
+        let cancel = Arc::new(AtomicBool::new(false));
+        *active = Some((id, cancel.clone()));
+        Ok((id, cancel))
+    }
     fn index(&self) -> Result<SharedIndex, String> {
         self.index
             .lock()
@@ -59,14 +78,9 @@ fn start_scan(
     engine: State<'_, Arc<Engine>>,
 ) -> Result<u64, String> {
     let engine = engine.inner().clone();
-    let id = engine.sequence.fetch_add(1, Ordering::Relaxed) + 1;
-    let cancel = Arc::new(AtomicBool::new(false));
-    {
-        let mut active = engine.active.lock().map_err(|e| e.to_string())?;
-        if active.is_some() {
-            return Err("A scan is already running. Cancel it or wait for it to finish.".into());
-        }
-        *active = Some((id, cancel.clone()));
+    let (id, cancel) = engine.begin()?;
+    if let Ok(mut result) = engine.duplicates.lock() {
+        *result = None;
     }
     tauri::async_runtime::spawn_blocking(move || {
         let mut final_progress = None;
@@ -116,13 +130,198 @@ fn start_scan(
 }
 
 #[tauri::command]
-fn cancel_scan(id: u64, engine: State<'_, Arc<Engine>>) -> Result<(), String> {
+fn cancel_operation(id: u64, engine: State<'_, Arc<Engine>>) -> Result<(), String> {
     if let Some((active, cancel)) = &*engine.active.lock().map_err(|e| e.to_string())?
         && *active == id
     {
         cancel.store(true, Ordering::Relaxed);
     }
     Ok(())
+}
+
+#[tauri::command]
+fn start_duplicates(
+    scope: NodeId,
+    min_size: u64,
+    progress: Channel<duplicates::Progress>,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<u64, String> {
+    let engine = engine.inner().clone();
+    let index = engine.index()?;
+    index
+        .read()
+        .map_err(|e| e.to_string())?
+        .entry(scope)
+        .map_err(|e| e.to_string())?;
+    let (id, cancel) = engine.begin()?;
+    if let Ok(mut result) = engine.duplicates.lock() {
+        *result = None;
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut terminal = None;
+        let result = engine
+            .hash_cache
+            .lock()
+            .map_err(|e| e.to_string())
+            .and_then(|mut cache| {
+                duplicates::find(&index, scope, min_size, &cancel, &mut cache, |update| {
+                    if update.phase == "complete" || update.phase == "cancelled" {
+                        terminal = Some(update);
+                    } else {
+                        let _ = progress.send(update);
+                    }
+                })
+                .map_err(|e| e.to_string())
+            });
+        let error = match result {
+            Ok(result) => match engine.duplicates.lock() {
+                Ok(mut slot) => {
+                    *slot = Some(Arc::new(DuplicateRun {
+                        index,
+                        analysis: result,
+                    }));
+                    None
+                }
+                Err(error) => Some(error.to_string()),
+            },
+            Err(error) => Some(error),
+        };
+        if let Ok(mut active) = engine.active.lock() {
+            *active = None;
+        }
+        if let Some(message) = error {
+            let _ = progress.send(duplicates::Progress {
+                phase: "failed".into(),
+                examined: 0,
+                candidates: 0,
+                bytes_read: 0,
+                cache_hits: 0,
+                errors: 1,
+                elapsed_ms: 0,
+                message,
+            });
+        } else if let Some(update) = terminal {
+            let _ = progress.send(update);
+        }
+    });
+    Ok(id)
+}
+
+#[derive(Serialize)]
+struct DuplicateGroup {
+    key: usize,
+    digest: String,
+    logical: u64,
+    recoverable: u64,
+    copies: usize,
+}
+
+#[derive(Serialize)]
+struct DuplicatePage {
+    groups: Vec<DuplicateGroup>,
+    total: usize,
+    recoverable: u64,
+    errors: u64,
+    cancelled: bool,
+    bytes_read: u64,
+    cache_hits: u64,
+}
+
+#[tauri::command]
+fn query_duplicate_groups(
+    offset: usize,
+    limit: usize,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<DuplicatePage>, String> {
+    let result = engine.duplicates.lock().map_err(|e| e.to_string())?.clone();
+    Ok(result.map(|run| {
+        let result = &run.analysis;
+        DuplicatePage {
+            groups: result
+                .groups
+                .iter()
+                .enumerate()
+                .skip(offset)
+                .take(limit.clamp(1, 100))
+                .map(|(key, group)| DuplicateGroup {
+                    key,
+                    digest: group.digest.clone(),
+                    logical: group.logical,
+                    recoverable: group.recoverable,
+                    copies: group.members.len(),
+                })
+                .collect(),
+            total: result.groups.len(),
+            recoverable: result.groups.iter().map(|g| g.recoverable).sum(),
+            errors: result.errors,
+            cancelled: result.cancelled,
+            bytes_read: result.bytes_read,
+            cache_hits: result.cache_hits,
+        }
+    }))
+}
+
+#[derive(Serialize)]
+struct DuplicateItem {
+    id: NodeId,
+    name: String,
+    path: String,
+    logical: u64,
+    allocated: u64,
+    links: u32,
+}
+
+#[tauri::command]
+async fn query_duplicate_members(
+    group: usize,
+    offset: usize,
+    limit: usize,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Vec<DuplicateItem>, String> {
+    let result = engine
+        .duplicates
+        .lock()
+        .map_err(|e| e.to_string())?
+        .clone()
+        .ok_or("Analyze duplicates first.")?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let group = result
+            .analysis
+            .groups
+            .get(group)
+            .ok_or("Duplicate group is no longer available.")?;
+        let index = result.index.read().map_err(|e| e.to_string())?;
+        group
+            .members
+            .iter()
+            .skip(offset)
+            .take(limit.clamp(1, 200))
+            .map(|member| {
+                let details = index.details(member.id).map_err(|e| e.to_string())?;
+                Ok(DuplicateItem {
+                    id: member.id,
+                    name: details.entry.name,
+                    path: details.path,
+                    logical: group.logical,
+                    allocated: member.allocated,
+                    links: member.links,
+                })
+            })
+            .collect()
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn get_duplicate_issues(engine: State<'_, Arc<Engine>>) -> Result<Vec<voldiq_core::Issue>, String> {
+    Ok(engine
+        .duplicates
+        .lock()
+        .map_err(|e| e.to_string())?
+        .as_ref()
+        .map(|result| result.analysis.issues.clone())
+        .unwrap_or_default())
 }
 
 #[tauri::command]
@@ -189,8 +388,10 @@ async fn reveal_item(id: NodeId, engine: State<'_, Arc<Engine>>) -> Result<(), S
         .path(id)
         .map_err(|e| e.to_string())?;
     tauri::async_runtime::spawn_blocking(move || {
+        let mut argument = std::ffi::OsString::from("/select,");
+        argument.push(path.as_os_str());
         std::process::Command::new("explorer.exe")
-            .arg(format!("/select,{}", path.display()))
+            .arg(argument)
             .spawn()
             .map(|_| ())
             .map_err(|e| e.to_string())
@@ -206,7 +407,11 @@ fn main() {
             get_volumes,
             choose_folder,
             start_scan,
-            cancel_scan,
+            cancel_operation,
+            start_duplicates,
+            query_duplicate_groups,
+            query_duplicate_members,
+            get_duplicate_issues,
             query_files,
             get_details,
             get_file_types,

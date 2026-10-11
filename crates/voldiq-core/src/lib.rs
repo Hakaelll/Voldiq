@@ -1,3 +1,4 @@
+pub mod duplicates;
 pub mod index;
 pub mod scanner;
 pub mod windows;

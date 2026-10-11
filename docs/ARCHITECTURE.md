@@ -14,13 +14,19 @@ The initial query implementation filters and sorts the in-memory index. This is 
 
 ## Desktop adapter
 
-Tauri exposes only volume discovery, native folder selection, scanning, cancellation, bounded queries, details, file types, scan issues and Explorer reveal. No arbitrary frontend filesystem API or shell command is exposed.
+Tauri exposes volume discovery, native folder selection, scanning, cancellation, bounded index and duplicate queries, details, file types, analysis issues and Explorer reveal. No arbitrary frontend filesystem API or shell command is exposed.
 
 Scanning and queries run in background tasks. The engine publishes one shared index behind `Arc<RwLock<Index>>` before initial progress. Filesystem calls happen outside the write lock; inserting entries and updating ancestors uses a short write section. Queries hold a read guard and return bounded results. The interface refreshes measured partial results at most once per second, plus terminal progress, without polling. A second scan cannot start until the first releases the active operation slot.
 
 ## Interface
 
 Svelte owns interaction state, preferences and bounded query results. A custom squarified treemap redraws when geometry, selection or hover changes. There is no persistent animation loop or idle polling. Layout uses Windows system fonts and local artwork.
+
+## Duplicate analysis
+
+`duplicates` filters unique sizes before content reads, samples the first and last 4 KiB for large files, and fully hashes matching samples with a reusable 64 KiB buffer. Small files are read once. Candidate identities exclude hard-link aliases. Windows content handles allow shared readers while excluding writers and deletion, and do not follow final reparse points. Cache stamps include identity, length, modification time and native change time. Hashing validates the opened handle again after reading. Cancellation is checked between candidates and buffer reads.
+
+Duplicate results retain the exact shared scan index that produced their IDs. Groups and members use bounded pages. One active-operation slot prevents scanning and hashing from competing. The in-memory cache has a 250,000-identity cap; persistence remains a snapshot-store task.
 
 ## Pending architecture work
 

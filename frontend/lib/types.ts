@@ -16,6 +16,7 @@ export interface Details {
   entry: Entry;
   path: string;
   ancestors: Entry[];
+  path_exact: boolean;
 }
 export interface Volume {
   path: string;
@@ -59,6 +60,41 @@ export interface Query {
   sort?: string;
   offset?: number;
   limit?: number;
+}
+
+export interface DuplicateProgress {
+  phase: 'sampling' | 'hashing' | 'complete' | 'cancelled' | 'failed';
+  examined: number;
+  candidates: number;
+  bytes_read: number;
+  cache_hits: number;
+  errors: number;
+  elapsed_ms: number;
+  message: string;
+}
+export interface DuplicateGroup {
+  key: number;
+  logical: number;
+  recoverable: number;
+  copies: number;
+  digest: string;
+}
+export interface DuplicatePage {
+  groups: DuplicateGroup[];
+  total: number;
+  recoverable: number;
+  errors: number;
+  cancelled: boolean;
+  bytes_read: number;
+  cache_hits: number;
+}
+export interface DuplicateItem {
+  id: NodeId;
+  name: string;
+  path: string;
+  logical: number;
+  allocated: number;
+  links: number;
 }
 
 export function bytes(value: number): string {
