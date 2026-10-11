@@ -5,6 +5,12 @@ use serde::{Deserialize, Serialize};
 mod volume;
 #[cfg(windows)]
 pub use volume::VolumeReader;
+#[cfg(windows)]
+mod indexing;
+#[cfg(windows)]
+pub use indexing::populate;
+#[cfg(windows)]
+pub(crate) use indexing::try_scan;
 
 #[derive(Debug)]
 pub struct Record {

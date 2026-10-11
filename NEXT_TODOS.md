@@ -51,3 +51,7 @@ The Windows reader opens an existing NTFS volume read-only, queries its journal,
 The host probe returned access denied for the raw NTFS volume. Its conventional two-hard-link fixture passed. No elevation or journal modification was attempted. Integration of NTFS records into the live index, complete hard-link name enumeration, persistent journal checkpoints and elevated-drive comparison remain open.
 
 Native alias enumeration and final-path helpers now pass a real Unicode long-path fixture. Duplicate hashing excludes offline and recall-marked content; a Windows offline-attribute fixture verifies zero bytes read. All 26 core tests and strict workspace Clippy pass. Index integration remains pending.
+
+## NTFS index integration
+
+Drive-root scans now attempt the read-only NTFS path; unsupported capability and bounded enumeration fall back before non-root IDs are published. Native metadata populates parent-first directories and all hard-link aliases. Five integration tests cover real size parity, an excluded primary hard-link name, unique allocation, changed identities, unresolved parents, malformed names, limits, cancellation and bounded volume fallback. Raw enumeration on an elevated drive, journal replay, checkpoint persistence and volume performance comparison remain open. The source reviewer could not run because its account usage limit was reached; source review and functional checks were performed directly.

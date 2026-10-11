@@ -88,6 +88,10 @@ pub fn scan_live(
         .max_entries
         .unwrap_or(5_000_000)
         .clamp(1, u32::MAX as usize);
+    #[cfg(windows)]
+    if crate::ntfs::try_scan(&shared, limit, cancel, &mut progress, start)? {
+        return Ok(shared);
+    }
     progress(Progress {
         phase: ScanPhase::Scanning,
         entries: 1,
@@ -254,7 +258,7 @@ pub fn scan_live(
     Ok(shared)
 }
 
-fn modified(metadata: &std::fs::Metadata) -> Option<u64> {
+pub(crate) fn modified(metadata: &std::fs::Metadata) -> Option<u64> {
     metadata
         .modified()
         .ok()?
@@ -263,7 +267,7 @@ fn modified(metadata: &std::fs::Metadata) -> Option<u64> {
         .map(|duration| duration.as_secs())
 }
 
-fn issue(index: &mut Index, parent: NodeId, path: &Path, message: String) {
+pub(crate) fn issue(index: &mut Index, parent: NodeId, path: &Path, message: String) {
     index.error_count += 1;
     let mut next = Some(parent);
     while let Some(id) = next {
