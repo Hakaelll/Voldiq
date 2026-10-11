@@ -8,7 +8,10 @@ use std::{
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
 };
+use tauri::Manager;
 use tauri::{State, ipc::Channel};
+mod snapshot_commands;
+use snapshot_commands::*;
 use voldiq_core::{
     NodeId, Progress, ScanOptions, ScanPhase,
     duplicates::{self, Analysis, HashCache},
@@ -402,6 +405,12 @@ async fn reveal_item(id: NodeId, engine: State<'_, Arc<Engine>>) -> Result<(), S
 
 fn main() {
     tauri::Builder::default()
+        .setup(|app| {
+            let directory = app.path().app_local_data_dir()?;
+            std::fs::create_dir_all(&directory)?;
+            app.manage(SnapshotDatabase::open(&directory.join("snapshots.db"))?);
+            Ok(())
+        })
         .manage(Arc::new(Engine::default()))
         .invoke_handler(tauri::generate_handler![
             get_volumes,
@@ -416,7 +425,14 @@ fn main() {
             get_details,
             get_file_types,
             get_issues,
-            reveal_item
+            reveal_item,
+            save_snapshot,
+            list_snapshots,
+            load_snapshot,
+            compare_snapshots,
+            delete_snapshot,
+            snapshot_storage,
+            compact_snapshots
         ])
         .run(tauri::generate_context!())
         .expect("Voldiq could not start");

@@ -5,7 +5,7 @@
 
 Voldiq maps the files on a drive or in a folder so you can understand where space goes. Its Rust engine owns the filesystem index; a compact Svelte interface requests bounded pages and draws a custom Canvas treemap.
 
-> **Development status:** Voldiq is under active construction. The current source includes real volume discovery, live conventional scanning, search, a virtual file list, a proportional treemap and BLAKE3 duplicate analysis. The complete product acceptance checklist remains open. See [NEXT_TODOS.md](NEXT_TODOS.md).
+> **Development status:** Voldiq is under active construction. The current source includes real volume discovery, live conventional scanning, search, a virtual file list, a proportional treemap, BLAKE3 duplicate analysis and persistent SQLite snapshots. The complete product acceptance checklist remains open. See [NEXT_TODOS.md](NEXT_TODOS.md).
 
 ## Principles
 
@@ -40,7 +40,7 @@ The release configuration targets an NSIS installer and includes the offline Web
 
 | Location | Responsibility |
 |---|---|
-| `crates/voldiq-core` | Filesystem scanning, Windows metadata, index queries and aggregation |
+| `crates/voldiq-core` | Scanning, Windows metadata, index queries, duplicate analysis and snapshot storage |
 | `src-tauri` | Native window and a narrow command bridge |
 | `frontend` | Svelte interface, virtual table, custom treemap and CSS tokens |
 | `assets` | Original supplied logo and interface references |
@@ -60,6 +60,12 @@ Progress reports actual file counts and bytes. Partial results can be explored w
 Duplicate discovery groups indexed files by size, samples at most 8 KiB and verifies matching content with complete BLAKE3 hashes. Locked, changed and vanished files produce reported issues. Hard links to the same file identity are represented once. Repeated analysis reuses hashes only after validating file identity, size, modification time and native change time.
 
 Potential allocation conservatively retains the largest independently allocated copy. Files with multiple hard links contribute no reclaimable estimate, because links may exist outside the scan. This estimate does not imply that moving files to the Recycle Bin frees volume space. Selection and recycling are still pending.
+
+## Snapshot history
+
+Snapshots remain local in the application's data directory. SQLite stores a baseline and new versions of changed entries, so unchanged captures reuse existing entry data. Captures use transactions; cancellation and integer overflow roll back the entire write. Original Windows UTF-16 names survive persistence.
+
+Saved captures can be reopened and compared after restarting. Comparisons require the same root identity and exclusions. Partial coverage marks missing entries as unobserved rather than claiming they were deleted. The history view includes recorded size, paged changes, capture removal and database compaction. Opening a capture labels the explorer as historical; rescan before saving a new capture.
 
 ## Project documentation
 

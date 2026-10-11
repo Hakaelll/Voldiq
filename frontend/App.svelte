@@ -5,6 +5,7 @@
   import Treemap from './components/Treemap.svelte';
   import FileTable from './components/FileTable.svelte';
   import Duplicates from './components/Duplicates.svelte';
+  import History from './components/History.svelte';
   import {
     bytes,
     date,
@@ -16,13 +17,15 @@
     type Progress,
     type Query,
     type Volume,
+    type Snapshot,
   } from './lib/types';
-  type View = 'overview' | 'explorer' | 'large' | 'duplicates' | 'settings';
+  type View = 'overview' | 'explorer' | 'large' | 'duplicates' | 'history' | 'settings';
   const navigation: { id: View; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: 'overview' },
     { id: 'explorer', label: 'Explorer', icon: 'folder' },
     { id: 'large', label: 'Large files', icon: 'large' },
     { id: 'duplicates', label: 'Duplicates', icon: 'duplicate' },
+    { id: 'history', label: 'History', icon: 'history' },
   ];
   let view = $state<View>('overview');
   let expanded = $state(true);
@@ -54,6 +57,7 @@
   let refreshToken = 0;
   let interactionToken = 0;
   let analysisBusy = $state(false);
+  let historical = $state<Snapshot | null>(null);
   let volume = $derived(volumes.find((v) => v.path === volumePath));
   let busy = $derived(operation?.phase === 'scanning' || analysisBusy);
   let query = $derived<Query>({
@@ -145,6 +149,7 @@
     refreshToken += 1;
     interactionToken += 1;
     ready = false;
+    historical = null;
     directory = null;
     details = null;
     children = { items: [], total: 0 };
@@ -211,6 +216,19 @@
     } catch (problem) {
       report(problem);
     }
+  }
+  async function loadSnapshot(snapshot: Snapshot): Promise<void> {
+    refreshToken += 1;
+    interactionToken += 1;
+    details = null;
+    operation = null;
+    historical = snapshot;
+    scanPath = snapshot.root;
+    scope = 0;
+    text = '';
+    ready = true;
+    await refresh(0);
+    view = 'overview';
   }
   async function cancel(): Promise<void> {
     if (scanId !== null)
@@ -380,7 +398,7 @@
           bind:value={text}
           placeholder="Search files and folders"
           aria-label="Search files and folders"
-          disabled={!ready || view === 'settings' || view === 'duplicates'}
+          disabled={!ready || view === 'settings' || view === 'duplicates' || view === 'history'}
         /><kbd>Ctrl K</kbd>
       </div>
     </header>
@@ -396,11 +414,16 @@
                   ? 'Large files'
                   : view === 'duplicates'
                     ? 'Duplicates'
-                    : 'Settings'}
+                    : view === 'history'
+                      ? 'History'
+                      : 'Settings'}
           </h1>
-          {#if view !== 'settings' && scanPath}<p>{scanPath}</p>{/if}
+          {#if view !== 'settings' && view !== 'history' && scanPath}<p>
+              {scanPath}{#if historical}
+                · Snapshot · {date(historical.captured)}{/if}
+            </p>{/if}
         </div>
-        {#if view !== 'settings'}<button
+        {#if view !== 'settings' && view !== 'history'}<button
             class="primary"
             onclick={() => start(scanPath || volumePath)}
             disabled={!isTauri() || busy || !(scanPath || volumePath)}
@@ -415,7 +438,7 @@
             }}><Icon name="close" /></button
           >
         </div>{/if}
-      {#if operation && view !== 'settings' && view !== 'duplicates'}<div
+      {#if operation && view !== 'settings' && view !== 'duplicates' && view !== 'history'}<div
           class="scan-status"
           aria-live="polite"
         >
@@ -467,6 +490,15 @@
               placeholder="C:\\folder"></textarea></label
           >
         </section>
+      {:else if view === 'history'}
+        <History
+          enabled={ready && !busy && historical === null}
+          onbusy={(value) => {
+            analysisBusy = value;
+          }}
+          onload={loadSnapshot}
+          onerror={report}
+        />
       {:else}
         {#if volume && view !== 'duplicates'}<section
             class="capacity-strip"

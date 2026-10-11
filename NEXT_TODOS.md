@@ -10,7 +10,7 @@ Voldiq is under active development. A task becomes DONE only after its acceptanc
 | V04 | Visual explorer and search | P0 | IN_PROGRESS | V02 | Canvas navigation, virtual rows, real IPC data, keyboard navigation | frontend |
 | V05 | Large files and duplicates | P1 | IN_PROGRESS | V02 | Filters, BLAKE3 content verification, cancellation, hard-link handling, reviewed selections, native interaction | crates/voldiq-core, frontend/components/Duplicates.svelte |
 | V06 | Safe cleanup and developer storage | P0 | TODO | V05 | Preview, exclusions, identity validation, confirmation, controlled fixture execution | crates/voldiq-core |
-| V07 | Persistent snapshots | P1 | TODO | V02 | SQLite transaction, restart, additions/deletions/growth comparison | crates/voldiq-core |
+| V07 | Persistent snapshots | P1 | IN_PROGRESS | V02 | SQLite transaction, restart, additions/deletions/growth comparison, native interaction | crates/voldiq-core, frontend/components/History.svelte |
 | V08 | Incremental NTFS index | P1 | TODO | V03, V07 | Journal continuity validation and full resynchronization | crates/voldiq-core |
 | V09 | Preferences and accessibility | P1 | IN_PROGRESS | V04 | Persistent preferences, themes, reduced motion, keyboard checks | frontend, src-tauri |
 | V10 | Benchmarks and quality audits | P0 | IN_PROGRESS | V02-V09 | Reproducible measurements, Ponytail review and audit, resolved defects | benchmarks, docs |
@@ -35,3 +35,7 @@ Next: validate native IPC on controlled fixtures, calibrate scanner concurrency,
 The real BLAKE3 engine filters unique sizes, samples at most 8 KiB, verifies complete content, reuses stamps validated with file identity, modification time and native change time, and reports locked or vanished files. Five tests cover matching samples with different middle content, cache reuse and invalidation, hard links, unique sizes, sampling, cancellation and locked files. Duplicate groups and members cross IPC in bounded pages. Duplicate results retain their original index to avoid reinterpreting IDs after a rescan.
 
 The duplicate view uses minimal labels and measured data. Management selection, confirmation and recycling remain part of the safe-cleanup work; no deletion command is exposed yet. Native populated interactions and cross-volume fixtures remain open.
+
+## Snapshot history delivery
+
+SQLite stores native paths and version intervals, with transactional captures and checked integers. Five tests cover restart comparisons, changed directory totals, unchanged entry reuse, rollback, capture deletion, compaction, exclusions and native UTF-16 names. Incomplete coverage reports unobserved entries rather than confirmed deletions. The history component exposes bounded lists, saved-index loading, comparisons and storage management, using minimal copy. Native populated interaction and large-history measurements remain open.

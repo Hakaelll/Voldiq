@@ -46,11 +46,13 @@ pub fn scan_live(
             "Choose a directory that is not a reparse point.".into(),
         ));
     }
-    let exclusions: Vec<_> = options
+    let mut exclusions: Vec<_> = options
         .exclusions
         .iter()
         .map(std::fs::canonicalize)
         .collect::<std::io::Result<_>>()?;
+    exclusions.sort();
+    exclusions.dedup();
     let shared = Arc::new(RwLock::new(Index {
         root: root.clone(),
         entries: vec![Entry {
@@ -72,6 +74,9 @@ pub fn scan_live(
         issues: Vec::new(),
         error_count: 0,
         native_names: Default::default(),
+        root_identity: windows::identity(&root).ok().map(|identity| identity.key),
+        exclusions: exclusions.clone(),
+        snapshot_id: None,
     }));
     publish(shared.clone());
     let start = Instant::now();

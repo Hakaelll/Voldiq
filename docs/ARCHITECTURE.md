@@ -28,6 +28,12 @@ Svelte owns interaction state, preferences and bounded query results. A custom s
 
 Duplicate results retain the exact shared scan index that produced their IDs. Groups and members use bounded pages. One active-operation slot prevents scanning and hashing from competing. The in-memory cache has a 250,000-identity cap; persistence remains a snapshot-store task.
 
+## Snapshot history
+
+The bundled SQLite database uses WAL, foreign keys and transactional schema initialization. A root key combines the native root path, filesystem identity and exact exclusion coverage. Stable paths store native name bytes and parent IDs. Entry versions use half-open snapshot intervals; unchanged captures do not copy every entry. Snapshot deletion retains versions required by surviving captures, and compaction checkpoints the WAL and vacuums the database.
+
+Loading reconstructs the Rust index and validates parent order, node limits, filename components and checked integer conversions. Snapshot comparisons page actual additions, omissions and changed directory totals. Incomplete coverage never confirms missing entries as deleted. Database work runs in blocking tasks. The active-operation gate prevents capture and loading from racing a scan or duplicate analysis.
+
 ## Pending architecture work
 
-NTFS enumeration, duplicate analysis, persistent snapshots, cleanup plans and incremental journal validation remain tracked in `NEXT_TODOS.md`. Large queries can delay index writes while holding their read guard; this is part of the large-workload performance gate. No production behavior is simulated for pending modules.
+NTFS enumeration, cleanup plans, persistent hash-cache reuse and incremental journal validation remain tracked in `NEXT_TODOS.md`. Large queries can delay index writes while holding their read guard; this is part of the large-workload performance gate. No production behavior is simulated for pending modules.

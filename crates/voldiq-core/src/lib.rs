@@ -1,6 +1,7 @@
 pub mod duplicates;
 pub mod index;
 pub mod scanner;
+pub mod snapshots;
 pub mod windows;
 
 use serde::{Deserialize, Serialize};
@@ -11,6 +12,8 @@ pub enum Error {
     Invalid(String),
     #[error(transparent)]
     Io(#[from] std::io::Error),
+    #[error(transparent)]
+    Database(#[from] rusqlite::Error),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

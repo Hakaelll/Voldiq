@@ -121,6 +121,12 @@ components:
     typography: "{typography.label}"
     rounded: "{rounded.radius}"
     padding: "10px 12px"
+  history-controls:
+    typography: "{typography.label}"
+  history-row:
+    typography: "{typography.body}"
+    padding: "12px 16px"
+    height: "68px"
 ---
 
 # Design System: Voldiq
@@ -142,6 +148,8 @@ The supplied stacked-storage logo is the identity asset. Its disc-shaped top and
 - The original Voldiq logo remains visible in both themes.
 
 This document records the initial built UI in `frontend/styles.css`, `frontend/App.svelte` and the component files. Finish approval covers the scored dark-logo matte and contrast corrections plus the initial browser empty and settings views. Populated native views, scan progress, IPC, the Canvas map, the virtual file list and access-issue dialog remain unassessed in a running Windows session. The mechanical detector reported no findings and the shipping raster provenance scanner reported zero missing entries; neither result proves those native workflows.
+
+History extends this system with saved-snapshot controls and compact comparisons. Earlier desktop light, desktop dark and minimum-window dark screenshots showed its browser empty state. The subsequent loading, unavailable and deletion-focus changes were checked in source only. Saving, opening, deleting, compacting and comparing populated native snapshots remain unassessed.
 
 ## Colors
 
@@ -180,6 +188,8 @@ The desktop shell has a collapsed rail of 64px and an expanded rail of 200px. Th
 
 The populated overview has a four-part capacity strip and a content grid with a 1.9-to-1 column ratio, a minimum 290px secondary column and a panel gap. The map occupies a 360px-high inset. The file list uses 36px rows and a 420px scrolling viewport. Its virtual content keeps a 740px minimum width.
 
+History uses a 12px control gap and 18px spacing below its toolbar. Snapshot rows have a 68px minimum height, medium vertical padding and panel-gap horizontal padding. Before and After selects wrap with a 180px minimum label width. Its recorded-size graphic is 110px high and uses the existing accent color.
+
 At 1100px and below, the expanded rail becomes 175px, main padding becomes the compact-page token, search narrows to 280px, and the overview becomes one column with Largest items hidden. At 840px and below, the rail becomes 64px, navigation labels and the drive summary hide, the toolbar wraps, search occupies a separate row, capacity becomes two columns, and settings labels stack above their controls. This is a desktop window adaptation; a phone layout has not been assessed.
 
 **The One Rail Rule.** Expand labels within the existing navigation rail. Keep the workspace as the adjacent main area.
@@ -212,6 +222,8 @@ Text fields, selects and textareas use a stronger neutral border and compact ins
 
 The rail groups Overview, Explorer and Large files at the top and Settings at the bottom. Active items use the selected background, accent text and semibold weight. Hover uses paper. Collapsed controls retain titles and accessible names. The same controls and SVG geometry serve both rail widths.
 
+History adds a rail destination with the same current-page, icon and collapsed-label treatment.
+
 ### Cards / Containers
 
 Panels have a fine border, canvas background and the standard control radius. Panel headings use compact insets with a title, optional explanation and optional action. The initial empty container centers the supplied logo, heading, paragraph and actions within a 430px minimum height. Its explanatory paragraph stops at 460px.
@@ -223,6 +235,16 @@ The capacity strip aligns labeled figures in divided columns. The map sizes rect
 ### File list
 
 FileTable shows Name, Logical size, Modified and Type in aligned columns. Rows use fine bottom rules, a neutral hover background and a blue selected background. Names use outline icons and truncation; details show the full path. The selected item can be revealed in Windows Explorer or its path copied. List pagination, scrolling and keyboard behavior still need populated native verification.
+
+### History
+
+Save snapshot uses the existing primary button. Stored bytes and Compact align at the toolbar's opposite end. The status panel has a 240px minimum height. Loading shows "Loading…"; a failed history request shows "History unavailable" and Retry. Both use a polite live region, hide stored bytes and disable Compact. Only the ready state can show the history icon and "No snapshots yet". These states add no explanatory paragraph.
+
+Snapshot rows show the root path, capture date, optional Partial label and right-aligned logical size. Paths truncate; dates use secondary metadata text. Open is a secondary action. Delete exposes inline Cancel and Delete snapshot controls, with the existing error color on the confirmation action. Before and After selects limit comparisons to compatible roots; Compare stays disabled for identical snapshots. Pagination uses the existing compact buttons.
+
+Opening delete confirmation moves keyboard focus to Cancel. Cancelling restores focus to the row's delete trigger. A failed deletion keeps confirmation open and returns focus to Cancel. After successful deletion, focus moves to Save snapshot when enabled, otherwise to the Snapshot history region. This focus routing is recorded from source and remains unverified in native interaction.
+
+Recorded size appears only when more than one compatible saved snapshot exists. The line uses actual logical-size values from the current snapshot page. Comparison rows show a path, an observation/change label and an aligned signed delta; partial coverage remains explicit. These populated states are documented from source, not native interaction verification.
 
 ### Notices and scan issues
 
@@ -237,6 +259,7 @@ Preview, incomplete coverage and engine errors appear as compact bordered messag
 - Do keep measured sizes, paths and incomplete coverage visible beside storage graphics.
 - Do provide a list route for the Canvas map and visible keyboard focus on controls.
 - Do honor both the saved motion preference and the system reduced-motion preference.
+- Do keep History copy to action labels, recorded values and necessary coverage or empty-state messages.
 
 ### Don't:
 

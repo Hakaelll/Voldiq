@@ -97,6 +97,39 @@ export interface DuplicateItem {
   links: number;
 }
 
+export interface Snapshot {
+  id: number;
+  root_key: number;
+  root: string;
+  captured: number;
+  logical: number;
+  allocated: number;
+  files: number;
+  entries: number;
+  complete: boolean;
+  errors: number;
+}
+export interface SnapshotChange {
+  path: string;
+  kind: 'added' | 'removed' | 'changed' | 'unobserved' | 'newly_observed';
+  directory: boolean;
+  before: number;
+  after: number;
+  delta: number;
+}
+export interface SnapshotComparison {
+  before: number;
+  after: number;
+  delta: number;
+  reliable: boolean;
+  total: number;
+  changes: SnapshotChange[];
+}
+
+export function difference(value: number): string {
+  return `${value > 0 ? '+' : value < 0 ? '−' : ''}${bytes(Math.abs(value))}`;
+}
+
 export function bytes(value: number): string {
   if (value === 0) return '0 B';
   const unit = Math.min(4, Math.floor(Math.log(value) / Math.log(1024)));

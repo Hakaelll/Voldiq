@@ -21,6 +21,8 @@ Five duplicate tests verify full BLAKE3 content, matching samples with different
 
 ## Manual application checks
 
+Five snapshot tests save actual fixtures, reopen the database, compare additions, removals and directory growth, verify unchanged-version reuse, check rollback and integer overflow, delete intermediate captures, compact storage, preserve native UTF-16 names and reject invalid path components. Incomplete captures report omissions without asserting deletion; captures with different exclusions cannot be compared.
+
 ```powershell
 pnpm tauri dev
 ```
@@ -31,4 +33,4 @@ Browser preview checks verify layout and preferences only. The preview deliberat
 
 ## Release acceptance
 
-The installer, offline startup, actual native interaction, duplicate handling, cleanup confirmation, snapshots and NTFS fast path must pass before the project is considered complete. A build passing today does not close those pending checks.
+The installer, offline startup, actual native interaction, duplicate management, cleanup confirmation, snapshot interaction and NTFS fast path must pass before the project is considered complete. A build passing today does not close those pending checks.

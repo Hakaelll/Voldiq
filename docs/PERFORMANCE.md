@@ -32,6 +32,20 @@ The first production build produces approximately 70.01 kB of JavaScript and 13.
 
 The fixture was just written, cache conditions are warm, and only two passes were measured. This demonstrates effective content-read avoidance for unchanged files, not a general throughput or speedup claim.
 
-## Measurement plan
+## Snapshot fixture
+
+`cargo run --release -p voldiq-core --example snapshot_benchmark` generates 10,000 real 128-byte files in 100 directories. The database lives in a separate temporary directory. It captures the initial index, captures it unchanged, then doubles ten files and scans again. The runner checks restored totals and a 1,280-byte root growth after restarting entry reads from SQLite.
+
+| Capture | Save | Load | Compare | Entry versions | Database, WAL and SHM |
+|---|---:|---:|---:|---:|---:|
+| Initial | 91.318 ms | 10.785 ms | 12.295 ms | 10,101 | 1,598,376 B |
+| Unchanged | 34.249 ms | 15.003 ms | 17.345 ms | 10,101 | 1,610,736 B |
+| Ten files doubled | 42.775 ms | 12.327 ms | 19.038 ms | 10,122 | 1,713,736 B |
+
+The last comparison reports 21 changed entries: ten files, their ten parent directories and the root. File creation and scans are outside the save/load timings. This is one warm fixture run per condition, not a throughput guarantee or a million-file result. Storage includes SQLite journal files before compaction. It proves that unchanged captures reuse entry versions.
+
+The history production bundle is 83.22 kB of JavaScript and 16.20 kB of CSS, or 31.36 kB and 3.84 kB after gzip.
+
+## Remaining measurements
 
 The pending performance gate includes million-file workloads, broad and deep directory shapes, query latency during indexing, NTFS versus fallback scans, hard-link and sparse-file accuracy, total application memory, cold and warm startup, idle CPU, cancellation latency and Canvas frame times. No 60 FPS or sub-two-second startup guarantee has been validated yet.

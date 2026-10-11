@@ -8,6 +8,9 @@ pub struct Index {
     pub issues: Vec<Issue>,
     pub error_count: u64,
     pub native_names: std::collections::HashMap<NodeId, std::ffi::OsString>,
+    pub root_identity: Option<(u64, u64)>,
+    pub exclusions: Vec<PathBuf>,
+    pub snapshot_id: Option<i64>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
