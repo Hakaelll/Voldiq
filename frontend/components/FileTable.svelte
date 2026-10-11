@@ -30,7 +30,7 @@
     offset = $state(0);
   let viewport: HTMLDivElement;
   let request = 0;
-  let desired = $derived(Math.max(0, Math.floor(scrollTop / rowHeight) - 8));
+  let desired = $derived(Math.max(0, Math.floor((scrollTop - rowHeight) / rowHeight) - 8));
   $effect(() => {
     void revision;
     const next = query;
@@ -59,11 +59,6 @@
 </script>
 
 <div class="file-table" role="table" aria-label="Indexed files" aria-rowcount={total + 1}>
-  <div class="table-head" role="row">
-    <span role="columnheader">Name</span><span role="columnheader">Logical size</span><span
-      role="columnheader">Modified</span
-    ><span role="columnheader">Type</span>
-  </div>
   <div
     class="table-scroll"
     bind:this={viewport}
@@ -71,6 +66,11 @@
       scrollTop = viewport.scrollTop;
     }}
   >
+    <div class="table-head" role="row">
+      <span role="columnheader">Name</span><span role="columnheader">Logical size</span><span
+        role="columnheader">Modified</span
+      ><span role="columnheader">Type</span>
+    </div>
     <div class="virtual-rows" style:height={`${total * rowHeight}px`}>
       {#each rows as entry, i (entry.id)}
         <div
