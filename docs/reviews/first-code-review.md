@@ -16,7 +16,7 @@ Assumed load: one desktop user, with a future requirement for millions of files.
 ## Required next checks
 
 1. **Populated native interactions need verification.** Browser captures cover empty states and preferences. The executable launches a real Windows window, but scan-to-map, virtual scrolling, search and reveal still need an end-to-end native interaction pass. Until that pass runs, V04 remains IN_PROGRESS.
-2. **Partial queries need a publication model.** Progress reports real counts, but a working scan index is private until completion or cancellation. V02 remains IN_PROGRESS until the requested partial-results workflow is implemented and checked.
+2. **Partial queries are implemented.** A shared Rust index is published before progress, and insertion propagates ancestor totals. The live-read test confirms consistent totals and cancellation before completion. Large-query lock contention and calibrated concurrency remain open.
 3. **Large-index measurements remain open.** Queries currently filter and sort an in-memory vector. The 10,000-file baseline is fast, but it cannot establish acceptable behavior at a million entries. V10 tracks that workload and any resulting query changes.
 4. **The product acceptance gate is still open.** NTFS, duplicates, cleanup, snapshots and release validation remain TODO. The interface does not expose simulated versions of them.
 

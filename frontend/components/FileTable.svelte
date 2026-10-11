@@ -39,7 +39,9 @@
             offset = start;
           }
         })
-        .catch(onerror);
+        .catch((problem: unknown) => {
+          if (token === request) onerror(problem);
+        });
     }, 40);
     return () => clearTimeout(timer);
   });
@@ -103,6 +105,6 @@
     {#if total === 0}<div class="table-empty">No matching items.</div>{/if}
   </div>
   <div class="table-footer">
-    {total.toLocaleString()} items<span>Logical sizes may include multiple hard links.</span>
+    {total.toLocaleString()} items
   </div>
 </div>

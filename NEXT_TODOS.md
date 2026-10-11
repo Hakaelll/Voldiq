@@ -5,7 +5,7 @@ Voldiq is under active development. A task becomes DONE only after its acceptanc
 | ID | Task | Priority | Status | Dependencies | Acceptance criteria | Related files |
 |---|---|---|---|---|---|---|
 | V01 | Windows app and build foundation | P0 | DONE | None | Svelte checks, Rust build, real Windows window | src-tauri, frontend |
-| V02 | Native volumes and conventional scan | P0 | IN_PROGRESS | V01 | Real fixtures, cancellation, errors, links, aggregation, bounded queries, partial results | crates/voldiq-core |
+| V02 | Native volumes and conventional scan | P0 | IN_PROGRESS | V01 | Real fixtures, cancellation, errors, links, aggregation, bounded queries, partial results, calibrated concurrency | crates/voldiq-core |
 | V03 | NTFS enumeration and metadata | P0 | TODO | V02 | Validated binary records, fallback, volume comparison benchmark | crates/voldiq-core/src/ntfs.rs |
 | V04 | Visual explorer and search | P0 | IN_PROGRESS | V02 | Canvas navigation, virtual rows, real IPC data, keyboard navigation | frontend |
 | V05 | Large files and duplicates | P1 | TODO | V02 | Filters, BLAKE3 content verification, cancellation, hard-link handling | crates/voldiq-core |
@@ -26,4 +26,6 @@ The native executable builds and starts a real window titled Voldiq. Six Rust fi
 
 The frontend includes a real command bridge, custom map, virtual explorer, search, large-file filters and persisted visual preferences. Browser verification covers initial and settings states; populated native interaction still needs verification. There are no duplicate, cleanup, snapshot or NTFS simulations.
 
-Next: add partial query publication, validate native IPC on controlled fixtures, then implement and benchmark NTFS enumeration with metadata acquisition and explicit fallback. Advanced functionality and distribution remain open.
+Live partial queries now share one Rust index and update ancestor totals on insertion. A seventh Rust test checks live reads, partial totals and cancellation. Visible UI copy was reduced at the user's request. The updated benchmark is slower; its measured values and uncertainty are recorded in `docs/PERFORMANCE.md`.
+
+Next: validate native IPC on controlled fixtures, calibrate scanner concurrency, and implement NTFS enumeration with metadata acquisition and explicit fallback. Duplicate analysis, cleanup, snapshots, incremental indexing and distribution remain open.

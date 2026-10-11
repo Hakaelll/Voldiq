@@ -191,25 +191,16 @@ impl Index {
         Ok(result)
     }
 
-    pub fn aggregate(&mut self) {
-        for i in (1..self.entries.len()).rev() {
-            let entry = &self.entries[i];
-            let (parent, logical, allocated, known, files, incomplete) = (
-                entry.parent,
-                entry.logical,
-                entry.allocated,
-                entry.allocation_known,
-                entry.files,
-                entry.incomplete,
-            );
-            if let Some(parent) = parent {
-                let entry = &mut self.entries[parent.0 as usize];
-                entry.logical += logical;
-                entry.allocated += allocated;
-                entry.allocation_known &= known;
-                entry.files += files;
-                entry.incomplete |= incomplete;
-            }
+    pub fn accumulate(&mut self, child: &Entry) {
+        let mut parent = child.parent;
+        while let Some(id) = parent {
+            let entry = &mut self.entries[id.0 as usize];
+            entry.logical += child.logical;
+            entry.allocated += child.allocated;
+            entry.allocation_known &= child.allocation_known;
+            entry.files += child.files;
+            entry.incomplete |= child.incomplete;
+            parent = entry.parent;
         }
     }
 }

@@ -116,7 +116,5 @@
         >{bytes(hovered.value)}{hovered.directory ? ' · Double-click to explore' : ''}</span
       >
     </div>{/if}
-  {#if nodes.every((n) => n.value === 0)}<div class="map-empty">
-      No measured file sizes in this folder.
-    </div>{/if}
+  {#if nodes.every((n) => n.value === 0)}<div class="map-empty">No files</div>{/if}
 </div>

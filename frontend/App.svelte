@@ -148,6 +148,7 @@
     types = [];
     error = '';
     scanPath = path;
+    scope = 0;
     operation = {
       phase: 'scanning',
       entries: 0,
@@ -158,17 +159,24 @@
       method: 'Directory enumeration',
     };
     const channel = new Channel<Progress>();
+    let lastRefresh = 0;
     channel.onmessage = (update) => {
       operation = update;
+      if (update.phase === 'scanning') {
+        ready = true;
+        if (update.elapsed_ms === 0 || update.elapsed_ms - lastRefresh >= 1000) {
+          lastRefresh = update.elapsed_ms;
+          void refresh(scope);
+        }
+      }
       if (update.phase === 'failed') {
         error = update.method;
         scanId = null;
       } else if (update.phase === 'complete' || update.phase === 'cancelled') {
         ready = true;
         scanId = null;
-        scope = 0;
         details = null;
-        void refresh(0);
+        void refresh(scope);
         void invoke<Volume[]>('get_volumes')
           .then((value) => {
             volumes = value;
@@ -365,7 +373,7 @@
         <Icon name="search" /><input
           bind:this={search}
           bind:value={text}
-          placeholder="Search indexed files and folders"
+          placeholder="Search files and folders"
           aria-label="Search files and folders"
           disabled={!ready || view === 'settings'}
         /><kbd>Ctrl K</kbd>
@@ -383,11 +391,7 @@
                   ? 'Large files'
                   : 'Settings'}
           </h1>
-          <p>
-            {view === 'settings'
-              ? 'Local preferences for your workspace.'
-              : scanPath || 'Choose a drive or folder to analyze its storage.'}
-          </p>
+          {#if view !== 'settings' && scanPath}<p>{scanPath}</p>{/if}
         </div>
         {#if view !== 'settings'}<button
             class="primary"
@@ -396,10 +400,6 @@
             ><Icon name="scan" />{ready ? 'Rescan' : 'Scan drive'}</button
           >{/if}
       </div>
-      {#if !isTauri()}<div class="notice">
-          The browser preview shows the interface. Open the Windows app to detect drives and scan
-          real files.
-        </div>{/if}
       {#if error}<div class="error" role="alert">
           <Icon name="warning" /><span>{error}</span><button
             aria-label="Dismiss error"
@@ -450,16 +450,12 @@
                 >{/each}</select
             ></label
           ><label
-            >Excluded paths<textarea
+            >Excluded paths · one per line<textarea
               bind:value={excluded}
               onchange={savePreferences}
               rows="5"
-              placeholder="One existing absolute path per line"></textarea></label
+              placeholder="C:\\folder"></textarea></label
           >
-          <p>
-            Reparse points are recorded without following them. Scanning runs with your current
-            Windows permissions.
-          </p>
         </section>
       {:else}
         {#if volume}<section class="capacity-strip" aria-label="Volume capacity">
@@ -488,11 +484,7 @@
             <div class="welcome-art">
               <img src="/symbol.png" alt="Voldiq logo" width="72" height="72" />
             </div>
-            <h2>See what takes up space.</h2>
-            <p>
-              Analyze a drive or a folder. Voldiq maps your files locally, with no account or
-              connection required.
-            </p>
+            <h2>No scan yet</h2>
             <div>
               <button
                 class="primary"
@@ -503,11 +495,6 @@
                 ><Icon name="folder" />Choose a folder</button
               >
             </div>
-            <small
-              >{busy
-                ? 'Your scan is running. File totals appear above as they are measured.'
-                : 'No analysis yet. Your files stay unchanged during a scan.'}</small
-            >
           </section>
         {:else}
           <div class="breadcrumbs">
@@ -524,19 +511,14 @@
                 ><Icon name="back" />Parent folder</button
               >{/if}
           </div>
-          {#if directory?.entry.incomplete}<div class="notice">
-              This folder has incomplete coverage. Links, inaccessible items or cancellation can
-              prevent a full total. Allocated size counts each hard-linked file once across the
-              scan.
-            </div>{/if}
+          {#if directory?.entry.incomplete}<div class="notice">Incomplete coverage</div>{/if}
           {#if view === 'overview'}<div class="overview-grid">
               <section class="panel map-panel">
                 <div class="panel-heading">
                   <div>
                     <h2>Storage map</h2>
                     <p>
-                      {sizeMode === 'logical' ? 'Logical file sizes' : 'Unique physical allocation'} ·
-                      double-click a folder to explore
+                      {sizeMode === 'logical' ? 'Logical size' : 'Unique allocation'}
                     </p>
                   </div>
                   <button
@@ -589,7 +571,6 @@
               <div class="panel-heading">
                 <div>
                   <h2>File types</h2>
-                  <p>Measured extensions in the current folder</p>
                 </div>
               </div>
               <div class="type-bar">
@@ -695,9 +676,8 @@
       {/if}
     </main>
     <footer class="app-footer">
-      <span>Local analysis · no telemetry</span><span
-        >{ready ? `${operation?.entries.toLocaleString()} indexed entries` : 'Ready to analyze'} · Voldiq
-        0.1.0</span
+      <span>{isTauri() ? 'Voldiq 0.1.0' : 'Browser preview'}</span><span
+        >{ready ? `${operation?.entries.toLocaleString()} entries` : ''}</span
       >
     </footer>
   </div>
@@ -719,7 +699,7 @@
           }}><Icon name="close" /></button
         >
       </div>
-      <p>The engine keeps the first 1,000 issue details. Totals include all reported errors.</p>
+      {#if issues.length === 1000}<p>First 1,000 issues</p>{/if}
       <div class="issues-list">
         {#each issues as issue}<article>
             <strong>{issue.path}</strong>

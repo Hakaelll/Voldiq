@@ -24,6 +24,8 @@ All analysis runs locally and offline. No account, server, telemetry, advertisin
 
 Voldiq uses the provided stacked-storage logo, including its disc-shaped top and blue segment. The brief pins a white, compact professional interface inspired by Palantir, Linear and the supplied Dub design document. Charts show only measured data.
 
+Visible copy stays minimal: labels, measured states and necessary warnings. Keep implementation explanations, privacy descriptions and extended guidance in documentation.
+
 ## Evidence on hand
 
 `docs/reference/requirements.md` contains the complete specification. `docs/reference/design-inspiration.md` contains the supplied style reference. `assets/reference` contains three interface references. Original logo assets are in `assets`.

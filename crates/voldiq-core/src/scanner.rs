@@ -5,16 +5,35 @@ use crate::{
 use std::{
     collections::HashSet,
     path::Path,
-    sync::atomic::{AtomicBool, Ordering},
+    sync::{
+        Arc, RwLock,
+        atomic::{AtomicBool, Ordering},
+    },
     time::{Instant, UNIX_EPOCH},
 };
+
+pub type SharedIndex = Arc<RwLock<Index>>;
 
 pub fn scan(
     root: &Path,
     options: &ScanOptions,
     cancel: &AtomicBool,
-    mut progress: impl FnMut(Progress),
+    progress: impl FnMut(Progress),
 ) -> Result<Index> {
+    let index = scan_live(root, options, cancel, progress, |_| {})?;
+    Arc::try_unwrap(index)
+        .map_err(|_| Error::Invalid("Scan index is still in use.".into()))?
+        .into_inner()
+        .map_err(|e| Error::Invalid(e.to_string()))
+}
+
+pub fn scan_live(
+    root: &Path,
+    options: &ScanOptions,
+    cancel: &AtomicBool,
+    mut progress: impl FnMut(Progress),
+    publish: impl FnOnce(SharedIndex),
+) -> Result<SharedIndex> {
     if windows::is_reparse(&std::fs::symlink_metadata(root)?) {
         return Err(Error::Invalid(
             "Choose a directory that is not a reparse point.".into(),
@@ -32,7 +51,7 @@ pub fn scan(
         .iter()
         .map(std::fs::canonicalize)
         .collect::<std::io::Result<_>>()?;
-    let mut index = Index {
+    let shared = Arc::new(RwLock::new(Index {
         root: root.clone(),
         entries: vec![Entry {
             id: NodeId(0),
@@ -52,7 +71,8 @@ pub fn scan(
         }],
         issues: Vec::new(),
         error_count: 0,
-    };
+    }));
+    publish(shared.clone());
     let start = Instant::now();
     let mut last_report = start;
     let mut stack = vec![(root, NodeId(0))];
@@ -62,6 +82,15 @@ pub fn scan(
         .max_entries
         .unwrap_or(5_000_000)
         .clamp(1, u32::MAX as usize);
+    progress(Progress {
+        phase: ScanPhase::Scanning,
+        entries: 1,
+        files: 0,
+        logical: 0,
+        elapsed_ms: 0,
+        errors: 0,
+        method: "Directory enumeration".into(),
+    });
     'scan: while let Some((path, parent)) = stack.pop() {
         if cancel.load(Ordering::Relaxed) {
             break;
@@ -69,6 +98,7 @@ pub fn scan(
         let directory = match std::fs::read_dir(&path) {
             Ok(d) => d,
             Err(error) => {
+                let mut index = shared.write().map_err(|e| Error::Invalid(e.to_string()))?;
                 issue(&mut index, parent, &path, error.to_string());
                 continue;
             }
@@ -77,7 +107,14 @@ pub fn scan(
             if cancel.load(Ordering::Relaxed) {
                 break 'scan;
             }
-            if index.entries.len() >= limit {
+            if shared
+                .read()
+                .map_err(|e| Error::Invalid(e.to_string()))?
+                .entries
+                .len()
+                >= limit
+            {
+                let mut index = shared.write().map_err(|e| Error::Invalid(e.to_string()))?;
                 issue(
                     &mut index,
                     parent,
@@ -89,6 +126,7 @@ pub fn scan(
             let item = match item {
                 Ok(item) => item,
                 Err(error) => {
+                    let mut index = shared.write().map_err(|e| Error::Invalid(e.to_string()))?;
                     issue(&mut index, parent, &path, error.to_string());
                     continue;
                 }
@@ -100,6 +138,7 @@ pub fn scan(
             let metadata = match std::fs::symlink_metadata(&path) {
                 Ok(m) => m,
                 Err(error) => {
+                    let mut index = shared.write().map_err(|e| Error::Invalid(e.to_string()))?;
                     issue(&mut index, parent, &path, error.to_string());
                     continue;
                 }
@@ -114,7 +153,7 @@ pub fn scan(
                 continue;
             };
             let mut entry = Entry {
-                id: NodeId(index.entries.len() as u32),
+                id: NodeId(0),
                 parent: Some(parent),
                 name: item.file_name().to_string_lossy().into_owned(),
                 kind,
@@ -141,6 +180,8 @@ pub fn scan(
                     Err(error) => {
                         entry.allocation_known = false;
                         entry.incomplete = true;
+                        let mut index =
+                            shared.write().map_err(|e| Error::Invalid(e.to_string()))?;
                         issue(
                             &mut index,
                             parent,
@@ -154,12 +195,15 @@ pub fn scan(
                 entry.incomplete = true;
                 entry.allocation_known = false;
             }
+            let mut index = shared.write().map_err(|e| Error::Invalid(e.to_string()))?;
+            entry.id = NodeId(index.entries.len() as u32);
             if kind == Kind::Directory {
                 stack.push((path, entry.id));
             }
+            index.accumulate(&entry);
             index.entries.push(entry);
-            if last_report.elapsed().as_millis() >= 100 {
-                progress(Progress {
+            let update = if index.entries.len() == 2 || last_report.elapsed().as_millis() >= 100 {
+                Some(Progress {
                     phase: ScanPhase::Scanning,
                     entries: index.entries.len(),
                     files,
@@ -167,28 +211,37 @@ pub fn scan(
                     elapsed_ms: start.elapsed().as_millis() as u64,
                     errors: index.error_count,
                     method: "Directory enumeration".into(),
-                });
+                })
+            } else {
+                None
+            };
+            drop(index);
+            if let Some(update) = update {
+                progress(update);
                 last_report = Instant::now();
             }
         }
     }
+    let mut index = shared.write().map_err(|e| Error::Invalid(e.to_string()))?;
     let phase = if cancel.load(Ordering::Relaxed) {
         index.entries[0].incomplete = true;
         ScanPhase::Cancelled
     } else {
         ScanPhase::Complete
     };
-    index.aggregate();
+    let errors = index.error_count;
+    let entries = index.entries.len();
+    drop(index);
     progress(Progress {
         phase,
-        entries: index.entries.len(),
+        entries,
         files,
         logical: bytes,
         elapsed_ms: start.elapsed().as_millis() as u64,
-        errors: index.error_count,
+        errors,
         method: "Directory enumeration".into(),
     });
-    Ok(index)
+    Ok(shared)
 }
 
 fn modified(metadata: &std::fs::Metadata) -> Option<u64> {
@@ -202,7 +255,12 @@ fn modified(metadata: &std::fs::Metadata) -> Option<u64> {
 
 fn issue(index: &mut Index, parent: NodeId, path: &Path, message: String) {
     index.error_count += 1;
-    index.entries[parent.0 as usize].incomplete = true;
+    let mut next = Some(parent);
+    while let Some(id) = next {
+        let entry = &mut index.entries[id.0 as usize];
+        entry.incomplete = true;
+        next = entry.parent;
+    }
     if index.issues.len() < 1000 {
         index.issues.push(Issue {
             path: path.to_string_lossy().into_owned(),

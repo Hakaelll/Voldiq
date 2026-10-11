@@ -1,5 +1,7 @@
 # Testing
 
+`tests/partial_scan.rs` reads the live shared index from progress callbacks, checks directory totals, cancels after the first file and verifies retained partial results. The callback runs outside the index write lock.
+
 Run on Windows with the Rust MSVC toolchain and C++ Build Tools.
 
 ```powershell

@@ -10,20 +10,20 @@ use std::{
 use tauri::{State, ipc::Channel};
 use voldiq_core::{
     NodeId, Progress, ScanOptions, ScanPhase,
-    index::{Details, FileType, Index, Page, Query},
-    scanner,
+    index::{Details, FileType, Page, Query},
+    scanner::{self, SharedIndex},
     windows::Volume,
 };
 
 #[derive(Default)]
 struct Engine {
-    index: Mutex<Option<Arc<Index>>>,
+    index: Mutex<Option<SharedIndex>>,
     active: Mutex<Option<(u64, Arc<AtomicBool>)>>,
     sequence: AtomicU64,
 }
 
 impl Engine {
-    fn index(&self) -> Result<Arc<Index>, String> {
+    fn index(&self) -> Result<SharedIndex, String> {
         self.index
             .lock()
             .map_err(|e| e.to_string())?
@@ -70,17 +70,27 @@ fn start_scan(
     }
     tauri::async_runtime::spawn_blocking(move || {
         let mut final_progress = None;
-        let result = scanner::scan(&PathBuf::from(path), &options, &cancel, |update| {
-            if update.phase == ScanPhase::Scanning {
-                let _ = progress.send(update);
-            } else {
-                final_progress = Some(update);
-            }
-        });
+        let result = scanner::scan_live(
+            &PathBuf::from(path),
+            &options,
+            &cancel,
+            |update| {
+                if update.phase == ScanPhase::Scanning {
+                    let _ = progress.send(update);
+                } else {
+                    final_progress = Some(update);
+                }
+            },
+            |index| {
+                if let Ok(mut slot) = engine.index.lock() {
+                    *slot = Some(index);
+                }
+            },
+        );
         let mut failure = None;
         match result {
             Ok(index) => match engine.index.lock() {
-                Ok(mut slot) => *slot = Some(Arc::new(index)),
+                Ok(mut slot) => *slot = Some(index),
                 Err(e) => failure = Some(e.to_string()),
             },
             Err(error) => failure = Some(error.to_string()),
@@ -118,14 +128,29 @@ fn cancel_scan(id: u64, engine: State<'_, Arc<Engine>>) -> Result<(), String> {
 #[tauri::command]
 async fn query_files(query: Query, engine: State<'_, Arc<Engine>>) -> Result<Page, String> {
     let index = engine.index()?;
-    tauri::async_runtime::spawn_blocking(move || index.query(&query).map_err(|e| e.to_string()))
-        .await
-        .map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || {
+        index
+            .read()
+            .map_err(|e| e.to_string())?
+            .query(&query)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-fn get_details(id: NodeId, engine: State<'_, Arc<Engine>>) -> Result<Details, String> {
-    engine.index()?.details(id).map_err(|e| e.to_string())
+async fn get_details(id: NodeId, engine: State<'_, Arc<Engine>>) -> Result<Details, String> {
+    let index = engine.index()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        index
+            .read()
+            .map_err(|e| e.to_string())?
+            .details(id)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -134,19 +159,35 @@ async fn get_file_types(
     engine: State<'_, Arc<Engine>>,
 ) -> Result<Vec<FileType>, String> {
     let index = engine.index()?;
-    tauri::async_runtime::spawn_blocking(move || index.file_types(id).map_err(|e| e.to_string()))
-        .await
-        .map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || {
+        index
+            .read()
+            .map_err(|e| e.to_string())?
+            .file_types(id)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
 fn get_issues(engine: State<'_, Arc<Engine>>) -> Result<Vec<voldiq_core::Issue>, String> {
-    Ok(engine.index()?.issues.clone())
+    Ok(engine
+        .index()?
+        .read()
+        .map_err(|e| e.to_string())?
+        .issues
+        .clone())
 }
 
 #[tauri::command]
 async fn reveal_item(id: NodeId, engine: State<'_, Arc<Engine>>) -> Result<(), String> {
-    let path = engine.index()?.path(id).map_err(|e| e.to_string())?;
+    let path = engine
+        .index()?
+        .read()
+        .map_err(|e| e.to_string())?
+        .path(id)
+        .map_err(|e| e.to_string())?;
     tauri::async_runtime::spawn_blocking(move || {
         std::process::Command::new("explorer.exe")
             .arg(format!("/select,{}", path.display()))

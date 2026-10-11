@@ -22,6 +22,8 @@ The entry structure is 80 bytes on this target, before heap-allocated names, vec
 
 ## Frontend bundle
 
+After live partial-index publication, the same 10,000-file benchmark measured 1,935.958, 1,385.146 and 1,245.608 ms, with zero errors. This run was slower than the initial baseline. Incremental ancestor updates and synchronization were added, and host/cache conditions were not controlled between runs. Treat the change as an unresolved performance concern, not a measured regression attributable to one cause. Large-workload and paired comparisons remain required.
+
 The first production build produces approximately 70.01 kB of JavaScript and 13.20 kB of CSS, or 27.11 kB and 3.35 kB respectively after gzip. Local logo files are separate. These are frontend bundle sizes, not executable or installer sizes.
 
 ## Measurement plan
