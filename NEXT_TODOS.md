@@ -14,11 +14,15 @@ Voldiq is under active development. A task becomes DONE only after its acceptanc
 | V08 | Incremental NTFS index | P1 | IN_PROGRESS | V03, V07 | Journal continuity validation and full resynchronization | crates/voldiq-core |
 | V09 | Preferences and accessibility | P1 | IN_PROGRESS | V04 | Persistent preferences, themes, reduced motion, keyboard checks | frontend, src-tauri |
 | V10 | Benchmarks and quality audits | P0 | IN_PROGRESS | V02-V09 | Reproducible measurements, Ponytail review and audit, resolved defects | benchmarks, docs |
-| V11 | Windows distribution | P0 | TODO | V10 | Installer build, offline smoke check, final icon, documentation | src-tauri, README.md |
+| V11 | Windows distribution | P0 | IN_PROGRESS | V10 | Installer build, offline smoke check, final icon, documentation | src-tauri, README.md |
 
 ## Delivery policy
 
 Commit verified functional units with English messages and push to the configured repository. Preserve pending work and measured limitations. Never claim that the full acceptance list has passed while items remain open.
+
+## Windows installer delivery
+
+The x64 release executable and NSIS installer build successfully with the offline WebView2 runtime embedded. Installer and uninstaller now use the supplied multi-resolution Voldiq icon. Generated NSIS source confirms current-user installation and offline runtime embedding; the downloaded runtime has a valid Microsoft Authenticode signature. The Node prerequisite matches the locked frontend tooling. See `docs/DISTRIBUTION.md` for artifact evidence and build instructions. Clean-machine offline installation, startup and uninstall remain open.
 
 ## First verified delivery, 2026-10-11
 

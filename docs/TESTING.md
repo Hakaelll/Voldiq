@@ -37,4 +37,4 @@ Browser preview checks verify layout and preferences only. The preview deliberat
 
 ## Release acceptance
 
-The installer, offline startup, actual native interaction, duplicate management, cleanup confirmation, snapshot interaction and NTFS fast path must pass before the project is considered complete. A build passing today does not close those pending checks.
+The x64 NSIS installer builds; packaging evidence is recorded in `docs/DISTRIBUTION.md`. Clean-machine installation, offline startup, actual native interaction, duplicate management, cleanup confirmation, snapshot interaction and NTFS fast path must pass before the project is considered complete. A build passing today does not close those pending checks.

@@ -17,7 +17,7 @@ Voldiq maps the files on a drive or in a folder so you can understand where spac
 
 ## Build on Windows
 
-Install the stable Rust MSVC toolchain, Visual Studio C++ Build Tools with the Windows SDK, Node.js 22 or newer, pnpm, and Microsoft Edge WebView2. Windows 10 and 11 x86-64 are the initial targets.
+Install the stable Rust MSVC toolchain, Visual Studio C++ Build Tools with the Windows SDK, Node.js 22 (version 22.12 or later) or Node.js 24+, pnpm, and Microsoft Edge WebView2. Windows 10 and 11 x86-64 are the initial targets.
 
 ```powershell
 pnpm install
@@ -34,7 +34,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 pnpm tauri build
 ```
 
-The release configuration targets an NSIS installer and includes the offline WebView2 installer. A distributable download is not published yet.
+The release configuration targets an NSIS installer and includes the offline WebView2 installer. Build output is in `target/release/bundle/nsis`; a distributable download is not published yet. See [Windows distribution](docs/DISTRIBUTION.md) for build instructions and remaining installer acceptance checks.
 
 ## Source map
 
