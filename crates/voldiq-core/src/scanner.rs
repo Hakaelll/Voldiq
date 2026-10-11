@@ -56,6 +56,7 @@ pub fn scan_live(
     let shared = Arc::new(RwLock::new(Index {
         root: root.clone(),
         entries: vec![Entry {
+            file_state: None,
             id: NodeId(0),
             parent: None,
             name: root
@@ -163,6 +164,7 @@ pub fn scan_live(
                 continue;
             };
             let mut entry = Entry {
+                file_state: None,
                 id: NodeId(0),
                 parent: Some(parent),
                 name: item.file_name().to_string_lossy().into_owned(),
@@ -178,16 +180,26 @@ pub fn scan_live(
             if kind == Kind::File {
                 entry.logical = metadata.len();
                 entry.files = 1;
-                files += 1;
-                bytes += entry.logical;
-                match windows::identity(&path) {
-                    Ok(identity) => {
+                match windows::metadata_identity(&path) {
+                    Ok((current, identity))
+                        if current.is_file() && !windows::is_reparse(&current) =>
+                    {
+                        entry.logical = current.len();
+                        entry.modified = modified(&current);
+                        entry.file_state = Some(crate::FileState {
+                            identity: identity.key,
+                            change_time: identity.change_time,
+                        });
                         entry.hard_link = identity.links > 1;
                         if physical.insert(identity.key) {
                             entry.allocated = identity.allocated;
                         }
                     }
-                    Err(error) => {
+                    result => {
+                        let error = match result {
+                            Err(error) => error.to_string(),
+                            _ => "File changed during scanning.".into(),
+                        };
                         entry.allocation_known = false;
                         entry.incomplete = true;
                         let mut index =
@@ -202,8 +214,13 @@ pub fn scan_live(
                 }
             }
             if kind == Kind::Link {
+                entry.file_state = None;
                 entry.incomplete = true;
                 entry.allocation_known = false;
+            }
+            if kind == Kind::File {
+                files += 1;
+                bytes += entry.logical;
             }
             let mut index = shared.write().map_err(|e| Error::Invalid(e.to_string()))?;
             entry.id = NodeId(index.entries.len() as u32);

@@ -250,6 +250,10 @@ Recorded size appears only when more than one compatible saved snapshot exists. 
 
 The developer destination uses the existing rail and compact header. Its bordered panel has a 12px summary row, a horizontally scrollable table and 50-row pages. Paths truncate with their complete value available on hover; size columns use right-aligned tabular numbers. Tool, category, Partial and Unknown are necessary data labels. Loading, Retry and empty states contain one action or short status. Paging restores focus to the region when the initiating control is replaced. This component is documented and checked from source; populated native visual acceptance belongs to the user.
 
+### Manual selection preview
+
+File checkboxes share the name cell and appear only for complete regular files in a current scan. A compact footer reports selection count, Review selection and Clear. The native dialog presents full paths with wrapping, right-aligned Logical and Potential values and necessary hard-link labels. Close and Escape dismiss it. No files are preselected and no descriptive paragraph appears in the product. Compiler and source checks cover this addition; populated native visual acceptance remains with the user.
+
 ### Notices and scan issues
 
 Preview, incomplete coverage and engine errors appear as compact bordered messages. Scan progress exposes measured counts and cancellation state. The access-issue dialog has a constrained scrolling body and an explicit close action. The browser preview explains that real drive detection and scans require the Windows app, and disables those actions.

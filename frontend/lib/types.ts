@@ -1,4 +1,15 @@
 export type NodeId = number;
+export interface CleanupPreview {
+  id: number;
+  preview: {
+    rule: string;
+    risk: string;
+    policy: string;
+    items: { id: NodeId; path: string; logical: number; reclaimable: number; hard_link: boolean }[];
+    logical: number;
+    reclaimable: number;
+  };
+}
 export interface DeveloperItem {
   id: NodeId;
   path: string;

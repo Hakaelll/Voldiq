@@ -62,4 +62,6 @@ Baseline and final runs use the same deterministic index, in release builds on t
 
 ## Open performance gates
 
+Cleanup identity baselines increase the measured x64 `Entry` layout from 80 to 112 bytes. This excludes heap allocations and is not total process memory. Historical query measurements above predate that layout and the additional stable metadata reads; they must not be presented as measurements of the updated scanner. Fresh scan and query measurements remain part of the performance gate.
+
 The pending performance gate includes million-file workloads, broad and deep directory shapes, query latency during indexing, NTFS versus fallback scans, hard-link and sparse-file accuracy, total application memory, cold and warm startup, idle CPU, cancellation latency and Canvas frame times. No 60 FPS or sub-two-second startup guarantee has been validated yet.

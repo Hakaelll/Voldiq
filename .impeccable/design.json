@@ -577,6 +577,14 @@
       "description": "Source-checked indexed storage table with bounded pages, tool and category labels, partial coverage, loading, retry and region focus restoration. Native visual acceptance remains with the user.",
       "html": "<section class=\"ds-developer\" aria-label=\"Developer storage\"><div class=\"ds-developer-empty\">No indexed developer storage</div></section>",
       "css": ".ds-developer{border:1px solid var(--border,#e5e5e5);border-radius:8px;background:var(--surface,#fafafa);overflow:hidden;font:13px Segoe UI,sans-serif;color:var(--text,#171717)}.ds-developer-empty{min-height:180px;display:grid;place-items:center;color:var(--muted,#737373)}"
+    },
+    {
+      "name": "Manual selection preview",
+      "kind": "custom",
+      "refersTo": "cleanup-preview",
+      "description": "Source-checked native modal with full selected paths, logical size, conservative potential allocation and hard-link labels. Close and Escape discard its immutable plan. Recycling is pending.",
+      "html": "<dialog open class=\"ds-cleanup\"><header><h2>Selected files</h2><button>Close</button></header><table><thead><tr><th>Path</th><th>Logical</th><th>Potential</th></tr></thead></table></dialog>",
+      "css": ".ds-cleanup{border:1px solid var(--border,#e5e5e5);border-radius:8px;background:var(--canvas,#fff);color:var(--text,#171717);font:12px Segoe UI,sans-serif;width:min(820px,calc(100vw - 48px));padding:0}.ds-cleanup header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px}.ds-cleanup h2{margin:0;font-size:16px;font-weight:600}.ds-cleanup table{width:100%;border-collapse:collapse}.ds-cleanup th{padding:10px 20px;border-top:1px solid var(--border,#e5e5e5);text-align:left;font-weight:500}"
     }
   ],
   "narrative": {

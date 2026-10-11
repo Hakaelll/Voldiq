@@ -7,6 +7,7 @@
   import Duplicates from './components/Duplicates.svelte';
   import History from './components/History.svelte';
   import DeveloperStorage from './components/DeveloperStorage.svelte';
+  import CleanupPreviewDialog from './components/CleanupPreview.svelte';
   import {
     bytes,
     date,
@@ -19,6 +20,7 @@
     type Query,
     type Volume,
     type Snapshot,
+    type CleanupPreview,
   } from './lib/types';
   type View =
     'overview' | 'explorer' | 'large' | 'duplicates' | 'developer' | 'history' | 'settings';
@@ -61,6 +63,32 @@
   let interactionToken = 0;
   let analysisBusy = $state(false);
   let historical = $state<Snapshot | null>(null);
+  let selection = $state(new Set<number>());
+  let cleanupPreview = $state<CleanupPreview | null>(null);
+  function checkFile(id: number, checked: boolean): void {
+    const next = new Set(selection);
+    if (checked) {
+      if (next.size >= 500) {
+        error = 'Select up to 500 files.';
+        return;
+      }
+      next.add(id);
+    } else next.delete(id);
+    selection = next;
+  }
+  async function previewSelection(): Promise<void> {
+    if (busy || historical || selection.size === 0) return;
+    analysisBusy = true;
+    try {
+      cleanupPreview = await invoke<CleanupPreview>('preview_cleanup', {
+        selection: [...selection],
+      });
+    } catch (problem) {
+      report(problem);
+    } finally {
+      analysisBusy = false;
+    }
+  }
   let volume = $derived(volumes.find((v) => v.path === volumePath));
   let busy = $derived(operation?.phase === 'scanning' || analysisBusy);
   let query = $derived<Query>({
@@ -149,6 +177,8 @@
   }
   async function start(path: string): Promise<void> {
     if (!path || busy) return;
+    selection = new Set();
+    cleanupPreview = null;
     refreshToken += 1;
     interactionToken += 1;
     ready = false;
@@ -221,6 +251,8 @@
     }
   }
   async function loadSnapshot(snapshot: Snapshot): Promise<void> {
+    selection = new Set();
+    cleanupPreview = null;
     refreshToken += 1;
     interactionToken += 1;
     details = null;
@@ -691,6 +723,9 @@
                 {query}
                 {revision}
                 selected={details?.entry.id ?? null}
+                checked={selection}
+                manageable={!busy && historical === null}
+                oncheck={checkFile}
                 onselect={(entry) => {
                   void select(entry.id);
                 }}
@@ -699,6 +734,17 @@
                 }}
                 onerror={report}
               />
+              {#if selection.size > 0}<div class="selection-bar">
+                  <span>{selection.size} selected</span><button
+                    disabled={busy || historical !== null}
+                    onclick={previewSelection}>Review selection</button
+                  ><button
+                    disabled={busy}
+                    onclick={() => {
+                      selection = new Set();
+                    }}>Clear</button
+                  >
+                </div>{/if}
             </section>{/if}
           {#if details}<section class="details-panel">
               <div>
@@ -785,3 +831,11 @@
       </div>
     </div>
   </div>{/if}
+
+{#if cleanupPreview}{#key cleanupPreview.id}<CleanupPreviewDialog
+      plan={cleanupPreview}
+      onclose={() => {
+        cleanupPreview = null;
+      }}
+      onerror={report}
+    />{/key}{/if}

@@ -10,7 +10,9 @@ use std::{
 };
 use tauri::Manager;
 use tauri::{State, ipc::Channel};
+mod cleanup_commands;
 mod snapshot_commands;
+use cleanup_commands::*;
 use snapshot_commands::*;
 use voldiq_core::{
     NodeId, Progress, ScanOptions, ScanPhase,
@@ -32,6 +34,20 @@ struct Engine {
 struct DuplicateRun {
     index: SharedIndex,
     analysis: Analysis,
+}
+
+struct Operation {
+    engine: Arc<Engine>,
+    id: u64,
+}
+impl Drop for Operation {
+    fn drop(&mut self) {
+        if let Ok(mut active) = self.engine.active.lock()
+            && active.as_ref().is_some_and(|(id, _)| *id == self.id)
+        {
+            *active = None;
+        }
+    }
 }
 
 impl Engine {
@@ -428,6 +444,7 @@ fn main() {
             Ok(())
         })
         .manage(Arc::new(Engine::default()))
+        .manage(CleanupPlans::default())
         .invoke_handler(tauri::generate_handler![
             get_volumes,
             choose_folder,
@@ -438,6 +455,8 @@ fn main() {
             query_duplicate_members,
             get_duplicate_issues,
             query_files,
+            preview_cleanup,
+            discard_cleanup,
             query_developer_storage,
             get_details,
             get_file_types,

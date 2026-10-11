@@ -28,6 +28,12 @@ pub fn wide(path: &Path) -> Vec<u16> {
 
 #[cfg(windows)]
 pub fn identity(path: &Path) -> Result<FileIdentity> {
+    Ok(metadata_identity(path)?.1)
+}
+
+#[cfg(windows)]
+pub fn metadata_identity(path: &Path) -> Result<(std::fs::Metadata, FileIdentity)> {
+    use std::os::windows::io::FromRawHandle;
     use windows_sys::Win32::{Foundation::*, Storage::FileSystem::*};
     let path = wide(path);
     // Opening metadata only with OPEN_REPARSE_POINT does not read cloud-only file contents.
@@ -38,16 +44,89 @@ pub fn identity(path: &Path) -> Result<FileIdentity> {
             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
             std::ptr::null(),
             OPEN_EXISTING,
-            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT,
+            FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_OPEN_NO_RECALL,
             std::ptr::null_mut(),
         );
         if handle == INVALID_HANDLE_VALUE {
             return Err(std::io::Error::last_os_error().into());
         }
-        let result = handle_identity(handle);
-        CloseHandle(handle);
-        result
+        let file = std::fs::File::from_raw_handle(handle);
+        let before = file_identity(&file)?;
+        let metadata = file.metadata()?;
+        let identity = file_identity(&file)?;
+        if before.key != identity.key || before.change_time != identity.change_time {
+            return Err(crate::Error::Invalid(
+                "File changed while reading metadata.".into(),
+            ));
+        }
+        Ok((metadata, identity))
     }
+}
+
+#[cfg(unix)]
+pub fn metadata_identity(path: &Path) -> Result<(std::fs::Metadata, FileIdentity)> {
+    use std::os::unix::fs::OpenOptionsExt;
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(libc::O_NOFOLLOW)
+        .open(path)?;
+    let before = file_identity(&file)?;
+    let metadata = file.metadata()?;
+    let identity = file_identity(&file)?;
+    if before.key != identity.key || before.change_time != identity.change_time {
+        return Err(crate::Error::Invalid(
+            "File changed while reading metadata.".into(),
+        ));
+    }
+    Ok((metadata, identity))
+}
+
+#[cfg(windows)]
+pub fn protected_directories() -> Result<Vec<std::path::PathBuf>> {
+    use std::{ffi::OsString, os::windows::ffi::OsStringExt};
+    use windows_sys::Win32::{System::Com::CoTaskMemFree, UI::Shell::*};
+    let mut paths = Vec::new();
+    for folder in [
+        FOLDERID_Windows,
+        FOLDERID_ProgramFiles,
+        FOLDERID_ProgramFilesX86,
+        FOLDERID_ProgramData,
+    ] {
+        let mut raw = std::ptr::null_mut();
+        let status = unsafe {
+            SHGetKnownFolderPath(
+                &folder,
+                KF_FLAG_DEFAULT as u32,
+                std::ptr::null_mut(),
+                &mut raw,
+            )
+        };
+        if status < 0 || raw.is_null() {
+            if !raw.is_null() {
+                unsafe { CoTaskMemFree(raw.cast()) };
+            }
+            return Err(crate::Error::Invalid(format!(
+                "Protected Windows location unavailable: {status:#x}."
+            )));
+        }
+        let mut length = 0;
+        while length < 32768 && unsafe { *raw.add(length) } != 0 {
+            length += 1;
+        }
+        let path = if length < 32768 {
+            Some(std::path::PathBuf::from(OsString::from_wide(unsafe {
+                std::slice::from_raw_parts(raw, length)
+            })))
+        } else {
+            None
+        };
+        unsafe { CoTaskMemFree(raw.cast()) };
+        let path = path
+            .filter(|path| path.is_absolute())
+            .ok_or_else(|| crate::Error::Invalid("Invalid protected Windows location.".into()))?;
+        paths.push(path);
+    }
+    Ok(paths)
 }
 
 #[cfg(windows)]

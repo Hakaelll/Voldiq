@@ -9,6 +9,9 @@
     onselect,
     onopen,
     onerror,
+    checked = new Set<number>(),
+    manageable = false,
+    oncheck,
   }: {
     query: Query;
     revision: number;
@@ -16,6 +19,9 @@
     onselect: (entry: Entry) => void;
     onopen: (entry: Entry) => void;
     onerror: (error: unknown) => void;
+    checked?: ReadonlySet<number>;
+    manageable?: boolean;
+    oncheck?: (id: number, checked: boolean) => void;
   } = $props();
   const rowHeight = 36;
   let scrollTop = $state(0),
@@ -74,8 +80,17 @@
           aria-rowindex={offset + i + 2}
           style:top={`${(offset + i) * rowHeight}px`}
         >
-          <span role="cell"
-            ><button
+          <span role="cell" class="file-label">
+            {#if manageable}
+              {#if entry.kind === 'file' && !entry.incomplete}<input
+                  type="checkbox"
+                  aria-label={`Select ${entry.name}`}
+                  checked={checked.has(entry.id)}
+                  onchange={(event) => oncheck?.(entry.id, event.currentTarget.checked)}
+                />
+              {:else}<span class="selection-spacer"></span>{/if}
+            {/if}
+            <button
               class="file-name"
               title={entry.name}
               onclick={() => onselect(entry)}
@@ -108,3 +123,26 @@
     {total.toLocaleString()} items
   </div>
 </div>
+
+<style>
+  .file-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .file-label input[type='checkbox'] {
+    width: 14px;
+    height: 14px;
+    min-height: 0;
+    flex-shrink: 0;
+    padding: 0;
+    accent-color: var(--accent);
+  }
+  .file-label .selection-spacer {
+    width: 14px;
+    flex-shrink: 0;
+  }
+  .file-label .file-name {
+    min-width: 0;
+  }
+</style>

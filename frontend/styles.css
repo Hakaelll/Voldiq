@@ -633,6 +633,19 @@ main {
 .file-table {
   font-size: 12px;
 }
+.selection-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+.selection-bar > span {
+  margin-right: auto;
+  color: var(--secondary);
+}
 .table-head,
 .table-row {
   display: grid;

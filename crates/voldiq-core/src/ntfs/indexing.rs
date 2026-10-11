@@ -371,9 +371,13 @@ fn read_entry(
     name: &std::ffi::OsStr,
     physical: &mut HashSet<(u64, u64)>,
 ) -> Result<Entry> {
+    let before = windows::file_identity(file)?;
     let metadata = file.metadata()?;
     let identity = windows::file_identity(file)?;
-    if identity.key != (volume, reference) {
+    if identity.key != (volume, reference)
+        || before.key != identity.key
+        || before.change_time != identity.change_time
+    {
         return Err(Error::Invalid("NTFS file identity changed.".into()));
     }
     let kind = if windows::is_reparse(&metadata) {
@@ -384,6 +388,10 @@ fn read_entry(
         Kind::File
     };
     Ok(Entry {
+        file_state: (kind == Kind::File).then_some(crate::FileState {
+            identity: identity.key,
+            change_time: identity.change_time,
+        }),
         id: NodeId(0),
         parent: Some(parent),
         name: name.to_string_lossy().into_owned(),

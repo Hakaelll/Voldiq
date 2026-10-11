@@ -1,3 +1,4 @@
+pub mod cleanup;
 pub mod developer;
 pub mod duplicates;
 pub mod index;
@@ -33,6 +34,8 @@ pub enum Kind {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Entry {
+    #[serde(skip)]
+    pub file_state: Option<FileState>,
     pub id: NodeId,
     pub parent: Option<NodeId>,
     pub name: String,
@@ -44,6 +47,12 @@ pub struct Entry {
     pub files: u64,
     pub incomplete: bool,
     pub hard_link: bool,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct FileState {
+    pub identity: (u64, u64),
+    pub change_time: u64,
 }
 
 #[derive(Clone, Debug, Serialize)]

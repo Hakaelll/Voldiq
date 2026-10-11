@@ -10,6 +10,6 @@ Physical allocation comes from Windows file information. If a handle cannot be o
 
 The webview loads local packaged resources. Content Security Policy excludes remote scripts, frames and objects. The command bridge owns the filesystem paths; the interface cannot execute arbitrary filesystem or shell commands.
 
-No destructive command exists in this first delivery. Cleanup will require backend-owned plans, route and identity validation, critical-directory exclusions, a reviewed selection and explicit confirmation. Tests for destructive operations must use controlled fixtures.
+No destructive command exists yet. Cleanup previews now retain backend-owned plans with scanned identity/change-time evidence, native protected-directory exclusions and reviewed selections. Verification handles pin ancestors and block leaf mutation while held. Confirmed recycle execution and concurrent redirection tests remain pending; these preview checks do not certify a deletion transaction. See [cleanup scope and guarantees](CLEANUP.md). Tests for destructive operations must use controlled fixtures.
 
 Explorer reveal uses a fixed executable with one argument derived from the index. It does not pass user text through a command interpreter.

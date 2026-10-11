@@ -1,4 +1,4 @@
-use crate::Engine;
+use crate::{Engine, Operation};
 use std::{
     path::Path,
     sync::{Arc, Mutex, RwLock},
@@ -11,21 +11,6 @@ pub struct SnapshotDatabase(Arc<Mutex<Store>>);
 impl SnapshotDatabase {
     pub fn open(path: &Path) -> voldiq_core::Result<Self> {
         Ok(Self(Arc::new(Mutex::new(Store::open(path)?))))
-    }
-}
-
-struct Operation {
-    engine: Arc<Engine>,
-    id: u64,
-}
-
-impl Drop for Operation {
-    fn drop(&mut self) {
-        if let Ok(mut active) = self.engine.active.lock()
-            && active.as_ref().is_some_and(|(id, _)| *id == self.id)
-        {
-            *active = None;
-        }
     }
 }
 

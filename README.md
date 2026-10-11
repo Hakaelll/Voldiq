@@ -63,6 +63,10 @@ Duplicate discovery groups indexed files by size, samples at most 8 KiB and veri
 
 Potential allocation conservatively retains the largest independently allocated copy. Files with multiple hard links contribute no reclaimable estimate, because links may exist outside the scan. This estimate does not imply that moving files to the Recycle Bin frees volume space. Selection and recycling are still pending.
 
+## File management previews
+
+Select regular files in Explorer or Large files and use Review selection to inspect their real paths, sizes and potential allocation. Rust retains immutable plans and checks scanned identities, change times, exclusions and native Windows protected locations. Historical captures cannot produce management previews. Verification tests cover replacement and mutation with controlled files. Recycling and permanent deletion are not exposed yet; see [cleanup guarantees and remaining work](docs/CLEANUP.md).
+
 ## Developer storage
 
 The developer view classifies indexed Cargo targets, Node.js dependencies and build output, Python bytecode caches, Gradle project caches and .NET build directories. Project manifests identify ambiguous names such as `target`, `bin` and `build`. Nested candidates belong to their outer artifact so category totals do not count the same subtree twice. Results use bounded pages and expose logical size, allocation and incomplete coverage. These directories are not automatically considered disposable; management actions remain pending.

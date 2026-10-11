@@ -59,3 +59,7 @@ Drive-root scans now attempt the read-only NTFS path; unsupported capability and
 ## Developer storage analysis
 
 A real-filesystem test verifies manifest-based Cargo, Node.js and .NET detection, Python caches, nested artifact deduplication and deterministic paging. The native command exposes bounded indexed results. A compact developer view reports categories, sizes and partial coverage, with details and paging. Svelte diagnostics, frontend production build and strict workspace Clippy pass. No cleanup execution is exposed yet; plans, confirmations, guarded recycling, official tool integrations and cache discovery remain open.
+
+## Manual management previews
+
+The explorer and large-file list now support explicit file selection and a backend-owned read-only preview. Scans retain file identity/change time; native known-folder APIs resolve protected locations. Four cleanup tests verify real sizes, replacement before preview with matching timestamps, changed identity after preview, exclusions, historical rejection, hard-link estimates, native protected paths and handles that block mutation while held. All 36 core tests, Svelte diagnostics, production frontend build and strict workspace Clippy pass. A source-only reviewer confirmed both accepted safety findings resolved. Recycling, duplicate keep-copy validation, cleanup rules, result logging and concurrency/transaction checks remain open. Entry storage is now 112 bytes on x64, and updated scanner performance requires measurement.

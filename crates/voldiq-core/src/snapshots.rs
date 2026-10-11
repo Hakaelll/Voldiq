@@ -356,6 +356,7 @@ impl Store {
                 index.native_names.insert(node, native);
             }
             index.entries.push(Entry {
+                file_state: None,
                 id: node,
                 parent,
                 name,
