@@ -1,5 +1,6 @@
 pub mod duplicates;
 pub mod index;
+pub mod ntfs;
 pub mod scanner;
 pub mod snapshots;
 pub mod windows;

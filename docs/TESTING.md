@@ -23,6 +23,8 @@ Five duplicate tests verify full BLAKE3 content, matching samples with different
 
 ## Manual application checks
 
+Four NTFS unit tests validate packed binary records, native UTF-16 preservation, truncation, malformed headers, dynamic filename offsets and journal continuity. `cargo run -p voldiq-core --example ntfs_probe` uses a disposable two-hard-link fixture and probes the existing volume read-only. On this host raw-volume access is denied; the conventional fixture passes with two names and 256 logical bytes. The probe does not elevate or create a journal. Elevated NTFS enumeration and live index integration remain unverified.
+
 Five snapshot tests save actual fixtures, reopen the database, compare additions, removals and directory growth, verify unchanged-version reuse, check rollback and integer overflow, delete intermediate captures, compact storage, preserve native UTF-16 names and reject invalid path components. Incomplete captures report omissions without asserting deletion; captures with different exclusions cannot be compared.
 
 ```powershell

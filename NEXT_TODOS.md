@@ -6,7 +6,7 @@ Voldiq is under active development. A task becomes DONE only after its acceptanc
 |---|---|---|---|---|---|---|
 | V01 | Windows app and build foundation | P0 | DONE | None | Svelte checks, Rust build, real Windows window | src-tauri, frontend |
 | V02 | Native volumes and conventional scan | P0 | IN_PROGRESS | V01 | Real fixtures, cancellation, errors, links, aggregation, bounded queries, partial results, calibrated concurrency | crates/voldiq-core |
-| V03 | NTFS enumeration and metadata | P0 | TODO | V02 | Validated binary records, fallback, volume comparison benchmark | crates/voldiq-core/src/ntfs.rs |
+| V03 | NTFS enumeration and metadata | P0 | IN_PROGRESS | V02 | Validated binary records, hierarchy, metadata, hard-link names, fallback, volume comparison benchmark | crates/voldiq-core/src/ntfs.rs |
 | V04 | Visual explorer and search | P0 | IN_PROGRESS | V02 | Canvas navigation, virtual rows, real IPC data, keyboard navigation | frontend |
 | V05 | Large files and duplicates | P1 | IN_PROGRESS | V02 | Filters, BLAKE3 content verification, cancellation, hard-link handling, reviewed selections, native interaction | crates/voldiq-core, frontend/components/Duplicates.svelte |
 | V06 | Safe cleanup and developer storage | P0 | TODO | V05 | Preview, exclusions, identity validation, confirmation, controlled fixture execution | crates/voldiq-core |
@@ -43,3 +43,9 @@ SQLite stores native paths and version intervals, with transactional captures an
 ## Ranked query delivery
 
 Queries partition matching references at the requested offset and limit and sort only the page. ASCII name comparison avoids temporary strings, empty searches avoid lowercase allocation, and root scope checks are constant time. Two real-filesystem tests check complete deterministic paging, filters, caps and Unicode sorting. A clearly labelled synthetic million-file benchmark records baseline and final rankings in `docs/PERFORMANCE.md`. It does not close the actual million-file scan, total-memory or native UI gates.
+
+## NTFS reader foundation
+
+The Windows reader opens an existing NTFS volume read-only, queries its journal, enumerates bounded MFT records, opens metadata by file ID and reads changes only with verified journal continuity. The binary parser checks record versions, lengths, alignment, dynamic filename offsets and component lengths without unsafe pointer casts. Four tests cover native UTF-16, every truncation of a fixture record, malformed offsets, minor-version extensions and journal reset/gap/volume checks. Limited and cancelled results cannot carry a completed checkpoint.
+
+The host probe returned access denied for the raw NTFS volume. Its conventional two-hard-link fixture passed. No elevation or journal modification was attempted. Integration of NTFS records into the live index, complete hard-link name enumeration, persistent journal checkpoints and elevated-drive comparison remain open.
