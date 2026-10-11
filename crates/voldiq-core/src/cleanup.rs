@@ -199,7 +199,7 @@ impl Plan {
             .find(|file| file.id == id)
             .ok_or_else(|| Error::Invalid("File is not in the confirmed plan.".into()))?;
         let mut parents = Vec::new();
-        // Pin ancestors from the volume root inward so a path cannot be redirected while opening its leaf.
+        // Pin ancestor names from the volume root inward; independently check the opened leaf's identity.
         for (path, expected) in planned.parents.iter().rev() {
             let file = std::fs::OpenOptions::new()
                 .access_mode(FILE_READ_ATTRIBUTES)

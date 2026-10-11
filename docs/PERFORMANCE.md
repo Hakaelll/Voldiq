@@ -62,6 +62,8 @@ Baseline and final runs use the same deterministic index, in release builds on t
 
 ## Open performance gates
 
-Cleanup identity baselines increase the measured x64 `Entry` layout from 80 to 112 bytes. This excludes heap allocations and is not total process memory. Historical query measurements above predate that layout and the additional stable metadata reads; they must not be presented as measurements of the updated scanner. Fresh scan and query measurements remain part of the performance gate.
+On 2026-10-12, the updated 10,000-file runner verified 10,101 entries, exact logical totals and zero errors in all three runs. Scan times were 699.856, 658.685 and 1,167.019 ms; root page times were 0.078, 0.062 and 0.072 ms; global search times were 0.788, 0.742 and 0.814 ms. The runner measured the current entry layout as 112 bytes. Fixture creation warmed filesystem state; host background work and cache state were not controlled. The spread and historical changes cannot be attributed to a specific optimization. This updates the small-fixture evidence, not the million-file or whole-drive gates.
+
+Cleanup identity baselines increase the measured x64 `Entry` layout from 80 to 112 bytes. This excludes heap allocations and is not total process memory. Historical million-entry query measurements above predate that layout and the additional stable metadata reads; they must not be presented as measurements of the updated scanner. Updated million-entry query measurements remain part of the performance gate.
 
 The pending performance gate includes million-file workloads, broad and deep directory shapes, query latency during indexing, NTFS versus fallback scans, hard-link and sparse-file accuracy, total application memory, cold and warm startup, idle CPU, cancellation latency and Canvas frame times. No 60 FPS or sub-two-second startup guarantee has been validated yet.
