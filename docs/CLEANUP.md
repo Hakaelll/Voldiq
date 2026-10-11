@@ -1,6 +1,6 @@
 # Cleanup previews
 
-The current delivery supports manual selection and a read-only preview. It does not expose recycling or permanent deletion yet. A preview is not approval to execute a destructive operation.
+The current delivery supports manual, duplicate and indexed temporary-file selections with read-only previews. It does not expose recycling or permanent deletion yet. A preview is not approval to execute a destructive operation.
 
 ## Manual file rule
 
@@ -32,13 +32,21 @@ The virtual explorer and large-file list expose native checkboxes without automa
 
 The backend retains one plan session. Discard identifies that session, so a stale discard cannot remove a newer plan. Starting a scan or loading a snapshot clears frontend selection and preview. Before future execution, the backend must also verify that the plan still belongs to the active index and consume the confirmed session once.
 
+## User temporary-file rule
+
+`old-user-temporary-files` discovers the current process user's Windows temporary directory and queries its indexed scope. It admits complete regular files ending in `.tmp` or `.temp`, ignoring case, whose recorded modification time is at least seven days old. Other extensions, recent files and paths outside the temporary scope are excluded. Its descriptor records discovery, selection, exclusions, review risk, permissions, recycle policy and verification. File age does not establish that an application has finished using the file.
+
+Candidates remain unselected until the user chooses them. The native preview rechecks scope, extension and age, then applies the manual plan's scanned identity, metadata, exclusion and protected-path checks. A changed file, historical snapshot or selection outside the rule aborts preview creation. Execution will also need unused-file verification and the complete recycle transaction.
+
+The Cleanup view exposes Scan user temp, bounded candidate pages and Review selection. A temporary directory absent from the current index is shown as Not indexed. An index covering only a child of that directory is labelled Partial. Logical and potential allocation totals cover discovered candidates; hard links and unknown allocation contribute zero potential. No delete or automatic cleanup command is exposed.
+
 ## Duplicate selection review
 
 Duplicate checkboxes start empty and remain selected across result pages. The frontend and backend both reject selecting every member of a group. The backend rejects selections outside the current analysis and analysis results from an older index. For every touched group it chooses one unselected copy to retain, reads the full content of that copy and every selected file with BLAKE3, and compares the original group digest. These reads bypass the hash cache and check the scanned file identity and native change time. The review can be cancelled during content reads.
 
 The preview shows retained paths under Keep. This is evidence at preview creation, not a guarantee at a future deletion time. The executor must repeat retained-copy validation and preserve that copy through the destructive transaction. No recycling command is exposed in this delivery.
 
-Temporary-file rules, compatible cache discovery, developer tool commands, confirmed recycling, result logging and undo integration are still open work.
+Additional cleanup rules, compatible cache discovery, developer tool commands, confirmed recycling, result logging and undo integration are still open work.
 
 ## Native recycling handoff investigation
 

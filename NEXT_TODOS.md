@@ -62,6 +62,8 @@ A real-filesystem test verifies manifest-based Cargo, Node.js and .NET detection
 
 ## Manual management previews
 
+The first cleanup rule now discovers and pages indexed user `.tmp`/`.temp` files aged seven days or more. Two real-filesystem tests cover exact totals, age, extension, paging, explicit selection, changed files, historical rejection, exclusions, unscanned locations and partial subtree coverage. Its descriptor records the full rule contract. The Cleanup view supports scanning the actual temporary location and manual preview. Recycling and unused-file execution remain pending.
+
 Native recycling handoff research now includes an isolated Windows capability probe. Atomic sealed staging prevents new children, but the created handle lacks the requested DACL capability and native enrollment is denied on this host. See `docs/CLEANUP.md`; source-handle release followed by path deletion remains rejected. The updated 10,000-file scanner fixture verifies exact totals, zero errors and the 112-byte entry layout; timings are recorded in `docs/PERFORMANCE.md`.
 
 Duplicate review now rejects complete-group selections, verifies selected content and a retained copy with fresh BLAKE3 reads, exposes cancellation and records retained paths in the preview. A real-filesystem test covers successful retention, all-copy rejection, unknown/duplicate IDs, cancellation, digest mismatch and a changed retained file. Execution-time retention and recycling remain pending.

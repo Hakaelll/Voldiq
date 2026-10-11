@@ -8,6 +8,7 @@
   import History from './components/History.svelte';
   import DeveloperStorage from './components/DeveloperStorage.svelte';
   import CleanupPreviewDialog from './components/CleanupPreview.svelte';
+  import CleanupRules from './components/CleanupRules.svelte';
   import {
     bytes,
     date,
@@ -23,12 +24,20 @@
     type CleanupPreview,
   } from './lib/types';
   type View =
-    'overview' | 'explorer' | 'large' | 'duplicates' | 'developer' | 'history' | 'settings';
+    | 'overview'
+    | 'explorer'
+    | 'large'
+    | 'duplicates'
+    | 'cleanup'
+    | 'developer'
+    | 'history'
+    | 'settings';
   const navigation: { id: View; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: 'overview' },
     { id: 'explorer', label: 'Explorer', icon: 'folder' },
     { id: 'large', label: 'Large files', icon: 'large' },
     { id: 'duplicates', label: 'Duplicates', icon: 'duplicate' },
+    { id: 'cleanup', label: 'Cleanup', icon: 'trash' },
     { id: 'developer', label: 'Developer storage', icon: 'folder' },
     { id: 'history', label: 'History', icon: 'history' },
   ];
@@ -436,6 +445,7 @@
           disabled={!ready ||
             view === 'settings' ||
             view === 'duplicates' ||
+            view === 'cleanup' ||
             view === 'history' ||
             view === 'developer'}
         /><kbd>Ctrl K</kbd>
@@ -453,11 +463,13 @@
                   ? 'Large files'
                   : view === 'duplicates'
                     ? 'Duplicates'
-                    : view === 'developer'
-                      ? 'Developer storage'
-                      : view === 'history'
-                        ? 'History'
-                        : 'Settings'}
+                    : view === 'cleanup'
+                      ? 'Cleanup'
+                      : view === 'developer'
+                        ? 'Developer storage'
+                        : view === 'history'
+                          ? 'History'
+                          : 'Settings'}
           </h1>
           {#if view !== 'settings' && view !== 'history' && scanPath}<p>
               {scanPath}{#if historical}
@@ -483,8 +495,8 @@
           class="scan-status"
           aria-live="polite"
         >
-          <span class:working={busy} class="status-dot"></span><span
-            >{busy
+          <span class:working={operation.phase === 'scanning'} class="status-dot"></span><span
+            >{operation.phase === 'scanning'
               ? 'Scanning'
               : operation.phase === 'complete'
                 ? 'Scan complete'
@@ -497,7 +509,9 @@
             ).toFixed(1)} s</span
           >{#if operation.errors > 0}<button onclick={inspectIssues}
               >{operation.errors} access issues</button
-            >{/if}{#if busy}<button onclick={cancel} disabled={scanId === null}>Cancel scan</button
+            >{/if}{#if operation.phase === 'scanning'}<button
+              onclick={cancel}
+              disabled={scanId === null}>Cancel scan</button
             >{/if}
         </div>{/if}
       {#if view === 'settings'}
@@ -568,7 +582,7 @@
               >
             </div>
           </section>{/if}
-        {#if !ready && view !== 'duplicates'}<section class="welcome">
+        {#if !ready && view !== 'duplicates' && view !== 'cleanup'}<section class="welcome">
             <div class="welcome-art">
               <img src="/symbol.png" alt="Voldiq logo" width="72" height="72" />
             </div>
@@ -683,6 +697,21 @@
                   >{/each}
               </div>
             </section>
+          {:else if view === 'cleanup'}
+            <CleanupRules
+              scanning={operation?.phase === 'scanning'}
+              {revision}
+              {busy}
+              manageable={ready && !historical}
+              onscan={start}
+              onbusy={(value) => {
+                analysisBusy = value;
+              }}
+              onpreview={(plan) => {
+                cleanupPreview = plan;
+              }}
+              onerror={report}
+            />
           {:else if view === 'duplicates'}
             <Duplicates
               {scope}

@@ -456,6 +456,8 @@ fn main() {
             get_duplicate_issues,
             query_files,
             preview_cleanup,
+            query_cleanup_rule,
+            preview_temporary_cleanup,
             preview_duplicate_cleanup,
             discard_cleanup,
             query_developer_storage,

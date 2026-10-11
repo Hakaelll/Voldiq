@@ -1,5 +1,6 @@
 use crate::{Error, Kind, NodeId, Result, index::Index, windows};
 use serde::Serialize;
+pub mod rules;
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},

@@ -23,6 +23,70 @@ pub struct CleanupPreview {
 }
 
 #[tauri::command]
+pub async fn query_cleanup_rule(
+    offset: usize,
+    limit: usize,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<voldiq_core::cleanup::rules::Page, String> {
+    let index = engine.index.lock().map_err(|e| e.to_string())?.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let root = std::env::temp_dir();
+        let guard = index
+            .as_ref()
+            .map(|index| index.read())
+            .transpose()
+            .map_err(|e| e.to_string())?;
+        voldiq_core::cleanup::rules::query(
+            guard.as_deref(),
+            &root,
+            voldiq_core::cleanup::rules::now().map_err(|e| e.to_string())?,
+            offset,
+            limit,
+        )
+        .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn preview_temporary_cleanup(
+    selection: Vec<NodeId>,
+    engine: State<'_, Arc<Engine>>,
+    plans: State<'_, CleanupPlans>,
+) -> Result<CleanupPreview, String> {
+    let engine = engine.inner().clone();
+    let (id, _) = engine.begin()?;
+    let operation = Operation {
+        engine: engine.clone(),
+        id,
+    };
+    let index = engine.index()?;
+    let plans = plans.0.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _operation = operation;
+        let guard = index.read().map_err(|e| e.to_string())?;
+        let plan = voldiq_core::cleanup::rules::preview(
+            &guard,
+            &std::env::temp_dir(),
+            voldiq_core::cleanup::rules::now().map_err(|e| e.to_string())?,
+            &selection,
+        )
+        .map_err(|e| e.to_string())?;
+        drop(guard);
+        let preview = plan.preview().clone();
+        *plans.lock().map_err(|e| e.to_string())? = Some(Session {
+            id,
+            _index: index,
+            _plan: plan,
+        });
+        Ok(CleanupPreview { id, preview })
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
 pub async fn preview_cleanup(
     selection: Vec<NodeId>,
     engine: State<'_, Arc<Engine>>,

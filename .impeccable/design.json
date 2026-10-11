@@ -585,6 +585,14 @@
       "description": "Source-checked native modal with full selected paths, logical size, conservative potential allocation and hard-link labels. Duplicate review lists retained paths under Keep after fresh content verification. Close and Escape discard its immutable plan. Recycling is pending.",
       "html": "<dialog open class=\"ds-cleanup\"><header><h2>Selected files</h2><button>Close</button></header><table><thead><tr><th>Path</th><th>Logical</th><th>Potential</th></tr></thead></table></dialog>",
       "css": ".ds-cleanup{border:1px solid var(--border,#e5e5e5);border-radius:8px;background:var(--canvas,#fff);color:var(--text,#171717);font:12px Segoe UI,sans-serif;width:min(820px,calc(100vw - 48px));padding:0}.ds-cleanup header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px}.ds-cleanup h2{margin:0;font-size:16px;font-weight:600}.ds-cleanup table{width:100%;border-collapse:collapse}.ds-cleanup th{padding:10px 20px;border-top:1px solid var(--border,#e5e5e5);text-align:left;font-weight:500}"
+    },
+    {
+      "name": "User temporary-file rule",
+      "kind": "custom",
+      "refersTo": "cleanup-rules",
+      "description": "Source-checked temporary-file discovery with a compact age and extension criterion, direct folder scan, bounded candidate pages and explicit selection review. Not indexed and Partial distinguish missing or unfinished coverage. Native visual acceptance remains with the user.",
+      "html": "<section class=\"ds-temp\" aria-label=\"Cleanup rules\"><header><div><h2>User temporary files</h2><span>7+ days · .tmp / .temp</span></div><button>Scan user temp</button></header><div class=\"ds-temp-empty\">Not indexed</div></section>",
+      "css": ".ds-temp{border:1px solid var(--border,#e5e5e5);border-radius:8px;background:var(--canvas,#fff);font:13px Segoe UI,sans-serif;color:var(--text,#171717)}.ds-temp header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;padding:16px 20px}.ds-temp h2{margin:0 0 4px;font-size:16px;font-weight:600}.ds-temp span{color:var(--muted,#737373)}.ds-temp-empty{min-height:180px;display:grid;place-items:center;color:var(--muted,#737373)}"
     }
   ],
   "narrative": {

@@ -11,6 +11,28 @@ export interface CleanupPreview {
     retained: string[];
   };
 }
+
+export interface CleanupRulePage {
+  rule: {
+    id: string;
+    name: string;
+    description: string;
+    discovery: string;
+    selection: string;
+    exclusions: string;
+    risk: string;
+    permissions: string;
+    policy: string;
+    verification: string;
+  };
+  root: string;
+  indexed: boolean;
+  complete: boolean;
+  items: CleanupPreview['preview']['items'];
+  total: number;
+  logical: number;
+  reclaimable: number;
+}
 export interface DeveloperItem {
   id: NodeId;
   path: string;
