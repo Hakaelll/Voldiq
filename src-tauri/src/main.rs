@@ -98,12 +98,18 @@ fn start_scan(
 ) -> Result<u64, String> {
     let engine = engine.inner().clone();
     let (id, cancel) = engine.begin()?;
+    let operation = Operation {
+        engine: engine.clone(),
+        id,
+    };
     if let Ok(mut result) = engine.duplicates.lock() {
         *result = None;
     }
+    let previous = engine.index.lock().map_err(|e| e.to_string())?.clone();
     tauri::async_runtime::spawn_blocking(move || {
+        let _operation = operation;
         let mut final_progress = None;
-        let result = scanner::scan_live(
+        let result = scanner::refresh_or_scan(
             &PathBuf::from(path),
             &options,
             &cancel,
@@ -119,6 +125,7 @@ fn start_scan(
                     *slot = Some(index);
                 }
             },
+            previous.as_ref(),
         );
         let mut failure = None;
         match result {
@@ -133,6 +140,7 @@ fn start_scan(
         }
         if let Some(error) = failure {
             let _ = progress.send(Progress {
+                previous: false,
                 phase: ScanPhase::Failed,
                 entries: 0,
                 files: 0,

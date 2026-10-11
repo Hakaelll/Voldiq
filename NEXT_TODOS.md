@@ -60,6 +60,10 @@ Drive-root scans now attempt the read-only NTFS path; unsupported capability and
 
 Stable, complete NTFS scans now retain their volume serial, journal ID and next USN. SQLite schema version 2 binds checkpoints to captures in the capture transaction and cascades their deletion. Three database tests cover restart, rollback, full-width IDs, invalid and tampered evidence, incomplete or historical inputs, deletion and migration from version 1. Historical loading does not promote checkpoint evidence into current-index authority. Journal replay, current metadata reconstruction, continuity-loss resynchronization and real raw-volume acceptance remain open.
 
+## Live NTFS replay
+
+The native scan command now attempts journal refresh for an eligible in-memory volume index with matching scope and exclusions. Changed identities provide fresh metadata and current aliases; unchanged files are retained without reopening them. Candidate rows and totals are published only after final journal/root verification. Four real-filesystem tests cover growth, deletion, renames, moves, new files, subtree deletion, hard-link allocation after exclusion changes, cancellation, reset, row limits, final verification and conventional rescan fallback. Newly included directories require full resynchronization. Raw-volume acceptance, cross-restart identity persistence and replay memory/performance measurements remain open.
+
 ## Developer storage analysis
 
 A real-filesystem test verifies manifest-based Cargo, Node.js and .NET detection, Python caches, nested artifact deduplication and deterministic paging. The native command exposes bounded indexed results. A compact developer view reports categories, sizes and partial coverage, with details and paging. Svelte diagnostics, frontend production build and strict workspace Clippy pass. No cleanup execution is exposed yet; plans, confirmations, guarded recycling, official tool integrations and cache discovery remain open.

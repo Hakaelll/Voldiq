@@ -16,9 +16,19 @@ A complete NTFS scan retains its volume serial, journal ID and next USN only whe
 
 SQLite schema version 2 stores this evidence in `snapshot_journals`, in the same transaction as its snapshot. Volume and journal IDs use eight-byte blobs to preserve the full unsigned range. Each checkpoint belongs to one capture and is removed when that capture is deleted. Version 1 databases migrate transactionally without changing existing captures. Reading persisted evidence verifies the volume identity and complete coverage recorded with the capture.
 
-Loading a snapshot still creates a historical index without an active checkpoint or current file identity stamps. The stored cursor alone does not turn that index into a current one. Journal replay, reconstruction of current metadata and publication of a validated refreshed index remain pending.
+Loading a snapshot still creates a historical index without an active checkpoint or current file identity stamps. The stored cursor alone does not turn that index into a current one. Resuming from persisted history remains pending.
 
 Three database tests cover restart, full-width journal IDs, cancellation rollback, deletion, volume mismatch, invalid cursors, incomplete or historical inputs, tampered evidence and version 1 migration. These tests use controlled checkpoint values; they do not certify a privileged raw-volume scan on this host.
+
+## Live journal replay
+
+Repeating a scan of the same volume root with the same exclusions now attempts journal replay when the in-memory NTFS index has a completed checkpoint. The reader verifies volume, journal ID and cursor continuity. The replay engine rereads metadata for changed file references, resolves current names and hard-link aliases, updates moved directories and removes deleted files or directory subtrees. It rebuilds bounded query rows and ancestor totals without rereading unchanged files. Directory entries retain native identities so moves keep their existing descendants attached.
+
+Publication replaces the index only after the complete journal batch, root identity and final unchanged journal bounds pass validation. Candidate construction does not alter the previous index. Cancellation retains the previous published index and labels it as previous data in the scan status; it does not start another scan. Changed journal bounds, lost continuity, access failures and row limits discard the candidate and use the normal scan path. A new included directory requires full enumeration, so it triggers full resynchronization. Moving a directory into an exclusion prunes its descendants while preserving allocation owned by surviving hard-link names.
+
+Four tests use real Windows filesystem fixtures and metadata handles for file growth, deletion, file rename, directory move, new files, deleted subtrees, hard links, exclusions, cancellation, checkpoint reset, final verification failure, row limits and full-scan fallback. One fixture verifies that replay opens exactly the changed references and does not reopen an unchanged descendant. Journal records and checkpoint values are controlled test inputs; these tests do not certify raw journal reads on this host.
+
+Replay currently rebuilds rows in memory, with temporary storage proportional to index size. End-to-end raw-volume and large-index replay measurements remain open. Cross-restart resume still needs persisted native entry identities and refreshed metadata; historical captures are not promoted into current indexes.
 
 ## Verification limits
 
@@ -28,4 +38,4 @@ Four parser and continuity tests pass. Five integration tests use real metadata 
 
 The native scan command attempts NTFS at volume roots and falls back on capability or enumeration-limit failures before publishing non-root entries. Folder scans use directory enumeration. Metadata is acquired outside index write locks; partial results remain queryable. Unresolved parents, name or identity changes, limits and reparse coverage mark the index incomplete. A changed journal during construction also marks it incomplete.
 
-The host raw-volume probe reports access denied. No elevation or journal modification was attempted. Elevated enumeration, volume performance comparison and journal replay remain open. The current implementation does not claim NTFS performance gains or resumable indexing.
+The host raw-volume probe reports access denied. No elevation or journal modification was attempted. Elevated enumeration, volume performance comparison, real journal replay acceptance and cross-restart resume remain open. The current implementation does not claim measured NTFS performance gains.

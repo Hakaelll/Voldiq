@@ -14,6 +14,82 @@ use std::{
 
 pub type SharedIndex = Arc<RwLock<Index>>;
 
+pub fn refresh_or_scan(
+    root: &Path,
+    options: &ScanOptions,
+    cancel: &AtomicBool,
+    mut progress: impl FnMut(Progress),
+    publish: impl FnOnce(SharedIndex),
+    previous: Option<&SharedIndex>,
+) -> Result<SharedIndex> {
+    #[cfg(windows)]
+    if let Some(previous) = previous {
+        let index = previous.read().map_err(|e| Error::Invalid(e.to_string()))?;
+        let mut exclusions: Vec<_> = options
+            .exclusions
+            .iter()
+            .map(std::fs::canonicalize)
+            .collect::<std::io::Result<_>>()?;
+        exclusions.sort();
+        exclusions.dedup();
+        if index.ntfs_checkpoint.is_some()
+            && index.root == std::fs::canonicalize(root)?
+            && index.exclusions == exclusions
+        {
+            let start = Instant::now();
+            progress(Progress {
+                previous: true,
+                phase: ScanPhase::Scanning,
+                entries: 0,
+                files: 0,
+                logical: 0,
+                errors: 0,
+                elapsed_ms: 0,
+                method: "USN Journal".into(),
+            });
+            let limit = options
+                .max_entries
+                .unwrap_or(5_000_000)
+                .clamp(1, u32::MAX as usize);
+            if let Ok(updated) = crate::ntfs::refresh(&index, limit, cancel) {
+                let update = Progress {
+                    previous: false,
+                    phase: ScanPhase::Complete,
+                    entries: updated.entries.len(),
+                    files: updated.entries[0].files,
+                    logical: updated.entries[0].logical,
+                    errors: updated.error_count,
+                    elapsed_ms: start.elapsed().as_millis() as u64,
+                    method: "USN Journal".into(),
+                };
+                drop(index);
+                let shared = Arc::new(RwLock::new(updated));
+                publish(shared.clone());
+                progress(update);
+                return Ok(shared);
+            }
+            if cancel.load(Ordering::Relaxed) {
+                let update = Progress {
+                    previous: true,
+                    phase: ScanPhase::Cancelled,
+                    entries: index.entries.len(),
+                    files: index.entries[0].files,
+                    logical: index.entries[0].logical,
+                    errors: index.error_count,
+                    elapsed_ms: start.elapsed().as_millis() as u64,
+                    method: "USN Journal".into(),
+                };
+                drop(index);
+                progress(update);
+                return Ok(previous.clone());
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    let _ = previous;
+    scan_live(root, options, cancel, progress, publish)
+}
+
 pub fn scan(
     root: &Path,
     options: &ScanOptions,
@@ -95,6 +171,7 @@ pub fn scan_live(
         return Ok(shared);
     }
     progress(Progress {
+        previous: false,
         phase: ScanPhase::Scanning,
         entries: 1,
         files: 0,
@@ -236,6 +313,7 @@ pub fn scan_live(
             index.entries.push(entry);
             let update = if index.entries.len() == 2 || last_report.elapsed().as_millis() >= 100 {
                 Some(Progress {
+                    previous: false,
                     phase: ScanPhase::Scanning,
                     entries: index.entries.len(),
                     files,
@@ -265,6 +343,7 @@ pub fn scan_live(
     let entries = index.entries.len();
     drop(index);
     progress(Progress {
+        previous: false,
         phase,
         entries,
         files,

@@ -92,6 +92,7 @@ export interface Issue {
   message: string;
 }
 export interface Progress {
+  previous: boolean;
   phase: 'scanning' | 'complete' | 'cancelled' | 'failed';
   entries: number;
   files: number;

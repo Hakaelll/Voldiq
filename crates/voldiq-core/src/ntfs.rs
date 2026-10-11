@@ -11,6 +11,10 @@ mod indexing;
 pub use indexing::populate;
 #[cfg(windows)]
 pub(crate) use indexing::try_scan;
+#[cfg(windows)]
+mod replay;
+#[cfg(windows)]
+pub use replay::{refresh, replay};
 
 #[derive(Debug)]
 pub struct Record {

@@ -200,6 +200,7 @@
     scanPath = path;
     scope = 0;
     operation = {
+      previous: false,
       phase: 'scanning',
       entries: 0,
       files: 0,
@@ -497,11 +498,11 @@
         >
           <span class:working={operation.phase === 'scanning'} class="status-dot"></span><span
             >{operation.phase === 'scanning'
-              ? 'Scanning'
+              ? operation.previous ? 'Refreshing · previous results' : 'Scanning'
               : operation.phase === 'complete'
                 ? 'Scan complete'
                 : operation.phase === 'cancelled'
-                  ? 'Cancelled · partial results'
+                  ? operation.previous ? 'Cancelled · previous results' : 'Cancelled · partial results'
                   : 'Scan failed'}</span
           ><span
             >{operation.files.toLocaleString()} files · {bytes(operation.logical)} logical · {(

@@ -72,6 +72,7 @@ pub enum ScanPhase {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Progress {
+    pub previous: bool,
     pub phase: ScanPhase,
     pub entries: usize,
     pub files: u64,

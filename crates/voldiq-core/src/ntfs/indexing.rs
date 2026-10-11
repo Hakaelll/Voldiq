@@ -112,6 +112,7 @@ fn report(
 ) -> Result<()> {
     let index = shared.read().map_err(|e| Error::Invalid(e.to_string()))?;
     let update = Progress {
+        previous: false,
         phase,
         entries: index.entries.len(),
         files: index.entries[0].files,
@@ -371,7 +372,7 @@ pub fn populate(
     Ok(())
 }
 
-fn read_entry(
+pub(super) fn read_entry(
     file: &File,
     volume: u64,
     reference: u64,
@@ -396,7 +397,7 @@ fn read_entry(
         Kind::File
     };
     Ok(Entry {
-        file_state: (kind == Kind::File).then_some(crate::FileState {
+        file_state: Some(crate::FileState {
             identity: identity.key,
             change_time: identity.change_time,
         }),
