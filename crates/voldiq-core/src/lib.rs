@@ -1,3 +1,4 @@
+pub mod developer;
 pub mod duplicates;
 pub mod index;
 pub mod ntfs;

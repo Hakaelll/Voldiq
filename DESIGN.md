@@ -246,6 +246,10 @@ Opening delete confirmation moves keyboard focus to Cancel. Cancelling restores 
 
 Recorded size appears only when more than one compatible saved snapshot exists. The line uses actual logical-size values from the current snapshot page. Comparison rows show a path, an observation/change label and an aligned signed delta; partial coverage remains explicit. These populated states are documented from source, not native interaction verification.
 
+### Developer storage
+
+The developer destination uses the existing rail and compact header. Its bordered panel has a 12px summary row, a horizontally scrollable table and 50-row pages. Paths truncate with their complete value available on hover; size columns use right-aligned tabular numbers. Tool, category, Partial and Unknown are necessary data labels. Loading, Retry and empty states contain one action or short status. Paging restores focus to the region when the initiating control is replaced. This component is documented and checked from source; populated native visual acceptance belongs to the user.
+
 ### Notices and scan issues
 
 Preview, incomplete coverage and engine errors appear as compact bordered messages. Scan progress exposes measured counts and cancellation state. The access-issue dialog has a constrained scrolling body and an explicit close action. The browser preview explains that real drive detection and scans require the Windows app, and disables those actions.

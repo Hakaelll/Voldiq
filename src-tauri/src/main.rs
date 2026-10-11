@@ -403,6 +403,22 @@ async fn reveal_item(id: NodeId, engine: State<'_, Arc<Engine>>) -> Result<(), S
     .map_err(|e| e.to_string())?
 }
 
+#[tauri::command]
+async fn query_developer_storage(
+    scope: NodeId,
+    offset: usize,
+    limit: usize,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<voldiq_core::developer::Page, String> {
+    let shared = engine.index()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let index = shared.read().map_err(|e| e.to_string())?;
+        voldiq_core::developer::query(&index, scope, offset, limit).map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 fn main() {
     tauri::Builder::default()
         .setup(|app| {
@@ -422,6 +438,7 @@ fn main() {
             query_duplicate_members,
             get_duplicate_issues,
             query_files,
+            query_developer_storage,
             get_details,
             get_file_types,
             get_issues,

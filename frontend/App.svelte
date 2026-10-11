@@ -6,6 +6,7 @@
   import FileTable from './components/FileTable.svelte';
   import Duplicates from './components/Duplicates.svelte';
   import History from './components/History.svelte';
+  import DeveloperStorage from './components/DeveloperStorage.svelte';
   import {
     bytes,
     date,
@@ -19,12 +20,14 @@
     type Volume,
     type Snapshot,
   } from './lib/types';
-  type View = 'overview' | 'explorer' | 'large' | 'duplicates' | 'history' | 'settings';
+  type View =
+    'overview' | 'explorer' | 'large' | 'duplicates' | 'developer' | 'history' | 'settings';
   const navigation: { id: View; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: 'overview' },
     { id: 'explorer', label: 'Explorer', icon: 'folder' },
     { id: 'large', label: 'Large files', icon: 'large' },
     { id: 'duplicates', label: 'Duplicates', icon: 'duplicate' },
+    { id: 'developer', label: 'Developer storage', icon: 'folder' },
     { id: 'history', label: 'History', icon: 'history' },
   ];
   let view = $state<View>('overview');
@@ -398,7 +401,11 @@
           bind:value={text}
           placeholder="Search files and folders"
           aria-label="Search files and folders"
-          disabled={!ready || view === 'settings' || view === 'duplicates' || view === 'history'}
+          disabled={!ready ||
+            view === 'settings' ||
+            view === 'duplicates' ||
+            view === 'history' ||
+            view === 'developer'}
         /><kbd>Ctrl K</kbd>
       </div>
     </header>
@@ -414,9 +421,11 @@
                   ? 'Large files'
                   : view === 'duplicates'
                     ? 'Duplicates'
-                    : view === 'history'
-                      ? 'History'
-                      : 'Settings'}
+                    : view === 'developer'
+                      ? 'Developer storage'
+                      : view === 'history'
+                        ? 'History'
+                        : 'Settings'}
           </h1>
           {#if view !== 'settings' && view !== 'history' && scanPath}<p>
               {scanPath}{#if historical}
@@ -490,6 +499,8 @@
               placeholder="C:\\folder"></textarea></label
           >
         </section>
+      {:else if view === 'developer'}
+        <DeveloperStorage enabled={ready && !busy} {revision} onselect={select} onerror={report} />
       {:else if view === 'history'}
         <History
           enabled={ready && !busy && historical === null}

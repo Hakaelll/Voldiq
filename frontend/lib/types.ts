@@ -1,4 +1,21 @@
 export type NodeId = number;
+export interface DeveloperItem {
+  id: NodeId;
+  path: string;
+  tool: string;
+  category: 'dependencies' | 'build' | 'cache';
+  logical: number;
+  allocated: number;
+  files: number;
+  incomplete: boolean;
+  allocation_known: boolean;
+}
+export interface DeveloperPage {
+  items: DeveloperItem[];
+  total: number;
+  logical: number;
+  allocated: number;
+}
 export interface Entry {
   id: NodeId;
   parent: NodeId | null;

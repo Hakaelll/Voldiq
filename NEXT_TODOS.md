@@ -9,7 +9,7 @@ Voldiq is under active development. A task becomes DONE only after its acceptanc
 | V03 | NTFS enumeration and metadata | P0 | IN_PROGRESS | V02 | Validated binary records, hierarchy, metadata, hard-link names, fallback, volume comparison benchmark | crates/voldiq-core/src/ntfs.rs |
 | V04 | Visual explorer and search | P0 | IN_PROGRESS | V02 | Canvas navigation, virtual rows, real IPC data, keyboard navigation | frontend |
 | V05 | Large files and duplicates | P1 | IN_PROGRESS | V02 | Filters, BLAKE3 content verification, cancellation, hard-link handling, reviewed selections, native interaction | crates/voldiq-core, frontend/components/Duplicates.svelte |
-| V06 | Safe cleanup and developer storage | P0 | TODO | V05 | Preview, exclusions, identity validation, confirmation, controlled fixture execution | crates/voldiq-core |
+| V06 | Safe cleanup and developer storage | P0 | IN_PROGRESS | V05 | Preview, exclusions, identity validation, confirmation, controlled fixture execution | crates/voldiq-core |
 | V07 | Persistent snapshots | P1 | IN_PROGRESS | V02 | SQLite transaction, restart, additions/deletions/growth comparison, native interaction | crates/voldiq-core, frontend/components/History.svelte |
 | V08 | Incremental NTFS index | P1 | TODO | V03, V07 | Journal continuity validation and full resynchronization | crates/voldiq-core |
 | V09 | Preferences and accessibility | P1 | IN_PROGRESS | V04 | Persistent preferences, themes, reduced motion, keyboard checks | frontend, src-tauri |
@@ -55,3 +55,7 @@ Native alias enumeration and final-path helpers now pass a real Unicode long-pat
 ## NTFS index integration
 
 Drive-root scans now attempt the read-only NTFS path; unsupported capability and bounded enumeration fall back before non-root IDs are published. Native metadata populates parent-first directories and all hard-link aliases. Five integration tests cover real size parity, an excluded primary hard-link name, unique allocation, changed identities, unresolved parents, malformed names, limits, cancellation and bounded volume fallback. Raw enumeration on an elevated drive, journal replay, checkpoint persistence and volume performance comparison remain open. The source reviewer could not run because its account usage limit was reached; source review and functional checks were performed directly.
+
+## Developer storage analysis
+
+A real-filesystem test verifies manifest-based Cargo, Node.js and .NET detection, Python caches, nested artifact deduplication and deterministic paging. The native command exposes bounded indexed results. A compact developer view reports categories, sizes and partial coverage, with details and paging. Svelte diagnostics, frontend production build and strict workspace Clippy pass. No cleanup execution is exposed yet; plans, confirmations, guarded recycling, official tool integrations and cache discovery remain open.
