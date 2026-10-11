@@ -10,7 +10,7 @@ The index stores compact 32-bit node IDs, parent IDs and names. Full paths are r
 
 Queries return at most 500 entries. The frontend renders at most 80 table rows per virtual window and requests at most 250 direct children for the Canvas. Unrepresented bytes appear in a smaller-items region linked to the complete virtual list.
 
-The initial query implementation filters and sorts the in-memory index. This is measurable baseline code; a directory adjacency index and bounded ranking will be added if measurements justify them. Progress is emitted at initialization, the first insertion, every 100 ms and completion.
+Queries filter references into the in-memory index, partition at the requested offset and limit, then sort only the returned page. They retain exact deterministic ranking without sorting every match. Empty searches avoid allocating lowercase names, ASCII name comparisons allocate nothing, and Unicode names retain lowercase ordering. Root scope checks are constant time. Progress is emitted at initialization, the first insertion, every 100 ms and completion.
 
 ## Desktop adapter
 

@@ -112,6 +112,9 @@ impl Index {
     }
 
     pub fn in_scope(&self, id: NodeId, scope: NodeId) -> bool {
+        if scope == NodeId(0) {
+            return true;
+        }
         let mut next = Some(id);
         while let Some(id) = next {
             if id == scope {
@@ -140,7 +143,7 @@ impl Index {
                     && query.scope.is_none_or(|id| self.in_scope(entry.id, id))
                     && (!query.files_only || entry.kind == Kind::File)
                     && entry.logical >= query.min_size
-                    && entry.name.to_lowercase().contains(&text)
+                    && (text.is_empty() || entry.name.to_lowercase().contains(&text))
                     && (extension.is_empty()
                         || std::path::Path::new(&entry.name)
                             .extension()
@@ -150,27 +153,31 @@ impl Index {
                         .is_none_or(|before| entry.modified.is_some_and(|date| date < before))
             })
             .collect();
-        match query.sort.as_str() {
-            "name" => matches.sort_unstable_by(|a, b| {
-                a.name
-                    .to_lowercase()
-                    .cmp(&b.name.to_lowercase())
-                    .then(a.id.0.cmp(&b.id.0))
-            }),
-            "modified" => matches
-                .sort_unstable_by(|a, b| b.modified.cmp(&a.modified).then(a.id.0.cmp(&b.id.0))),
-            _ => {
-                matches.sort_unstable_by(|a, b| b.logical.cmp(&a.logical).then(a.id.0.cmp(&b.id.0)))
-            }
+        let total = matches.len();
+        if query.offset >= total {
+            return Ok(Page {
+                total,
+                items: Vec::new(),
+            });
         }
+        let compare = |a: &&Entry, b: &&Entry| match query.sort.as_str() {
+            "name" => compare_name(&a.name, &b.name).then(a.id.0.cmp(&b.id.0)),
+            "modified" => b.modified.cmp(&a.modified).then(a.id.0.cmp(&b.id.0)),
+            _ => b.logical.cmp(&a.logical).then(a.id.0.cmp(&b.id.0)),
+        };
+        if query.offset > 0 {
+            matches.select_nth_unstable_by(query.offset, compare);
+        }
+        let remaining = &mut matches[query.offset..];
+        let limit = query.limit.clamp(1, 500).min(remaining.len());
+        if limit < remaining.len() {
+            remaining.select_nth_unstable_by(limit, compare);
+        }
+        let page = &mut remaining[..limit];
+        page.sort_unstable_by(compare);
         Ok(Page {
-            total: matches.len(),
-            items: matches
-                .into_iter()
-                .skip(query.offset)
-                .take(query.limit.clamp(1, 500))
-                .cloned()
-                .collect(),
+            total,
+            items: page.iter().map(|entry| (*entry).clone()).collect(),
         })
     }
 
@@ -214,5 +221,15 @@ impl Index {
             entry.incomplete |= child.incomplete;
             parent = entry.parent;
         }
+    }
+}
+
+fn compare_name(a: &str, b: &str) -> std::cmp::Ordering {
+    if a.is_ascii() && b.is_ascii() {
+        a.bytes()
+            .map(|byte| byte.to_ascii_lowercase())
+            .cmp(b.bytes().map(|byte| byte.to_ascii_lowercase()))
+    } else {
+        a.to_lowercase().cmp(&b.to_lowercase())
     }
 }

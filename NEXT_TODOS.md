@@ -39,3 +39,7 @@ The duplicate view uses minimal labels and measured data. Management selection, 
 ## Snapshot history delivery
 
 SQLite stores native paths and version intervals, with transactional captures and checked integers. Five tests cover restart comparisons, changed directory totals, unchanged entry reuse, rollback, capture deletion, compaction, exclusions and native UTF-16 names. Incomplete coverage reports unobserved entries rather than confirmed deletions. The history component exposes bounded lists, saved-index loading, comparisons and storage management, using minimal copy. Native populated interaction and large-history measurements remain open.
+
+## Ranked query delivery
+
+Queries partition matching references at the requested offset and limit and sort only the page. ASCII name comparison avoids temporary strings, empty searches avoid lowercase allocation, and root scope checks are constant time. Two real-filesystem tests check complete deterministic paging, filters, caps and Unicode sorting. A clearly labelled synthetic million-file benchmark records baseline and final rankings in `docs/PERFORMANCE.md`. It does not close the actual million-file scan, total-memory or native UI gates.

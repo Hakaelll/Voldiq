@@ -46,6 +46,20 @@ The last comparison reports 21 changed entries: ten files, their ten parent dire
 
 The history production bundle is 83.22 kB of JavaScript and 16.20 kB of CSS, or 31.36 kB and 3.84 kB after gzip.
 
-## Remaining measurements
+## Million-entry query fixture
+
+`cargo run --release -p voldiq-core --example query_benchmark` builds a synthetic in-memory index of 1,000 directories and 1,000,000 generated file entries. It measures Rust queries only. It does not create a million filesystem files, scan a drive, call native IPC or measure whole-process memory. Each query returns at most 100 entries. Name ranking requests an offset of 500,000, testing a middle page rather than only the largest entries. The generated search has zero matches.
+
+| Query | Full-sort baseline, three runs | Page partition, three runs |
+|---|---|---|
+| Root children by size | 4.137 / 4.011 / 3.955 ms | 4.001 / 5.486 / 4.074 ms |
+| All files by size | 246.718 / 137.665 / 253.327 ms | 28.478 / 34.378 / 28.292 ms |
+| Name, offset 500,000 | 2883.448 / 2835.201 / 2847.068 ms | 201.529 / 190.708 / 160.718 ms |
+| All files by modification time | 295.668 / 283.421 / 303.477 ms | 36.592 / 36.025 / 34.223 ms |
+| Name search, no matches | 71.196 / 71.418 / 72.615 ms | 100.261 / 76.656 / 74.058 ms |
+
+Baseline and final runs use the same deterministic index, in release builds on the host described above. They were separate warm runs without cold-cache controls. An intermediate measurement overlapped functional tests and is excluded from this table. The final run had no parallel test workload. Root filtering and no-match search did not improve consistently. Global ranking avoids a full sort; empty search avoids lowercase allocation; ASCII name comparison avoids per-comparison strings. Matching references still require a temporary linear-sized vector. Deep scopes and populated native interaction remain separate measurements.
+
+## Open performance gates
 
 The pending performance gate includes million-file workloads, broad and deep directory shapes, query latency during indexing, NTFS versus fallback scans, hard-link and sparse-file accuracy, total application memory, cold and warm startup, idle CPU, cancellation latency and Canvas frame times. No 60 FPS or sub-two-second startup guarantee has been validated yet.
