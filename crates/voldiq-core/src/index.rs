@@ -1,0 +1,215 @@
+use crate::{Entry, Error, Issue, Kind, NodeId, Result};
+use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
+
+pub struct Index {
+    pub root: PathBuf,
+    pub entries: Vec<Entry>,
+    pub issues: Vec<Issue>,
+    pub error_count: u64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct Query {
+    pub parent: Option<NodeId>,
+    pub scope: Option<NodeId>,
+    pub text: String,
+    pub extension: String,
+    pub min_size: u64,
+    pub modified_before: Option<u64>,
+    pub files_only: bool,
+    pub sort: String,
+    pub offset: usize,
+    pub limit: usize,
+}
+
+impl Default for Query {
+    fn default() -> Self {
+        Self {
+            parent: None,
+            scope: None,
+            text: String::new(),
+            extension: String::new(),
+            min_size: 0,
+            modified_before: None,
+            files_only: false,
+            sort: "size".into(),
+            offset: 0,
+            limit: 100,
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct Page {
+    pub items: Vec<Entry>,
+    pub total: usize,
+}
+
+#[derive(Serialize)]
+pub struct Details {
+    pub entry: Entry,
+    pub path: String,
+    pub ancestors: Vec<Entry>,
+}
+
+#[derive(Serialize)]
+pub struct FileType {
+    pub extension: String,
+    pub bytes: u64,
+    pub count: u64,
+}
+
+impl Index {
+    pub fn entry(&self, id: NodeId) -> Result<&Entry> {
+        self.entries.get(id.0 as usize).ok_or_else(|| {
+            Error::Invalid("Item is no longer in the index. Rescan and try again.".into())
+        })
+    }
+
+    pub fn path(&self, id: NodeId) -> Result<PathBuf> {
+        let mut names = Vec::new();
+        let mut node = self.entry(id)?;
+        while let Some(parent) = node.parent {
+            names.push(&node.name);
+            node = self.entry(parent)?;
+        }
+        let mut path = self.root.clone();
+        for name in names.into_iter().rev() {
+            path.push(name);
+        }
+        Ok(path)
+    }
+
+    pub fn details(&self, id: NodeId) -> Result<Details> {
+        let entry = self.entry(id)?.clone();
+        let mut ancestors = Vec::new();
+        let mut parent = entry.parent;
+        while let Some(id) = parent {
+            let node = self.entry(id)?;
+            ancestors.push(node.clone());
+            parent = node.parent;
+        }
+        ancestors.reverse();
+        Ok(Details {
+            entry,
+            path: self.path(id)?.to_string_lossy().into_owned(),
+            ancestors,
+        })
+    }
+
+    pub fn in_scope(&self, id: NodeId, scope: NodeId) -> bool {
+        let mut next = Some(id);
+        while let Some(id) = next {
+            if id == scope {
+                return true;
+            }
+            next = self.entries[id.0 as usize].parent;
+        }
+        false
+    }
+
+    pub fn query(&self, query: &Query) -> Result<Page> {
+        if let Some(id) = query.parent {
+            self.entry(id)?;
+        }
+        if let Some(id) = query.scope {
+            self.entry(id)?;
+        }
+        let text = query.text.to_lowercase();
+        let extension = query.extension.trim_start_matches('.').to_lowercase();
+        let mut matches: Vec<&Entry> = self
+            .entries
+            .iter()
+            .skip(1)
+            .filter(|entry| {
+                query.parent.is_none_or(|id| entry.parent == Some(id))
+                    && query.scope.is_none_or(|id| self.in_scope(entry.id, id))
+                    && (!query.files_only || entry.kind == Kind::File)
+                    && entry.logical >= query.min_size
+                    && entry.name.to_lowercase().contains(&text)
+                    && (extension.is_empty()
+                        || std::path::Path::new(&entry.name)
+                            .extension()
+                            .is_some_and(|ext| ext.to_string_lossy().to_lowercase() == extension))
+                    && query
+                        .modified_before
+                        .is_none_or(|before| entry.modified.is_some_and(|date| date < before))
+            })
+            .collect();
+        match query.sort.as_str() {
+            "name" => matches.sort_unstable_by(|a, b| {
+                a.name
+                    .to_lowercase()
+                    .cmp(&b.name.to_lowercase())
+                    .then(a.id.0.cmp(&b.id.0))
+            }),
+            "modified" => matches
+                .sort_unstable_by(|a, b| b.modified.cmp(&a.modified).then(a.id.0.cmp(&b.id.0))),
+            _ => {
+                matches.sort_unstable_by(|a, b| b.logical.cmp(&a.logical).then(a.id.0.cmp(&b.id.0)))
+            }
+        }
+        Ok(Page {
+            total: matches.len(),
+            items: matches
+                .into_iter()
+                .skip(query.offset)
+                .take(query.limit.clamp(1, 500))
+                .cloned()
+                .collect(),
+        })
+    }
+
+    pub fn file_types(&self, scope: NodeId) -> Result<Vec<FileType>> {
+        self.entry(scope)?;
+        let mut types = std::collections::HashMap::<String, (u64, u64)>::new();
+        for entry in &self.entries {
+            if entry.kind != Kind::File || !self.in_scope(entry.id, scope) {
+                continue;
+            }
+            let ext = std::path::Path::new(&entry.name)
+                .extension()
+                .map(|e| e.to_string_lossy().to_lowercase())
+                .unwrap_or_else(|| "No extension".into());
+            let total = types.entry(ext).or_default();
+            total.0 += entry.logical;
+            total.1 += 1;
+        }
+        let mut result: Vec<_> = types
+            .into_iter()
+            .map(|(extension, (bytes, count))| FileType {
+                extension,
+                bytes,
+                count,
+            })
+            .collect();
+        result.sort_unstable_by_key(|item| std::cmp::Reverse(item.bytes));
+        // shortcut: only the largest 30 extension groups cross IPC; request a filtered file list to inspect the rest.
+        result.truncate(30);
+        Ok(result)
+    }
+
+    pub fn aggregate(&mut self) {
+        for i in (1..self.entries.len()).rev() {
+            let entry = &self.entries[i];
+            let (parent, logical, allocated, known, files, incomplete) = (
+                entry.parent,
+                entry.logical,
+                entry.allocated,
+                entry.allocation_known,
+                entry.files,
+                entry.incomplete,
+            );
+            if let Some(parent) = parent {
+                let entry = &mut self.entries[parent.0 as usize];
+                entry.logical += logical;
+                entry.allocated += allocated;
+                entry.allocation_known &= known;
+                entry.files += files;
+                entry.incomplete |= incomplete;
+            }
+        }
+    }
+}

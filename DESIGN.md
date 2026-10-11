@@ -1,0 +1,248 @@
+---
+name: Voldiq
+description: Compact Windows storage analysis with measured data and a white workspace.
+colors:
+  accent: "#2563eb"
+  accent-fill: "#1e40af"
+  accent-hover: "#173784"
+  selected: "#edf3ff"
+  canvas: "#fff"
+  surface: "#fafafa"
+  paper: "#f5f5f5"
+  border: "#e5e5e5"
+  strong: "#d4d4d4"
+  text: "#171717"
+  secondary: "#525252"
+  muted: "#737373"
+  error: "#a32424"
+  dark-canvas: "#181b20"
+  dark-surface: "#1e2228"
+  dark-paper: "#252a31"
+  dark-border: "#343a43"
+  dark-strong: "#4b535f"
+  dark-text: "#e6e8ec"
+  dark-secondary: "#b8bec8"
+  dark-muted: "#a2aab6"
+  dark-accent: "#83aeff"
+  dark-accent-fill: "#315ba6"
+  dark-selected: "#263c60"
+  dark-error: "#f29797"
+  map-blue: "#5f91cb"
+  map-ochre: "#d1a358"
+  map-green: "#8fae84"
+  map-violet: "#9c8ec5"
+  map-slate: "#819eab"
+  map-rose: "#b0928d"
+typography:
+  headline:
+    fontFamily: "Segoe UI Variable, Segoe UI, sans-serif"
+    fontSize: "25px"
+    fontWeight: 600
+    lineHeight: 1.25
+    letterSpacing: "-0.02em"
+  title:
+    fontFamily: "Segoe UI Variable, Segoe UI, sans-serif"
+    fontSize: "14px"
+    fontWeight: 600
+    lineHeight: 1.4
+  body:
+    fontFamily: "Segoe UI Variable, Segoe UI, sans-serif"
+    fontSize: "13px"
+    fontWeight: 400
+    lineHeight: 1.6
+  label:
+    fontFamily: "Segoe UI Variable, Segoe UI, sans-serif"
+    fontSize: "12px"
+    fontWeight: 400
+  metadata:
+    fontFamily: "Segoe UI Variable, Segoe UI, sans-serif"
+    fontSize: "11px"
+    fontWeight: 400
+  metric:
+    fontFamily: "Segoe UI Variable, Segoe UI, sans-serif"
+    fontSize: "23px"
+    fontWeight: 600
+    letterSpacing: "-0.02em"
+rounded:
+  radius: "6px"
+  inset: "3px"
+  dialog: "8px"
+spacing:
+  tight: "4px"
+  small: "8px"
+  control-gap: "10px"
+  medium: "12px"
+  panel-gap: "16px"
+  panel-inset: "18px"
+  compact-page: "20px"
+  section-gap: "22px"
+  page: "26px"
+components:
+  button-primary:
+    backgroundColor: "{colors.accent-fill}"
+    textColor: "{colors.canvas}"
+    rounded: "{rounded.radius}"
+    padding: "6px 10px"
+    height: "32px"
+  button-primary-hover:
+    backgroundColor: "{colors.accent-hover}"
+    textColor: "{colors.canvas}"
+  button-secondary:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.text}"
+    rounded: "{rounded.radius}"
+    padding: "6px 10px"
+    height: "32px"
+  search:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.text}"
+    rounded: "{rounded.radius}"
+    padding: "9px 10px"
+    width: "390px"
+  navigation-active:
+    backgroundColor: "{colors.selected}"
+    textColor: "{colors.accent}"
+    rounded: "{rounded.radius}"
+    padding: "10px 12px"
+  panel:
+    backgroundColor: "{colors.canvas}"
+    rounded: "{rounded.radius}"
+  field:
+    backgroundColor: "{colors.canvas}"
+    textColor: "{colors.text}"
+    rounded: "{rounded.radius}"
+    padding: "7px 9px"
+  file-row:
+    typography: "{typography.label}"
+    padding: "0 16px"
+    height: "36px"
+  notice:
+    backgroundColor: "{colors.surface}"
+    typography: "{typography.label}"
+    rounded: "{rounded.radius}"
+    padding: "10px 12px"
+---
+
+# Design System: Voldiq
+
+## Overview
+
+**Creative North Star: "The Windows storage workspace"**
+
+Voldiq puts paths, file sizes and scan coverage in a compact desktop workspace. The built interface follows the user-selected white Windows direction and supplied Palantir, Linear and Dub references. Fine dividers organize the rail, toolbar and content without decorative elevation. Segoe UI keeps the controls consistent with Windows expectations.
+
+The supplied stacked-storage logo is the identity asset. Its disc-shaped top and blue segment remain intact. Light mode is the default; dark mode changes the same semantic color roles. The dark navigation logo has an intentional pale circular backing, with a small inset, so the original raster remains legible without exposing a rectangular matte.
+
+**Key Characteristics:**
+
+- A single navigation rail expands to show labels.
+- White content areas and fine neutral dividers support compact controls.
+- Blue marks selection, focus and primary actions.
+- Measured storage data determines chart area and totals.
+- The original Voldiq logo remains visible in both themes.
+
+This document records the initial built UI in `frontend/styles.css`, `frontend/App.svelte` and the component files. Finish approval covers the scored dark-logo matte and contrast corrections plus the initial browser empty and settings views. Populated native views, scan progress, IPC, the Canvas map, the virtual file list and access-issue dialog remain unassessed in a running Windows session. The mechanical detector reported no findings and the shipping raster provenance scanner reported zero missing entries; neither result proves those native workflows.
+
+## Colors
+
+The palette uses white and neutral gray for structure, blue for interaction, and muted category colors for the storage map. Frontmatter records exact source values. Each `dark-` token replaces its matching light role under the root dark-theme attribute.
+
+### Primary
+
+- **Selection blue** uses `accent` for current navigation, focus and carets; `selected` supplies the pale selection background.
+- **Action blue** uses `accent-fill` behind primary button text. `accent-hover` is the actual shared hover value in both themes.
+
+### Secondary
+
+- **Measured map colors** use the six `map-` tokens. The map hashes the item name to a palette index. These colors currently distinguish regions, rather than expressing a stable semantic file-type taxonomy.
+
+### Neutral
+
+- **White canvas** uses `canvas` for the workspace, ordinary buttons and panels.
+- **Quiet containers** use `surface` for the rail, empty state, notices and table headers. `paper` supports hover and inset backgrounds.
+- **Fine structure** uses `border` for dividers and `strong` for fields, tooltips and dialog outlines.
+- **Reading hierarchy** uses `text`, `secondary` and `muted` for primary content, explanation and metadata.
+- **Error text** uses `error` within the same neutral notice container.
+
+**The Semantic Theme Rule.** Use the existing semantic custom properties for new controls so theme changes update their text, background, border and focus together.
+
+## Typography
+
+The UI uses Segoe UI Variable with Segoe UI and sans-serif fallbacks. It has no separate display face. Canvas text uses Segoe UI explicitly. Use the frontmatter roles as the recorded hierarchy; paragraph body text has the body line height, while controls keep their native inherited line height.
+
+Page headings use `headline`, panel and settings headings use `title`, paragraphs and controls use `body`, dense file rows and descriptions use `label`, and footer text and small annotations use `metadata`. Capacity figures use `metric`, dropping to 20px at the first desktop breakpoint. The welcome heading is a local 24px variation, and the brand wordmark is a local 21px variation; neither establishes another reusable role.
+
+**The Measured Number Rule.** Keep storage sizes and file counts aligned with tabular numerals. Right-align the file list's logical-size column; allow names and paths to wrap or truncate according to their container.
+
+## Layout
+
+The desktop shell has a collapsed rail of 64px and an expanded rail of 200px. The rail is sticky and fills the viewport. The toolbar is 66px high. Main content uses the page spacing token; the settings form stops at 640px and places 170px labels beside controls with a 20px gap.
+
+The populated overview has a four-part capacity strip and a content grid with a 1.9-to-1 column ratio, a minimum 290px secondary column and a panel gap. The map occupies a 360px-high inset. The file list uses 36px rows and a 420px scrolling viewport. Its virtual content keeps a 740px minimum width.
+
+At 1100px and below, the expanded rail becomes 175px, main padding becomes the compact-page token, search narrows to 280px, and the overview becomes one column with Largest items hidden. At 840px and below, the rail becomes 64px, navigation labels and the drive summary hide, the toolbar wraps, search occupies a separate row, capacity becomes two columns, and settings labels stack above their controls. This is a desktop window adaptation; a phone layout has not been assessed.
+
+**The One Rail Rule.** Expand labels within the existing navigation rail. Keep the workspace as the adjacent main area.
+
+## Elevation & Depth
+
+The built interface uses no box shadows. One-pixel borders and adjacent neutral backgrounds separate panels, fields and navigation. The access-issue dialog uses a fixed black backdrop at 25% opacity and a stronger border. Its depth comes from occlusion and the backdrop.
+
+Buttons transition their background over the root motion duration of 140ms. Rail width uses the same duration with ease-out. The system reduced-motion preference and the saved Reduce motion setting suppress transitions and animations.
+
+**The Border Depth Rule.** Use the existing border and background roles to organize content. Keep panel depth consistent with the flat built containers.
+
+## Shapes
+
+Controls, panels, notices and selection backgrounds use the radius token. Smaller chart insets and keyboard hints use the inset radius. The dialog uses the dialog radius. Table rows use square corners and bottom dividers.
+
+Icons are inline outline SVGs, generally 18px, with a 24-unit viewbox, 1.6-unit current-color stroke and round caps and joins. The navigation's dark-theme logo backing is circular, pale paper, and inset by 3px inside its 32px image box. This is a deliberate treatment for the supplied identity raster, not a general button or card shape.
+
+## Components
+
+### Buttons
+
+Primary actions use action blue and white text. Secondary controls use the canvas, text and border roles. Both use a minimum height of 32px, compact padding and an 8px icon gap. Hover changes the background; disabled controls use 50% opacity and a default cursor. Keyboard focus uses a 2px accent outline with a 2px offset.
+
+### Inputs / Fields
+
+Text fields, selects and textareas use a stronger neutral border and compact insets. The search control has one enclosing border, an outline icon and a keyboard hint. Focus belongs to the enclosing search container so its inner input does not draw a second ring. Settings controls retain native Windows select and checkbox behavior.
+
+### Navigation
+
+The rail groups Overview, Explorer and Large files at the top and Settings at the bottom. Active items use the selected background, accent text and semibold weight. Hover uses paper. Collapsed controls retain titles and accessible names. The same controls and SVG geometry serve both rail widths.
+
+### Cards / Containers
+
+Panels have a fine border, canvas background and the standard control radius. Panel headings use compact insets with a title, optional explanation and optional action. The initial empty container centers the supplied logo, heading, paragraph and actions within a 430px minimum height. Its explanatory paragraph stops at 460px.
+
+### Storage map and capacity
+
+The capacity strip aligns labeled figures in divided columns. The map sizes rectangles from actual logical or allocated bytes, with small gaps between regions. Selection uses an outline and hover exposes a neutral bordered tooltip. A List action provides access to the explorer. The Canvas implementation and its dark-theme appearance still need native populated review.
+
+### File list
+
+FileTable shows Name, Logical size, Modified and Type in aligned columns. Rows use fine bottom rules, a neutral hover background and a blue selected background. Names use outline icons and truncation; details show the full path. The selected item can be revealed in Windows Explorer or its path copied. List pagination, scrolling and keyboard behavior still need populated native verification.
+
+### Notices and scan issues
+
+Preview, incomplete coverage and engine errors appear as compact bordered messages. Scan progress exposes measured counts and cancellation state. The access-issue dialog has a constrained scrolling body and an explicit close action. The browser preview explains that real drive detection and scans require the Windows app, and disables those actions.
+
+## Do's and Don'ts
+
+### Do:
+
+- Do use the semantic theme colors and the existing compact text hierarchy.
+- Do preserve the supplied logo geometry and its intentional pale circular backing in dark navigation.
+- Do keep measured sizes, paths and incomplete coverage visible beside storage graphics.
+- Do provide a list route for the Canvas map and visible keyboard focus on controls.
+- Do honor both the saved motion preference and the system reduced-motion preference.
+
+### Don't:
+
+- Don't invent populated charts or historical measurements for an empty scan.
+- Don't change a map color into a semantic file-type promise without updating the implementation.
+- Don't treat browser-only finish approval as verification of populated native or IPC workflows.
+- Don't add another full sidebar when navigation labels can expand in the existing rail.
+
+Not canonized or repaired in this documentation pass: the map's hard-coded light text/outline colors, independently generated file-type colors, virtual-list geometry and dialog accessibility behavior remain implementation details to assess in populated native views. The shared primary hover color is recorded as shipped, not as proof of complete dark-theme interaction review. No craft-floor defect was reported by the supplied mechanical scan; this record does not extend that result beyond its checked scope.

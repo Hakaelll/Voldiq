@@ -1,0 +1,13 @@
+node_modules/
+dist/
+target/
+src-tauri/gen/
+*.log
+.impeccable/review/
+.impeccable/mocks/
+.impeccable/config.local.json
+benchmark-results/
+test-results/
+*.db
+*.db-shm
+*.db-wal

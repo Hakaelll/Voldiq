@@ -1,0 +1,604 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-11T17:31:12.329Z",
+  "title": "Design System: Voldiq",
+  "extensions": {
+    "colorMeta": {
+      "accent": {
+        "role": "primary",
+        "displayName": "Accent",
+        "tonalRamp": [
+          "oklch(15% 0.21521 262.88)",
+          "oklch(27% 0.21521 262.88)",
+          "oklch(38% 0.21521 262.88)",
+          "oklch(49% 0.21521 262.88)",
+          "oklch(61% 0.21521 262.88)",
+          "oklch(72% 0.21521 262.88)",
+          "oklch(84% 0.21521 262.88)",
+          "oklch(95% 0.21521 262.88)"
+        ]
+      },
+      "accent-fill": {
+        "role": "primary",
+        "displayName": "Accent Fill",
+        "tonalRamp": [
+          "oklch(15% 0.18087 265.64)",
+          "oklch(27% 0.18087 265.64)",
+          "oklch(38% 0.18087 265.64)",
+          "oklch(49% 0.18087 265.64)",
+          "oklch(61% 0.18087 265.64)",
+          "oklch(72% 0.18087 265.64)",
+          "oklch(84% 0.18087 265.64)",
+          "oklch(95% 0.18087 265.64)"
+        ]
+      },
+      "accent-hover": {
+        "role": "primary",
+        "displayName": "Accent Hover",
+        "tonalRamp": [
+          "oklch(15% 0.13508 263.85)",
+          "oklch(27% 0.13508 263.85)",
+          "oklch(38% 0.13508 263.85)",
+          "oklch(49% 0.13508 263.85)",
+          "oklch(61% 0.13508 263.85)",
+          "oklch(72% 0.13508 263.85)",
+          "oklch(84% 0.13508 263.85)",
+          "oklch(95% 0.13508 263.85)"
+        ]
+      },
+      "selected": {
+        "role": "primary",
+        "displayName": "Selected",
+        "tonalRamp": [
+          "oklch(15% 0.01733 264.49)",
+          "oklch(27% 0.01733 264.49)",
+          "oklch(38% 0.01733 264.49)",
+          "oklch(49% 0.01733 264.49)",
+          "oklch(61% 0.01733 264.49)",
+          "oklch(72% 0.01733 264.49)",
+          "oklch(84% 0.01733 264.49)",
+          "oklch(95% 0.01733 264.49)"
+        ]
+      },
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Canvas",
+        "tonalRamp": [
+          "oklch(15% 0.00000 89.88)",
+          "oklch(27% 0.00000 89.88)",
+          "oklch(38% 0.00000 89.88)",
+          "oklch(49% 0.00000 89.88)",
+          "oklch(61% 0.00000 89.88)",
+          "oklch(72% 0.00000 89.88)",
+          "oklch(84% 0.00000 89.88)",
+          "oklch(95% 0.00000 89.88)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "tonalRamp": [
+          "oklch(15% 0.00000 89.88)",
+          "oklch(27% 0.00000 89.88)",
+          "oklch(38% 0.00000 89.88)",
+          "oklch(49% 0.00000 89.88)",
+          "oklch(61% 0.00000 89.88)",
+          "oklch(72% 0.00000 89.88)",
+          "oklch(84% 0.00000 89.88)",
+          "oklch(95% 0.00000 89.88)"
+        ]
+      },
+      "paper": {
+        "role": "neutral",
+        "displayName": "Paper",
+        "tonalRamp": [
+          "oklch(15% 0.00000 89.88)",
+          "oklch(27% 0.00000 89.88)",
+          "oklch(38% 0.00000 89.88)",
+          "oklch(49% 0.00000 89.88)",
+          "oklch(61% 0.00000 89.88)",
+          "oklch(72% 0.00000 89.88)",
+          "oklch(84% 0.00000 89.88)",
+          "oklch(95% 0.00000 89.88)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Border",
+        "tonalRamp": [
+          "oklch(15% 0.00000 89.88)",
+          "oklch(27% 0.00000 89.88)",
+          "oklch(38% 0.00000 89.88)",
+          "oklch(49% 0.00000 89.88)",
+          "oklch(61% 0.00000 89.88)",
+          "oklch(72% 0.00000 89.88)",
+          "oklch(84% 0.00000 89.88)",
+          "oklch(95% 0.00000 89.88)"
+        ]
+      },
+      "strong": {
+        "role": "neutral",
+        "displayName": "Strong",
+        "tonalRamp": [
+          "oklch(15% 0.00000 89.88)",
+          "oklch(27% 0.00000 89.88)",
+          "oklch(38% 0.00000 89.88)",
+          "oklch(49% 0.00000 89.88)",
+          "oklch(61% 0.00000 89.88)",
+          "oklch(72% 0.00000 89.88)",
+          "oklch(84% 0.00000 89.88)",
+          "oklch(95% 0.00000 89.88)"
+        ]
+      },
+      "text": {
+        "role": "neutral",
+        "displayName": "Text",
+        "tonalRamp": [
+          "oklch(15% 0.00000 89.88)",
+          "oklch(27% 0.00000 89.88)",
+          "oklch(38% 0.00000 89.88)",
+          "oklch(49% 0.00000 89.88)",
+          "oklch(61% 0.00000 89.88)",
+          "oklch(72% 0.00000 89.88)",
+          "oklch(84% 0.00000 89.88)",
+          "oklch(95% 0.00000 89.88)"
+        ]
+      },
+      "secondary": {
+        "role": "neutral",
+        "displayName": "Secondary",
+        "tonalRamp": [
+          "oklch(15% 0.00000 89.88)",
+          "oklch(27% 0.00000 89.88)",
+          "oklch(38% 0.00000 89.88)",
+          "oklch(49% 0.00000 89.88)",
+          "oklch(61% 0.00000 89.88)",
+          "oklch(72% 0.00000 89.88)",
+          "oklch(84% 0.00000 89.88)",
+          "oklch(95% 0.00000 89.88)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "tonalRamp": [
+          "oklch(15% 0.00000 89.88)",
+          "oklch(27% 0.00000 89.88)",
+          "oklch(38% 0.00000 89.88)",
+          "oklch(49% 0.00000 89.88)",
+          "oklch(61% 0.00000 89.88)",
+          "oklch(72% 0.00000 89.88)",
+          "oklch(84% 0.00000 89.88)",
+          "oklch(95% 0.00000 89.88)"
+        ]
+      },
+      "error": {
+        "role": "neutral",
+        "displayName": "Error",
+        "tonalRamp": [
+          "oklch(15% 0.16341 26.18)",
+          "oklch(27% 0.16341 26.18)",
+          "oklch(38% 0.16341 26.18)",
+          "oklch(49% 0.16341 26.18)",
+          "oklch(61% 0.16341 26.18)",
+          "oklch(72% 0.16341 26.18)",
+          "oklch(84% 0.16341 26.18)",
+          "oklch(95% 0.16341 26.18)"
+        ]
+      },
+      "dark-canvas": {
+        "role": "neutral",
+        "displayName": "Dark Canvas",
+        "tonalRamp": [
+          "oklch(15% 0.01080 260.68)",
+          "oklch(27% 0.01080 260.68)",
+          "oklch(38% 0.01080 260.68)",
+          "oklch(49% 0.01080 260.68)",
+          "oklch(61% 0.01080 260.68)",
+          "oklch(72% 0.01080 260.68)",
+          "oklch(84% 0.01080 260.68)",
+          "oklch(95% 0.01080 260.68)"
+        ]
+      },
+      "dark-surface": {
+        "role": "neutral",
+        "displayName": "Dark Surface",
+        "tonalRamp": [
+          "oklch(15% 0.01282 258.37)",
+          "oklch(27% 0.01282 258.37)",
+          "oklch(38% 0.01282 258.37)",
+          "oklch(49% 0.01282 258.37)",
+          "oklch(61% 0.01282 258.37)",
+          "oklch(72% 0.01282 258.37)",
+          "oklch(84% 0.01282 258.37)",
+          "oklch(95% 0.01282 258.37)"
+        ]
+      },
+      "dark-paper": {
+        "role": "neutral",
+        "displayName": "Dark Paper",
+        "tonalRamp": [
+          "oklch(15% 0.01474 256.79)",
+          "oklch(27% 0.01474 256.79)",
+          "oklch(38% 0.01474 256.79)",
+          "oklch(49% 0.01474 256.79)",
+          "oklch(61% 0.01474 256.79)",
+          "oklch(72% 0.01474 256.79)",
+          "oklch(84% 0.01474 256.79)",
+          "oklch(95% 0.01474 256.79)"
+        ]
+      },
+      "dark-border": {
+        "role": "neutral",
+        "displayName": "Dark Border",
+        "tonalRamp": [
+          "oklch(15% 0.01774 258.37)",
+          "oklch(27% 0.01774 258.37)",
+          "oklch(38% 0.01774 258.37)",
+          "oklch(49% 0.01774 258.37)",
+          "oklch(61% 0.01774 258.37)",
+          "oklch(72% 0.01774 258.37)",
+          "oklch(84% 0.01774 258.37)",
+          "oklch(95% 0.01774 258.37)"
+        ]
+      },
+      "dark-strong": {
+        "role": "neutral",
+        "displayName": "Dark Strong",
+        "tonalRamp": [
+          "oklch(15% 0.02228 258.37)",
+          "oklch(27% 0.02228 258.37)",
+          "oklch(38% 0.02228 258.37)",
+          "oklch(49% 0.02228 258.37)",
+          "oklch(61% 0.02228 258.37)",
+          "oklch(72% 0.02228 258.37)",
+          "oklch(84% 0.02228 258.37)",
+          "oklch(95% 0.02228 258.37)"
+        ]
+      },
+      "dark-text": {
+        "role": "neutral",
+        "displayName": "Dark Text",
+        "tonalRamp": [
+          "oklch(15% 0.00581 264.53)",
+          "oklch(27% 0.00581 264.53)",
+          "oklch(38% 0.00581 264.53)",
+          "oklch(49% 0.00581 264.53)",
+          "oklch(61% 0.00581 264.53)",
+          "oklch(72% 0.00581 264.53)",
+          "oklch(84% 0.00581 264.53)",
+          "oklch(95% 0.00581 264.53)"
+        ]
+      },
+      "dark-secondary": {
+        "role": "neutral",
+        "displayName": "Dark Secondary",
+        "tonalRamp": [
+          "oklch(15% 0.01559 260.73)",
+          "oklch(27% 0.01559 260.73)",
+          "oklch(38% 0.01559 260.73)",
+          "oklch(49% 0.01559 260.73)",
+          "oklch(61% 0.01559 260.73)",
+          "oklch(72% 0.01559 260.73)",
+          "oklch(84% 0.01559 260.73)",
+          "oklch(95% 0.01559 260.73)"
+        ]
+      },
+      "dark-muted": {
+        "role": "neutral",
+        "displayName": "Dark Muted",
+        "tonalRamp": [
+          "oklch(15% 0.01954 258.36)",
+          "oklch(27% 0.01954 258.36)",
+          "oklch(38% 0.01954 258.36)",
+          "oklch(49% 0.01954 258.36)",
+          "oklch(61% 0.01954 258.36)",
+          "oklch(72% 0.01954 258.36)",
+          "oklch(84% 0.01954 258.36)",
+          "oklch(95% 0.01954 258.36)"
+        ]
+      },
+      "dark-accent": {
+        "role": "primary",
+        "displayName": "Dark Accent",
+        "tonalRamp": [
+          "oklch(15% 0.12646 262.39)",
+          "oklch(27% 0.12646 262.39)",
+          "oklch(38% 0.12646 262.39)",
+          "oklch(49% 0.12646 262.39)",
+          "oklch(61% 0.12646 262.39)",
+          "oklch(72% 0.12646 262.39)",
+          "oklch(84% 0.12646 262.39)",
+          "oklch(95% 0.12646 262.39)"
+        ]
+      },
+      "dark-accent-fill": {
+        "role": "primary",
+        "displayName": "Dark Accent Fill",
+        "tonalRamp": [
+          "oklch(15% 0.12961 261.01)",
+          "oklch(27% 0.12961 261.01)",
+          "oklch(38% 0.12961 261.01)",
+          "oklch(49% 0.12961 261.01)",
+          "oklch(61% 0.12961 261.01)",
+          "oklch(72% 0.12961 261.01)",
+          "oklch(84% 0.12961 261.01)",
+          "oklch(95% 0.12961 261.01)"
+        ]
+      },
+      "dark-selected": {
+        "role": "primary",
+        "displayName": "Dark Selected",
+        "tonalRamp": [
+          "oklch(15% 0.06888 259.83)",
+          "oklch(27% 0.06888 259.83)",
+          "oklch(38% 0.06888 259.83)",
+          "oklch(49% 0.06888 259.83)",
+          "oklch(61% 0.06888 259.83)",
+          "oklch(72% 0.06888 259.83)",
+          "oklch(84% 0.06888 259.83)",
+          "oklch(95% 0.06888 259.83)"
+        ]
+      },
+      "dark-error": {
+        "role": "neutral",
+        "displayName": "Dark Error",
+        "tonalRamp": [
+          "oklch(15% 0.10987 19.90)",
+          "oklch(27% 0.10987 19.90)",
+          "oklch(38% 0.10987 19.90)",
+          "oklch(49% 0.10987 19.90)",
+          "oklch(61% 0.10987 19.90)",
+          "oklch(72% 0.10987 19.90)",
+          "oklch(84% 0.10987 19.90)",
+          "oklch(95% 0.10987 19.90)"
+        ]
+      },
+      "map-blue": {
+        "role": "secondary",
+        "displayName": "Map Blue",
+        "tonalRamp": [
+          "oklch(15% 0.10285 252.98)",
+          "oklch(27% 0.10285 252.98)",
+          "oklch(38% 0.10285 252.98)",
+          "oklch(49% 0.10285 252.98)",
+          "oklch(61% 0.10285 252.98)",
+          "oklch(72% 0.10285 252.98)",
+          "oklch(84% 0.10285 252.98)",
+          "oklch(95% 0.10285 252.98)"
+        ]
+      },
+      "map-ochre": {
+        "role": "secondary",
+        "displayName": "Map Ochre",
+        "tonalRamp": [
+          "oklch(15% 0.10778 78.07)",
+          "oklch(27% 0.10778 78.07)",
+          "oklch(38% 0.10778 78.07)",
+          "oklch(49% 0.10778 78.07)",
+          "oklch(61% 0.10778 78.07)",
+          "oklch(72% 0.10778 78.07)",
+          "oklch(84% 0.10778 78.07)",
+          "oklch(95% 0.10778 78.07)"
+        ]
+      },
+      "map-green": {
+        "role": "secondary",
+        "displayName": "Map Green",
+        "tonalRamp": [
+          "oklch(15% 0.06856 137.59)",
+          "oklch(27% 0.06856 137.59)",
+          "oklch(38% 0.06856 137.59)",
+          "oklch(49% 0.06856 137.59)",
+          "oklch(61% 0.06856 137.59)",
+          "oklch(72% 0.06856 137.59)",
+          "oklch(84% 0.06856 137.59)",
+          "oklch(95% 0.06856 137.59)"
+        ]
+      },
+      "map-violet": {
+        "role": "secondary",
+        "displayName": "Map Violet",
+        "tonalRamp": [
+          "oklch(15% 0.08127 295.84)",
+          "oklch(27% 0.08127 295.84)",
+          "oklch(38% 0.08127 295.84)",
+          "oklch(49% 0.08127 295.84)",
+          "oklch(61% 0.08127 295.84)",
+          "oklch(72% 0.08127 295.84)",
+          "oklch(84% 0.08127 295.84)",
+          "oklch(95% 0.08127 295.84)"
+        ]
+      },
+      "map-slate": {
+        "role": "secondary",
+        "displayName": "Map Slate",
+        "tonalRamp": [
+          "oklch(15% 0.03757 226.87)",
+          "oklch(27% 0.03757 226.87)",
+          "oklch(38% 0.03757 226.87)",
+          "oklch(49% 0.03757 226.87)",
+          "oklch(61% 0.03757 226.87)",
+          "oklch(72% 0.03757 226.87)",
+          "oklch(84% 0.03757 226.87)",
+          "oklch(95% 0.03757 226.87)"
+        ]
+      },
+      "map-rose": {
+        "role": "secondary",
+        "displayName": "Map Rose",
+        "tonalRamp": [
+          "oklch(15% 0.03704 29.13)",
+          "oklch(27% 0.03704 29.13)",
+          "oklch(38% 0.03704 29.13)",
+          "oklch(49% 0.03704 29.13)",
+          "oklch(61% 0.03704 29.13)",
+          "oklch(72% 0.03704 29.13)",
+          "oklch(84% 0.03704 29.13)",
+          "oklch(95% 0.03704 29.13)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Page heading",
+        "purpose": "Main workspace view title."
+      },
+      "title": {
+        "displayName": "Panel title",
+        "purpose": "Storage, settings and dialog headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Paragraphs and ordinary controls."
+      },
+      "label": {
+        "displayName": "Dense label",
+        "purpose": "File rows and compact descriptions."
+      },
+      "metadata": {
+        "displayName": "Metadata",
+        "purpose": "Footers and small scan annotations."
+      },
+      "metric": {
+        "displayName": "Capacity figure",
+        "purpose": "Measured volume sizes; 20px at the first desktop breakpoint."
+      }
+    },
+    "shadows": [],
+    "motion": [
+      {
+        "name": "control-background",
+        "value": "140ms",
+        "purpose": "Button background transitions; rail width uses this duration with ease-out."
+      },
+      {
+        "name": "rail-easing",
+        "value": "ease-out",
+        "purpose": "Navigation grid column transition."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "compact-desktop",
+        "value": "1100px"
+      },
+      {
+        "name": "minimum-window",
+        "value": "840px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The measured scan action.",
+      "html": "<button class=\"ds-primary\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M20 7a8 8 0 1 0 1 9 M20 3v5h-5\"/></svg>Scan drive</button>",
+      "css": ".ds-primary{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--border,#e5e5e5);border-radius:var(--radius,6px);background:var(--canvas,#fff);color:var(--text,#171717);min-height:32px;padding:6px 10px;cursor:pointer;white-space:nowrap;font-size:13px;font-family:'Segoe UI Variable','Segoe UI',sans-serif;transition:background var(--motion,140ms);background:var(--accent-fill,#1e40af);border-color:var(--accent-fill,#1e40af);color:#fff;}.ds-primary:hover{background:#173784;}.ds-primary:focus-visible{outline:2px solid var(--accent,#2563eb);outline-offset:2px;}.ds-primary:disabled{opacity:.5;cursor:default;}@media(prefers-reduced-motion:reduce){button{transition:none;}}"
+    },
+    {
+      "name": "Secondary button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Folder selection and secondary actions.",
+      "html": "<button class=\"ds-secondary\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 7V5h6l2 2h10v13H3z\"/></svg>Choose folder</button>",
+      "css": ".ds-secondary{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--border,#e5e5e5);border-radius:var(--radius,6px);background:var(--canvas,#fff);color:var(--text,#171717);min-height:32px;padding:6px 10px;cursor:pointer;white-space:nowrap;font-size:13px;font-family:'Segoe UI Variable','Segoe UI',sans-serif;transition:background var(--motion,140ms);}.ds-secondary:hover{background:var(--paper,#f5f5f5);}.ds-secondary:focus-visible{outline:2px solid var(--accent,#2563eb);outline-offset:2px;}.ds-secondary:disabled{opacity:.5;cursor:default;}@media(prefers-reduced-motion:reduce){button{transition:none;}}"
+    },
+    {
+      "name": "Text field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "Filters and settings text values.",
+      "html": "<input class=\"ds-field\" aria-label=\"Extension\" placeholder=\"All extensions\">",
+      "css": ".ds-field{font-family:'Segoe UI Variable','Segoe UI',sans-serif;font-size:13px;background:var(--canvas,#fff);color:var(--text,#171717);border:1px solid var(--strong,#d4d4d4);border-radius:var(--radius,6px);padding:7px 9px;min-width:0;caret-color:var(--accent,#2563eb);}.ds-field:focus-visible{outline:2px solid var(--accent,#2563eb);outline-offset:2px;}"
+    },
+    {
+      "name": "Search",
+      "kind": "input",
+      "refersTo": "search",
+      "description": "Indexed search with one enclosing focus outline.",
+      "html": "<div class=\"ds-search\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M21 21l-5-5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0\"/></svg><input aria-label=\"Search files and folders\" placeholder=\"Search indexed files and folders\"><kbd>Ctrl K</kbd></div>",
+      "css": ".ds-search{font-family:'Segoe UI Variable','Segoe UI',sans-serif;font-size:13px;display:flex;align-items:center;gap:8px;border:1px solid var(--border,#e5e5e5);border-radius:6px;width:min(390px,100%);min-width:200px;padding:0 10px;color:var(--muted,#737373);background:var(--canvas,#fff);}.ds-search input{font-family:'Segoe UI Variable','Segoe UI',sans-serif;font-size:13px;width:100%;min-width:0;border:0;background:transparent;color:var(--text,#171717);padding:9px 0;}.ds-search input:focus-visible{outline:0;}.ds-search:focus-within{outline:2px solid var(--accent,#2563eb);outline-offset:2px;}.ds-search kbd{font:11px 'Segoe UI',sans-serif;border:1px solid var(--border,#e5e5e5);border-radius:3px;padding:2px 4px;white-space:nowrap;}"
+    },
+    {
+      "name": "Navigation",
+      "kind": "nav",
+      "refersTo": "navigation-active",
+      "description": "Selected and ordinary controls in one expanding rail.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Main navigation\"><button class=\"ds-current\" aria-current=\"page\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z\"/></svg>Overview</button><button><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 7V5h6l2 2h10v13H3z\"/></svg>Explorer</button></nav>",
+      "css": ".ds-nav{display:grid;gap:5px;width:180px;}.ds-nav button{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--border,#e5e5e5);border-radius:var(--radius,6px);background:var(--canvas,#fff);color:var(--text,#171717);min-height:32px;padding:6px 10px;cursor:pointer;white-space:nowrap;font-size:13px;font-family:'Segoe UI Variable','Segoe UI',sans-serif;transition:background var(--motion,140ms);width:100%;justify-content:flex-start;padding:10px 12px;border:0;background:transparent;gap:12px;}.ds-nav button.ds-current{background:var(--selected,#edf3ff);color:var(--accent,#2563eb);font-weight:600;}.ds-nav button:hover{background:var(--paper,#f5f5f5);}.ds-nav button:focus-visible{outline:2px solid var(--accent,#2563eb);outline-offset:2px;}@media(prefers-reduced-motion:reduce){button{transition:none;}}"
+    },
+    {
+      "name": "Panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "A flat container with a heading and neutral divider.",
+      "html": "<section class=\"ds-panel\"><div class=\"ds-panel-heading\"><div><h2>Storage map</h2><p>Logical file sizes</p></div></div><div class=\"ds-map-empty\">No measured file sizes in this folder.</div></section>",
+      "css": ".ds-panel{font-family:'Segoe UI Variable','Segoe UI',sans-serif;font-size:13px;border:1px solid var(--border,#e5e5e5);border-radius:6px;background:var(--canvas,#fff);color:var(--text,#171717);min-width:0;}.ds-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 18px;}.ds-panel h2{margin:0;font-size:14px;font-weight:600;line-height:1.4;}.ds-panel p{margin:3px 0 0;font-size:12px;line-height:1.6;color:var(--secondary,#525252);}.ds-map-empty{display:grid;place-items:center;margin:0 16px 16px;height:360px;border-radius:3px;color:var(--secondary,#525252);background:var(--surface,#fafafa);}"
+    },
+    {
+      "name": "Notice",
+      "kind": "custom",
+      "refersTo": "notice",
+      "description": "Compact preview and incomplete-coverage messages.",
+      "html": "<div class=\"ds-notice\">The browser preview shows the interface. Open the Windows app to detect drives and scan real files.</div>",
+      "css": ".ds-notice{font-family:'Segoe UI Variable','Segoe UI',sans-serif;display:flex;align-items:center;gap:12px;background:var(--surface,#fafafa);color:var(--text,#171717);border:1px solid var(--border,#e5e5e5);padding:10px 12px;border-radius:6px;font-size:12px;line-height:1.5;}"
+    },
+    {
+      "name": "File row",
+      "kind": "custom",
+      "refersTo": "file-row",
+      "description": "Compact selected file row with aligned logical size.",
+      "html": "<div class=\"ds-file-row ds-selected\"><button class=\"ds-file-name\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M3 7V5h6l2 2h10v13H3z\"/></svg><span>Documents</span></button><span class=\"ds-number\">4.2 GiB</span><span>10/11/2026</span><span>Folder</span></div>",
+      "css": ".ds-file-row{font-family:'Segoe UI Variable','Segoe UI',sans-serif;font-size:12px;color:var(--text,#171717);display:grid;grid-template-columns:minmax(210px,1fr) 120px 200px 145px;gap:16px;align-items:center;padding:0 16px;height:36px;border-bottom:1px solid var(--border,#e5e5e5);background:var(--canvas,#fff);}.ds-file-row:hover{background:var(--surface,#fafafa);}.ds-file-row.ds-selected{background:var(--selected,#edf3ff);}.ds-file-name{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1px solid var(--border,#e5e5e5);border-radius:var(--radius,6px);background:var(--canvas,#fff);color:var(--text,#171717);min-height:32px;padding:6px 10px;cursor:pointer;white-space:nowrap;font-size:13px;font-family:'Segoe UI Variable','Segoe UI',sans-serif;transition:background var(--motion,140ms);font-size:12px;border:0;background:transparent;padding:0;min-height:30px;width:100%;justify-content:flex-start;text-align:left;}.ds-file-name span{overflow:hidden;text-overflow:ellipsis;}.ds-file-name svg{color:#9d8252;}.ds-file-name:focus-visible{outline:2px solid var(--accent,#2563eb);outline-offset:2px;}.ds-number{font-variant-numeric:tabular-nums;text-align:right;}@media(prefers-reduced-motion:reduce){button{transition:none;}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Windows storage workspace",
+    "overview": "Voldiq puts paths, file sizes and scan coverage in a compact desktop workspace. The built interface follows the user-selected white Windows direction and supplied Palantir, Linear and Dub references. Fine dividers organize the rail, toolbar and content without decorative elevation. Segoe UI keeps the controls consistent with Windows expectations.\n\nThe supplied stacked-storage logo is the identity asset. Its disc-shaped top and blue segment remain intact. Light mode is the default; dark mode changes the same semantic color roles. The dark navigation logo has an intentional pale circular backing, with a small inset, so the original raster remains legible without exposing a rectangular matte.",
+    "keyCharacteristics": [
+      "A single navigation rail expands to show labels.",
+      "White content areas and fine neutral dividers support compact controls.",
+      "Blue marks selection, focus and primary actions.",
+      "Measured storage data determines chart area and totals.",
+      "The original Voldiq logo remains visible in both themes."
+    ],
+    "rules": [
+      {
+        "name": "The Semantic Theme Rule",
+        "body": "Use the existing semantic custom properties for new controls so theme changes update their text, background, border and focus together.",
+        "section": "colors"
+      },
+      {
+        "name": "The Measured Number Rule",
+        "body": "Keep storage sizes and file counts aligned with tabular numerals. Right-align the file list's logical-size column; allow names and paths to wrap or truncate according to their container.",
+        "section": "typography"
+      },
+      {
+        "name": "The One Rail Rule",
+        "body": "Expand labels within the existing navigation rail. Keep the workspace as the adjacent main area.",
+        "section": "layout"
+      },
+      {
+        "name": "The Border Depth Rule",
+        "body": "Use the existing border and background roles to organize content. Keep panel depth consistent with the flat built containers.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do use the semantic theme colors and the existing compact text hierarchy.",
+      "Do preserve the supplied logo geometry and its intentional pale circular backing in dark navigation.",
+      "Do keep measured sizes, paths and incomplete coverage visible beside storage graphics.",
+      "Do provide a list route for the Canvas map and visible keyboard focus on controls.",
+      "Do honor both the saved motion preference and the system reduced-motion preference."
+    ],
+    "donts": [
+      "Don't invent populated charts or historical measurements for an empty scan.",
+      "Don't change a map color into a semantic file-type promise without updating the implementation.",
+      "Don't treat browser-only finish approval as verification of populated native or IPC workflows.",
+      "Don't add another full sidebar when navigation labels can expand in the existing rail."
+    ]
+  }
+}
