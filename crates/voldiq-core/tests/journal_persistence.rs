@@ -112,7 +112,7 @@ fn version_one_history_migrates_without_losing_captures() {
     drop(store);
     let connection = rusqlite::Connection::open(&db).unwrap();
     connection
-        .execute_batch("DROP TABLE snapshot_journals; PRAGMA user_version=1;")
+        .execute_batch("ALTER TABLE snapshot_versions DROP COLUMN native_state; DROP TABLE snapshot_journals; PRAGMA user_version=1;")
         .unwrap();
     drop(connection);
     let store = Store::open(&db).unwrap();
@@ -125,6 +125,65 @@ fn version_one_history_migrates_without_losing_captures() {
         connection
             .query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
             .unwrap(),
-        2
+        3
+    );
+}
+
+#[test]
+fn native_identity_replacement_creates_a_new_version_even_with_matching_size_and_modified_time() {
+    let fixture = tempfile::tempdir().unwrap();
+    let database = tempfile::tempdir().unwrap();
+    let db = database.path().join("history.db");
+    let file = fixture.path().join("file");
+    std::fs::write(&file, [1; 20]).unwrap();
+    let modified = std::fs::metadata(&file).unwrap().modified().unwrap();
+    let before = scan(
+        fixture.path(),
+        &ScanOptions::default(),
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    let mut store = Store::open(&db).unwrap();
+    let first = store.save(&before, &AtomicBool::new(false)).unwrap();
+    let replacement = fixture.path().join("replacement");
+    std::fs::write(&replacement, [2; 20]).unwrap();
+    std::fs::File::options()
+        .write(true)
+        .open(&replacement)
+        .unwrap()
+        .set_modified(modified)
+        .unwrap();
+    std::fs::remove_file(&file).unwrap();
+    std::fs::rename(&replacement, &file).unwrap();
+    let after = scan(
+        fixture.path(),
+        &ScanOptions::default(),
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    assert_ne!(
+        before.entries[1].file_state.unwrap().identity,
+        after.entries[1].file_state.unwrap().identity
+    );
+    let second = store.save(&after, &AtomicBool::new(false)).unwrap();
+    let comparison = store.compare(first, second, 0, 100).unwrap();
+    assert_eq!(comparison.delta, 0);
+    assert!(
+        comparison
+            .changes
+            .iter()
+            .any(|change| change.path.ends_with("file")
+                && change.kind == "changed"
+                && change.delta == 0)
+    );
+    assert!(
+        store
+            .load(first)
+            .unwrap()
+            .entries
+            .iter()
+            .all(|entry| entry.file_state.is_none())
     );
 }

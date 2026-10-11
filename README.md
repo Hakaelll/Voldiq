@@ -79,7 +79,7 @@ The developer view classifies indexed Cargo targets, Node.js dependencies and bu
 
 Snapshots remain local in the application's data directory. SQLite stores a baseline and new versions of changed entries, so unchanged captures reuse existing entry data. Captures use transactions; cancellation and integer overflow roll back the entire write. Original Windows UTF-16 names survive persistence.
 
-Complete, stable NTFS scans can retain journal checkpoints with their captures. Repeating the same volume scan can apply journal changes to the live index, with full resynchronization when continuity or scope cannot be verified. Existing history databases migrate transactionally. Loaded snapshots remain historical; cross-restart resume and raw-volume acceptance are still under development.
+Complete, stable NTFS scans can retain journal checkpoints with their captures. Repeating the same volume scan can apply journal changes to the live index. After restart, the first volume scan can resume from a matching capture with native identities. Both paths rescan fully when continuity or scope cannot be verified. Existing history databases migrate transactionally, and ordinary snapshot loading remains historical. Raw-volume and native restart acceptance checks remain open.
 
 Saved captures can be reopened and compared after restarting. Comparisons require the same root identity and exclusions. Partial coverage marks missing entries as unobserved rather than claiming they were deleted. The history view includes recorded size, paged changes, capture removal and database compaction. Opening a capture labels the explorer as historical; rescan before saving a new capture.
 

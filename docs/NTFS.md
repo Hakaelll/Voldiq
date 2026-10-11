@@ -16,7 +16,7 @@ A complete NTFS scan retains its volume serial, journal ID and next USN only whe
 
 SQLite schema version 2 stores this evidence in `snapshot_journals`, in the same transaction as its snapshot. Volume and journal IDs use eight-byte blobs to preserve the full unsigned range. Each checkpoint belongs to one capture and is removed when that capture is deleted. Version 1 databases migrate transactionally without changing existing captures. Reading persisted evidence verifies the volume identity and complete coverage recorded with the capture.
 
-Loading a snapshot still creates a historical index without an active checkpoint or current file identity stamps. The stored cursor alone does not turn that index into a current one. Resuming from persisted history remains pending.
+Loading a snapshot still creates a historical index without an active checkpoint or current file identity stamps. The stored cursor alone does not turn that index into a current one. A separate resume path reconstructs native evidence privately and validates the journal before returning a current index.
 
 Three database tests cover restart, full-width journal IDs, cancellation rollback, deletion, volume mismatch, invalid cursors, incomplete or historical inputs, tampered evidence and version 1 migration. These tests use controlled checkpoint values; they do not certify a privileged raw-volume scan on this host.
 
@@ -28,7 +28,15 @@ Publication replaces the index only after the complete journal batch, root ident
 
 Four tests use real Windows filesystem fixtures and metadata handles for file growth, deletion, file rename, directory move, new files, deleted subtrees, hard links, exclusions, cancellation, checkpoint reset, final verification failure, row limits and full-scan fallback. One fixture verifies that replay opens exactly the changed references and does not reopen an unchanged descendant. Journal records and checkpoint values are controlled test inputs; these tests do not certify raw journal reads on this host.
 
-Replay currently rebuilds rows in memory, with temporary storage proportional to index size. End-to-end raw-volume and large-index replay measurements remain open. Cross-restart resume still needs persisted native entry identities and refreshed metadata; historical captures are not promoted into current indexes.
+Replay currently rebuilds rows in memory, with temporary storage proportional to index size. End-to-end raw-volume and large-index replay measurements remain open. Historical captures are not promoted into current indexes by ordinary history loading.
+
+## Resume after restart
+
+SQLite schema version 3 stores native volume, file reference and change-time stamps in each entry version as a checked 24-byte blob. Adding or changing native evidence creates a new version. Comparisons use identity differences only when both captures have stamps, so migration does not falsely report unchanged legacy files as changed. Versions 1 and 2 migrate in one transaction; old captures remain available, with absent native evidence left unknown.
+
+With no in-memory index, the native scan command searches for the latest completed checkpoint capture matching the requested volume path, native root identity and exclusions. Resume loading validates a directory root, directory-only parents and native entry volumes, and checks cancellation and the requested row limit. The candidate remains private until native journal replay and final root/journal verification succeed. Missing stamps, unavailable journal access, lost continuity or invalid evidence use a full scan. Cancelling before any index is published reports no results and skips fallback.
+
+Two additional replay fixtures reopen SQLite before applying real file growth and directory movement, verify that historical reads expose no active stamps, reject changed final journal bounds, cancellation, oversized candidates, malformed roots/parents and tampered volume evidence, and verify version 2 migration fallback. A persistence fixture detects a real file replacement whose size and modification time match the previous file. The fixtures supply controlled journal records; native startup resume on a journal-readable volume still needs acceptance testing.
 
 ## Verification limits
 
@@ -38,4 +46,4 @@ Four parser and continuity tests pass. Five integration tests use real metadata 
 
 The native scan command attempts NTFS at volume roots and falls back on capability or enumeration-limit failures before publishing non-root entries. Folder scans use directory enumeration. Metadata is acquired outside index write locks; partial results remain queryable. Unresolved parents, name or identity changes, limits and reparse coverage mark the index incomplete. A changed journal during construction also marks it incomplete.
 
-The host raw-volume probe reports access denied. No elevation or journal modification was attempted. Elevated enumeration, volume performance comparison, real journal replay acceptance and cross-restart resume remain open. The current implementation does not claim measured NTFS performance gains.
+The host raw-volume probe reports access denied. No elevation or journal modification was attempted. Elevated enumeration, volume performance comparison, real journal replay and native cross-restart acceptance remain open. The current implementation does not claim measured NTFS performance gains.

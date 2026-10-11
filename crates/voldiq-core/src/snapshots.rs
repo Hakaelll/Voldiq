@@ -1,3 +1,6 @@
+#[cfg(windows)]
+mod resume;
+
 use crate::{Entry, Error, Issue, Kind, NodeId, Result, index::Index};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::Serialize;
@@ -50,6 +53,7 @@ pub struct Comparison {
 
 #[derive(Debug, PartialEq)]
 struct Data {
+    native_state: Option<crate::FileState>,
     kind: i64,
     logical: u64,
     allocated: u64,
@@ -63,6 +67,7 @@ struct Data {
 impl Data {
     fn from_entry(entry: &Entry) -> Self {
         Self {
+            native_state: entry.file_state,
             kind: match entry.kind {
                 Kind::Directory => 0,
                 Kind::File => 1,
@@ -79,6 +84,17 @@ impl Data {
     }
     fn read(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
         Ok(Self {
+            native_state: row
+                .get::<_, Option<Vec<u8>>>(8)?
+                .map(|bytes| decode_state(&bytes))
+                .transpose()
+                .map_err(|error| {
+                    rusqlite::Error::FromSqlConversionFailure(
+                        8,
+                        rusqlite::types::Type::Blob,
+                        Box::new(error),
+                    )
+                })?,
             kind: row.get(0)?,
             logical: unsigned(row, 1)?,
             allocated: unsigned(row, 2)?,
@@ -113,13 +129,18 @@ LEFT JOIN snapshot_versions o ON o.path_id=p.id AND o.start_id<=?1 AND (o.end_id
 LEFT JOIN snapshot_versions n ON n.path_id=p.id AND n.start_id<=?2 AND (n.end_id IS NULL OR n.end_id>?2)
 WHERE p.root_id=?3 AND (o.path_id IS NOT NULL OR n.path_id IS NOT NULL)
 AND (o.path_id IS NULL OR n.path_id IS NULL OR o.kind!=n.kind OR o.logical!=n.logical OR o.allocated!=n.allocated
- OR o.modified IS NOT n.modified OR o.files!=n.files OR o.known!=n.known OR o.incomplete!=n.incomplete OR o.hard_link!=n.hard_link)";
+ OR o.modified IS NOT n.modified OR o.files!=n.files OR o.known!=n.known OR o.incomplete!=n.incomplete OR o.hard_link!=n.hard_link
+ OR (o.native_state IS NOT NULL AND n.native_state IS NOT NULL AND o.native_state IS NOT n.native_state))";
 
 const JOURNAL_SCHEMA: &str = "
 CREATE TABLE snapshot_journals(snapshot_id INTEGER PRIMARY KEY REFERENCES snapshots(id) ON DELETE CASCADE,
  volume BLOB NOT NULL CHECK(length(volume)=8), journal BLOB NOT NULL CHECK(length(journal)=8),
  next_usn INTEGER NOT NULL CHECK(next_usn>=0));
 PRAGMA user_version=2;";
+
+const NATIVE_STATE_SCHEMA: &str = "
+ALTER TABLE snapshot_versions ADD COLUMN native_state BLOB CHECK(native_state IS NULL OR length(native_state)=24);
+PRAGMA user_version=3;";
 
 impl Store {
     pub fn open(path: &Path) -> Result<Self> {
@@ -129,14 +150,17 @@ impl Store {
             "PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;",
         )?;
         let version: u32 = connection.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version <= 1 {
+        if version <= 2 {
             let transaction = connection.transaction()?;
             if version == 0 {
                 transaction.execute_batch(SCHEMA)?;
             }
-            transaction.execute_batch(JOURNAL_SCHEMA)?;
+            if version <= 1 {
+                transaction.execute_batch(JOURNAL_SCHEMA)?;
+            }
+            transaction.execute_batch(NATIVE_STATE_SCHEMA)?;
             transaction.commit()?;
-        } else if version != 2 {
+        } else if version != 3 {
             return Err(Error::Invalid(
                 "Unsupported snapshot database version.".into(),
             ));
@@ -190,14 +214,14 @@ impl Store {
             let mut insert_path = transaction
                 .prepare("INSERT INTO snapshot_paths(root_id,parent_id,name) VALUES(?1,?2,?3)")?;
             let mut lookup_data = transaction.prepare(
-                "SELECT kind,logical,allocated,modified,files,known,incomplete,hard_link
+                "SELECT kind,logical,allocated,modified,files,known,incomplete,hard_link,native_state
                 FROM snapshot_versions WHERE path_id=?1 AND end_id IS NULL",
             )?;
             let mut expire = transaction.prepare(
                 "UPDATE snapshot_versions SET end_id=?1 WHERE path_id=?2 AND end_id IS NULL",
             )?;
-            let mut insert = transaction.prepare("INSERT INTO snapshot_versions(path_id,start_id,kind,logical,allocated,modified,files,known,incomplete,hard_link)
-                VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10)")?;
+            let mut insert = transaction.prepare("INSERT INTO snapshot_versions(path_id,start_id,kind,logical,allocated,modified,files,known,incomplete,hard_link,native_state)
+                VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)")?;
             let mut seen = transaction.prepare("INSERT INTO captured_paths(id) VALUES(?1)")?;
             for (position, entry) in index.entries.iter().enumerate() {
                 if cancel.load(Ordering::Relaxed) {
@@ -239,6 +263,13 @@ impl Store {
                 paths.push(path_id);
                 seen.execute([path_id])?;
                 let data = Data::from_entry(entry);
+                if data.native_state.is_some_and(|state| {
+                    Some(state.identity.0) != index.root_identity.map(|identity| identity.0)
+                }) {
+                    return Err(Error::Invalid(
+                        "Entry identity belongs to another volume.".into(),
+                    ));
+                }
                 let previous = lookup_data.query_row([path_id], Data::read).optional()?;
                 if previous.as_ref() != Some(&data) {
                     expire.execute(params![snapshot_id, path_id])?;
@@ -252,7 +283,8 @@ impl Store {
                         integer(data.files)?,
                         data.known,
                         data.incomplete,
-                        data.hard_link
+                        data.hard_link,
+                        data.native_state.map(encode_state)
                     ])?;
                 }
             }
@@ -352,6 +384,16 @@ impl Store {
     }
 
     pub fn load(&self, id: i64) -> Result<Index> {
+        self.load_index(id, false, None, None)
+    }
+
+    fn load_index(
+        &self,
+        id: i64,
+        native: bool,
+        cancel: Option<&AtomicBool>,
+        limit: Option<usize>,
+    ) -> Result<Index> {
         let (root_id, path, identity, coverage, errors) = self.connection.query_row(
             "SELECT s.root_id,r.path,r.identity,r.coverage,s.errors FROM snapshots s JOIN snapshot_roots r ON r.id=s.root_id WHERE s.id=?1",
             [id], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Vec<u8>>(1)?, r.get::<_, Vec<u8>>(2)?, r.get::<_, Vec<u8>>(3)?, unsigned(r, 4)?)))?;
@@ -378,31 +420,46 @@ impl Store {
             return Err(Error::Invalid("Snapshot root is not absolute.".into()));
         }
         let mut paths = HashMap::<i64, NodeId>::new();
-        let mut statement = self.connection.prepare("SELECT v.kind,v.logical,v.allocated,v.modified,v.files,v.known,v.incomplete,v.hard_link,p.id,p.parent_id,p.name
+        let mut statement = self.connection.prepare("SELECT v.kind,v.logical,v.allocated,v.modified,v.files,v.known,v.incomplete,v.hard_link,v.native_state,p.id,p.parent_id,p.name
             FROM snapshot_paths p JOIN snapshot_versions v ON v.path_id=p.id WHERE p.root_id=?1 AND v.start_id<=?2 AND (v.end_id IS NULL OR v.end_id>?2) ORDER BY p.id")?;
         let mut rows = statement.query(params![root_id, id])?;
         while let Some(row) = rows.next()? {
+            if limit.is_some_and(|limit| index.entries.len() >= limit) {
+                return Err(Error::Invalid(
+                    "Saved index exceeds the resume limit; rescan required.".into(),
+                ));
+            }
+            if cancel.is_some_and(|cancel| cancel.load(Ordering::Relaxed)) {
+                return Err(Error::Invalid("Snapshot resume cancelled.".into()));
+            }
             let data = Data::read(row)?;
-            let path_id: i64 = row.get(8)?;
-            let parent: i64 = row.get(9)?;
-            let native = decode(&row.get::<_, Vec<u8>>(10)?)?;
+            let path_id: i64 = row.get(9)?;
+            let parent: i64 = row.get(10)?;
+            let native_name = decode(&row.get::<_, Vec<u8>>(11)?)?;
             let node = NodeId(
                 u32::try_from(index.entries.len())
                     .map_err(|_| Error::Invalid("Snapshot exceeds node limit.".into()))?,
             );
             let parent = if parent == 0 {
+                if data.kind != 0 {
+                    return Err(Error::Invalid("Snapshot root is not a directory.".into()));
+                }
                 if !index.entries.is_empty() {
                     return Err(Error::Invalid("Snapshot has multiple roots.".into()));
                 }
                 None
             } else {
-                validate_name(&native)?;
+                validate_name(&native_name)?;
                 Some(
                     *paths
                         .get(&parent)
                         .ok_or_else(|| Error::Invalid("Snapshot parent is missing.".into()))?,
                 )
             };
+            if parent.is_some_and(|parent| index.entries[parent.0 as usize].kind != Kind::Directory)
+            {
+                return Err(Error::Invalid("Snapshot parent is not a directory.".into()));
+            }
             let name = if parent.is_none() {
                 index
                     .root
@@ -411,13 +468,13 @@ impl Store {
                     .to_string_lossy()
                     .into_owned()
             } else {
-                native.to_string_lossy().into_owned()
+                native_name.to_string_lossy().into_owned()
             };
-            if parent.is_some() && native.to_str().is_none() {
-                index.native_names.insert(node, native);
+            if parent.is_some() && native_name.to_str().is_none() {
+                index.native_names.insert(node, native_name);
             }
             index.entries.push(Entry {
-                file_state: None,
+                file_state: if native { data.native_state } else { None },
                 id: node,
                 parent,
                 name,
@@ -605,6 +662,32 @@ impl Store {
             .execute_batch("PRAGMA wal_checkpoint(TRUNCATE); VACUUM;")?;
         Ok(())
     }
+}
+
+fn encode_state(state: crate::FileState) -> Vec<u8> {
+    [
+        state.identity.0.to_le_bytes(),
+        state.identity.1.to_le_bytes(),
+        state.change_time.to_le_bytes(),
+    ]
+    .concat()
+}
+
+fn decode_state(bytes: &[u8]) -> Result<crate::FileState> {
+    if bytes.len() != 24 {
+        return Err(Error::Invalid("Invalid native snapshot state.".into()));
+    }
+    let number = |offset| -> Result<u64> {
+        Ok(u64::from_le_bytes(
+            bytes[offset..offset + 8]
+                .try_into()
+                .map_err(|_| Error::Invalid("Invalid native state length.".into()))?,
+        ))
+    };
+    Ok(crate::FileState {
+        identity: (number(0)?, number(8)?),
+        change_time: number(16)?,
+    })
 }
 
 fn integer(value: u64) -> Result<i64> {

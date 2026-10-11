@@ -6,7 +6,7 @@ use std::{
 use tauri::State;
 use voldiq_core::snapshots::{Comparison, Snapshot, Store};
 
-pub struct SnapshotDatabase(Arc<Mutex<Store>>);
+pub struct SnapshotDatabase(pub(super) Arc<Mutex<Store>>);
 
 impl SnapshotDatabase {
     pub fn open(path: &Path) -> voldiq_core::Result<Self> {

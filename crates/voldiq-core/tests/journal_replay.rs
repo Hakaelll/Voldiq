@@ -408,3 +408,210 @@ fn deleting_a_directory_prunes_its_subtree_and_missing_checkpoints_rescan_real_f
     assert_eq!(terminal.method, "USN Journal");
     assert_eq!(terminal.logical, 17);
 }
+
+#[test]
+fn restart_replay_uses_persisted_directory_and_file_identities_without_promoting_history() {
+    use voldiq_core::snapshots::Store;
+    let fixture = tempfile::tempdir().unwrap();
+    let database = tempfile::tempdir().unwrap();
+    let db = database.path().join("history.db");
+    let root = std::fs::canonicalize(fixture.path()).unwrap();
+    std::fs::create_dir(root.join("left")).unwrap();
+    std::fs::create_dir(root.join("right")).unwrap();
+    std::fs::write(root.join("left/unchanged"), [1; 19]).unwrap();
+    std::fs::write(root.join("growth"), [1; 10]).unwrap();
+    let index = baseline(&root, Vec::new());
+    let mut store = Store::open(&db).unwrap();
+    let id = store.save(&index, &AtomicBool::new(false)).unwrap();
+    drop(store);
+    std::fs::rename(root.join("left"), root.join("right/moved")).unwrap();
+    std::fs::write(root.join("growth"), [2; 37]).unwrap();
+    let store = Store::open(&db).unwrap();
+    let historical = store.load(id).unwrap();
+    assert_eq!(historical.snapshot_id, Some(id));
+    assert!(
+        historical
+            .entries
+            .iter()
+            .all(|entry| entry.file_state.is_none())
+    );
+    assert!(historical.ntfs_checkpoint.is_none());
+    let handles = current_handles(&root);
+    let mut opened = Vec::new();
+    let result = store
+        .replay_snapshot(
+            id,
+            changes(
+                &index,
+                vec![
+                    record(&root.join("right/moved"), 100),
+                    record(&root.join("growth"), 101),
+                ],
+            ),
+            |id| {
+                opened.push(id);
+                open(&handles, id)
+            },
+            1000,
+            &AtomicBool::new(false),
+            |_| Ok(()),
+        )
+        .unwrap();
+    assert_eq!(opened.len(), 2);
+    assert_eq!(result.snapshot_id, None);
+    assert_eq!(result.ntfs_checkpoint.unwrap().next, 200);
+    assert!(
+        result
+            .entries
+            .iter()
+            .skip(1)
+            .all(|entry| entry.file_state.is_some())
+    );
+    parity(&result);
+    assert!(
+        store
+            .replay_snapshot(
+                id,
+                changes(&index, Vec::new()),
+                |id| open(&handles, id),
+                1000,
+                &AtomicBool::new(false),
+                |_| Err(Error::Invalid("journal changed".into()))
+            )
+            .is_err()
+    );
+    assert!(
+        store
+            .replay_snapshot(
+                id,
+                changes(&index, Vec::new()),
+                |id| open(&handles, id),
+                1000,
+                &AtomicBool::new(true),
+                |_| Ok(())
+            )
+            .is_err()
+    );
+    assert_eq!(store.list(0, 100).unwrap().len(), 1);
+    assert_eq!(store.load(id).unwrap().entries[0].logical, 29);
+    assert!(
+        store
+            .replay_snapshot(
+                id,
+                changes(&index, Vec::new()),
+                |_| panic!("Oversized baseline must not open files"),
+                1,
+                &AtomicBool::new(false),
+                |_| Ok(())
+            )
+            .is_err()
+    );
+    let file = index
+        .entries
+        .iter()
+        .find(|entry| entry.kind == Kind::File)
+        .unwrap()
+        .file_state
+        .unwrap();
+    let corrupt = [
+        (file.identity.0 ^ 1).to_le_bytes(),
+        file.identity.1.to_le_bytes(),
+        file.change_time.to_le_bytes(),
+    ]
+    .concat();
+    let connection = rusqlite::Connection::open(&db).unwrap();
+    connection.execute("UPDATE snapshot_versions SET kind=1 WHERE kind=0 AND path_id IN
+        (SELECT p.parent_id FROM snapshot_paths p JOIN snapshot_paths parent ON parent.id=p.parent_id WHERE parent.parent_id!=0)", []).unwrap();
+    assert!(store.load(id).is_err());
+    assert!(
+        store
+            .replay_snapshot(
+                id,
+                changes(&index, Vec::new()),
+                |_| panic!("Invalid parent must not open files"),
+                1000,
+                &AtomicBool::new(false),
+                |_| Ok(())
+            )
+            .is_err()
+    );
+    connection.execute("UPDATE snapshot_versions SET kind=0 WHERE kind=1 AND path_id IN
+        (SELECT p.parent_id FROM snapshot_paths p JOIN snapshot_paths parent ON parent.id=p.parent_id WHERE parent.parent_id!=0)", []).unwrap();
+    connection
+        .execute(
+            "UPDATE snapshot_versions SET native_state=?1 WHERE kind=1",
+            [corrupt],
+        )
+        .unwrap();
+    assert!(
+        store
+            .replay_snapshot(
+                id,
+                changes(&index, Vec::new()),
+                |id| open(&handles, id),
+                1000,
+                &AtomicBool::new(false),
+                |_| Ok(())
+            )
+            .is_err()
+    );
+}
+
+#[test]
+fn version_two_checkpoint_migrates_but_missing_native_identities_require_resynchronization() {
+    use voldiq_core::snapshots::Store;
+    let fixture = tempfile::tempdir().unwrap();
+    let database = tempfile::tempdir().unwrap();
+    let db = database.path().join("history.db");
+    let root = std::fs::canonicalize(fixture.path()).unwrap();
+    std::fs::write(root.join("file"), [1; 20]).unwrap();
+    let index = baseline(&root, Vec::new());
+    let mut store = Store::open(&db).unwrap();
+    let id = store.save(&index, &AtomicBool::new(false)).unwrap();
+    drop(store);
+    let connection = rusqlite::Connection::open(&db).unwrap();
+    connection
+        .execute_batch(
+            "ALTER TABLE snapshot_versions DROP COLUMN native_state; PRAGMA user_version=2;",
+        )
+        .unwrap();
+    drop(connection);
+    let mut store = Store::open(&db).unwrap();
+    assert_eq!(store.checkpoint(id).unwrap(), index.ntfs_checkpoint);
+    assert_eq!(store.load(id).unwrap().entries[0].logical, 20);
+    assert!(
+        store
+            .replay_snapshot(
+                id,
+                changes(&index, Vec::new()),
+                |_| panic!("Invalid baseline must not open files"),
+                1000,
+                &AtomicBool::new(false),
+                |_| Ok(())
+            )
+            .is_err()
+    );
+    assert!(
+        store
+            .resume_latest(&root, &ScanOptions::default(), &AtomicBool::new(false))
+            .unwrap()
+            .is_none()
+    );
+    let current = store.save(&index, &AtomicBool::new(false)).unwrap();
+    assert_eq!(store.compare(id, current, 0, 100).unwrap().total, 0);
+    let connection = rusqlite::Connection::open(&db).unwrap();
+    connection.execute("UPDATE snapshot_versions SET kind=2 WHERE path_id IN (SELECT id FROM snapshot_paths WHERE parent_id=0)", []).unwrap();
+    assert!(store.load(current).is_err());
+    assert!(
+        store
+            .replay_snapshot(
+                current,
+                changes(&index, Vec::new()),
+                |_| panic!("Invalid root must not open files"),
+                1000,
+                &AtomicBool::new(false),
+                |_| Ok(())
+            )
+            .is_err()
+    );
+}

@@ -224,10 +224,10 @@
         error = update.method;
         scanId = null;
       } else if (update.phase === 'complete' || update.phase === 'cancelled') {
-        ready = true;
+        ready = update.entries > 0;
         scanId = null;
         details = null;
-        void refresh(scope);
+        if (ready) void refresh(scope);
         void invoke<Volume[]>('get_volumes')
           .then((value) => {
             volumes = value;
@@ -502,7 +502,7 @@
               : operation.phase === 'complete'
                 ? 'Scan complete'
                 : operation.phase === 'cancelled'
-                  ? operation.previous ? 'Cancelled · previous results' : 'Cancelled · partial results'
+                  ? operation.entries === 0 ? 'Cancelled' : operation.previous ? 'Cancelled · previous results' : 'Cancelled · partial results'
                   : 'Scan failed'}</span
           ><span
             >{operation.files.toLocaleString()} files · {bytes(operation.logical)} logical · {(

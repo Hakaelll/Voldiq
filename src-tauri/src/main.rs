@@ -95,6 +95,7 @@ fn start_scan(
     options: ScanOptions,
     progress: Channel<Progress>,
     engine: State<'_, Arc<Engine>>,
+    database: State<'_, SnapshotDatabase>,
 ) -> Result<u64, String> {
     let engine = engine.inner().clone();
     let (id, cancel) = engine.begin()?;
@@ -106,33 +107,72 @@ fn start_scan(
         *result = None;
     }
     let previous = engine.index.lock().map_err(|e| e.to_string())?.clone();
+    let store = database.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = operation;
         let mut final_progress = None;
-        let result = scanner::refresh_or_scan(
-            &PathBuf::from(path),
-            &options,
-            &cancel,
-            |update| {
-                if update.phase == ScanPhase::Scanning {
-                    let _ = progress.send(update);
-                } else {
-                    final_progress = Some(update);
-                }
-            },
-            |index| {
-                if let Ok(mut slot) = engine.index.lock() {
-                    *slot = Some(index);
-                }
-            },
-            previous.as_ref(),
-        );
+        let path = PathBuf::from(path);
+        let start = std::time::Instant::now();
+        let resumed = if previous.is_none() {
+            store
+                .lock()
+                .ok()
+                .and_then(|store| store.resume_latest(&path, &options, &cancel).ok().flatten())
+        } else {
+            None
+        };
+        let result = if let Some(index) = resumed {
+            final_progress = Some(Progress {
+                previous: false,
+                phase: ScanPhase::Complete,
+                entries: index.entries.len(),
+                files: index.entries[0].files,
+                logical: index.entries[0].logical,
+                errors: index.error_count,
+                elapsed_ms: start.elapsed().as_millis() as u64,
+                method: "USN Journal".into(),
+            });
+            Ok(Some(Arc::new(std::sync::RwLock::new(index))))
+        } else if previous.is_none() && cancel.load(Ordering::Relaxed) {
+            final_progress = Some(Progress {
+                previous: false,
+                phase: ScanPhase::Cancelled,
+                entries: 0,
+                files: 0,
+                logical: 0,
+                errors: 0,
+                elapsed_ms: start.elapsed().as_millis() as u64,
+                method: "USN Journal".into(),
+            });
+            Ok(None)
+        } else {
+            scanner::refresh_or_scan(
+                &path,
+                &options,
+                &cancel,
+                |update| {
+                    if update.phase == ScanPhase::Scanning {
+                        let _ = progress.send(update);
+                    } else {
+                        final_progress = Some(update);
+                    }
+                },
+                |index| {
+                    if let Ok(mut slot) = engine.index.lock() {
+                        *slot = Some(index);
+                    }
+                },
+                previous.as_ref(),
+            )
+            .map(Some)
+        };
         let mut failure = None;
         match result {
-            Ok(index) => match engine.index.lock() {
+            Ok(Some(index)) => match engine.index.lock() {
                 Ok(mut slot) => *slot = Some(index),
                 Err(e) => failure = Some(e.to_string()),
             },
+            Ok(None) => {}
             Err(error) => failure = Some(error.to_string()),
         }
         if let Ok(mut active) = engine.active.lock() {
