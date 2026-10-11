@@ -8,6 +8,7 @@
     type DuplicateItem,
     type DuplicateProgress,
     type Issue,
+    type CleanupPreview,
   } from '../lib/types';
   let {
     scope,
@@ -16,6 +17,7 @@
     onselect,
     onissues,
     onerror,
+    onpreview,
   }: {
     scope: number;
     enabled: boolean;
@@ -23,6 +25,7 @@
     onselect: (id: number) => void;
     onissues: (items: Issue[]) => void;
     onerror: (problem: unknown) => void;
+    onpreview: (plan: CleanupPreview) => void;
   } = $props();
   const groupLimit = 20,
     memberLimit = 50;
@@ -38,6 +41,59 @@
   let request = 0,
     memberRequest = 0;
   let working = $derived(operation?.phase === 'sampling' || operation?.phase === 'hashing');
+  let checked = $state(new Map<number, number>());
+  let reviewing = $state(false),
+    reviewId = $state<number | null>(null);
+  let alive = true;
+  function check(id: number, group: number, copies: number, value: boolean): void {
+    const next = new Map(checked);
+    if (value) {
+      if (next.size >= 500) {
+        onerror('Select up to 500 files.');
+        return;
+      }
+      const chosen = [...next.values()].filter((key) => key === group).length;
+      if (chosen >= copies - 1) {
+        onerror('Keep at least one copy in each group.');
+        return;
+      }
+      next.set(id, group);
+    } else next.delete(id);
+    checked = next;
+  }
+  async function review(): Promise<void> {
+    if (!enabled || reviewing || checked.size === 0) return;
+    reviewing = true;
+    onbusy(true);
+    const progress = new Channel<number>();
+    progress.onmessage = (id) => {
+      reviewId = id;
+      if (!alive) void cancelReview();
+    };
+    try {
+      const plan = await invoke<CleanupPreview>('preview_duplicate_cleanup', {
+        selection: [...checked.keys()],
+        progress,
+      });
+      if (alive) onpreview(plan);
+      else await invoke('discard_cleanup', { id: plan.id });
+    } catch (problem) {
+      if (alive) onerror(problem);
+    } finally {
+      reviewing = false;
+      reviewId = null;
+      onbusy(false);
+    }
+  }
+  async function cancelReview(): Promise<void> {
+    if (reviewId !== null) {
+      try {
+        await invoke('cancel_operation', { id: reviewId });
+      } catch (problem) {
+        onerror(problem);
+      }
+    }
+  }
   async function load(next = offset): Promise<void> {
     const token = ++request;
     loading = true;
@@ -79,6 +135,7 @@
     request += 1;
     memberRequest += 1;
     page = null;
+    checked = new Map();
     members = [];
     openGroup = null;
     operation = {
@@ -138,6 +195,8 @@
     if (isTauri()) void load(0);
   });
   onDestroy(() => {
+    alive = false;
+    if (reviewing) void cancelReview();
     request += 1;
     memberRequest += 1;
   });
@@ -163,6 +222,21 @@
       >
     </div>{/if}
   {#if page}
+    {#if checked.size}<div class="filter-bar">
+        <span>{checked.size} selected</span><button
+          class="primary"
+          onclick={review}
+          disabled={!enabled || reviewing}>Review selection</button
+        ><button
+          onclick={() => {
+            checked = new Map();
+          }}
+          disabled={reviewing}>Clear</button
+        >{#if reviewing}<span>Verifying content</span><button
+            onclick={cancelReview}
+            disabled={reviewId === null}>Cancel</button
+          >{/if}
+      </div>{/if}
     <div class="duplicate-summary">
       <div><span>Duplicate groups</span><strong>{page.total.toLocaleString()}</strong></div>
       <div><span>Potential allocation</span><strong>{bytes(page.recoverable)}</strong></div>
@@ -190,14 +264,30 @@
         {#if openGroup === group.key}
           <div class="duplicate-members">
             {#each members as item (item.id)}
-              <button class="duplicate-member" onclick={() => onselect(item.id)} title={item.path}>
-                <Icon name="file" /><span
-                  ><strong>{item.name}</strong><small>{item.path}</small></span
+              <div class="duplicate-choice">
+                <input
+                  type="checkbox"
+                  aria-label={`Select ${item.path}`}
+                  checked={checked.has(item.id)}
+                  disabled={!enabled || reviewing}
+                  onchange={(event) => {
+                    check(item.id, group.key, group.copies, event.currentTarget.checked);
+                    event.currentTarget.checked = checked.has(item.id);
+                  }}
+                />
+                <button
+                  class="duplicate-member"
+                  onclick={() => onselect(item.id)}
+                  title={item.path}
                 >
-                {#if item.links > 1}<small>Hard link</small>{/if}<span class="number"
-                  >{bytes(item.allocated)}</span
-                >
-              </button>
+                  <Icon name="file" /><span
+                    ><strong>{item.name}</strong><small>{item.path}</small></span
+                  >
+                  {#if item.links > 1}<small>Hard link</small>{/if}<span class="number"
+                    >{bytes(item.allocated)}</span
+                  >
+                </button>
+              </div>
             {/each}
           </div>
           {#if group.copies > memberLimit}<div class="duplicate-pagination">
@@ -230,3 +320,22 @@
       </div>{/if}
   {:else if !working && !loading}<div class="table-empty">No duplicate analysis</div>{/if}
 </section>
+
+<style>
+  .duplicate-choice {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .duplicate-choice input {
+    margin-left: 16px;
+    width: 14px;
+    height: 14px;
+    accent-color: var(--accent);
+    flex-shrink: 0;
+  }
+  .duplicate-choice :global(.duplicate-member) {
+    border-bottom: 0;
+    min-width: 0;
+  }
+</style>

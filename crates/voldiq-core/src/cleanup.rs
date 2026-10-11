@@ -23,6 +23,7 @@ pub struct Preview {
     pub items: Vec<PreviewItem>,
     pub logical: u64,
     pub reclaimable: u64,
+    pub retained: Vec<String>,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -46,7 +47,35 @@ pub struct Plan {
 }
 
 impl Plan {
+    pub fn duplicates(
+        index: &Index,
+        analysis: &crate::duplicates::Analysis,
+        selection: &[NodeId],
+        cancel: &std::sync::atomic::AtomicBool,
+    ) -> Result<Self> {
+        let retained = analysis.review_selection(index, selection, cancel)?;
+        let keep = Self::prepare(index, &retained, cancel)?;
+        let mut plan = Self::prepare(index, selection, cancel)?;
+        plan.preview.rule = "duplicate-files";
+        plan.preview.retained = keep
+            .preview
+            .items
+            .into_iter()
+            .map(|item| item.path)
+            .collect();
+        Ok(plan)
+    }
+
     pub fn manual(index: &Index, selection: &[NodeId]) -> Result<Self> {
+        Self::prepare(index, selection, &std::sync::atomic::AtomicBool::new(false))
+    }
+
+    fn prepare(
+        index: &Index,
+        selection: &[NodeId],
+        cancel: &std::sync::atomic::AtomicBool,
+    ) -> Result<Self> {
+        check_cancelled(cancel)?;
         if index.snapshot_id.is_some() {
             return Err(Error::Invalid(
                 "Rescan before managing historical files.".into(),
@@ -76,8 +105,10 @@ impl Plan {
             items: Vec::new(),
             logical: 0,
             reclaimable: 0,
+            retained: Vec::new(),
         };
         for &id in selection {
+            check_cancelled(cancel)?;
             if !unique.insert(id) {
                 return Err(Error::Invalid("Duplicate selection.".into()));
             }
@@ -96,7 +127,7 @@ impl Plan {
             if !path.starts_with(&index.root) {
                 return Err(Error::Invalid("File is outside the scan root.".into()));
             }
-            let parents = capture_parents(&path, &protected, &excluded)?;
+            let parents = capture_parents(&path, &protected, &excluded, cancel)?;
             let (metadata, identity) = windows::metadata_identity(&path)?;
             validate_file(&metadata)?;
             let expected = entry.file_state.ok_or_else(|| {
@@ -149,6 +180,7 @@ impl Plan {
                 parents,
             });
         }
+        check_cancelled(cancel)?;
         Ok(Self { preview, files })
     }
 
@@ -248,10 +280,12 @@ fn capture_parents(
     path: &Path,
     protected: &HashSet<(u64, u64)>,
     excluded: &HashSet<(u64, u64)>,
+    cancel: &std::sync::atomic::AtomicBool,
 ) -> Result<Vec<(PathBuf, (u64, u64))>> {
     let mut parents = Vec::new();
     let mut next = path.parent();
     while let Some(parent) = next {
+        check_cancelled(cancel)?;
         let metadata = std::fs::symlink_metadata(parent)?;
         if !metadata.is_dir()
             || windows::is_reparse(&metadata)
@@ -274,6 +308,13 @@ fn capture_parents(
         next = parent.parent();
     }
     Ok(parents)
+}
+
+fn check_cancelled(cancel: &std::sync::atomic::AtomicBool) -> Result<()> {
+    if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+        return Err(Error::Invalid("Cleanup review cancelled.".into()));
+    }
+    Ok(())
 }
 
 fn protected_identities() -> Result<HashSet<(u64, u64)>> {

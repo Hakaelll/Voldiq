@@ -32,4 +32,10 @@ The virtual explorer and large-file list expose native checkboxes without automa
 
 The backend retains one plan session. Discard identifies that session, so a stale discard cannot remove a newer plan. Starting a scan or loading a snapshot clears frontend selection and preview. Before future execution, the backend must also verify that the plan still belongs to the active index and consume the confirmed session once.
 
-Temporary-file rules, compatible cache discovery, duplicate copy retention, developer tool commands, confirmed recycling, result logging and undo integration are still open work.
+## Duplicate selection review
+
+Duplicate checkboxes start empty and remain selected across result pages. The frontend and backend both reject selecting every member of a group. The backend rejects selections outside the current analysis and analysis results from an older index. For every touched group it chooses one unselected copy to retain, reads the full content of that copy and every selected file with BLAKE3, and compares the original group digest. These reads bypass the hash cache and check the scanned file identity and native change time. The review can be cancelled during content reads.
+
+The preview shows retained paths under Keep. This is evidence at preview creation, not a guarantee at a future deletion time. The executor must repeat retained-copy validation and preserve that copy through the destructive transaction. No recycling command is exposed in this delivery.
+
+Temporary-file rules, compatible cache discovery, developer tool commands, confirmed recycling, result logging and undo integration are still open work.

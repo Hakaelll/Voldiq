@@ -52,6 +52,89 @@ pub struct Analysis {
     pub examined: u64,
 }
 
+impl Analysis {
+    pub fn review_selection(
+        &self,
+        index: &crate::index::Index,
+        selection: &[NodeId],
+        cancel: &AtomicBool,
+    ) -> Result<Vec<NodeId>> {
+        let selected: HashSet<_> = selection.iter().copied().collect();
+        if selected.is_empty() || selected.len() != selection.len() || selected.len() > 500 {
+            return Err(Error::Invalid(
+                "Select 1–500 distinct duplicate files.".into(),
+            ));
+        }
+        let mut unmatched = selected.clone();
+        let mut checks = Vec::new();
+        let mut retained = Vec::new();
+        for group in &self.groups {
+            let chosen: Vec<_> = group
+                .members
+                .iter()
+                .filter(|m| selected.contains(&m.id))
+                .collect();
+            if chosen.is_empty() {
+                continue;
+            }
+            let keep = group
+                .members
+                .iter()
+                .find(|m| !selected.contains(&m.id))
+                .ok_or_else(|| Error::Invalid("Keep at least one copy in each group.".into()))?;
+            retained.push(keep.id);
+            for member in chosen.into_iter().chain(std::iter::once(keep)) {
+                unmatched.remove(&member.id);
+                checks.push((member.id, group));
+            }
+        }
+        if !unmatched.is_empty() {
+            return Err(Error::Invalid(
+                "Selection is outside the duplicate analysis.".into(),
+            ));
+        }
+        for (id, group) in checks {
+            let entry = index.entry(id)?;
+            let expected = entry
+                .file_state
+                .ok_or_else(|| Error::Invalid("Rescan before managing duplicates.".into()))?;
+            let mut file = open_content(&index.path(id)?)?;
+            let (before, _) = stamp(&file)?;
+            if before.identity != expected.identity
+                || before.change_time != expected.change_time
+                || before.size != group.logical
+            {
+                return Err(Error::Invalid(
+                    "Duplicate changed. Rescan and analyze again.".into(),
+                ));
+            }
+            let mut hasher = blake3::Hasher::new();
+            let mut buffer = [0_u8; 64 * 1024];
+            let mut count = 0_u64;
+            loop {
+                if cancel.load(Ordering::Relaxed) {
+                    return Err(Error::Invalid("Duplicate review cancelled.".into()));
+                }
+                let length = file.read(&mut buffer)?;
+                if length == 0 {
+                    break;
+                }
+                hasher.update(&buffer[..length]);
+                count += length as u64;
+            }
+            if count != before.size
+                || stamp(&file)?.0 != before
+                || hasher.finalize().to_hex().as_str() != group.digest
+            {
+                return Err(Error::Invalid(
+                    "Duplicate content changed. Analyze again.".into(),
+                ));
+            }
+        }
+        Ok(retained)
+    }
+}
+
 #[derive(Clone, Serialize)]
 pub struct Progress {
     pub phase: String,

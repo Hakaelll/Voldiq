@@ -38,6 +38,9 @@
     ><span>{bytes(plan.preview.reclaimable)} potential</span>
   </div>
   <div class="preview-scroll">
+    {#if plan.preview.retained.length}<div class="retained-files">
+        <strong>Keep</strong>{#each plan.preview.retained as path}<div>{path}</div>{/each}
+      </div>{/if}
     <table>
       <thead
         ><tr><th>Path</th><th class="number">Logical</th><th class="number">Potential</th></tr
@@ -92,6 +95,17 @@
   .preview-scroll {
     max-height: 420px;
     overflow: auto;
+  }
+  .retained-files {
+    padding: 12px 20px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+  .retained-files strong {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
   }
   table {
     border-collapse: collapse;

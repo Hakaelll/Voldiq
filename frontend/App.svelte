@@ -698,6 +698,9 @@
                 showIssues = true;
               }}
               onerror={report}
+              onpreview={(plan) => {
+                cleanupPreview = plan;
+              }}
             />
           {:else}<section class="panel explorer-panel">
               <div class="filter-bar">

@@ -65,6 +65,8 @@ Potential allocation conservatively retains the largest independently allocated 
 
 ## File management previews
 
+Duplicate selections retain a copy from each group and reread full BLAKE3 content before showing selected and retained paths. The review is cancellable. Recycling remains under development.
+
 Select regular files in Explorer or Large files and use Review selection to inspect their real paths, sizes and potential allocation. Rust retains immutable plans and checks scanned identities, change times, exclusions and native Windows protected locations. Historical captures cannot produce management previews. Verification tests cover replacement and mutation with controlled files. Recycling and permanent deletion are not exposed yet; see [cleanup guarantees and remaining work](docs/CLEANUP.md).
 
 ## Developer storage

@@ -8,6 +8,7 @@ export interface CleanupPreview {
     items: { id: NodeId; path: string; logical: number; reclaimable: number; hard_link: boolean }[];
     logical: number;
     reclaimable: number;
+    retained: string[];
   };
 }
 export interface DeveloperItem {
