@@ -85,9 +85,17 @@ pub(crate) fn try_scan(
                 &root,
                 "Volume changed during NTFS indexing. Rescan required.".into(),
             );
+        } else {
+            let mut index = shared.write().map_err(|e| Error::Invalid(e.to_string()))?;
+            if !index.entries[0].incomplete && index.error_count == 0 {
+                index.ntfs_checkpoint = Some(checkpoint);
+            }
         }
     }
     let phase = if cancel.load(Ordering::Relaxed) {
+        let mut index = shared.write().map_err(|e| Error::Invalid(e.to_string()))?;
+        index.ntfs_checkpoint = None;
+        index.entries[0].incomplete = true;
         ScanPhase::Cancelled
     } else {
         ScanPhase::Complete

@@ -22,7 +22,7 @@ pub struct Record {
     pub name: Vec<u16>,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Checkpoint {
     pub volume: u64,
     pub journal: u64,

@@ -11,7 +11,7 @@ Voldiq is under active development. A task becomes DONE only after its acceptanc
 | V05 | Large files and duplicates | P1 | IN_PROGRESS | V02 | Filters, BLAKE3 content verification, cancellation, hard-link handling, reviewed selections, native interaction | crates/voldiq-core, frontend/components/Duplicates.svelte |
 | V06 | Safe cleanup and developer storage | P0 | IN_PROGRESS | V05 | Preview, exclusions, identity validation, confirmation, controlled fixture execution | crates/voldiq-core |
 | V07 | Persistent snapshots | P1 | IN_PROGRESS | V02 | SQLite transaction, restart, additions/deletions/growth comparison, native interaction | crates/voldiq-core, frontend/components/History.svelte |
-| V08 | Incremental NTFS index | P1 | TODO | V03, V07 | Journal continuity validation and full resynchronization | crates/voldiq-core |
+| V08 | Incremental NTFS index | P1 | IN_PROGRESS | V03, V07 | Journal continuity validation and full resynchronization | crates/voldiq-core |
 | V09 | Preferences and accessibility | P1 | IN_PROGRESS | V04 | Persistent preferences, themes, reduced motion, keyboard checks | frontend, src-tauri |
 | V10 | Benchmarks and quality audits | P0 | IN_PROGRESS | V02-V09 | Reproducible measurements, Ponytail review and audit, resolved defects | benchmarks, docs |
 | V11 | Windows distribution | P0 | TODO | V10 | Installer build, offline smoke check, final icon, documentation | src-tauri, README.md |
@@ -55,6 +55,10 @@ Native alias enumeration and final-path helpers now pass a real Unicode long-pat
 ## NTFS index integration
 
 Drive-root scans now attempt the read-only NTFS path; unsupported capability and bounded enumeration fall back before non-root IDs are published. Native metadata populates parent-first directories and all hard-link aliases. Five integration tests cover real size parity, an excluded primary hard-link name, unique allocation, changed identities, unresolved parents, malformed names, limits, cancellation and bounded volume fallback. Raw enumeration on an elevated drive, journal replay, checkpoint persistence and volume performance comparison remain open. The source reviewer could not run because its account usage limit was reached; source review and functional checks were performed directly.
+
+## NTFS checkpoint persistence
+
+Stable, complete NTFS scans now retain their volume serial, journal ID and next USN. SQLite schema version 2 binds checkpoints to captures in the capture transaction and cascades their deletion. Three database tests cover restart, rollback, full-width IDs, invalid and tampered evidence, incomplete or historical inputs, deletion and migration from version 1. Historical loading does not promote checkpoint evidence into current-index authority. Journal replay, current metadata reconstruction, continuity-loss resynchronization and real raw-volume acceptance remain open.
 
 ## Developer storage analysis
 

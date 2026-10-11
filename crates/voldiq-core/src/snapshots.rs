@@ -115,6 +115,12 @@ WHERE p.root_id=?3 AND (o.path_id IS NOT NULL OR n.path_id IS NOT NULL)
 AND (o.path_id IS NULL OR n.path_id IS NULL OR o.kind!=n.kind OR o.logical!=n.logical OR o.allocated!=n.allocated
  OR o.modified IS NOT n.modified OR o.files!=n.files OR o.known!=n.known OR o.incomplete!=n.incomplete OR o.hard_link!=n.hard_link)";
 
+const JOURNAL_SCHEMA: &str = "
+CREATE TABLE snapshot_journals(snapshot_id INTEGER PRIMARY KEY REFERENCES snapshots(id) ON DELETE CASCADE,
+ volume BLOB NOT NULL CHECK(length(volume)=8), journal BLOB NOT NULL CHECK(length(journal)=8),
+ next_usn INTEGER NOT NULL CHECK(next_usn>=0));
+PRAGMA user_version=2;";
+
 impl Store {
     pub fn open(path: &Path) -> Result<Self> {
         let mut connection = Connection::open(path)?;
@@ -123,11 +129,14 @@ impl Store {
             "PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;",
         )?;
         let version: u32 = connection.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version == 0 {
+        if version <= 1 {
             let transaction = connection.transaction()?;
-            transaction.execute_batch(SCHEMA)?;
+            if version == 0 {
+                transaction.execute_batch(SCHEMA)?;
+            }
+            transaction.execute_batch(JOURNAL_SCHEMA)?;
             transaction.commit()?;
-        } else if version != 1 {
+        } else if version != 2 {
             return Err(Error::Invalid(
                 "Unsupported snapshot database version.".into(),
             ));
@@ -143,6 +152,15 @@ impl Store {
         let identity = index
             .root_identity
             .ok_or_else(|| Error::Invalid("The scan has no verified volume identity.".into()))?;
+        if let Some(checkpoint) = index.ntfs_checkpoint
+            && (checkpoint.volume != identity.0
+                || checkpoint.next < 0
+                || root.incomplete
+                || index.error_count != 0
+                || index.snapshot_id.is_some())
+        {
+            return Err(Error::Invalid("Invalid NTFS snapshot checkpoint.".into()));
+        }
         let identity = [identity.0.to_le_bytes(), identity.1.to_le_bytes()].concat();
         let coverage = encode_paths(&index.exclusions)?;
         let captured = SystemTime::now()
@@ -247,6 +265,13 @@ impl Store {
                 params![snapshot_id, issue.path, issue.message],
             )?;
         }
+        if let Some(checkpoint) = index.ntfs_checkpoint {
+            transaction.execute(
+                "INSERT INTO snapshot_journals(snapshot_id,volume,journal,next_usn) VALUES(?1,?2,?3,?4)",
+                params![snapshot_id, checkpoint.volume.to_le_bytes().as_slice(),
+                    checkpoint.journal.to_le_bytes().as_slice(), checkpoint.next],
+            )?;
+        }
         if cancel.load(Ordering::Relaxed) {
             return Err(Error::Invalid("Snapshot capture cancelled.".into()));
         }
@@ -254,6 +279,41 @@ impl Store {
         self.connection
             .execute_batch("DROP TABLE captured_paths;")?;
         Ok(snapshot_id)
+    }
+
+    pub fn checkpoint(&self, id: i64) -> Result<Option<crate::ntfs::Checkpoint>> {
+        let row = self.connection.query_row(
+            "SELECT j.volume,j.journal,j.next_usn,r.identity,s.complete,s.errors FROM snapshot_journals j
+             JOIN snapshots s ON s.id=j.snapshot_id JOIN snapshot_roots r ON r.id=s.root_id WHERE j.snapshot_id=?1",
+            [id], |row| Ok((row.get::<_, Vec<u8>>(0)?, row.get::<_, Vec<u8>>(1)?, row.get::<_, i64>(2)?,
+                row.get::<_, Vec<u8>>(3)?, row.get::<_, bool>(4)?, row.get::<_, i64>(5)?)),
+        ).optional()?;
+        let Some((volume, journal, next, identity, complete, errors)) = row else {
+            return Ok(None);
+        };
+        if volume.len() != 8
+            || journal.len() != 8
+            || identity.len() != 16
+            || volume != identity[..8]
+            || next < 0
+            || !complete
+            || errors != 0
+        {
+            return Err(Error::Invalid("Invalid persisted NTFS checkpoint.".into()));
+        }
+        Ok(Some(crate::ntfs::Checkpoint {
+            volume: u64::from_le_bytes(
+                volume
+                    .try_into()
+                    .map_err(|_| Error::Invalid("Invalid checkpoint volume.".into()))?,
+            ),
+            journal: u64::from_le_bytes(
+                journal
+                    .try_into()
+                    .map_err(|_| Error::Invalid("Invalid checkpoint journal.".into()))?,
+            ),
+            next,
+        }))
     }
 
     pub fn list(&self, offset: usize, limit: usize) -> Result<Vec<Snapshot>> {
@@ -312,6 +372,7 @@ impl Store {
             root_identity: Some((number(&identity[..8])?, number(&identity[8..])?)),
             exclusions: decode_paths(&coverage)?,
             snapshot_id: Some(id),
+            ntfs_checkpoint: None,
         };
         if !index.root.is_absolute() {
             return Err(Error::Invalid("Snapshot root is not absolute.".into()));

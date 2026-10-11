@@ -78,6 +78,7 @@ pub fn scan_live(
         root_identity: windows::identity(&root).ok().map(|identity| identity.key),
         exclusions: exclusions.clone(),
         snapshot_id: None,
+        ntfs_checkpoint: None,
     }));
     publish(shared.clone());
     let start = Instant::now();
