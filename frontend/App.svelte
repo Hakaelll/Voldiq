@@ -52,6 +52,7 @@
     scanPath = $state('');
   let defaultDrive = $state('');
   let scanMode = $state<'auto' | 'directory'>('auto');
+  let scanConcurrency = $state(1);
   let recentPaths = $state<string[]>([]);
   let operation = $state<Progress | null>(null),
     scanId = $state<number | null>(null);
@@ -252,6 +253,7 @@
         path,
         options: {
           mode: scanMode,
+          concurrency: scanConcurrency,
           exclusions: excluded
             .split('\n')
             .map((line) => line.trim())
@@ -366,6 +368,14 @@
         if ('recentPaths' in value) recentPaths = readRecentPaths(value.recentPaths);
         if ('scanMode' in value && (value.scanMode === 'auto' || value.scanMode === 'directory'))
           scanMode = value.scanMode;
+        if (
+          'scanConcurrency' in value &&
+          typeof value.scanConcurrency === 'number' &&
+          Number.isInteger(value.scanConcurrency) &&
+          value.scanConcurrency >= 1 &&
+          value.scanConcurrency <= 8
+        )
+          scanConcurrency = value.scanConcurrency;
       }
     } catch {
       error = 'Saved preferences could not be read. Defaults restored.';
@@ -408,6 +418,7 @@
           reduceMotion,
           defaultDrive,
           scanMode,
+          scanConcurrency,
           recentPaths,
         }),
       );
@@ -606,6 +617,16 @@
               <option value="auto">Automatic</option><option value="directory"
                 >Directory enumeration</option
               >
+            </select></label
+          >
+          <label
+            >Concurrency limit<select
+              bind:value={scanConcurrency}
+              onchange={savePreferences}
+              disabled={busy}
+            >
+              {#each [1, 2, 3, 4, 5, 6, 7, 8] as workers}<option value={workers}>{workers}</option
+                >{/each}
             </select></label
           >
           <label

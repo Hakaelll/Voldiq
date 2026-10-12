@@ -89,6 +89,36 @@ pub struct ScanOptions {
     #[serde(default)]
     pub exclusions: Vec<String>,
     pub max_entries: Option<usize>,
+    #[serde(default)]
+    pub concurrency: ScanConcurrency,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
+#[serde(try_from = "u8")]
+pub struct ScanConcurrency(u8);
+
+impl Default for ScanConcurrency {
+    fn default() -> Self {
+        Self(1)
+    }
+}
+
+impl TryFrom<u8> for ScanConcurrency {
+    type Error = &'static str;
+
+    fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
+        if (1..=8).contains(&value) {
+            Ok(Self(value))
+        } else {
+            Err("Scan concurrency must be between 1 and 8.")
+        }
+    }
+}
+
+impl ScanConcurrency {
+    pub fn get(self) -> usize {
+        usize::from(self.0)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Default, PartialEq, Eq)]

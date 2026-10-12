@@ -1,9 +1,9 @@
+mod directory;
 use crate::{
     Entry, Error, Issue, Kind, NodeId, Progress, Result, ScanOptions, ScanPhase, index::Index,
     windows,
 };
 use std::{
-    collections::HashSet,
     path::Path,
     sync::{
         Arc, RwLock,
@@ -160,10 +160,6 @@ pub fn scan_live(
     }));
     publish(shared.clone());
     let start = Instant::now();
-    let mut last_report = start;
-    let mut stack = vec![(root, NodeId(0))];
-    let mut physical = HashSet::new();
-    let (mut files, mut bytes) = (0, 0);
     let limit = options
         .max_entries
         .unwrap_or(5_000_000)
@@ -174,191 +170,17 @@ pub fn scan_live(
     {
         return Ok(shared);
     }
-    progress(Progress {
-        previous: false,
-        phase: ScanPhase::Scanning,
-        entries: 1,
-        files: 0,
-        logical: 0,
-        elapsed_ms: 0,
-        errors: 0,
-        method: "Directory enumeration".into(),
-    });
-    'scan: while let Some((path, parent)) = stack.pop() {
-        if cancel.load(Ordering::Relaxed) {
-            break;
-        }
-        let directory = match std::fs::read_dir(&path) {
-            Ok(d) => d,
-            Err(error) => {
-                let mut index = shared.write().map_err(|e| Error::Invalid(e.to_string()))?;
-                issue(&mut index, parent, &path, error.to_string());
-                continue;
-            }
-        };
-        for item in directory {
-            if cancel.load(Ordering::Relaxed) {
-                break 'scan;
-            }
-            if shared
-                .read()
-                .map_err(|e| Error::Invalid(e.to_string()))?
-                .entries
-                .len()
-                >= limit
-            {
-                let mut index = shared.write().map_err(|e| Error::Invalid(e.to_string()))?;
-                issue(
-                    &mut index,
-                    parent,
-                    &path,
-                    format!("Index limit of {limit} entries reached. Narrow the scan scope."),
-                );
-                break 'scan;
-            }
-            let item = match item {
-                Ok(item) => item,
-                Err(error) => {
-                    let mut index = shared.write().map_err(|e| Error::Invalid(e.to_string()))?;
-                    issue(&mut index, parent, &path, error.to_string());
-                    continue;
-                }
-            };
-            let path = item.path();
-            if exclusions.iter().any(|excluded| path.starts_with(excluded)) {
-                continue;
-            }
-            let metadata = match std::fs::symlink_metadata(&path) {
-                Ok(m) => m,
-                Err(error) => {
-                    let mut index = shared.write().map_err(|e| Error::Invalid(e.to_string()))?;
-                    issue(&mut index, parent, &path, error.to_string());
-                    continue;
-                }
-            };
-            let kind = if windows::is_reparse(&metadata) {
-                Kind::Link
-            } else if metadata.is_dir() {
-                Kind::Directory
-            } else if metadata.is_file() {
-                Kind::File
-            } else {
-                continue;
-            };
-            let mut entry = Entry {
-                file_state: None,
-                id: NodeId(0),
-                parent: Some(parent),
-                name: item.file_name().to_string_lossy().into_owned(),
-                kind,
-                logical: 0,
-                allocated: 0,
-                allocation_known: true,
-                modified: modified(&metadata),
-                files: 0,
-                incomplete: false,
-                hard_link: false,
-            };
-            if kind == Kind::File {
-                entry.logical = metadata.len();
-                entry.files = 1;
-                match windows::metadata_identity(&path) {
-                    Ok((current, identity))
-                        if current.is_file() && !windows::is_reparse(&current) =>
-                    {
-                        entry.logical = current.len();
-                        entry.modified = modified(&current);
-                        entry.file_state = Some(crate::FileState {
-                            identity: identity.key,
-                            change_time: identity.change_time,
-                        });
-                        entry.hard_link = identity.links > 1;
-                        if physical.insert(identity.key) {
-                            entry.allocated = identity.allocated;
-                        }
-                    }
-                    result => {
-                        let error = match result {
-                            Err(error) => error.to_string(),
-                            _ => "File changed during scanning.".into(),
-                        };
-                        entry.allocation_known = false;
-                        entry.incomplete = true;
-                        let mut index =
-                            shared.write().map_err(|e| Error::Invalid(e.to_string()))?;
-                        issue(
-                            &mut index,
-                            parent,
-                            &path,
-                            format!("Physical allocation unavailable: {error}"),
-                        );
-                    }
-                }
-            }
-            if kind == Kind::Link {
-                entry.file_state = None;
-                entry.incomplete = true;
-                entry.allocation_known = false;
-            }
-            if kind == Kind::File {
-                files += 1;
-                bytes += entry.logical;
-            }
-            let mut index = shared.write().map_err(|e| Error::Invalid(e.to_string()))?;
-            entry.id = NodeId(index.entries.len() as u32);
-            let native_name = item.file_name();
-            if native_name.to_str().is_none() {
-                index.native_names.insert(entry.id, native_name);
-            }
-            if kind == Kind::Directory {
-                stack.push((path, entry.id));
-            }
-            index.accumulate(&entry);
-            index.entries.push(entry);
-            let update = if index.entries.len() == 2 || last_report.elapsed().as_millis() >= 100 {
-                Some(Progress {
-                    previous: false,
-                    phase: ScanPhase::Scanning,
-                    entries: index.entries.len(),
-                    files,
-                    logical: bytes,
-                    elapsed_ms: start.elapsed().as_millis() as u64,
-                    errors: index.error_count,
-                    method: "Directory enumeration".into(),
-                })
-            } else {
-                None
-            };
-            drop(index);
-            if let Some(update) = update {
-                progress(update);
-                last_report = Instant::now();
-            }
-        }
-    }
-    let mut index = shared.write().map_err(|e| Error::Invalid(e.to_string()))?;
-    let phase = if cancel.load(Ordering::Relaxed) {
-        index.entries[0].incomplete = true;
-        ScanPhase::Cancelled
-    } else {
-        ScanPhase::Complete
-    };
-    let errors = index.error_count;
-    let entries = index.entries.len();
-    drop(index);
-    progress(Progress {
-        previous: false,
-        phase,
-        entries,
-        files,
-        logical: bytes,
-        elapsed_ms: start.elapsed().as_millis() as u64,
-        errors,
-        method: "Directory enumeration".into(),
-    });
+    directory::enumerate(
+        &shared,
+        &exclusions,
+        limit,
+        options.concurrency.get(),
+        cancel,
+        &mut progress,
+        start,
+    )?;
     Ok(shared)
 }
-
 pub(crate) fn modified(metadata: &std::fs::Metadata) -> Option<u64> {
     metadata
         .modified()

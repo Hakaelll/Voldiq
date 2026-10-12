@@ -1,5 +1,20 @@
 # Performance measurements
 
+## Bounded scan concurrency
+
+Settings now saves a real metadata-concurrency limit from 1 to 8. One worker runs directly on the scanning thread; higher values use a persistent scoped pool. Job and result channels each hold at most `workers × 16` items, with batches constrained by remaining index capacity. Directory iteration and index publication stay on the coordinator, and metadata results are applied in enumeration order. This retains exact limits, hard-link allocation deduplication and consistent live queries. Cancellation stops scheduling and publication, drains already started metadata work and joins workers before returning. NTFS enumeration and journal replay keep their existing execution model. No file content is read by this pool.
+
+`cargo run --release -p voldiq-core --example concurrency_benchmark -- 10000` creates 10,000 actual 128-byte files in 100 owned temporary folders. Five rounds rotate the order of 1, 2, 4 and 8 workers. Timing excludes fixture creation and validates exact entry, logical-byte and file totals, known allocation, complete coverage and zero errors after every scan. Windows CPU milliseconds include process user and kernel time; unavailable CPU measurement on other platforms is reported as NaN. [Raw results](../benchmarks/concurrency-2026-10-13.csv) were collected on 2026-10-13 with the i7-1165G7 (4 cores, 8 logical processors), Windows 11, Rust 1.97.1/MSVC and an NVMe CA5-8D256 SSD.
+
+| Workers | Median wall time | Wall range | Median process CPU |
+|---:|---:|---:|---:|
+| 1 | 1,216.734 ms | 898.289–1,707.280 ms | 1,218.750 ms |
+| 2 | 923.460 ms | 573.310–1,118.408 ms | 1,765.625 ms |
+| 4 | 533.897 ms | 400.964–612.296 ms | 1,843.750 ms |
+| 8 | 368.672 ms | 326.170–508.490 ms | 1,812.500 ms |
+
+Every run measured 10,101 entries, 10,000 files, 1,280,000 logical and allocated bytes, with zero errors. The fixture was newly written and subsequent runs reused warm metadata; this is not disk-bandwidth throughput. More workers reduced elapsed time on this fixture while using more CPU. The host was running the app and development builds, and a before-run CPU-load baseline was unavailable; rotation reduces but does not eliminate that noise. No isolated syscall profile, HDD/USB/network fixture, cold-cache or million-file result has been established. These numbers do not choose a universal fastest setting. The default remains 1 to limit background interference; storage-aware automatic calibration remains pending.
+
 ## First scanner baseline
 
 Measured on 2026-10-11 with an Intel Core i7-1165G7, 4 cores and 8 logical processors, approximately 15.8 GiB of visible memory, Windows 11 Home 10.0.26200, Rust 1.97.1, x86-64 MSVC. The fixture lives on the host's temporary volume. Its storage model was not recorded, so these results should not be generalized to HDDs or other systems.
