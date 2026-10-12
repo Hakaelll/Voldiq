@@ -6,6 +6,7 @@ use std::path::PathBuf;
 pub struct CacheLocation {
     pub path: PathBuf,
     pub tool: &'static str,
+    pub category: Category,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
@@ -93,44 +94,48 @@ pub fn query_with_caches(
             .get(&entry.id)
             .map(|name| name.as_os_str())
             .unwrap_or_else(|| std::ffi::OsStr::new(&entry.name));
-        let cache_tool = if !caches.is_empty() && (entry.id == scope || cache_names.contains(name))
-        {
-            let path = index.path(entry.id)?;
-            caches
-                .iter()
-                .find(|cache| {
-                    path == cache.path || (entry.id == scope && path.starts_with(&cache.path))
-                })
-                .map(|cache| cache.tool)
-        } else {
-            None
-        };
-        let classification = cache_tool
-            .map(|tool| (tool, Category::Cache))
-            .or_else(|| match entry.name.as_str() {
-                "target" if has("Cargo.toml") => Some(("Cargo", Category::Build)),
-                "node_modules" if has("package.json") => Some(("Node.js", Category::Dependencies)),
-                "dist" | "build" if has("package.json") => Some(("Node.js", Category::Build)),
-                "build" if has("CMakeLists.txt") => Some(("CMake", Category::Build)),
-                "__pycache__" => Some(("Python", Category::Cache)),
-                ".gradle"
-                    if has("build.gradle")
-                        || has("build.gradle.kts")
-                        || has("settings.gradle")
-                        || has("settings.gradle.kts") =>
-                {
-                    Some(("Gradle", Category::Cache))
-                }
-                "bin" | "obj"
-                    if siblings.is_some_and(|set| {
-                        set.iter()
-                            .any(|name| name.ends_with(".csproj") || name.ends_with(".fsproj"))
-                    }) =>
-                {
-                    Some((".NET", Category::Build))
-                }
-                _ => None,
-            });
+        let cache_classification =
+            if !caches.is_empty() && (entry.id == scope || cache_names.contains(name)) {
+                let path = index.path(entry.id)?;
+                caches
+                    .iter()
+                    .filter(|cache| {
+                        path == cache.path || (entry.id == scope && path.starts_with(&cache.path))
+                    })
+                    .max_by_key(|cache| {
+                        (
+                            cache.path.components().count(),
+                            cache.category == Category::Dependencies,
+                        )
+                    })
+                    .map(|cache| (cache.tool, cache.category))
+            } else {
+                None
+            };
+        let classification = cache_classification.or_else(|| match entry.name.as_str() {
+            "target" if has("Cargo.toml") => Some(("Cargo", Category::Build)),
+            "node_modules" if has("package.json") => Some(("Node.js", Category::Dependencies)),
+            "dist" | "build" if has("package.json") => Some(("Node.js", Category::Build)),
+            "build" if has("CMakeLists.txt") => Some(("CMake", Category::Build)),
+            "__pycache__" => Some(("Python", Category::Cache)),
+            ".gradle"
+                if has("build.gradle")
+                    || has("build.gradle.kts")
+                    || has("settings.gradle")
+                    || has("settings.gradle.kts") =>
+            {
+                Some(("Gradle", Category::Cache))
+            }
+            "bin" | "obj"
+                if siblings.is_some_and(|set| {
+                    set.iter()
+                        .any(|name| name.ends_with(".csproj") || name.ends_with(".fsproj"))
+                }) =>
+            {
+                Some((".NET", Category::Build))
+            }
+            _ => None,
+        });
         if let Some((tool, category)) = classification {
             candidates.push(Item {
                 id: entry.id,

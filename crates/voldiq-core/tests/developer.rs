@@ -87,14 +87,17 @@ fn explicit_cache_roots_use_indexed_sizes_without_classifying_credentials_or_nam
         CacheLocation {
             path: root.join("cargo/registry").canonicalize().unwrap(),
             tool: "Cargo",
+            category: Category::Cache,
         },
         CacheLocation {
             path: root.join("cargo/git").canonicalize().unwrap(),
             tool: "Cargo",
+            category: Category::Cache,
         },
         CacheLocation {
             path: root.join("custom npm").canonicalize().unwrap(),
             tool: "npm",
+            category: Category::Cache,
         },
     ];
     let page = developer::query_with_caches(&index, NodeId(0), 0, 100, &caches).unwrap();
@@ -150,6 +153,7 @@ fn scanning_inside_a_cache_classifies_only_the_measured_subtree_and_keeps_partia
     let caches = [CacheLocation {
         path: cache.canonicalize().unwrap(),
         tool: "Cargo",
+        category: Category::Cache,
     }];
     let page = developer::query_with_caches(&index, NodeId(0), 0, 10, &caches).unwrap();
     assert_eq!(page.total, 1);
@@ -161,4 +165,75 @@ fn scanning_inside_a_cache_classifies_only_the_measured_subtree_and_keeps_partia
     let historical = developer::query_with_caches(&index, NodeId(0), 0, 10, &caches).unwrap();
     assert_eq!(historical.total, 0);
     assert_eq!(historical.logical, 0);
+}
+
+#[test]
+fn overlapping_locations_preserve_the_most_specific_scoped_dependency_category() {
+    let fixture = tempfile::tempdir().unwrap();
+    let cache = fixture.path().join("cache");
+    let packages = cache.join("packages");
+    let package = packages.join("pkg");
+    std::fs::create_dir_all(&package).unwrap();
+    std::fs::write(package.join("lib.bin"), [1; 17]).unwrap();
+    std::fs::write(cache.join("other"), [1; 5]).unwrap();
+    let index = scan(
+        fixture.path(),
+        &ScanOptions::default(),
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    let locations = [
+        CacheLocation {
+            path: cache.canonicalize().unwrap(),
+            tool: "npm",
+            category: Category::Cache,
+        },
+        CacheLocation {
+            path: packages.canonicalize().unwrap(),
+            tool: "NuGet",
+            category: Category::Dependencies,
+        },
+    ];
+    let whole = developer::query_with_caches(&index, NodeId(0), 0, 10, &locations).unwrap();
+    assert_eq!(whole.total, 1);
+    assert_eq!(whole.logical, 22);
+    for name in ["packages", "pkg"] {
+        let scope = index
+            .entries
+            .iter()
+            .find(|entry| entry.name == name)
+            .unwrap()
+            .id;
+        let page = developer::query_with_caches(&index, scope, 0, 10, &locations).unwrap();
+        assert_eq!(page.total, 1);
+        assert_eq!(page.logical, 17);
+        assert_eq!(page.items[0].tool, "NuGet");
+        assert_eq!(page.items[0].category, Category::Dependencies);
+    }
+    let subtree = scan(
+        &package,
+        &ScanOptions::default(),
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    let page = developer::query_with_caches(&subtree, NodeId(0), 0, 10, &locations).unwrap();
+    assert_eq!(page.total, 1);
+    assert_eq!(page.items[0].category, Category::Dependencies);
+    let coincident = [
+        CacheLocation {
+            path: packages.canonicalize().unwrap(),
+            tool: "NuGet",
+            category: Category::Dependencies,
+        },
+        CacheLocation {
+            path: packages.canonicalize().unwrap(),
+            tool: "npm",
+            category: Category::Cache,
+        },
+    ];
+    let page = developer::query_with_caches(&subtree, NodeId(0), 0, 10, &coincident).unwrap();
+    assert_eq!(page.items[0].tool, "NuGet");
+    assert_eq!(page.items[0].category, Category::Dependencies);
 }

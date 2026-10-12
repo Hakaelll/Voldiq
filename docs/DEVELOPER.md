@@ -6,7 +6,7 @@ Developer analysis classifies measured directories from the current index. It us
 
 Cargo targets require a sibling `Cargo.toml`; Node.js dependencies and build output require `package.json`. CMake builds require `CMakeLists.txt`. Gradle project caches require a Gradle build or settings file. .NET build directories require a C# or F# project. Python bytecode directories use their conventional `__pycache__` name.
 
-## Cargo and npm cache locations
+## Global tool locations
 
 Global-cache analysis resolves the current Windows profile and local-data directory through Tauri's native path resolver. An absolute `CARGO_HOME` overrides the profile's `.cargo` location. Only its `registry` and `git` directories are classified as cache; installed tools, configuration and credentials outside those directories are excluded. These locations are described in the [Cargo home documentation](https://doc.rust-lang.org/cargo/guide/cargo-home.html).
 
@@ -14,9 +14,23 @@ An absolute `NPM_CONFIG_CACHE` overrides the Windows `%LocalAppData%\npm-cache` 
 
 Locations must exist and resolve to indexed directories. The query uses their recorded sizes rather than scanning again. A scan or query rooted inside a cache reports only that measured subtree. Historical indexes omit live global-cache classification because the locations are not recorded with snapshots. Their project classifications continue to use recorded rows. Persisting cache-location evidence remains pending.
 
+The Windows resolver also recognizes these locations and their absolute environment overrides:
+
+| Tool | Default location | Override | Category |
+|---|---|---|---|
+| pip | `%LocalAppData%\pip\Cache` | `PIP_CACHE_DIR` | Cache |
+| Gradle | `%UserProfile%\.gradle\caches` | `GRADLE_USER_HOME`, then `caches` | Cache |
+| NuGet packages | `%UserProfile%\.nuget\packages` | `NUGET_PACKAGES` | Dependencies |
+| NuGet HTTP | `%LocalAppData%\NuGet\v3-cache` | `NUGET_HTTP_CACHE_PATH` | Cache |
+| NuGet plugins | `%LocalAppData%\NuGet\plugins-cache` | `NUGET_PLUGINS_CACHE_PATH` | Cache |
+
+These locations follow [pip caching](https://pip.pypa.io/en/stable/topics/caching/) and its [cache-directory option](https://pip.pypa.io/en/stable/cli/pip/), [Gradle directory layout](https://docs.gradle.org/current/userguide/directory_layout.html) and [NuGet package/cache management](https://learn.microsoft.com/en-us/nuget/consume-packages/managing-the-global-packages-and-cache-folders). NuGet projects can use packages directly from the global packages directory, so it is labelled Dependencies. Gradle configuration, daemon files, installed JDKs and wrapper distributions are outside the selected `caches` directory.
+
+Tool configuration files and command-line overrides are not inspected. When configured locations overlap, a scoped query uses the most specific matching root. Coincident roots retain a dependency category when one is declared. A wider scan still aggregates nested locations into their outer candidate without counting bytes twice.
+
 ## Verification status
 
-On 2026-10-12, all three developer-storage integration tests and the native configuration test passed. Formatting and strict workspace Clippy also passed. A source-only review found and verified fixes for scoped cache descendants and historical isolation. Populated native UI acceptance remains pending.
+On 2026-10-12, all four developer-storage integration tests, both native resolver tests, formatting and strict workspace Clippy passed. Native fixtures verify all eight global locations with measured totals, three absolute overrides and exclusion of Gradle configuration and runtimes. Source-only review verified scoped cache descendants, historical isolation and overlapping-root category selection. Populated native UI acceptance remains pending.
 
 Real-filesystem tests cover configured paths, unrelated namesakes, exclusion of Cargo credentials and installed binaries, nested dependencies, totals, paging, scoped cache descendants, incomplete subtree scans and historical rejection of live cache roots. The native unit test covers default, empty, absolute and relative overrides without modifying process environment variables. Reproduce the checks with:
 
@@ -27,4 +41,4 @@ cargo test -p voldiq --bin voldiq developer_commands::tests
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-pnpm stores, pip and global Gradle caches, .NET caches and Docker analysis remain pending. Docker storage must be inspected through its supported commands or APIs. Its internal folders must not be deleted directly. Cleanup execution and explicit confirmation remain separate unfinished requirements.
+pnpm store discovery and Docker analysis remain pending. Docker storage must be inspected through its supported commands or APIs. Its internal folders must not be deleted directly. Cleanup execution and explicit confirmation remain separate unfinished requirements.

@@ -4251,6 +4251,7 @@ dependencies = [
  "serde",
  "tauri",
  "tauri-build",
+ "tempfile",
  "voldiq-core",
 ]
 
