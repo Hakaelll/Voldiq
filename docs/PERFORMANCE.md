@@ -1,5 +1,17 @@
 # Performance measurements
 
+## Large real-filesystem fixture
+
+The Windows `benchmark` example accepts 100 to 1,000,000 files and performs five scans with the production default metadata concurrency of one. It creates real 128-byte files in 100 owned temporary folders, checks available space before creation, and removes its own directory when finished. The space allowance is 8,192 bytes per file plus 512 MiB; this is a preflight safety check, not a guarantee against concurrent disk consumption. Fixture creation is excluded from scan timings and warms filesystem metadata.
+
+```powershell
+cargo run --release -p voldiq-core --example benchmark -- 1000000
+```
+
+Every scan must have the exact file, entry and logical-byte totals, complete coverage, known allocation and zero errors. Root paging and a matching global search must return the expected counts. Output includes actual allocation, elapsed scan/query times, entry layout, and Windows private bytes, working set and lifetime peak working set sampled after queries. These are scanner-process counters, including allocator retention; they exclude the native app and WebView2. The peak includes fixture creation and previous runs, so it is not a per-scan peak.
+
+Five small-fixture runs and strict Clippy passed on 2026-10-13. The first million-file measurement is still running; no completed large-filesystem performance result is claimed here yet. Previous synthetic million-entry query results below remain distinct.
+
 ## Bounded scan concurrency
 
 Settings now saves a real metadata-concurrency limit from 1 to 8. One worker runs directly on the scanning thread; higher values use a persistent scoped pool. Job and result channels each hold at most `workers × 16` items, with batches constrained by remaining index capacity. Directory iteration and index publication stay on the coordinator, and metadata results are applied in enumeration order. This retains exact limits, hard-link allocation deduplication and consistent live queries. Cancellation stops scheduling and publication, drains already started metadata work and joins workers before returning. NTFS enumeration and journal replay keep their existing execution model. No file content is read by this pool.
