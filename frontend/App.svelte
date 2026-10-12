@@ -76,6 +76,7 @@
   let historical = $state<Snapshot | null>(null);
   let selection = $state(new Set<number>());
   let cleanupPreview = $state<CleanupPreview | null>(null);
+  let cleanupNeedsRefresh = false;
   function checkFile(id: number, checked: boolean): void {
     const next = new Set(selection);
     if (checked) {
@@ -879,6 +880,25 @@
       plan={cleanupPreview}
       onclose={() => {
         cleanupPreview = null;
+        if (cleanupNeedsRefresh) {
+          cleanupNeedsRefresh = false;
+          void start(scanPath);
+        }
+      }}
+      onbusy={(value) => {
+        analysisBusy = value;
+      }}
+      onchanged={() => {
+        cleanupNeedsRefresh = true;
+        refreshToken += 1;
+        interactionToken += 1;
+        ready = false;
+        operation = null;
+        selection = new Set();
+        details = null;
+        directory = null;
+        children = { items: [], total: 0 };
+        types = [];
       }}
       onerror={report}
     />{/key}{/if}

@@ -1,6 +1,6 @@
 # Cleanup previews
 
-The current delivery supports manual, duplicate, indexed temporary-file and old-file selections with read-only previews. It does not expose recycling or permanent deletion yet. A preview is not approval to execute a destructive operation. The core's handle-bound permanent-disposition primitive remains separate from a confirmed, logged application transaction.
+The current delivery supports manual, duplicate, indexed temporary-file and old-file selections with previews. Manual, temporary and old-file plans can use an explicitly confirmed advanced permanent-removal action. Duplicate selections remain preview-only. Recycling is not exposed, and no destructive operation runs automatically. Preview alone never approves execution.
 
 ## Manual file rule
 
@@ -12,7 +12,7 @@ The current delivery supports manual, duplicate, indexed temporary-file and old-
 | Selection | 1–500 distinct, complete regular files |
 | Exclusions | Historical captures, root directories, reparse points, recall-marked files, excluded ancestors and protected system locations |
 | Risk | Review required |
-| Permissions | Current user's metadata access; later execution must obtain delete access |
+| Permissions | Current user's metadata access and delete access through the verified native handle |
 | Planned policy | Windows Recycle Bin, subject to confirmed execution support |
 | Verification | Scanned identity/change time, actual metadata, captured ancestors and native handle checks |
 
@@ -34,9 +34,13 @@ These checks do not yet prove a recycling implementation. A later executor must 
 
 ## Interface and command boundary
 
-The virtual explorer and large-file list expose native checkboxes without automatic selection. Review selection requests an immutable backend plan; the modal shows full paths, logical size, potential allocation and hard-link labels. It contains one Close action. Native dialog behavior supplies modal keyboard focus and Escape dismissal. Its populated visual acceptance remains with the user.
+The virtual explorer and large-file list expose native checkboxes without automatic selection. Review selection requests an immutable backend plan; the modal shows full paths, logical size, potential allocation and hard-link labels. Permanent removal is a separate advanced choice with irreversible wording and an exact `DELETE` confirmation. During execution, Close is disabled and Escape requests cancellation between files. Native dialog behavior supplies modal focus. Populated visual acceptance remains with the user.
 
-The backend retains one plan session. Discard identifies that session, so a stale discard cannot remove a newer plan. Starting a scan or loading a snapshot clears frontend selection and preview. Before future execution, the backend must also verify that the plan still belongs to the active index and consume the confirmed session once.
+The backend retains one plan session. Discard identifies that session, so a stale discard cannot remove a newer plan. Starting a scan or loading a snapshot clears frontend selection and preview. Execution requires the exact session ID, exact confirmation and the same live index allocation; it consumes the session once. The Engine operation guard prevents concurrent analyses. Index and duplicate authority are invalidated before mutations; the frontend clears stale measurements and starts a fresh scan when the result closes.
+
+The permanent executor commits intent before each filesystem operation, verifies and removes the retained native handle, then commits the result. Changed files remain failures; cancellation affects the next unstarted file. Journal failures stop immediately. Already observed outcomes remain in the report, and results that could not be persisted are explicitly marked unrecorded. No retry action is offered. Native `query_cleanup_history` provides bounded read-only audit rows; a dedicated history interface is still pending.
+
+Three real owned-fixture executor tests cover removal, changed-file failure, cancellation, pre-cancelled work, duplicate keep-authority rejection and an actual SQLite result-write rejection after deletion. The latter returns the removed-but-unrecorded item, leaves the next file untouched and recovers to unknown/cancelled on reopening. A native command test rejects missing/lowercase confirmations, wrong IDs, rescanned indexes and second consumption. Workspace tests pass; final targeted cleanup tests, Svelte diagnostics, production build and strict Clippy pass. No personal files were deleted for verification, and no rendered interaction is claimed.
 
 ## User temporary-file rule
 
@@ -44,7 +48,7 @@ The backend retains one plan session. Discard identifies that session, so a stal
 
 Candidates remain unselected until the user chooses them. The native preview rechecks scope, extension and age, then applies the manual plan's scanned identity, metadata, exclusion and protected-path checks. A changed file, historical snapshot or selection outside the rule aborts preview creation. Execution will also need unused-file verification and the complete recycle transaction.
 
-The Cleanup view exposes Scan user temp, bounded candidate pages and Review selection. A temporary directory absent from the current index is shown as Not indexed. An index covering only a child of that directory is labelled Partial. Logical and potential allocation totals cover discovered candidates; hard links and unknown allocation contribute zero potential. No delete or automatic cleanup command is exposed.
+The Cleanup view exposes Scan user temp, bounded candidate pages and Review selection. A temporary directory absent from the current index is shown as Not indexed. An index covering only a child of that directory is labelled Partial. Logical and potential allocation totals cover discovered candidates; hard links and unknown allocation contribute zero potential. Advanced permanent removal requires the separate typed confirmation and is not classified as low-risk or as proof that files are unused.
 
 ## Duplicate selection review
 
@@ -52,7 +56,7 @@ Duplicate checkboxes start empty and remain selected across result pages. The fr
 
 The preview shows retained paths under Keep. This is evidence at preview creation, not a guarantee at a future deletion time. The executor must repeat retained-copy validation and preserve that copy through the destructive transaction. No recycling command is exposed in this delivery.
 
-Additional cleanup rules, compatible cache discovery, developer tool commands, confirmed recycling, result logging and undo integration are still open work.
+Additional cleanup rules, official developer tool commands, confirmed recycling, result-history presentation and recycling undo integration are still open work.
 
 ## Durable operation journal
 
@@ -64,19 +68,19 @@ Reopening converts interrupted `in_flight` items to `unknown` and unstarted `pre
 
 Four controlled tests use real SQLite files and disposable Windows fixtures. They cover mixed success/failure/cancellation surviving reopen, exact identity serialization, bounded paging, duplicate transition rejection, failure to commit intent, failure to commit a result after actual deletion, replacement-file preservation across repeated recovery, exclusive-owner refusal, numeric rollback and foreign/future database rejection. They simulate interrupted caller state and SQLite write rejection; power-loss/device-failure durability and complete application restart integration are not claimed.
 
-This journal is not yet initialized by the application or exposed through IPC. The confirmed executor, result-history interface, index refresh, duplicate retention and default recycling transaction remain pending.
+The application initializes this journal at `cleanup.db` in its local data directory. An unavailable journal disables execution through a reported error while analysis remains usable. The confirmed permanent executor and bounded audit query use it; the result-history interface, duplicate retention and default recycling transaction remain pending.
 
 ## Handle-bound permanent-disposition primitive
 
-`VerifiedFile::remove_permanently` is a core primitive for a future explicitly confirmed advanced action. It consumes the retained leaf and ancestor handles, rereads the exact planned identity/size/modification/change-time stamp, rejects read-only files and calls `SetFileInformationByHandle` with SDK `FILE_DISPOSITION_INFO_EX`. Flags request delete, POSIX semantics and an image-section check. There is no filename-based fallback, attribute override, recycling call or IPC executor.
+`VerifiedFile::remove_permanently` is the core primitive used by the explicitly confirmed advanced action. It consumes the retained leaf and ancestor handles, rereads the exact planned identity/size/modification/change-time stamp, rejects read-only files and calls `SetFileInformationByHandle` with SDK `FILE_DISPOSITION_INFO_EX`. Flags request delete, POSIX semantics and an image-section check. There is no filename-based fallback, attribute override or recycling call.
 
 Microsoft documents that [POSIX disposition removes the visible link when the deleting handle closes](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information_ex), while existing handles may retain the data. Consequently this primitive does not report physical space reclaimed or promise that other links disappear. Unsupported filesystems and native failures remain errors.
 
 Four controlled Windows/NTFS fixture tests verify removal of only the approved link, an unchanged retained hard link, continued reads through a preexisting reader, last-link removal while a reader retains data, rejection of substitution before verification, rejection of read-only targets and rejection of metadata changed after verification. Every destructive call targets files freshly created inside the test's owned temporary directory; unrelated fixture files survive. Nine existing cleanup/rule/duplicate-selection integration tests also pass.
 
-This primitive is not a completed cleanup transaction. Before exposing it, the application still needs explicit permanent-deletion confirmation, durable intent/result records, interruption and partial-failure handling, duplicate keep-copy authority and index invalidation/refresh. Recycling remains the intended default and is a separate unresolved handoff. No cleanup action is exposed to users by this change.
+The confirmed permanent executor now uses this primitive with durable intent/results, cancellation and index invalidation/refresh. It is an explicit advanced action and cannot undo permanent removal. Duplicate keep-copy authority is still required before enabling duplicate execution. Recycling remains a separate unresolved handoff and never silently falls back to this primitive.
 
-The metadata recheck and disposition are separate calls. Later attribute changes can still race with disposition, although the retained handle prevents substitution of another file. These tests do not prove that a file is unused or cover every mapped-section, filesystem or filter configuration. The source-only review found no blocker for this unexposed primitive and confirmed these limits.
+The metadata recheck and disposition are separate calls. Later attribute changes can still race with disposition, although the retained handle prevents substitution of another file. These tests do not prove that a file is unused or cover every mapped-section, filesystem or filter configuration. The source-only reviews confirmed these limits; the executor does not claim low-risk removal or reclaimed allocation.
 
 ## Native recycling handoff investigation
 
@@ -120,7 +124,7 @@ The next handoff design must establish binding at the actual filesystem operatio
 
 The `manually-selected-old-files` rule lists complete regular files whose captured modification time is at least 90 days old, within the current live scan. It never selects them automatically or interprets age as proof of disuse. Native protected Windows directory scopes are omitted from discovery; configured scan exclusions remain excluded. Missing timestamps, future timestamps, incomplete entries and historical captures do not produce candidates. Reparse and cloud-recall safety remains enforced by the scanner and fresh preview validation.
 
-The rule uses the same bounded paging, conservative hard-link allocation accounting and immutable manual plan as temporary-file review. Preview rechecks the age criterion, scanned identity, size, modification/change time, current root, exclusions and every ancestor. Personal documents and configuration files can appear for explicit manual review, but no rule automatically removes them. Risk is `review` and the intended policy is `recycle`; execution remains unavailable.
+The rule uses the same bounded paging, conservative hard-link allocation accounting and immutable manual plan as temporary-file review. Preview rechecks the age criterion, scanned identity, size, modification/change time, current root, exclusions and every ancestor. Personal documents and configuration files can appear for explicit manual review, but no rule automatically removes them. Risk is `review` and the intended default policy is `recycle`, which remains pending. Permanent removal is a separate explicit advanced confirmation.
 
 A controlled real-filesystem test covers the exact 90-day boundary, recent files, document/configuration filenames, exclusions, oldest-first paging, explicit selection, duplicate/empty selection rejection, missing scan, historical captures, partial coverage, clock underflow and a file changed after scanning. Fixture contents survive. Both existing temporary-rule tests also pass. Rendered interaction and destructive execution are not claimed by these checks.
 

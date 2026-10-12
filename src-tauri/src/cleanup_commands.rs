@@ -8,6 +8,55 @@ use voldiq_core::{
     scanner::SharedIndex,
 };
 
+#[cfg(test)]
+mod execution_tests {
+    use super::*;
+    use std::sync::{RwLock, atomic::AtomicBool};
+
+    #[test]
+    fn confirmation_requires_the_same_live_index_and_consumes_the_plan_once() {
+        let fixture = tempfile::tempdir().unwrap();
+        std::fs::write(fixture.path().join("selected"), b"original").unwrap();
+        let scan = || {
+            voldiq_core::scanner::scan(
+                fixture.path(),
+                &voldiq_core::ScanOptions::default(),
+                &AtomicBool::new(false),
+                |_| {},
+            )
+            .unwrap()
+        };
+        let index = scan();
+        let id = index
+            .entries
+            .iter()
+            .find(|entry| entry.name == "selected")
+            .unwrap()
+            .id;
+        let plan = Plan::manual(&index, &[id]).unwrap();
+        let current = Arc::new(RwLock::new(index));
+        let plans = Mutex::new(Some(Session {
+            id: 42,
+            _index: current.clone(),
+            _plan: plan,
+        }));
+        for confirmation in ["", "delete", "RECYCLE"] {
+            assert!(consume_plan(&plans, &current, 42, confirmation).is_err());
+        }
+        assert!(consume_plan(&plans, &current, 43, "DELETE").is_err());
+        let rescan = Arc::new(RwLock::new(scan()));
+        assert!(consume_plan(&plans, &rescan, 42, "DELETE").is_err());
+        assert!(plans.lock().unwrap().is_some());
+        let session = consume_plan(&plans, &current, 42, "DELETE").unwrap();
+        assert_eq!(session._plan.preview().items[0].id, id);
+        assert!(consume_plan(&plans, &current, 42, "DELETE").is_err());
+        assert_eq!(
+            std::fs::read(fixture.path().join("selected")).unwrap(),
+            b"original"
+        );
+    }
+}
+
 struct Session {
     id: u64,
     _index: SharedIndex,
@@ -15,6 +64,118 @@ struct Session {
 }
 #[derive(Default)]
 pub struct CleanupPlans(Arc<Mutex<Option<Session>>>);
+
+pub struct CleanupJournal(Arc<Mutex<Result<voldiq_core::cleanup::journal::Journal, String>>>);
+impl CleanupJournal {
+    pub fn open(path: &std::path::Path) -> Self {
+        Self(Arc::new(Mutex::new(
+            voldiq_core::cleanup::journal::Journal::open(path).map_err(|error| error.to_string()),
+        )))
+    }
+}
+
+#[derive(Clone, Serialize)]
+pub struct CleanupProgress {
+    id: u64,
+    completed: usize,
+    total: usize,
+}
+
+fn consume_plan(
+    plans: &Mutex<Option<Session>>,
+    current: &SharedIndex,
+    id: u64,
+    confirmation: &str,
+) -> Result<Session, String> {
+    if confirmation != "DELETE" {
+        return Err("Type DELETE to confirm permanent deletion.".into());
+    }
+    let mut slot = plans.lock().map_err(|error| error.to_string())?;
+    let session = slot
+        .as_ref()
+        .ok_or("Cleanup preview is no longer available.")?;
+    if session.id != id || !Arc::ptr_eq(&session._index, current) {
+        return Err("Cleanup preview belongs to a previous analysis. Review again.".into());
+    }
+    if !session._plan.preview().retained.is_empty() {
+        return Err("Duplicate execution requires retained-copy authority.".into());
+    }
+    slot.take()
+        .ok_or_else(|| "Cleanup preview is no longer available.".into())
+}
+
+#[tauri::command]
+pub async fn execute_permanent_cleanup(
+    id: u64,
+    confirmation: String,
+    progress: tauri::ipc::Channel<CleanupProgress>,
+    engine: State<'_, Arc<Engine>>,
+    plans: State<'_, CleanupPlans>,
+    journal: State<'_, CleanupJournal>,
+) -> Result<voldiq_core::cleanup::execute::Report, String> {
+    let engine = engine.inner().clone();
+    let (operation_id, cancel) = engine.begin()?;
+    let operation = Operation {
+        engine: engine.clone(),
+        id: operation_id,
+    };
+    let current = engine.index()?;
+    let session = consume_plan(&plans.0, &current, id, &confirmation)?;
+    let journal = journal.0.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _operation = operation;
+        let mut journal = journal.lock().map_err(|error| error.to_string())?;
+        let journal = journal.as_mut().map_err(|error| error.clone())?;
+        let total = session._plan.preview().items.len();
+        progress
+            .send(CleanupProgress {
+                id: operation_id,
+                completed: 0,
+                total,
+            })
+            .map_err(|error| error.to_string())?;
+        *engine.index.lock().map_err(|error| error.to_string())? = None;
+        *engine
+            .duplicates
+            .lock()
+            .map_err(|error| error.to_string())? = None;
+        voldiq_core::cleanup::execute::permanent(session._plan, journal, &cancel, |completed| {
+            if progress
+                .send(CleanupProgress {
+                    id: operation_id,
+                    completed,
+                    total,
+                })
+                .is_err()
+            {
+                cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
+        })
+        .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn query_cleanup_history(
+    offset: usize,
+    limit: usize,
+    journal: State<'_, CleanupJournal>,
+) -> Result<Vec<voldiq_core::cleanup::journal::Item>, String> {
+    let journal = journal.0.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        journal
+            .lock()
+            .map_err(|error| error.to_string())?
+            .as_ref()
+            .map_err(|error| error.clone())?
+            .items(offset, limit)
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
 
 #[derive(Serialize)]
 pub struct CleanupPreview {

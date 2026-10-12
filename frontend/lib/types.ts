@@ -1,4 +1,9 @@
 export type NodeId = number;
+export interface CleanupReport {
+  items: { id: NodeId; path: string; removed: boolean; error: string | null; recorded: boolean }[];
+  cancelled: boolean;
+  journal_error: string | null;
+}
 export interface CleanupPreview {
   id: number;
   preview: {

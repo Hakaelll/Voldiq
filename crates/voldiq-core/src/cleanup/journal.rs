@@ -45,6 +45,12 @@ pub struct Item {
 }
 
 impl Journal {
+    #[cfg(test)]
+    pub(crate) fn reject_result_updates(&self) -> Result<()> {
+        self.connection.execute_batch("CREATE TRIGGER reject_result BEFORE UPDATE ON items
+            WHEN NEW.state IN ('succeeded','failed') BEGIN SELECT RAISE(ABORT,'Controlled result-write failure'); END;")?;
+        Ok(())
+    }
     pub fn open(path: &Path) -> Result<Self> {
         if !path.is_absolute() || path.file_name().is_none() {
             return Err(Error::Invalid(

@@ -503,6 +503,7 @@ fn main() {
             let directory = app.path().app_local_data_dir()?;
             std::fs::create_dir_all(&directory)?;
             app.manage(SnapshotDatabase::open(&directory.join("snapshots.db"))?);
+            app.manage(CleanupJournal::open(&directory.join("cleanup.db")));
             Ok(())
         })
         .manage(Arc::new(Engine::default()))
@@ -523,6 +524,8 @@ fn main() {
             preview_cleanup_rule,
             preview_duplicate_cleanup,
             discard_cleanup,
+            execute_permanent_cleanup,
+            query_cleanup_history,
             query_developer_storage,
             docker_commands::query_docker_storage,
             get_details,

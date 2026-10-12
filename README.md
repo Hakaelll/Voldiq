@@ -11,7 +11,7 @@ Voldiq maps the files on a drive or in a folder so you can understand where spac
 
 - Local and offline. No account, cloud service, advertising or telemetry.
 - Real measurements. No sample data presented as system information.
-- Read-only analysis by default. File management will require preview and confirmation.
+- Read-only analysis by default. Permanent file removal requires preview and explicit confirmation.
 - Precise terminology. Logical file sizes differ from unique physical allocation and volume usage.
 - Small, reusable engine. Heavy analysis runs in Rust, outside the interface thread.
 
@@ -63,7 +63,7 @@ Duplicate discovery groups indexed files by size, samples at most 8 KiB and veri
 
 Potential allocation conservatively retains the largest independently allocated copy. Files with multiple hard links contribute no reclaimable estimate, because links may exist outside the scan. This estimate does not imply that moving files to the Recycle Bin frees volume space. Recycling is still pending.
 
-## File management previews
+## File management
 
 Cleanup lists indexed `.tmp` and `.temp` files at least seven days old in the Windows user temporary directory. Select files manually, then review their actual paths and sizes. Unscanned and partial coverage remain visible.
 
@@ -73,7 +73,9 @@ The Recycle Bin panel queries Windows for the selected accessible local drive's 
 
 Duplicate selections retain a copy from each group and reread full BLAKE3 content before showing selected and retained paths. The review is cancellable. Recycling remains under development.
 
-Select regular files in Explorer or Large files and use Review selection to inspect their real paths, sizes and potential allocation. Rust retains immutable plans and checks scanned identities, change times, exclusions and native Windows protected locations. Historical captures cannot produce management previews. Verification tests cover replacement and mutation with controlled files. Recycling and permanent deletion are not exposed yet; see [cleanup guarantees and remaining work](docs/CLEANUP.md).
+Select regular files in Explorer or Large files and use Review selection to inspect their real paths, sizes and potential allocation. Rust retains immutable plans and checks scanned identities, change times, exclusions and native Windows protected locations. Historical captures cannot produce management previews.
+
+The advanced **Permanently delete…** action requires typing `DELETE` and confirming the irreversible operation. Each file is verified through retained native handles, its intent is committed before removal, and its result is recorded afterward. Results distinguish removal, failure, cancellation and unrecorded outcomes. Closing the result triggers a fresh analysis. This action does not use the Recycle Bin and has no undo; interrupted work is never retried automatically. Duplicate cleanup remains preview-only, and recycling is still pending. See [cleanup guarantees and remaining work](docs/CLEANUP.md).
 
 ## Developer storage
 
