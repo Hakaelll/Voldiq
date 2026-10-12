@@ -58,6 +58,14 @@ The preview shows retained paths under Keep. This is evidence at preview creatio
 
 Additional cleanup rules, official developer tool commands, confirmed recycling and recycling undo integration are still open work.
 
+## Retained duplicate-copy authority
+
+Duplicate plans now capture the preserved copy's exact file and ancestor stamps together with its group's full BLAKE3 digest. `verify_retained` opens each preserved leaf with read-data access, no DELETE access and only read sharing, retaining its ancestors and leaf in an opaque RAII guard. It rereads the entire content with cancellation checks, compares the digest and validates the stamp again before returning. Error or cancellation releases every acquired handle. The guard provides no removal method.
+
+Three controlled Windows fixture tests cover write/rename/delete exclusion while ordinary reading remains possible, handle release, changed content and identity, cancellation and incorrect digest rejection. A writable file mapping still rejects acquisition with `ERROR_SHARING_VIOLATION` after its original file handle is closed; unmapping and closing the mapping restores acquisition. This matches the [documented write-sharing rule](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea). Other filesystems and filter drivers are not proved by this NTFS fixture.
+
+The permanent executor and native/UI gates still reject duplicate execution. Before those gates can open, the executor must retain this guard throughout removal, bind every selected file to the matching preserved group, rehash selected content through verified handles and preserve per-file journal and cancellation behavior.
+
 ## Durable operation journal
 
 `cleanup::journal::Journal` records permanent-operation intent and per-file results in a separate, versioned SQLite database. It requires an absolute file path, DELETE journal mode, an application identifier and a supported schema. Foreign and future databases are rejected. Transactions use `synchronous=FULL`; a connection holds [SQLite EXCLUSIVE locking](https://www.sqlite.org/pragma.html#pragma_locking_mode) between commits so another owner cannot classify live work as interrupted.

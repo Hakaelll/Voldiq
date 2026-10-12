@@ -19,7 +19,8 @@ use windows_sys::{
     Win32::{
         Foundation::{OBJ_CASE_INSENSITIVE, RtlNtStatusToDosError, UNICODE_STRING},
         Storage::FileSystem::{
-            DELETE, FILE_READ_ATTRIBUTES, FILE_SHARE_READ, FILE_SHARE_WRITE, SYNCHRONIZE,
+            DELETE, FILE_READ_ATTRIBUTES, FILE_READ_DATA, FILE_SHARE_READ, FILE_SHARE_WRITE,
+            SYNCHRONIZE,
         },
         System::IO::IO_STATUS_BLOCK,
     },
@@ -44,6 +45,24 @@ pub(crate) fn open_root(path: &Path) -> Result<File> {
 }
 
 pub(crate) fn open_child(parent: &File, name: &OsStr, directory: bool) -> Result<File> {
+    let (access, share) = if directory {
+        (FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE)
+    } else {
+        (FILE_READ_ATTRIBUTES | DELETE, FILE_SHARE_READ)
+    };
+    open_component(parent, name, access, share)
+}
+
+pub(crate) fn open_retained(parent: &File, name: &OsStr) -> Result<File> {
+    open_component(
+        parent,
+        name,
+        FILE_READ_ATTRIBUTES | FILE_READ_DATA,
+        FILE_SHARE_READ,
+    )
+}
+
+fn open_component(parent: &File, name: &OsStr, access: u32, share: u32) -> Result<File> {
     let mut components = Path::new(name).components();
     if !matches!(components.next(), Some(Component::Normal(_))) || components.next().is_some() {
         return Err(Error::Invalid(
@@ -56,11 +75,6 @@ pub(crate) fn open_child(parent: &File, name: &OsStr, directory: bool) -> Result
             "Cleanup child name contains a namespace separator.".into(),
         ));
     }
-    let (access, share) = if directory {
-        (FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE)
-    } else {
-        (FILE_READ_ATTRIBUTES | DELETE, FILE_SHARE_READ)
-    };
     native_open(&mut name, Some(parent), access, share)
 }
 

@@ -5,6 +5,8 @@ mod disposition_tests;
 #[cfg(windows)]
 pub mod execute;
 pub mod journal;
+#[cfg(all(test, windows))]
+mod retained_tests;
 pub mod rules;
 use std::{
     collections::HashSet,
@@ -50,6 +52,12 @@ struct PlannedFile {
 pub struct Plan {
     preview: Preview,
     files: Vec<PlannedFile>,
+    retained: Vec<(PlannedFile, String)>,
+}
+
+#[cfg(windows)]
+pub struct RetainedCopies {
+    _files: Vec<VerifiedFile>,
 }
 
 impl Plan {
@@ -69,6 +77,14 @@ impl Plan {
             .into_iter()
             .map(|item| item.path)
             .collect();
+        for file in keep.files {
+            let group = analysis
+                .groups
+                .iter()
+                .find(|group| group.members.iter().any(|member| member.id == file.id))
+                .ok_or_else(|| Error::Invalid("Retained copy is outside the analysis.".into()))?;
+            plan.retained.push((file, group.digest.clone()));
+        }
         Ok(plan)
     }
 
@@ -187,7 +203,11 @@ impl Plan {
             });
         }
         check_cancelled(cancel)?;
-        Ok(Self { preview, files })
+        Ok(Self {
+            preview,
+            files,
+            retained: Vec::new(),
+        })
     }
 
     pub fn preview(&self) -> &Preview {
@@ -202,6 +222,53 @@ impl Plan {
             .iter()
             .find(|file| file.id == id)
             .ok_or_else(|| Error::Invalid("File is not in the confirmed plan.".into()))?;
+        Self::verify_file(planned, false)
+    }
+
+    /// Keeps freshly verified content and namespace authority alive. It grants no removal authority.
+    #[cfg(windows)]
+    pub fn verify_retained(
+        &self,
+        cancel: &std::sync::atomic::AtomicBool,
+    ) -> Result<RetainedCopies> {
+        use std::io::Read;
+        let mut files = Vec::new();
+        for (planned, digest) in &self.retained {
+            check_cancelled(cancel)?;
+            let mut verified = Self::verify_file(planned, true)?;
+            let mut hasher = blake3::Hasher::new();
+            let mut buffer = [0_u8; 64 * 1024];
+            let mut count = 0_u64;
+            loop {
+                check_cancelled(cancel)?;
+                let length = verified.file.read(&mut buffer)?;
+                if length == 0 {
+                    break;
+                }
+                count += length as u64;
+                hasher.update(&buffer[..length]);
+            }
+            let metadata = verified.file.metadata()?;
+            let identity = windows::file_identity(&verified.file)?;
+            if count != planned.stamp.size
+                || metadata.len() != planned.stamp.size
+                || metadata.modified()? != planned.stamp.modified
+                || identity.key != planned.stamp.identity
+                || identity.change_time != planned.stamp.change_time
+                || hasher.finalize().to_hex().as_str() != digest
+            {
+                return Err(Error::Invalid(
+                    "Retained copy changed. Rescan and analyze again.".into(),
+                ));
+            }
+            files.push(verified);
+        }
+        check_cancelled(cancel)?;
+        Ok(RetainedCopies { _files: files })
+    }
+
+    #[cfg(windows)]
+    fn verify_file(planned: &PlannedFile, retained: bool) -> Result<VerifiedFile> {
         let mut parents = Vec::new();
         // Pin ancestor names from the volume root inward; independently check the opened leaf's identity.
         for (path, expected) in planned.parents.iter().rev() {
@@ -229,14 +296,15 @@ impl Plan {
         let parent = parents
             .last()
             .ok_or_else(|| Error::Invalid("Parent authority unavailable.".into()))?;
-        let file = windows::cleanup_io::open_child(
-            parent,
-            planned
-                .path
-                .file_name()
-                .ok_or_else(|| Error::Invalid("File name unavailable.".into()))?,
-            false,
-        )?;
+        let name = planned
+            .path
+            .file_name()
+            .ok_or_else(|| Error::Invalid("File name unavailable.".into()))?;
+        let file = if retained {
+            windows::cleanup_io::open_retained(parent, name)?
+        } else {
+            windows::cleanup_io::open_child(parent, name, false)?
+        };
         let metadata = file.metadata()?;
         validate_file(&metadata)?;
         let identity = windows::file_identity(&file)?;
