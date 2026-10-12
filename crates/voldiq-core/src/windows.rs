@@ -2,6 +2,9 @@ use crate::Result;
 use serde::Serialize;
 use std::path::Path;
 
+#[cfg(windows)]
+pub(crate) mod cleanup_io;
+
 #[derive(Serialize)]
 pub struct Volume {
     pub path: String,

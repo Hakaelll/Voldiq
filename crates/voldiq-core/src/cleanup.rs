@@ -192,8 +192,6 @@ impl Plan {
     /// Validates a preview without changing disk state. Execution must keep the returned handles alive.
     #[cfg(windows)]
     pub fn verify(&self, id: NodeId) -> Result<VerifiedFile> {
-        use std::os::windows::fs::OpenOptionsExt;
-        use windows_sys::Win32::Storage::FileSystem::*;
         let planned = self
             .files
             .iter()
@@ -202,15 +200,15 @@ impl Plan {
         let mut parents = Vec::new();
         // Pin ancestor names from the volume root inward; independently check the opened leaf's identity.
         for (path, expected) in planned.parents.iter().rev() {
-            let file = std::fs::OpenOptions::new()
-                .access_mode(FILE_READ_ATTRIBUTES)
-                .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
-                .custom_flags(
-                    FILE_FLAG_OPEN_REPARSE_POINT
-                        | FILE_FLAG_BACKUP_SEMANTICS
-                        | FILE_FLAG_OPEN_NO_RECALL,
-                )
-                .open(path)?;
+            let file = match parents.last() {
+                Some(parent) => windows::cleanup_io::open_child(
+                    parent,
+                    path.file_name()
+                        .ok_or_else(|| Error::Invalid("Parent name unavailable.".into()))?,
+                    true,
+                )?,
+                None => windows::cleanup_io::open_root(path)?,
+            };
             let metadata = file.metadata()?;
             if !metadata.is_dir()
                 || windows::is_reparse(&metadata)
@@ -223,11 +221,17 @@ impl Plan {
             }
             parents.push(file);
         }
-        let file = std::fs::OpenOptions::new()
-            .access_mode(FILE_READ_ATTRIBUTES | DELETE)
-            .share_mode(FILE_SHARE_READ)
-            .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_OPEN_NO_RECALL)
-            .open(&planned.path)?;
+        let parent = parents
+            .last()
+            .ok_or_else(|| Error::Invalid("Parent authority unavailable.".into()))?;
+        let file = windows::cleanup_io::open_child(
+            parent,
+            planned
+                .path
+                .file_name()
+                .ok_or_else(|| Error::Invalid("File name unavailable.".into()))?,
+            false,
+        )?;
         let metadata = file.metadata()?;
         validate_file(&metadata)?;
         let identity = windows::file_identity(&file)?;

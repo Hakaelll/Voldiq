@@ -107,3 +107,50 @@ fn native_protected_locations_are_absolute_existing_directories() {
             .all(|path| path.is_absolute() && path.is_dir())
     );
 }
+
+#[test]
+fn changed_parent_junction_is_rejected_before_opening_its_child() {
+    let fixture = tempfile::tempdir().unwrap();
+    let parent = fixture.path().join("parent");
+    let retained = fixture.path().join("retained");
+    let target = fixture.path().join("target");
+    std::fs::create_dir(&parent).unwrap();
+    std::fs::create_dir(&target).unwrap();
+    std::fs::write(parent.join("a.bin"), b"original").unwrap();
+    std::fs::write(target.join("a.bin"), b"replacement").unwrap();
+    let index = scan(
+        fixture.path(),
+        &ScanOptions::default(),
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    let id = index
+        .entries
+        .iter()
+        .find(|entry| {
+            index.path(entry.id).unwrap() == std::fs::canonicalize(parent.join("a.bin")).unwrap()
+        })
+        .unwrap()
+        .id;
+    let plan = Plan::manual(&index, &[id]).unwrap();
+    std::fs::rename(&parent, &retained).unwrap();
+    let output = std::process::Command::new("cmd.exe")
+        .args(["/c", "mklink", "/J"])
+        .arg(&parent)
+        .arg(&target)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let result = plan.verify(id);
+    assert!(
+        matches!(result, Err(voldiq_core::Error::Invalid(ref problem)) if problem == "Parent directory changed since preview.")
+    );
+    std::fs::remove_dir(&parent).unwrap();
+    assert_eq!(std::fs::read(retained.join("a.bin")).unwrap(), b"original");
+    assert_eq!(std::fs::read(target.join("a.bin")).unwrap(), b"replacement");
+}
