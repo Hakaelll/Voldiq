@@ -13,6 +13,7 @@ pnpm test
 cargo test -p voldiq-core
 cargo clippy --workspace --all-targets -- -D warnings
 pnpm tauri build --bundles nsis
+./scripts/verify_distribution.ps1
 ```
 
 The Tauri command builds the frontend before compiling the native release executable. Its output directory is `target/release/bundle/nsis`. A running development window can stay open during the release build.
@@ -29,7 +30,22 @@ Check the produced installer on a clean Windows machine with networking disabled
 
 Release signing and a public download are not configured. Packaging does not close the remaining product acceptance checks listed in `NEXT_TODOS.md` and `docs/TESTING.md`.
 
-## Build evidence, 2026-10-12
+## Latest build evidence, 2026-10-13
+
+`pnpm tauri build` completed with the application sources at checkout `4b70b68`. The static verifier passed after the build. This checkout reference records the build session; the executable does not embed a verified Git commit.
+
+| Artifact | Evidence |
+|---|---|
+| Native executable | x64 (`0x8664`), product version `0.1.0`, 12,524,544 bytes, unsigned |
+| Native SHA-256 | `F557E469F03B704521AF31D32ABCA018EAD9185B70C10F94D1C583D6FEB5A0AC` |
+| NSIS installer | 220,500,483 bytes, product version `0.1.0`, unsigned |
+| Installer SHA-256 | `64C953721B1A51191555BE8EB3170C75EE037FFD165D0F609987DFDB4DADBD25` |
+| Microsoft runtime installer | 214,090,448 bytes, valid Microsoft Corporation signature |
+| Runtime SHA-256 | `2A6ADD76C37BFA872EB8C2B22D45B3216B8E2A1F193E0774006340FF62AC5FA0` |
+
+`scripts/verify_distribution.ps1` reads artifact metadata, hashes and signatures. It checks the native architecture/version, generated NSIS current-user/offline configuration, executable and icon source paths, runtime embedding instruction, and seven ICO directory sizes with payload bounds. The NSIS and runtime bootstrap executables themselves report x86 headers; the application payload is x64. The script does not execute the installer, extract its embedded payload, decode icon artwork or verify installation. Clean-machine acceptance remains pending.
+
+## Previous build evidence, 2026-10-12
 
 The application at source commit `cbd1728`, with the packaging changes accompanying this record, built using Rust/Cargo 1.97.1 and Tauri CLI 2.12.1. `pnpm tauri build --bundles nsis` completed successfully. After setting installer and uninstaller icons, `pnpm tauri bundle --bundles nsis` regenerated the final installer from that release executable. A frozen-lockfile install also passed after the Node engine declaration changed.
 

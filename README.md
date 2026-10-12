@@ -34,7 +34,7 @@ cargo clippy --workspace --all-targets -- -D warnings
 pnpm tauri build
 ```
 
-The release configuration targets an NSIS installer and includes the offline WebView2 installer. Build output is in `target/release/bundle/nsis`; a distributable download is not published yet. See [Windows distribution](docs/DISTRIBUTION.md) for build instructions and remaining installer acceptance checks.
+The release configuration targets an NSIS installer and includes the offline WebView2 installer. Build output is in `target/release/bundle/nsis`; run `./scripts/verify_distribution.ps1` on Windows after building to check artifact metadata and generated packaging configuration. A distributable download is not published yet. See [Windows distribution](docs/DISTRIBUTION.md) for build evidence and remaining installer acceptance checks.
 
 ## Source map
 

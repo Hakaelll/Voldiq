@@ -58,7 +58,7 @@ Commit verified functional units with English messages and push to the configure
 
 ## Windows installer delivery
 
-The x64 release executable and NSIS installer build successfully with the offline WebView2 runtime embedded. Installer and uninstaller now use the supplied multi-resolution Voldiq icon. Generated NSIS source confirms current-user installation and offline runtime embedding; the downloaded runtime has a valid Microsoft Authenticode signature. The Node prerequisite matches the locked frontend tooling. See `docs/DISTRIBUTION.md` for artifact evidence and build instructions. Clean-machine offline installation, startup and uninstall remain open.
+The x64 release executable and NSIS installer build successfully with the offline WebView2 runtime embedded. Installer and uninstaller use the supplied multi-resolution Voldiq icon. The 2026-10-13 build includes application changes through `4b70b68`; `scripts/verify_distribution.ps1` passed static architecture, version, hash, signature, icon-directory and generated-source checks. The verifier explicitly leaves payload extraction and installation unverified. See `docs/DISTRIBUTION.md` for artifact evidence and build instructions. Clean-machine offline installation, startup and uninstall remain open.
 
 ## First verified delivery, 2026-10-11
 
