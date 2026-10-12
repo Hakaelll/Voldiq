@@ -216,13 +216,17 @@ fn start_duplicates(
     engine: State<'_, Arc<Engine>>,
 ) -> Result<u64, String> {
     let engine = engine.inner().clone();
+    let (id, cancel) = engine.begin()?;
+    let operation = Operation {
+        engine: engine.clone(),
+        id,
+    };
     let index = engine.index()?;
     index
         .read()
         .map_err(|e| e.to_string())?
         .entry(scope)
         .map_err(|e| e.to_string())?;
-    let (id, cancel) = engine.begin()?;
     if let Ok(mut result) = engine.duplicates.lock() {
         *result = None;
     }
@@ -255,9 +259,7 @@ fn start_duplicates(
             },
             Err(error) => Some(error),
         };
-        if let Ok(mut active) = engine.active.lock() {
-            *active = None;
-        }
+        drop(operation);
         if let Some(message) = error {
             let _ = progress.send(duplicates::Progress {
                 phase: "failed".into(),
@@ -524,6 +526,7 @@ fn main() {
             preview_cleanup_rule,
             preview_duplicate_cleanup,
             discard_cleanup,
+            clear_current_analysis,
             execute_permanent_cleanup,
             query_cleanup_history,
             query_developer_storage,

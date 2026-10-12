@@ -271,6 +271,35 @@
       report(problem);
     }
   }
+  async function clearAnalysis(): Promise<void> {
+    if (busy) return;
+    analysisBusy = true;
+    refreshToken += 1;
+    interactionToken += 1;
+    try {
+      await invoke('clear_current_analysis');
+      ready = false;
+      historical = null;
+      operation = null;
+      scanId = null;
+      scanPath = '';
+      scope = 0;
+      directory = details = null;
+      children = { items: [], total: 0 };
+      types = [];
+      selection = new Set();
+      cleanupPreview = null;
+      cleanupNeedsRefresh = false;
+      issues = [];
+      showIssues = false;
+      error = '';
+      revision += 1;
+    } catch (problem) {
+      report(problem);
+    } finally {
+      analysisBusy = false;
+    }
+  }
   async function loadSnapshot(snapshot: Snapshot): Promise<void> {
     selection = new Set();
     cleanupPreview = null;
@@ -587,6 +616,10 @@
                 savePreferences();
               }}>Clear recent paths</button
             >{/if}
+          <h2>Index</h2>
+          <button onclick={clearAnalysis} disabled={busy || !isTauri() || !scanPath}
+            >Clear current analysis</button
+          >
         </section>
       {:else if view === 'developer'}
         <DeveloperStorage enabled={ready && !busy} {revision} onselect={select} onerror={report} />

@@ -258,6 +258,10 @@ Duplicate review uses the same preview and lists retained paths under Keep. Nati
 
 File checkboxes share the name cell and appear only for complete regular files in a current scan. A compact footer reports selection count, Review selection and Clear. The native dialog presents full paths with wrapping, right-aligned Logical and Potential values and necessary hard-link labels. Close and Escape dismiss it. No files are preselected and no descriptive paragraph appears in the product. Compiler and source checks cover this addition; populated native visual acceptance remains with the user.
 
+### Index management
+
+Settings adds an Index heading and Clear current analysis button. The action clears the loaded view after the native command succeeds and is disabled during operations or without a loaded path. It leaves saved history and local preferences intact. Engine errors use the existing notice rather than another confirmation dialog or explanatory panel.
+
 ### Recent paths
 
 The toolbar shows a 170px Recent selector only when completed scans have saved paths. The native select exposes full paths in its options and resets after an explicit choice, allowing the same path to be selected again. It is disabled during operations and in the browser preview. The existing wrapping toolbar contains it without widening the document. Settings provides a compact clear action. Stored routes do not introduce another navigation panel or explanatory paragraphs.

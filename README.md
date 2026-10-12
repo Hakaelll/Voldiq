@@ -83,6 +83,8 @@ Cleanup activity lists saved per-file results and operation start times, includi
 
 Settings persist the default drive, excluded paths, theme, size metric, reduced motion and navigation width locally. The default drive applies at startup and stays independent of the current drive selection. **Recent** offers the ten most recently completed scan paths for an explicit new analysis; failed and cancelled scans are omitted. Clear recent paths in Settings to remove that list. Stored paths never start a scan automatically or carry cleanup authority.
 
+**Clear current analysis** releases the loaded index, duplicate results, cached hashes and pending cleanup previews. Files, saved snapshots, cleanup activity and preferences remain available. Active operations must finish or be cancelled first. A new scan or explicitly loaded snapshot is required to explore an index again.
+
 ## Developer storage
 
 The developer view classifies indexed Cargo targets, Node.js dependencies and build output, Python bytecode caches, Gradle project caches and .NET build directories. It recognizes current-user Cargo, npm, pnpm, pip, Gradle and NuGet locations, including supported absolute environment overrides. NuGet installed packages and pnpm shared links are labelled Dependencies, separate from their caches. Project manifests identify ambiguous names such as `target`, `bin` and `build`. Nested candidates belong to their outer artifact so category totals do not count the same subtree twice. Results use bounded pages and expose logical size, allocation and incomplete coverage.

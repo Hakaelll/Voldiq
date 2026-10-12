@@ -14,6 +14,102 @@ mod execution_tests {
     use std::sync::{RwLock, atomic::AtomicBool};
 
     #[test]
+    fn clear_analysis_releases_authority_and_cache_without_changing_files_or_snapshots() {
+        use voldiq_core::{
+            ScanOptions,
+            duplicates::{self, HashCache},
+            scanner,
+            snapshots::Store,
+        };
+        let fixture = tempfile::tempdir().unwrap();
+        let content = vec![b'o'; 16 * 1024];
+        for name in ["first", "second"] {
+            std::fs::write(fixture.path().join(name), &content).unwrap();
+        }
+        let scan = || {
+            scanner::scan(
+                fixture.path(),
+                &ScanOptions::default(),
+                &AtomicBool::new(false),
+                |_| {},
+            )
+            .unwrap()
+        };
+        let index = scan();
+        let id = index
+            .entries
+            .iter()
+            .find(|entry| entry.name == "first")
+            .unwrap()
+            .id;
+        let plan = Plan::manual(&index, &[id]).unwrap();
+        let mut store = Store::open(&fixture.path().join("snapshots.db")).unwrap();
+        let snapshot = store.save(&index, &AtomicBool::new(false)).unwrap();
+        let current = Arc::new(RwLock::new(index));
+        let weak = Arc::downgrade(&current);
+        let engine = Arc::new(Engine::default());
+        *engine.index.lock().unwrap() = Some(current.clone());
+        let mut cache = HashCache::default();
+        let analyze = |cache: &mut HashCache| {
+            duplicates::find(
+                &current,
+                NodeId(0),
+                0,
+                &AtomicBool::new(false),
+                cache,
+                |_| {},
+            )
+            .unwrap()
+        };
+        assert_eq!(analyze(&mut cache).cache_hits, 0);
+        let analysis = analyze(&mut cache);
+        assert_eq!(analysis.cache_hits, 2);
+        *engine.hash_cache.lock().unwrap() = cache;
+        *engine.duplicates.lock().unwrap() = Some(Arc::new(crate::DuplicateRun {
+            index: current.clone(),
+            analysis,
+        }));
+        let plans = Mutex::new(Some(Session {
+            id: 42,
+            _index: current.clone(),
+            _plan: plan,
+        }));
+        let (operation_id, _) = engine.begin().unwrap();
+        let operation = Operation {
+            engine: engine.clone(),
+            id: operation_id,
+        };
+        assert!(clear_loaded_analysis(engine.clone(), &plans).is_err());
+        assert!(plans.lock().unwrap().is_some() && engine.index().is_ok());
+        drop(operation);
+        let reader = engine.index().unwrap();
+        drop(current);
+        clear_loaded_analysis(engine.clone(), &plans).unwrap();
+        assert!(engine.index().is_err());
+        assert!(engine.duplicates.lock().unwrap().is_none() && plans.lock().unwrap().is_none());
+        assert!(reader.read().unwrap().entries.len() >= 3);
+        drop(reader);
+        assert!(weak.upgrade().is_none());
+        assert_eq!(store.list(0, 10).unwrap()[0].id, snapshot);
+        for name in ["first", "second"] {
+            assert_eq!(std::fs::read(fixture.path().join(name)).unwrap(), content);
+        }
+        let new_index = Arc::new(RwLock::new(scan()));
+        let analysis = duplicates::find(
+            &new_index,
+            NodeId(0),
+            0,
+            &AtomicBool::new(false),
+            &mut engine.hash_cache.lock().unwrap(),
+            |_| {},
+        )
+        .unwrap();
+        assert_eq!(analysis.cache_hits, 0);
+        clear_loaded_analysis(engine.clone(), &plans).unwrap();
+        assert!(engine.active.lock().unwrap().is_none());
+    }
+
+    #[test]
     fn confirmation_requires_the_same_live_index_and_consumes_the_plan_once() {
         let fixture = tempfile::tempdir().unwrap();
         std::fs::write(fixture.path().join("selected"), b"original").unwrap();
@@ -64,6 +160,44 @@ struct Session {
 }
 #[derive(Default)]
 pub struct CleanupPlans(Arc<Mutex<Option<Session>>>);
+
+fn clear_loaded_analysis(
+    engine: Arc<Engine>,
+    plans: &Mutex<Option<Session>>,
+) -> Result<(), String> {
+    let (id, _) = engine.begin()?;
+    let _operation = Operation {
+        engine: engine.clone(),
+        id,
+    };
+    let mut index = engine.index.lock().map_err(|error| error.to_string())?;
+    let mut duplicates = engine
+        .duplicates
+        .lock()
+        .map_err(|error| error.to_string())?;
+    let mut cache = engine
+        .hash_cache
+        .lock()
+        .map_err(|error| error.to_string())?;
+    let mut plans = plans.lock().map_err(|error| error.to_string())?;
+    *plans = None;
+    *duplicates = None;
+    *index = None;
+    *cache = voldiq_core::duplicates::HashCache::default();
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn clear_current_analysis(
+    engine: State<'_, Arc<Engine>>,
+    plans: State<'_, CleanupPlans>,
+) -> Result<(), String> {
+    let engine = engine.inner().clone();
+    let plans = plans.0.clone();
+    tauri::async_runtime::spawn_blocking(move || clear_loaded_analysis(engine, &plans))
+        .await
+        .map_err(|error| error.to_string())?
+}
 
 pub struct CleanupJournal(Arc<Mutex<Result<voldiq_core::cleanup::journal::Journal, String>>>);
 impl CleanupJournal {
@@ -269,9 +403,12 @@ pub async fn preview_cleanup(
     plans: State<'_, CleanupPlans>,
 ) -> Result<CleanupPreview, String> {
     let engine = engine.inner().clone();
-    let index = engine.index()?;
     let (id, _) = engine.begin()?;
-    let operation = Operation { engine, id };
+    let operation = Operation {
+        engine: engine.clone(),
+        id,
+    };
+    let index = engine.index()?;
     let plans = plans.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = operation;
