@@ -44,9 +44,14 @@ html,
 body {
   margin: 0;
   width: 100%;
+  height: 100%;
   min-width: 0;
-  overflow-x: clip;
-  overscroll-behavior-x: none;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+#app {
+  height: 100dvh;
+  overflow: hidden;
 }
 button,
 input,
@@ -146,7 +151,9 @@ svg {
   display: grid;
   width: 100%;
   grid-template-columns: 64px minmax(0, 1fr);
-  min-height: 100vh;
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr);
   transition: grid-template-columns var(--motion) ease-out;
 }
 .app-shell.expanded {
@@ -158,10 +165,14 @@ svg {
   border-right: 1px solid var(--border);
   background: var(--surface);
   padding: 18px 10px 12px;
-  position: sticky;
-  top: 0;
-  height: 100vh;
-  overflow: hidden;
+  height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: none;
+}
+.navigation > * {
+  flex-shrink: 0;
 }
 .brand {
   height: 36px;
@@ -251,10 +262,12 @@ progress::-webkit-progress-value {
 }
 .workspace {
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
 }
 .toolbar {
+  flex-shrink: 0;
   min-height: 66px;
   display: flex;
   flex-wrap: wrap;
@@ -315,6 +328,10 @@ main {
   padding: 26px;
   flex: 1;
   min-width: 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: none;
 }
 .page-heading {
   display: flex;
@@ -821,6 +838,7 @@ main {
   resize: vertical;
 }
 .app-footer {
+  flex-shrink: 0;
   padding: 10px 26px;
   border-top: 1px solid var(--border);
   display: flex;
