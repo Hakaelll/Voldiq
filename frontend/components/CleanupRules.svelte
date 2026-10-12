@@ -22,6 +22,7 @@
     onerror: (problem: unknown) => void;
   } = $props();
   const limit = 50;
+  let rule = $state<'user_temp' | 'old_files'>('user_temp');
   let page = $state<CleanupRulePage | null>(null),
     offset = $state(0);
   let loadState = $state<'loading' | 'ready' | 'unavailable'>('loading');
@@ -35,7 +36,11 @@
     const restoreFocus = region?.contains(document.activeElement);
     loadState = 'loading';
     try {
-      const result = await invoke<CleanupRulePage>('query_cleanup_rule', { offset: next, limit });
+      const result = await invoke<CleanupRulePage>('query_cleanup_rule', {
+        rule,
+        offset: next,
+        limit,
+      });
       if (token !== generation) return;
       page = result;
       offset = next;
@@ -66,7 +71,8 @@
     reviewing = true;
     onbusy(true);
     try {
-      const plan = await invoke<CleanupPreview>('preview_temporary_cleanup', {
+      const plan = await invoke<CleanupPreview>('preview_cleanup_rule', {
+        rule,
         selection: [...selected],
       });
       if (alive) onpreview(plan);
@@ -80,8 +86,10 @@
   }
   $effect(() => {
     revision;
+    rule;
     untrack(() => {
       selected = new Set();
+      offset = 0;
       if (isTauri()) void load(0);
       else loadState = 'unavailable';
     });
@@ -99,6 +107,12 @@
   tabindex="-1"
   bind:this={region}
 >
+  <div class="rule-heading">
+    <select aria-label="Cleanup rule" bind:value={rule} disabled={busy || reviewing}>
+      <option value="user_temp">User temporary files</option>
+      <option value="old_files">Old files</option>
+    </select>
+  </div>
   {#if loadState === 'loading'}<div class="rule-empty" role="status">Loading</div>
   {:else if loadState === 'unavailable'}<div class="rule-empty">
       Unavailable<button onclick={() => load(offset)} disabled={busy}>Retry</button>
@@ -107,13 +121,15 @@
     <div class="rule-heading">
       <div>
         <h2>{page.rule.name}</h2>
-        <span>7+ days · .tmp / .temp</span>
+        <span
+          >{rule === 'user_temp' ? '7+ days · .tmp / .temp' : '90+ days · Manual selection'}</span
+        >
       </div>
       <button
         onclick={() => {
           if (page) void onscan(page.root);
         }}
-        disabled={busy}>Scan user temp</button
+        disabled={busy || !page.root}>{rule === 'user_temp' ? 'Scan user temp' : 'Rescan'}</button
       >
     </div>
     {#if !page.indexed}<div class="rule-empty">Not indexed</div>
@@ -136,7 +152,7 @@
             disabled={busy}>Clear</button
           >
         </div>{/if}
-      {#if page.items.length === 0}<div class="rule-empty">No matching temporary files</div>
+      {#if page.items.length === 0}<div class="rule-empty">No matching files</div>
       {:else}<div class="rule-scroll">
           <table>
             <thead

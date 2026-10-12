@@ -67,6 +67,8 @@ Potential allocation conservatively retains the largest independently allocated 
 
 Cleanup lists indexed `.tmp` and `.temp` files at least seven days old in the Windows user temporary directory. Select files manually, then review their actual paths and sizes. Unscanned and partial coverage remain visible.
 
+Choose **Old files** to review regular files unchanged for at least 90 days within the current live scan. Selection is manual; age alone does not establish that a file is unused. Protected Windows locations and configured exclusions are omitted, and preview checks current identities and metadata. Historical captures cannot produce management plans.
+
 The Recycle Bin panel queries Windows for the selected accessible local drive's current item count and size, independently of the scan. Refresh updates the read-only summary. Unavailable results remain distinct from an empty bin; size is not an estimate of physical space recovered.
 
 Duplicate selections retain a copy from each group and reread full BLAKE3 content before showing selected and retained paths. The review is cancellable. Recycling remains under development.

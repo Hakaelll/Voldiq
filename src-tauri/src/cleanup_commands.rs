@@ -35,6 +35,7 @@ pub async fn query_recycle_bin(
 
 #[tauri::command]
 pub async fn query_cleanup_rule(
+    rule: voldiq_core::cleanup::rules::RuleKind,
     offset: usize,
     limit: usize,
     engine: State<'_, Arc<Engine>>,
@@ -47,13 +48,15 @@ pub async fn query_cleanup_rule(
             .map(|index| index.read())
             .transpose()
             .map_err(|e| e.to_string())?;
-        voldiq_core::cleanup::rules::query(
-            guard.as_deref(),
-            &root,
-            voldiq_core::cleanup::rules::now().map_err(|e| e.to_string())?,
-            offset,
-            limit,
-        )
+        let now = voldiq_core::cleanup::rules::now().map_err(|e| e.to_string())?;
+        match rule {
+            voldiq_core::cleanup::rules::RuleKind::UserTemp => {
+                voldiq_core::cleanup::rules::query(guard.as_deref(), &root, now, offset, limit)
+            }
+            voldiq_core::cleanup::rules::RuleKind::OldFiles => {
+                voldiq_core::cleanup::rules::query_old(guard.as_deref(), now, offset, limit)
+            }
+        }
         .map_err(|e| e.to_string())
     })
     .await
@@ -61,7 +64,8 @@ pub async fn query_cleanup_rule(
 }
 
 #[tauri::command]
-pub async fn preview_temporary_cleanup(
+pub async fn preview_cleanup_rule(
+    rule: voldiq_core::cleanup::rules::RuleKind,
     selection: Vec<NodeId>,
     engine: State<'_, Arc<Engine>>,
     plans: State<'_, CleanupPlans>,
@@ -77,12 +81,15 @@ pub async fn preview_temporary_cleanup(
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = operation;
         let guard = index.read().map_err(|e| e.to_string())?;
-        let plan = voldiq_core::cleanup::rules::preview(
-            &guard,
-            &std::env::temp_dir(),
-            voldiq_core::cleanup::rules::now().map_err(|e| e.to_string())?,
-            &selection,
-        )
+        let now = voldiq_core::cleanup::rules::now().map_err(|e| e.to_string())?;
+        let plan = match rule {
+            voldiq_core::cleanup::rules::RuleKind::UserTemp => {
+                voldiq_core::cleanup::rules::preview(&guard, &std::env::temp_dir(), now, &selection)
+            }
+            voldiq_core::cleanup::rules::RuleKind::OldFiles => {
+                voldiq_core::cleanup::rules::preview_old(&guard, now, &selection)
+            }
+        }
         .map_err(|e| e.to_string())?;
         drop(guard);
         let preview = plan.preview().clone();

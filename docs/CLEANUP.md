@@ -92,6 +92,14 @@ pwsh -NoProfile -File benchmarks/shell-file-id-probe.ps1
 
 The next handoff design must establish binding at the actual filesystem operation, retain approved file and ancestor authority, and separately prove per-item recycling and recovery. Identity metadata supplied to Shell parsing is insufficient evidence for enabling the executor.
 
+## Manually selected old files
+
+The `manually-selected-old-files` rule lists complete regular files whose captured modification time is at least 90 days old, within the current live scan. It never selects them automatically or interprets age as proof of disuse. Native protected Windows directory scopes are omitted from discovery; configured scan exclusions remain excluded. Missing timestamps, future timestamps, incomplete entries and historical captures do not produce candidates. Reparse and cloud-recall safety remains enforced by the scanner and fresh preview validation.
+
+The rule uses the same bounded paging, conservative hard-link allocation accounting and immutable manual plan as temporary-file review. Preview rechecks the age criterion, scanned identity, size, modification/change time, current root, exclusions and every ancestor. Personal documents and configuration files can appear for explicit manual review, but no rule automatically removes them. Risk is `review` and the intended policy is `recycle`; execution remains unavailable.
+
+A controlled real-filesystem test covers the exact 90-day boundary, recent files, document/configuration filenames, exclusions, oldest-first paging, explicit selection, duplicate/empty selection rejection, missing scan, historical captures, partial coverage, clock underflow and a file changed after scanning. Fixture contents survive. Both existing temporary-rule tests also pass. Rendered interaction and destructive execution are not claimed by these checks.
+
 ## Read-only Recycle Bin summary
 
 The Cleanup panel calls [SHQueryRecycleBinW](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shqueryrecyclebinw) for the explicitly selected accessible local drive. It uses the Windows SDK structure with `cbSize` initialized and requires `S_OK`. It never reads `$Recycle.Bin` folders, empties the bin, restores items or deletes files. Counts and sizes must be nonnegative and exactly representable by JavaScript; errors remain unavailable results rather than zero totals.

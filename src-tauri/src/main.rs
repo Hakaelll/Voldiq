@@ -520,7 +520,7 @@ fn main() {
             preview_cleanup,
             query_cleanup_rule,
             query_recycle_bin,
-            preview_temporary_cleanup,
+            preview_cleanup_rule,
             preview_duplicate_cleanup,
             discard_cleanup,
             query_developer_storage,

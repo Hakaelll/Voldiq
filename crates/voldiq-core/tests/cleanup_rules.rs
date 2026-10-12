@@ -5,6 +5,84 @@ use std::{
 use voldiq_core::{ScanOptions, cleanup::rules, scanner::scan};
 
 #[test]
+fn old_files_require_manual_current_selection_and_preserve_scan_coverage() {
+    let fixture = tempfile::tempdir().unwrap();
+    let now = 2_000_000_000;
+    let cutoff = now - 90 * 24 * 60 * 60;
+    for (name, modified) in [
+        ("old-document.txt", cutoff - 1),
+        ("old-config.json", cutoff),
+        ("recent.txt", cutoff + 1),
+    ] {
+        let path = fixture.path().join(name);
+        std::fs::write(&path, [1; 17]).unwrap();
+        std::fs::File::options()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_modified(UNIX_EPOCH + Duration::from_secs(modified))
+            .unwrap();
+    }
+    let excluded = fixture.path().join("excluded");
+    std::fs::create_dir(&excluded).unwrap();
+    let excluded_file = excluded.join("old.txt");
+    std::fs::write(&excluded_file, [1; 17]).unwrap();
+    std::fs::File::options()
+        .write(true)
+        .open(&excluded_file)
+        .unwrap()
+        .set_modified(UNIX_EPOCH + Duration::from_secs(cutoff))
+        .unwrap();
+    let mut index = scan(
+        fixture.path(),
+        &ScanOptions {
+            exclusions: vec![excluded.to_string_lossy().into_owned()],
+            ..ScanOptions::default()
+        },
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    let missing = rules::query_old(None, now, 0, 50).unwrap();
+    assert!(!missing.indexed && missing.root.is_empty());
+    let page = rules::query_old(Some(&index), now, 0, 1).unwrap();
+    assert_eq!(page.rule.id, rules::OLD_FILES.id);
+    assert!(page.indexed && page.complete);
+    assert_eq!((page.total, page.logical, page.items.len()), (2, 34, 1));
+    assert!(page.items[0].path.ends_with("old-document.txt"));
+    let next = rules::query_old(Some(&index), now, 1, 1).unwrap();
+    assert!(next.items[0].path.ends_with("old-config.json"));
+    let id = page.items[0].id;
+    let plan = rules::preview_old(&index, now, &[id]).unwrap();
+    assert_eq!(plan.preview().rule, rules::OLD_FILES.id);
+    assert_eq!(plan.preview().items.len(), 1);
+    index.entries[0].incomplete = true;
+    assert!(!rules::query_old(Some(&index), now, 0, 50).unwrap().complete);
+    index.entries[0].incomplete = false;
+    let recent = index
+        .entries
+        .iter()
+        .find(|entry| entry.name == "recent.txt")
+        .unwrap()
+        .id;
+    assert!(rules::preview_old(&index, now, &[recent]).is_err());
+    assert!(rules::preview_old(&index, now, &[]).is_err());
+    assert!(rules::preview_old(&index, now, &[id, id]).is_err());
+    assert_eq!(rules::query_old(Some(&index), 0, 0, 50).unwrap().total, 0);
+    index.snapshot_id = Some(1);
+    assert!(!rules::query_old(Some(&index), now, 0, 50).unwrap().indexed);
+    assert!(rules::preview_old(&index, now, &[id]).is_err());
+    index.snapshot_id = None;
+    std::fs::write(fixture.path().join("old-document.txt"), [2; 17]).unwrap();
+    assert!(rules::preview_old(&index, now, &[id]).is_err());
+    assert_eq!(std::fs::read(excluded_file).unwrap(), [1; 17]);
+    assert_eq!(
+        std::fs::read(fixture.path().join("old-config.json")).unwrap(),
+        [1; 17]
+    );
+}
+
+#[test]
 fn temporary_rule_requires_indexed_scope_extension_age_and_explicit_current_selection() {
     let fixture = tempfile::tempdir().unwrap();
     let temporary = fixture.path().join("Temp");

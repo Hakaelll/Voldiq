@@ -7,6 +7,14 @@ use std::{
 };
 
 const MINIMUM_AGE: u64 = 7 * 24 * 60 * 60;
+const OLD_FILE_AGE: u64 = 90 * 24 * 60 * 60;
+
+#[derive(Clone, Copy, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RuleKind {
+    UserTemp,
+    OldFiles,
+}
 
 #[derive(Serialize)]
 pub struct Rule {
@@ -35,6 +43,19 @@ pub const USER_TEMP: Rule = Rule {
     verification: "Current temp root, scope, age and extension, followed by scanned identity, current metadata and ancestor validation.",
 };
 
+pub const OLD_FILES: Rule = Rule {
+    id: "manually-selected-old-files",
+    name: "Old files",
+    description: "Indexed files unchanged for at least 90 days. Age does not establish that a file is unused.",
+    discovery: "Current live scan scope, excluding protected Windows locations.",
+    selection: "Explicit manual selection of complete regular files at least 90 days old.",
+    exclusions: "Protected Windows locations, configured exclusions, incomplete files, reparse points, recall-marked content and historical snapshots.",
+    risk: "review",
+    permissions: "User metadata access for preview; delete permission for execution.",
+    policy: "recycle",
+    verification: "Live scope and age, followed by scanned identity, current metadata, exclusions, protected locations and ancestor validation.",
+};
+
 #[derive(Serialize)]
 pub struct Page {
     pub rule: Rule,
@@ -61,9 +82,46 @@ pub fn query(
     offset: usize,
     limit: usize,
 ) -> Result<Page> {
+    query_scoped(index, temporary, now, offset, limit, RuleKind::UserTemp)
+}
+
+pub fn query_old(index: Option<&Index>, now: u64, offset: usize, limit: usize) -> Result<Page> {
+    match index.filter(|index| index.snapshot_id.is_none()) {
+        Some(index) => query_scoped(
+            Some(index),
+            &index.root,
+            now,
+            offset,
+            limit,
+            RuleKind::OldFiles,
+        ),
+        None => Ok(Page {
+            rule: OLD_FILES,
+            root: String::new(),
+            indexed: false,
+            complete: false,
+            items: Vec::new(),
+            total: 0,
+            logical: 0,
+            reclaimable: 0,
+        }),
+    }
+}
+
+fn query_scoped(
+    index: Option<&Index>,
+    temporary: &Path,
+    now: u64,
+    offset: usize,
+    limit: usize,
+    kind: RuleKind,
+) -> Result<Page> {
     let temporary = verified_root(temporary)?;
     let mut page = Page {
-        rule: USER_TEMP,
+        rule: match kind {
+            RuleKind::UserTemp => USER_TEMP,
+            RuleKind::OldFiles => OLD_FILES,
+        },
         root: temporary.to_string_lossy().into_owned(),
         indexed: false,
         complete: false,
@@ -78,17 +136,33 @@ pub fn query(
     if index.snapshot_id.is_some() {
         return Ok(page);
     }
-    let Some(scope) = scope(index, &temporary)? else {
+    let Some(scope_id) = scope(index, &temporary)? else {
         return Ok(page);
     };
     page.indexed = true;
     page.complete = !index.entry(NodeId(0))?.incomplete
-        && !index.entry(scope)?.incomplete
+        && !index.entry(scope_id)?.incomplete
         && temporary.starts_with(&index.root);
+    let mut protected_scopes = Vec::new();
+    #[cfg(windows)]
+    if matches!(kind, RuleKind::OldFiles) {
+        for path in windows::protected_directories()? {
+            let path = std::fs::canonicalize(path)?;
+            if let Some(id) = scope(index, &path)? {
+                protected_scopes.push(id);
+            }
+        }
+    }
     let mut candidates: Vec<_> = index
         .entries
         .iter()
-        .filter(|entry| eligible(entry, now) && index.in_scope(entry.id, scope))
+        .filter(|entry| {
+            eligible(entry, now, kind)
+                && index.in_scope(entry.id, scope_id)
+                && !protected_scopes
+                    .iter()
+                    .any(|&protected| index.in_scope(entry.id, protected))
+        })
         .collect();
     candidates.sort_unstable_by_key(|entry| (entry.modified, entry.id.0));
     page.total = candidates.len();
@@ -96,7 +170,7 @@ pub fn query(
         page.logical = page
             .logical
             .checked_add(entry.logical)
-            .ok_or_else(|| Error::Invalid("Temporary size overflow.".into()))?;
+            .ok_or_else(|| Error::Invalid("Cleanup size overflow.".into()))?;
         page.reclaimable = page
             .reclaimable
             .checked_add(if entry.hard_link || !entry.allocation_known {
@@ -104,7 +178,7 @@ pub fn query(
             } else {
                 entry.allocated
             })
-            .ok_or_else(|| Error::Invalid("Temporary allocation overflow.".into()))?;
+            .ok_or_else(|| Error::Invalid("Cleanup allocation overflow.".into()))?;
     }
     for entry in candidates
         .into_iter()
@@ -127,23 +201,38 @@ pub fn query(
 }
 
 pub fn preview(index: &Index, temporary: &Path, now: u64, selection: &[NodeId]) -> Result<Plan> {
+    preview_scoped(index, temporary, now, selection, RuleKind::UserTemp)
+}
+
+pub fn preview_old(index: &Index, now: u64, selection: &[NodeId]) -> Result<Plan> {
+    preview_scoped(index, &index.root, now, selection, RuleKind::OldFiles)
+}
+
+fn preview_scoped(
+    index: &Index,
+    temporary: &Path,
+    now: u64,
+    selection: &[NodeId],
+    kind: RuleKind,
+) -> Result<Plan> {
     if selection.is_empty() || selection.len() > 500 {
-        return Err(Error::Invalid(
-            "Select between 1 and 500 temporary files.".into(),
-        ));
+        return Err(Error::Invalid("Select between 1 and 500 files.".into()));
     }
     let temporary = verified_root(temporary)?;
     let scope = scope(index, &temporary)?
-        .ok_or_else(|| Error::Invalid("Scan the user temporary directory first.".into()))?;
+        .ok_or_else(|| Error::Invalid("Scan the rule location first.".into()))?;
     for &id in selection {
-        if !eligible(index.entry(id)?, now) || !index.in_scope(id, scope) {
+        if !eligible(index.entry(id)?, now, kind) || !index.in_scope(id, scope) {
             return Err(Error::Invalid(
-                "Selection is outside the temporary-file rule.".into(),
+                "Selection is outside the cleanup rule.".into(),
             ));
         }
     }
     let mut plan = Plan::manual(index, selection)?;
-    plan.preview.rule = USER_TEMP.id;
+    plan.preview.rule = match kind {
+        RuleKind::UserTemp => USER_TEMP.id,
+        RuleKind::OldFiles => OLD_FILES.id,
+    };
     Ok(plan)
 }
 
@@ -151,13 +240,13 @@ fn verified_root(path: &Path) -> Result<std::path::PathBuf> {
     let metadata = std::fs::symlink_metadata(path)?;
     if !metadata.is_dir() || windows::is_reparse(&metadata) || windows::requires_recall(&metadata) {
         return Err(Error::Invalid(
-            "Temporary directory is redirected or unavailable.".into(),
+            "Rule directory is redirected or unavailable.".into(),
         ));
     }
     let root = std::fs::canonicalize(path)?;
     if root.to_str().is_none() {
         return Err(Error::Invalid(
-            "Temporary path cannot be represented exactly.".into(),
+            "Rule path cannot be represented exactly.".into(),
         ));
     }
     Ok(root)
@@ -173,7 +262,7 @@ fn scope(index: &Index, temporary: &Path) -> Result<Option<NodeId>> {
     let mut scope = NodeId(0);
     for component in relative.components() {
         let Component::Normal(name) = component else {
-            return Err(Error::Invalid("Invalid temporary scope.".into()));
+            return Err(Error::Invalid("Invalid cleanup scope.".into()));
         };
         let Some(entry) = index.entries.iter().find(|entry| {
             entry.parent == Some(scope)
@@ -192,13 +281,17 @@ fn scope(index: &Index, temporary: &Path) -> Result<Option<NodeId>> {
     Ok(Some(scope))
 }
 
-fn eligible(entry: &crate::Entry, now: u64) -> bool {
+fn eligible(entry: &crate::Entry, now: u64, kind: RuleKind) -> bool {
     entry.kind == Kind::File
         && !entry.incomplete
-        && entry.name.rsplit_once('.').is_some_and(|(_, extension)| {
-            extension.eq_ignore_ascii_case("tmp") || extension.eq_ignore_ascii_case("temp")
-        })
+        && (matches!(kind, RuleKind::OldFiles)
+            || entry.name.rsplit_once('.').is_some_and(|(_, extension)| {
+                extension.eq_ignore_ascii_case("tmp") || extension.eq_ignore_ascii_case("temp")
+            }))
         && now
-            .checked_sub(MINIMUM_AGE)
+            .checked_sub(match kind {
+                RuleKind::UserTemp => MINIMUM_AGE,
+                RuleKind::OldFiles => OLD_FILE_AGE,
+            })
             .is_some_and(|cutoff| entry.modified.is_some_and(|modified| modified <= cutoff))
 }
