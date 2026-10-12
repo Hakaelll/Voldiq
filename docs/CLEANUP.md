@@ -54,6 +54,18 @@ The preview shows retained paths under Keep. This is evidence at preview creatio
 
 Additional cleanup rules, compatible cache discovery, developer tool commands, confirmed recycling, result logging and undo integration are still open work.
 
+## Durable operation journal
+
+`cleanup::journal::Journal` records permanent-operation intent and per-file results in a separate, versioned SQLite database. It requires an absolute file path, DELETE journal mode, an application identifier and a supported schema. Foreign and future databases are rejected. Transactions use `synchronous=FULL`; a connection holds [SQLite EXCLUSIVE locking](https://www.sqlite.org/pragma.html#pragma_locking_mode) between commits so another owner cannot classify live work as interrupted.
+
+Preparation commits the rule, explicit permanent policy, timestamp, exact paths and native file identity/change-time blobs plus size and modification time. It accepts the immutable core plan rather than a frontend path list. Per-file transitions are `prepared` → `in_flight` → `succeeded` or `failed`. Starting must commit before filesystem mutation. Failed result writes require the caller to stop; success cannot be inferred from an unrecorded filesystem outcome. Cancellation affects only unstarted items; finishing rejects outstanding items. Repeated transitions, foreign-session operation IDs and stale tokens cannot resume work.
+
+Reopening converts interrupted `in_flight` items to `unknown` and unstarted `prepared` items to `cancelled`, retaining previously recorded results. Recovery updates bookkeeping only. It never deletes, restores or retries a file, and the saved paths/identities do not become new management authority. A fresh scan and confirmation remain necessary for any new action. A finished operation can contain both success and failure; it does not imply total success or recovered allocation.
+
+Four controlled tests use real SQLite files and disposable Windows fixtures. They cover mixed success/failure/cancellation surviving reopen, exact identity serialization, bounded paging, duplicate transition rejection, failure to commit intent, failure to commit a result after actual deletion, replacement-file preservation across repeated recovery, exclusive-owner refusal, numeric rollback and foreign/future database rejection. They simulate interrupted caller state and SQLite write rejection; power-loss/device-failure durability and complete application restart integration are not claimed.
+
+This journal is not yet initialized by the application or exposed through IPC. The confirmed executor, result-history interface, index refresh, duplicate retention and default recycling transaction remain pending.
+
 ## Handle-bound permanent-disposition primitive
 
 `VerifiedFile::remove_permanently` is a core primitive for a future explicitly confirmed advanced action. It consumes the retained leaf and ancestor handles, rereads the exact planned identity/size/modification/change-time stamp, rejects read-only files and calls `SetFileInformationByHandle` with SDK `FILE_DISPOSITION_INFO_EX`. Flags request delete, POSIX semantics and an image-section check. There is no filename-based fallback, attribute override, recycling call or IPC executor.

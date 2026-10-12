@@ -2,6 +2,7 @@ use crate::{Error, Kind, NodeId, Result, index::Index, windows};
 use serde::Serialize;
 #[cfg(all(test, windows))]
 mod disposition_tests;
+pub mod journal;
 pub mod rules;
 use std::{
     collections::HashSet,
