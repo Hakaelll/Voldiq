@@ -22,7 +22,7 @@
     onerror: (problem: unknown) => void;
   } = $props();
   const limit = 50;
-  let rule = $state<'user_temp' | 'old_files'>('user_temp');
+  let rule = $state<'user_temp' | 'old_files' | 'project_temp'>('user_temp');
   let page = $state<CleanupRulePage | null>(null),
     offset = $state(0);
   let loadState = $state<'loading' | 'ready' | 'unavailable'>('loading');
@@ -111,6 +111,7 @@
     <select aria-label="Cleanup rule" bind:value={rule} disabled={busy || reviewing}>
       <option value="user_temp">User temporary files</option>
       <option value="old_files">Old files</option>
+      <option value="project_temp">Project temporary files</option>
     </select>
   </div>
   {#if loadState === 'loading'}<div class="rule-empty" role="status">Loading</div>
@@ -122,7 +123,7 @@
       <div>
         <h2>{page.rule.name}</h2>
         <span
-          >{rule === 'user_temp' ? '7+ days · .tmp / .temp' : '90+ days · Manual selection'}</span
+          >{rule === 'old_files' ? '90+ days · Manual selection' : '7+ days · .tmp / .temp'}</span
         >
       </div>
       <button

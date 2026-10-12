@@ -252,7 +252,7 @@ The developer destination uses the existing rail and compact header. Its bordere
 
 ### Manual selection preview
 
-Cleanup presents one compact temporary-file rule with its age and extension criteria, Scan user temp, candidate totals, native checkboxes and bounded pages. Not indexed and Partial distinguish unavailable or incomplete coverage. Its selections open the shared preview.
+Cleanup uses a compact rule select for User temporary files, Old files and Project temporary files. It shows the existing age/extension criteria, candidate totals, native checkboxes and bounded pages. The user-temp rule offers Scan user temp; the other rules offer Rescan. Not indexed and Partial distinguish unavailable or incomplete coverage. Changing the rule clears selection. All selections open the shared preview without another explanatory panel.
 
 Duplicate review uses the same preview and lists retained paths under Keep. Native checkboxes begin empty; group selection cannot consume its last copy. A compact Cancel action is available during fresh content verification. The advanced permanent action uses the same irreversible wording and typed DELETE confirmation as manual selections; the backend holds verified copies throughout removal.
 

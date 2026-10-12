@@ -43,13 +43,7 @@ pub fn query(index: &Index, scope: NodeId, offset: usize, limit: usize) -> Resul
     query_with_caches(index, scope, offset, limit, &[])
 }
 
-pub fn query_with_caches(
-    index: &Index,
-    scope: NodeId,
-    offset: usize,
-    limit: usize,
-    caches: &[CacheLocation],
-) -> Result<Page> {
+fn classified(index: &Index, scope: NodeId, caches: &[CacheLocation]) -> Result<Vec<Item>> {
     index.entry(scope)?;
     let caches = if index.snapshot_id.is_some() {
         &[]
@@ -62,7 +56,7 @@ pub fn query_with_caches(
         .collect();
     let mut markers: HashMap<NodeId, HashSet<&str>> = HashMap::new();
     for entry in &index.entries {
-        if entry.kind != Kind::File {
+        if entry.kind != Kind::File || entry.incomplete {
             continue;
         }
         if let Some(parent) = entry.parent
@@ -150,6 +144,50 @@ pub fn query_with_caches(
             });
         }
     }
+    Ok(candidates)
+}
+
+#[derive(Default)]
+pub(crate) struct BuildScopes {
+    builds: HashSet<NodeId>,
+    excluded: HashSet<NodeId>,
+}
+
+impl BuildScopes {
+    pub(crate) fn contains(&self, index: &Index, id: NodeId) -> bool {
+        let mut next = Some(id);
+        let mut inside = false;
+        while let Some(id) = next {
+            if self.excluded.contains(&id) {
+                return false;
+            }
+            inside |= self.builds.contains(&id);
+            next = index.entries[id.0 as usize].parent;
+        }
+        inside
+    }
+}
+
+pub(crate) fn project_build_scopes(index: &Index, caches: &[CacheLocation]) -> Result<BuildScopes> {
+    let mut scopes = BuildScopes::default();
+    for item in classified(index, NodeId(0), caches)? {
+        if item.category == Category::Build {
+            scopes.builds.insert(item.id);
+        } else {
+            scopes.excluded.insert(item.id);
+        }
+    }
+    Ok(scopes)
+}
+
+pub fn query_with_caches(
+    index: &Index,
+    scope: NodeId,
+    offset: usize,
+    limit: usize,
+    caches: &[CacheLocation],
+) -> Result<Page> {
+    let mut candidates = classified(index, scope, caches)?;
     // Nested artifacts belong to the outer candidate so totals never double-count a subtree.
     let ids: HashSet<_> = candidates.iter().map(|item| item.id).collect();
     candidates.retain(|item| {

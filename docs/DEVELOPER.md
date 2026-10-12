@@ -6,6 +6,8 @@ Developer analysis classifies measured directories from the current index. It us
 
 Cargo targets require a sibling `Cargo.toml`; Node.js dependencies and build output require `package.json`. CMake builds require `CMakeLists.txt`. Gradle project caches require a Gradle build or settings file. .NET build directories require a C# or F# project. Python bytecode directories use their conventional `__pycache__` name.
 
+Manifest entries must be complete. The Cleanup view's Project temporary files rule reuses these classifications for explicitly selected `.tmp`/`.temp` files aged at least seven days inside Build scopes. It excludes recognized dependency and configured-cache ancestry, preserving nested exclusions before Developer totals are deduplicated. This does not authorize removing entire artifact directories or cache trees. See [project temporary-file review](CLEANUP.md#project-temporary-files).
+
 ## Global tool locations
 
 Global-cache analysis resolves the current Windows profile and local-data directory through Tauri's native path resolver. An absolute `CARGO_HOME` overrides the profile's `.cargo` location. Only its `registry` and `git` directories are classified as cache; installed tools, configuration and credentials outside those directories are excluded. These locations are described in the [Cargo home documentation](https://doc.rust-lang.org/cargo/guide/cargo-home.html).

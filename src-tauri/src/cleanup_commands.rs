@@ -327,11 +327,13 @@ pub async fn query_recycle_bin(
 
 #[tauri::command]
 pub async fn query_cleanup_rule(
+    app: tauri::AppHandle,
     rule: voldiq_core::cleanup::rules::RuleKind,
     offset: usize,
     limit: usize,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<voldiq_core::cleanup::rules::Page, String> {
+    let caches = crate::developer_commands::cache_locations(&app);
     let index = engine.index.lock().map_err(|e| e.to_string())?.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let root = std::env::temp_dir();
@@ -348,6 +350,15 @@ pub async fn query_cleanup_rule(
             voldiq_core::cleanup::rules::RuleKind::OldFiles => {
                 voldiq_core::cleanup::rules::query_old(guard.as_deref(), now, offset, limit)
             }
+            voldiq_core::cleanup::rules::RuleKind::ProjectTemp => {
+                voldiq_core::cleanup::rules::query_project(
+                    guard.as_deref(),
+                    now,
+                    offset,
+                    limit,
+                    &caches,
+                )
+            }
         }
         .map_err(|e| e.to_string())
     })
@@ -357,11 +368,13 @@ pub async fn query_cleanup_rule(
 
 #[tauri::command]
 pub async fn preview_cleanup_rule(
+    app: tauri::AppHandle,
     rule: voldiq_core::cleanup::rules::RuleKind,
     selection: Vec<NodeId>,
     engine: State<'_, Arc<Engine>>,
     plans: State<'_, CleanupPlans>,
 ) -> Result<CleanupPreview, String> {
+    let caches = crate::developer_commands::cache_locations(&app);
     let engine = engine.inner().clone();
     let (id, _) = engine.begin()?;
     let operation = Operation {
@@ -380,6 +393,9 @@ pub async fn preview_cleanup_rule(
             }
             voldiq_core::cleanup::rules::RuleKind::OldFiles => {
                 voldiq_core::cleanup::rules::preview_old(&guard, now, &selection)
+            }
+            voldiq_core::cleanup::rules::RuleKind::ProjectTemp => {
+                voldiq_core::cleanup::rules::preview_project(&guard, now, &selection, &caches)
             }
         }
         .map_err(|e| e.to_string())?;

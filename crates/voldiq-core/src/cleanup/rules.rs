@@ -14,6 +14,7 @@ const OLD_FILE_AGE: u64 = 90 * 24 * 60 * 60;
 pub enum RuleKind {
     UserTemp,
     OldFiles,
+    ProjectTemp,
 }
 
 #[derive(Serialize)]
@@ -41,6 +42,19 @@ pub const USER_TEMP: Rule = Rule {
     permissions: "User metadata access for preview; delete permission and unused-file verification for execution.",
     policy: "recycle",
     verification: "Current temp root, scope, age and extension, followed by scanned identity, current metadata and ancestor validation.",
+};
+
+pub const PROJECT_TEMP: Rule = Rule {
+    id: "old-project-temporary-files",
+    name: "Project temporary files",
+    description: "Indexed .tmp and .temp files unchanged for at least seven days in recognized build artifacts.",
+    discovery: "Indexed Cargo, Node.js, CMake or .NET build artifacts identified by complete project manifest entries.",
+    selection: "Explicit selection of complete regular .tmp or .temp files at least seven days old within recognized build scopes.",
+    exclusions: "Source directories, recognized installed dependencies, configured global cache locations, other extensions, incomplete files or markers, reparse points, recalled content, historical snapshots, configured exclusions and protected locations.",
+    risk: "review",
+    permissions: "User metadata access for preview; delete permission and unused-file verification for execution.",
+    policy: "recycle",
+    verification: "Indexed build classification, age, scanned identity, current metadata, exclusions, protected locations and ancestor validation.",
 };
 
 pub const OLD_FILES: Rule = Rule {
@@ -82,21 +96,47 @@ pub fn query(
     offset: usize,
     limit: usize,
 ) -> Result<Page> {
-    query_scoped(index, temporary, now, offset, limit, RuleKind::UserTemp)
+    query_scoped(
+        index,
+        temporary,
+        now,
+        offset,
+        limit,
+        RuleKind::UserTemp,
+        &[],
+    )
 }
 
 pub fn query_old(index: Option<&Index>, now: u64, offset: usize, limit: usize) -> Result<Page> {
+    query_current(index, now, offset, limit, RuleKind::OldFiles, &[])
+}
+
+pub fn query_project(
+    index: Option<&Index>,
+    now: u64,
+    offset: usize,
+    limit: usize,
+    caches: &[crate::developer::CacheLocation],
+) -> Result<Page> {
+    query_current(index, now, offset, limit, RuleKind::ProjectTemp, caches)
+}
+
+fn query_current(
+    index: Option<&Index>,
+    now: u64,
+    offset: usize,
+    limit: usize,
+    kind: RuleKind,
+    caches: &[crate::developer::CacheLocation],
+) -> Result<Page> {
     match index.filter(|index| index.snapshot_id.is_none()) {
-        Some(index) => query_scoped(
-            Some(index),
-            &index.root,
-            now,
-            offset,
-            limit,
-            RuleKind::OldFiles,
-        ),
+        Some(index) => query_scoped(Some(index), &index.root, now, offset, limit, kind, caches),
         None => Ok(Page {
-            rule: OLD_FILES,
+            rule: match kind {
+                RuleKind::ProjectTemp => PROJECT_TEMP,
+                RuleKind::OldFiles => OLD_FILES,
+                RuleKind::UserTemp => USER_TEMP,
+            },
             root: String::new(),
             indexed: false,
             complete: false,
@@ -115,12 +155,14 @@ fn query_scoped(
     offset: usize,
     limit: usize,
     kind: RuleKind,
+    caches: &[crate::developer::CacheLocation],
 ) -> Result<Page> {
     let temporary = verified_root(temporary)?;
     let mut page = Page {
         rule: match kind {
             RuleKind::UserTemp => USER_TEMP,
             RuleKind::OldFiles => OLD_FILES,
+            RuleKind::ProjectTemp => PROJECT_TEMP,
         },
         root: temporary.to_string_lossy().into_owned(),
         indexed: false,
@@ -145,7 +187,7 @@ fn query_scoped(
         && temporary.starts_with(&index.root);
     let mut protected_scopes = Vec::new();
     #[cfg(windows)]
-    if matches!(kind, RuleKind::OldFiles) {
+    if matches!(kind, RuleKind::OldFiles | RuleKind::ProjectTemp) {
         for path in windows::protected_directories()? {
             let path = std::fs::canonicalize(path)?;
             if let Some(id) = scope(index, &path)? {
@@ -153,12 +195,18 @@ fn query_scoped(
             }
         }
     }
+    let builds = if matches!(kind, RuleKind::ProjectTemp) {
+        crate::developer::project_build_scopes(index, caches)?
+    } else {
+        Default::default()
+    };
     let mut candidates: Vec<_> = index
         .entries
         .iter()
         .filter(|entry| {
             eligible(entry, now, kind)
                 && index.in_scope(entry.id, scope_id)
+                && (!matches!(kind, RuleKind::ProjectTemp) || builds.contains(index, entry.id))
                 && !protected_scopes
                     .iter()
                     .any(|&protected| index.in_scope(entry.id, protected))
@@ -208,6 +256,24 @@ pub fn preview_old(index: &Index, now: u64, selection: &[NodeId]) -> Result<Plan
     preview_scoped(index, &index.root, now, selection, RuleKind::OldFiles)
 }
 
+pub fn preview_project(
+    index: &Index,
+    now: u64,
+    selection: &[NodeId],
+    caches: &[crate::developer::CacheLocation],
+) -> Result<Plan> {
+    let builds = crate::developer::project_build_scopes(index, caches)?;
+    for &id in selection {
+        index.entry(id)?;
+        if !builds.contains(index, id) {
+            return Err(Error::Invalid(
+                "Selection is outside recognized project build artifacts.".into(),
+            ));
+        }
+    }
+    preview_scoped(index, &index.root, now, selection, RuleKind::ProjectTemp)
+}
+
 fn preview_scoped(
     index: &Index,
     temporary: &Path,
@@ -232,6 +298,7 @@ fn preview_scoped(
     plan.preview.rule = match kind {
         RuleKind::UserTemp => USER_TEMP.id,
         RuleKind::OldFiles => OLD_FILES.id,
+        RuleKind::ProjectTemp => PROJECT_TEMP.id,
     };
     Ok(plan)
 }
@@ -290,7 +357,7 @@ fn eligible(entry: &crate::Entry, now: u64, kind: RuleKind) -> bool {
             }))
         && now
             .checked_sub(match kind {
-                RuleKind::UserTemp => MINIMUM_AGE,
+                RuleKind::UserTemp | RuleKind::ProjectTemp => MINIMUM_AGE,
                 RuleKind::OldFiles => OLD_FILE_AGE,
             })
             .is_some_and(|cutoff| entry.modified.is_some_and(|modified| modified <= cutoff))

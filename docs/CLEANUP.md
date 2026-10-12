@@ -1,6 +1,14 @@
 # Cleanup previews
 
-The current delivery supports manual, duplicate, indexed temporary-file and old-file selections with previews and an explicitly confirmed advanced permanent-removal action. Duplicate execution preserves a verified copy per group throughout removal. Recycling is not exposed, and no destructive operation runs automatically. Preview alone never approves execution.
+The current delivery supports manual, duplicate, indexed user/project temporary-file and old-file selections with previews and an explicitly confirmed advanced permanent-removal action. Duplicate execution preserves a verified copy per group throughout removal. Recycling is not exposed, and no destructive operation runs automatically. Preview alone never approves execution.
+
+## Project temporary files
+
+The `old-project-temporary-files` rule lists complete regular `.tmp` and `.temp` files at least seven days old under indexed Cargo, Node.js, CMake and .NET build scopes. Build classification requires a complete project-manifest entry. It shares the Developer view's classifier without its page limit. Age and classification do not establish that a file is unused, so nothing is preselected or removed automatically. Risk is `review`, and intended default recycling remains pending; the existing typed advanced permanent confirmation is separate.
+
+Discovery and preview use the same ancestor predicate. Any recognized dependency or configured cache ancestor excludes the file, even when that location is nested inside an outer build directory. Native code supplies current-user tool locations; client parameters cannot authorize arbitrary cache paths. Developer totals still collapse nested artifacts to their outer candidate, while cleanup keeps raw nested exclusions. Files outside recognized build scopes, configured scan exclusions, protected locations, incomplete entries, unsupported names and historical indexes cannot produce an approved plan. Preview also revalidates age, scanned identity/change time, current metadata and every ancestor through the existing manual-plan boundary.
+
+Two real filesystem tests verify all four tool classifications, exact totals, age boundaries, extension case, hard-link estimates, source and unrelated-file exclusion, cache/dependency trees both around and inside build scopes, incomplete manifests, missing/historical/partial scans, malformed selections and changed files. A fixture with 106 projects proves that discovery and preview extend past the Developer view's first page. Verification leaves fixture content intact. Native visual acceptance remains with the user.
 
 ## Manual file rule
 
