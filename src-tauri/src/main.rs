@@ -11,6 +11,7 @@ use std::{
 use tauri::Manager;
 use tauri::{State, ipc::Channel};
 mod cleanup_commands;
+mod developer_commands;
 mod snapshot_commands;
 use cleanup_commands::*;
 use snapshot_commands::*;
@@ -469,6 +470,7 @@ async fn reveal_item(id: NodeId, engine: State<'_, Arc<Engine>>) -> Result<(), S
 
 #[tauri::command]
 async fn query_developer_storage(
+    app: tauri::AppHandle,
     scope: NodeId,
     offset: usize,
     limit: usize,
@@ -476,8 +478,19 @@ async fn query_developer_storage(
 ) -> Result<voldiq_core::developer::Page, String> {
     let shared = engine.index()?;
     tauri::async_runtime::spawn_blocking(move || {
+        let historical = shared
+            .read()
+            .map_err(|e| e.to_string())?
+            .snapshot_id
+            .is_some();
+        let caches = if historical {
+            Vec::new()
+        } else {
+            developer_commands::cache_locations(&app)
+        };
         let index = shared.read().map_err(|e| e.to_string())?;
-        voldiq_core::developer::query(&index, scope, offset, limit).map_err(|e| e.to_string())
+        voldiq_core::developer::query_with_caches(&index, scope, offset, limit, &caches)
+            .map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())?

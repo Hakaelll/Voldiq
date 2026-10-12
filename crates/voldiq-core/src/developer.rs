@@ -1,6 +1,12 @@
 use crate::{Kind, NodeId, Result, index::Index};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
+use std::path::PathBuf;
+
+pub struct CacheLocation {
+    pub path: PathBuf,
+    pub tool: &'static str,
+}
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -33,7 +39,26 @@ pub struct Page {
 
 /// Classifies indexed project directories. It does not discover or remove data on disk.
 pub fn query(index: &Index, scope: NodeId, offset: usize, limit: usize) -> Result<Page> {
+    query_with_caches(index, scope, offset, limit, &[])
+}
+
+pub fn query_with_caches(
+    index: &Index,
+    scope: NodeId,
+    offset: usize,
+    limit: usize,
+    caches: &[CacheLocation],
+) -> Result<Page> {
     index.entry(scope)?;
+    let caches = if index.snapshot_id.is_some() {
+        &[]
+    } else {
+        caches
+    };
+    let cache_names: HashSet<_> = caches
+        .iter()
+        .filter_map(|cache| cache.path.file_name())
+        .collect();
     let mut markers: HashMap<NodeId, HashSet<&str>> = HashMap::new();
     for entry in &index.entries {
         if entry.kind != Kind::File {
@@ -63,30 +88,49 @@ pub fn query(index: &Index, scope: NodeId, offset: usize, limit: usize) -> Resul
         }
         let siblings = entry.parent.and_then(|parent| markers.get(&parent));
         let has = |marker| siblings.is_some_and(|set| set.contains(marker));
-        let classification = match entry.name.as_str() {
-            "target" if has("Cargo.toml") => Some(("Cargo", Category::Build)),
-            "node_modules" if has("package.json") => Some(("Node.js", Category::Dependencies)),
-            "dist" | "build" if has("package.json") => Some(("Node.js", Category::Build)),
-            "build" if has("CMakeLists.txt") => Some(("CMake", Category::Build)),
-            "__pycache__" => Some(("Python", Category::Cache)),
-            ".gradle"
-                if has("build.gradle")
-                    || has("build.gradle.kts")
-                    || has("settings.gradle")
-                    || has("settings.gradle.kts") =>
-            {
-                Some(("Gradle", Category::Cache))
-            }
-            "bin" | "obj"
-                if siblings.is_some_and(|set| {
-                    set.iter()
-                        .any(|name| name.ends_with(".csproj") || name.ends_with(".fsproj"))
-                }) =>
-            {
-                Some((".NET", Category::Build))
-            }
-            _ => None,
+        let name = index
+            .native_names
+            .get(&entry.id)
+            .map(|name| name.as_os_str())
+            .unwrap_or_else(|| std::ffi::OsStr::new(&entry.name));
+        let cache_tool = if !caches.is_empty() && (entry.id == scope || cache_names.contains(name))
+        {
+            let path = index.path(entry.id)?;
+            caches
+                .iter()
+                .find(|cache| {
+                    path == cache.path || (entry.id == scope && path.starts_with(&cache.path))
+                })
+                .map(|cache| cache.tool)
+        } else {
+            None
         };
+        let classification = cache_tool
+            .map(|tool| (tool, Category::Cache))
+            .or_else(|| match entry.name.as_str() {
+                "target" if has("Cargo.toml") => Some(("Cargo", Category::Build)),
+                "node_modules" if has("package.json") => Some(("Node.js", Category::Dependencies)),
+                "dist" | "build" if has("package.json") => Some(("Node.js", Category::Build)),
+                "build" if has("CMakeLists.txt") => Some(("CMake", Category::Build)),
+                "__pycache__" => Some(("Python", Category::Cache)),
+                ".gradle"
+                    if has("build.gradle")
+                        || has("build.gradle.kts")
+                        || has("settings.gradle")
+                        || has("settings.gradle.kts") =>
+                {
+                    Some(("Gradle", Category::Cache))
+                }
+                "bin" | "obj"
+                    if siblings.is_some_and(|set| {
+                        set.iter()
+                            .any(|name| name.ends_with(".csproj") || name.ends_with(".fsproj"))
+                    }) =>
+                {
+                    Some((".NET", Category::Build))
+                }
+                _ => None,
+            });
         if let Some((tool, category)) = classification {
             candidates.push(Item {
                 id: entry.id,

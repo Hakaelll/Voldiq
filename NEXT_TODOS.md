@@ -76,6 +76,8 @@ Schema version 3 records native entry identity/change-time evidence in version r
 
 A real-filesystem test verifies manifest-based Cargo, Node.js and .NET detection, Python caches, nested artifact deduplication and deterministic paging. The native command exposes bounded indexed results. A compact developer view reports categories, sizes and partial coverage, with details and paging. Svelte diagnostics, frontend production build and strict workspace Clippy pass. No cleanup execution is exposed yet; plans, confirmations, guarded recycling, official tool integrations and cache discovery remain open.
 
+Global Cargo and npm cache analysis now resolves documented current-user locations and absolute environment overrides, then classifies indexed directories without reading cache contents. Cargo installed tools and credentials are excluded. Scoped cache descendants retain measured subtree coverage; historical indexes omit live global roots. All three developer integration tests, the native configuration test, formatting and strict workspace Clippy pass. Source-only review verified both scope and historical fixes. Other tool caches, persisted cache-location evidence, Docker analysis and cleanup execution remain open; see `docs/DEVELOPER.md`.
+
 ## Manual management previews
 
 The first cleanup rule now discovers and pages indexed user `.tmp`/`.temp` files aged seven days or more. Two real-filesystem tests cover exact totals, age, extension, paging, explicit selection, changed files, historical rejection, exclusions, unscanned locations and partial subtree coverage. Its descriptor records the full rule contract. The Cleanup view supports scanning the actual temporary location and manual preview. Recycling and unused-file execution remain pending.

@@ -1,7 +1,7 @@
 use std::sync::atomic::AtomicBool;
 use voldiq_core::{
     NodeId, ScanOptions,
-    developer::{self, Category},
+    developer::{self, CacheLocation, Category},
     scanner::scan,
 };
 
@@ -57,4 +57,108 @@ fn indexed_project_artifacts_are_classified_without_counting_nested_storage_twic
     assert_eq!(paged.total, 5);
     assert_eq!(paged.logical, 248);
     assert!(developer::query(&index, NodeId(u32::MAX), 0, 10).is_err());
+}
+
+#[test]
+fn explicit_cache_roots_use_indexed_sizes_without_classifying_credentials_or_namesakes() {
+    let fixture = tempfile::tempdir().unwrap();
+    let root = fixture.path();
+    for (path, size) in [
+        ("cargo/registry/cache/pkg.crate", 80),
+        ("cargo/git/db/repo/data", 40),
+        ("cargo/bin/cargo-tool.exe", 90),
+        ("cargo/credentials.toml", 70),
+        ("custom npm/node_modules/pkg/bytes", 20),
+        ("custom npm/package.json", 2),
+        ("unrelated/registry/data", 110),
+    ] {
+        let path = root.join(path);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(path, vec![1; size]).unwrap();
+    }
+    let index = scan(
+        root,
+        &ScanOptions::default(),
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    let caches = [
+        CacheLocation {
+            path: root.join("cargo/registry").canonicalize().unwrap(),
+            tool: "Cargo",
+        },
+        CacheLocation {
+            path: root.join("cargo/git").canonicalize().unwrap(),
+            tool: "Cargo",
+        },
+        CacheLocation {
+            path: root.join("custom npm").canonicalize().unwrap(),
+            tool: "npm",
+        },
+    ];
+    let page = developer::query_with_caches(&index, NodeId(0), 0, 100, &caches).unwrap();
+    assert_eq!(page.total, 3);
+    assert_eq!(page.logical, 142);
+    assert!(
+        page.items
+            .iter()
+            .all(|item| item.category == Category::Cache)
+    );
+    let registry = page.items.iter().find(|item| item.logical == 80).unwrap();
+    let scoped = developer::query_with_caches(&index, registry.id, 0, 100, &caches).unwrap();
+    assert_eq!(scoped.total, 1);
+    assert_eq!(scoped.logical, 80);
+    let child = index
+        .entries
+        .iter()
+        .find(|entry| entry.parent == Some(registry.id) && entry.name == "cache")
+        .unwrap();
+    let child_page = developer::query_with_caches(&index, child.id, 0, 100, &caches).unwrap();
+    assert_eq!(child_page.total, 1);
+    assert_eq!(child_page.logical, 80);
+    assert_eq!(child_page.items[0].id, child.id);
+    assert_eq!(child_page.items[0].category, Category::Cache);
+    let paged = developer::query_with_caches(&index, NodeId(0), 1, 1, &caches).unwrap();
+    assert_eq!(paged.items[0].id, page.items[1].id);
+    assert_eq!(paged.total, 3);
+    assert_eq!(paged.logical, 142);
+    assert!(
+        developer::query_with_caches(&index, NodeId(0), 3, 10, &caches)
+            .unwrap()
+            .items
+            .is_empty()
+    );
+}
+
+#[test]
+fn scanning_inside_a_cache_classifies_only_the_measured_subtree_and_keeps_partial_coverage() {
+    let fixture = tempfile::tempdir().unwrap();
+    let cache = fixture.path().join("registry");
+    let subtree = cache.join("src/pkg");
+    std::fs::create_dir_all(&subtree).unwrap();
+    std::fs::write(subtree.join("a.rs"), b"source").unwrap();
+    std::fs::write(cache.join("outside"), b"unscanned").unwrap();
+    let mut index = scan(
+        &subtree,
+        &ScanOptions::default(),
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    index.entries[0].incomplete = true;
+    let caches = [CacheLocation {
+        path: cache.canonicalize().unwrap(),
+        tool: "Cargo",
+    }];
+    let page = developer::query_with_caches(&index, NodeId(0), 0, 10, &caches).unwrap();
+    assert_eq!(page.total, 1);
+    assert_eq!(page.logical, 6);
+    assert_eq!(page.items[0].id, NodeId(0));
+    assert!(page.items[0].incomplete);
+    assert_eq!(page.items[0].category, Category::Cache);
+    index.snapshot_id = Some(1);
+    let historical = developer::query_with_caches(&index, NodeId(0), 0, 10, &caches).unwrap();
+    assert_eq!(historical.total, 0);
+    assert_eq!(historical.logical, 0);
 }
