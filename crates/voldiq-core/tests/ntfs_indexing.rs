@@ -29,6 +29,7 @@ fn fresh(root: &Path, exclusions: Vec<String>) -> Arc<RwLock<Index>> {
         &ScanOptions {
             exclusions,
             max_entries: Some(1),
+            ..ScanOptions::default()
         },
         &AtomicBool::new(false),
         |_| {},
@@ -87,6 +88,7 @@ fn native_metadata_matches_directory_scan_with_excluded_primary_hard_link() {
         &ScanOptions {
             exclusions,
             max_entries: None,
+            ..ScanOptions::default()
         },
         &AtomicBool::new(false),
         |_| {},
@@ -237,6 +239,7 @@ fn bounded_volume_scan_keeps_conventional_fallback_available() {
         &ScanOptions {
             exclusions: vec![],
             max_entries: Some(1),
+            ..ScanOptions::default()
         },
         &AtomicBool::new(false),
         |update| method = update.method,

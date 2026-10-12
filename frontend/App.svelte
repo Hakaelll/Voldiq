@@ -51,6 +51,7 @@
     volumePath = $state(''),
     scanPath = $state('');
   let defaultDrive = $state('');
+  let scanMode = $state<'auto' | 'directory'>('auto');
   let recentPaths = $state<string[]>([]);
   let operation = $state<Progress | null>(null),
     scanId = $state<number | null>(null);
@@ -250,6 +251,7 @@
       const id = await invoke<number>('start_scan', {
         path,
         options: {
+          mode: scanMode,
           exclusions: excluded
             .split('\n')
             .map((line) => line.trim())
@@ -362,6 +364,8 @@
         if ('defaultDrive' in value && typeof value.defaultDrive === 'string')
           defaultDrive = volumePath = value.defaultDrive;
         if ('recentPaths' in value) recentPaths = readRecentPaths(value.recentPaths);
+        if ('scanMode' in value && (value.scanMode === 'auto' || value.scanMode === 'directory'))
+          scanMode = value.scanMode;
       }
     } catch {
       error = 'Saved preferences could not be read. Defaults restored.';
@@ -403,6 +407,7 @@
           sizeMode,
           reduceMotion,
           defaultDrive,
+          scanMode,
           recentPaths,
         }),
       );
@@ -596,6 +601,13 @@
             motion</label
           >
           <h2>Scanning</h2>
+          <label
+            >Scan mode<select bind:value={scanMode} onchange={savePreferences} disabled={busy}>
+              <option value="auto">Automatic</option><option value="directory"
+                >Directory enumeration</option
+              >
+            </select></label
+          >
           <label
             >Default drive<select bind:value={defaultDrive} onchange={savePreferences}
               ><option value="">First available</option>{#each volumes as drive}<option

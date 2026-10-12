@@ -13,6 +13,8 @@ use tauri::{State, ipc::Channel};
 mod cleanup_commands;
 mod developer_commands;
 mod docker_commands;
+#[cfg(test)]
+mod scan_options_tests;
 mod snapshot_commands;
 use cleanup_commands::*;
 use snapshot_commands::*;
@@ -115,7 +117,7 @@ fn start_scan(
         let mut final_progress = None;
         let path = PathBuf::from(path);
         let start = std::time::Instant::now();
-        let resumed = if previous.is_none() {
+        let resumed = if options.mode == voldiq_core::ScanMode::Auto && previous.is_none() {
             store
                 .lock()
                 .ok()
@@ -135,7 +137,10 @@ fn start_scan(
                 method: "USN Journal".into(),
             });
             Ok(Some(Arc::new(std::sync::RwLock::new(index))))
-        } else if previous.is_none() && cancel.load(Ordering::Relaxed) {
+        } else if options.mode == voldiq_core::ScanMode::Auto
+            && previous.is_none()
+            && cancel.load(Ordering::Relaxed)
+        {
             final_progress = Some(Progress {
                 previous: false,
                 phase: ScanPhase::Cancelled,

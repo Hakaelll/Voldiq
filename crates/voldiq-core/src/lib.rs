@@ -85,6 +85,16 @@ pub struct Progress {
 #[derive(Clone, Debug, Deserialize, Default)]
 pub struct ScanOptions {
     #[serde(default)]
+    pub mode: ScanMode,
+    #[serde(default)]
     pub exclusions: Vec<String>,
     pub max_entries: Option<usize>,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Default, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ScanMode {
+    #[default]
+    Auto,
+    Directory,
 }

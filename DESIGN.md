@@ -260,6 +260,8 @@ File checkboxes share the name cell and appear only for complete regular files i
 
 ### Index management
 
+Settings includes a Scan mode select with Automatic and Directory enumeration options. The saved choice applies to the next scan, and the control is disabled while an operation runs. The engine's measured method remains visible in existing progress rather than adding explanatory paragraphs to the form.
+
 Settings adds an Index heading and Clear current analysis button. The action clears the loaded view after the native command succeeds and is disabled during operations or without a loaded path. It leaves saved history and local preferences intact. Engine errors use the existing notice rather than another confirmation dialog or explanatory panel.
 
 ### Recent paths

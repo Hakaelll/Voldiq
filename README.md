@@ -51,6 +51,8 @@ The release configuration targets an NSIS installer and includes the offline Web
 
 Drive-root scans attempt read-only NTFS enumeration when current permissions allow it. Opened metadata handles provide actual sizes; USN records provide names and parents. All hard-link aliases are resolved, and journal changes during construction mark coverage incomplete. Capability and enumeration-limit failures fall back before non-root IDs are published. Folder scans use iterative directory enumeration. See [NTFS integration and verification limits](docs/NTFS.md).
 
+Settings offers **Automatic** and **Directory enumeration** scan modes. Automatic keeps NTFS enumeration and verified journal refresh/resume where available. Directory enumeration always creates a fresh conventional index, bypassing NTFS and saved journal checkpoints. Both modes retain exclusions, cancellation, entry limits and measured progress; the choice applies to the next scan and is saved locally.
+
 Both paths tolerate inaccessible files, report errors and support cancellation. They record reparse points without following them, which prevents junction loops and avoids reading cloud-only contents.
 
 Logical size includes each visible hard-link name. Unique allocated size counts a file identity once across the scan. Allocation within an individual folder therefore reflects the link encountered first. Windows volume usage includes metadata and inaccessible or unindexed content; it should not equal the logical total.

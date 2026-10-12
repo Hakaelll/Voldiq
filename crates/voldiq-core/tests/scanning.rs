@@ -72,6 +72,7 @@ fn cancellation_exclusions_and_limits_are_explicit() {
     let options = ScanOptions {
         exclusions: vec![dir.path().join("excluded").to_string_lossy().into_owned()],
         max_entries: None,
+        ..ScanOptions::default()
     };
     let index = scan(dir.path(), &options, &AtomicBool::new(false), |_| {}).unwrap();
     assert_eq!(index.entries[0].logical, 8);

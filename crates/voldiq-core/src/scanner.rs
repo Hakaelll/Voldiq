@@ -23,7 +23,9 @@ pub fn refresh_or_scan(
     previous: Option<&SharedIndex>,
 ) -> Result<SharedIndex> {
     #[cfg(windows)]
-    if let Some(previous) = previous {
+    if options.mode == crate::ScanMode::Auto
+        && let Some(previous) = previous
+    {
         let index = previous.read().map_err(|e| Error::Invalid(e.to_string()))?;
         let mut exclusions: Vec<_> = options
             .exclusions
@@ -167,7 +169,9 @@ pub fn scan_live(
         .unwrap_or(5_000_000)
         .clamp(1, u32::MAX as usize);
     #[cfg(windows)]
-    if crate::ntfs::try_scan(&shared, limit, cancel, &mut progress, start)? {
+    if options.mode == crate::ScanMode::Auto
+        && crate::ntfs::try_scan(&shared, limit, cancel, &mut progress, start)?
+    {
         return Ok(shared);
     }
     progress(Progress {

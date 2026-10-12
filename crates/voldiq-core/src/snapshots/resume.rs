@@ -59,6 +59,9 @@ impl Store {
         options: &crate::ScanOptions,
         cancel: &AtomicBool,
     ) -> Result<Option<Index>> {
+        if options.mode != crate::ScanMode::Auto {
+            return Ok(None);
+        }
         if cancel.load(Ordering::Relaxed) {
             return Err(Error::Invalid("Snapshot resume cancelled.".into()));
         }
