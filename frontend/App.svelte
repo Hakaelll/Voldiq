@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
   import Icon from './components/Icon.svelte';
   import Treemap from './components/Treemap.svelte';
@@ -393,8 +393,21 @@
     const keyboard = (event: KeyboardEvent): void => {
       if (event.ctrlKey && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        search.focus();
-        search.select();
+        if (ready && !analysisBusy && !cleanupPreview && !showIssues) {
+          interactionToken += 1;
+          refreshToken += 1;
+          scope = 0;
+          view = 'explorer';
+          extension = '';
+          before = '';
+          details = null;
+          selection = new Set();
+          void refresh(0);
+          void tick().then(() => {
+            search.focus();
+            search.select();
+          });
+        }
       }
       if (event.key === 'Escape') {
         showIssues = false;
@@ -516,6 +529,9 @@
         <Icon name="search" /><input
           bind:this={search}
           bind:value={text}
+          oninput={(event) => {
+            if (view === 'overview' && event.currentTarget.value.trim()) view = 'explorer';
+          }}
           placeholder="Search files and folders"
           aria-label="Search files and folders"
           disabled={!ready ||

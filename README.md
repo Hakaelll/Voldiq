@@ -57,6 +57,8 @@ The saved **Concurrency limit** controls 1–8 simultaneous metadata workers in 
 
 Both paths tolerate inaccessible files, report errors and support cancellation. They record reparse points without following them, which prevents junction loops and avoids reading cloud-only contents.
 
+**Ctrl+K** opens Explorer at the scan root, clears extension/date filters and focuses the search text. It searches the loaded index, including a historical capture, without scanning again. Typing in Overview's search field opens the matching file list for its current scope. The shortcut is disabled during confirmation dialogs and operations that disable navigation.
+
 Logical size includes each visible hard-link name. Unique allocated size counts a file identity once across the scan. Allocation within an individual folder therefore reflects the link encountered first. Windows volume usage includes metadata and inaccessible or unindexed content; it should not equal the logical total.
 
 Progress reports actual file counts and bytes. Partial results can be explored while scanning; cancellation retains the measured index. No estimated percentage appears when the total is unknown. The initial index has a five-million-entry limit. Reaching the limit yields explicitly incomplete results.

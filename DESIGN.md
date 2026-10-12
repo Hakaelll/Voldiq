@@ -266,6 +266,10 @@ The Scanning group includes a compact Concurrency limit select with numeric valu
 
 Settings adds an Index heading and Clear current analysis button. The action clears the loaded view after the native command succeeds and is disabled during operations or without a loaded path. It leaves saved history and local preferences intact. Engine errors use the existing notice rather than another confirmation dialog or explanatory panel.
 
+### Search
+
+Ctrl+K opens the root Explorer search after clearing the previous view's extension/date filters. It waits for the field to become enabled before focusing and selecting text. Active analysis and cleanup/issue dialogs block this navigation. Typing a nonempty search in Overview opens Explorer results for the existing scope. No additional interface copy is introduced.
+
 ### Large-item filters
 
 Large files adds an Items selector beside its existing filters, with Files and Folders choices. It defaults to Files, and Reset filters restores that choice. The same virtual list and details panel display folders without another explanatory paragraph or management action. Folder rows open their indexed scope through the existing navigation handler.
