@@ -3,6 +3,55 @@ use std::sync::atomic::AtomicBool;
 use voldiq_core::{NodeId, ScanOptions, cleanup::Plan, scanner::scan};
 
 #[test]
+fn ancestor_directory_activity_does_not_invalidate_unchanged_selected_files() {
+    let fixture = tempfile::tempdir().unwrap();
+    let root = fixture.path().join("selected");
+    std::fs::create_dir(&root).unwrap();
+    let selected = root.join("file.bin");
+    std::fs::write(&selected, b"unchanged").unwrap();
+    let index = scan(
+        &root,
+        &ScanOptions::default(),
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    let id = index
+        .entries
+        .iter()
+        .find(|entry| entry.name == "file.bin")
+        .unwrap()
+        .id;
+    let before = voldiq_core::windows::identity(fixture.path()).unwrap();
+    let barrier = std::sync::Barrier::new(2);
+    let reviewed = std::thread::scope(|scope| {
+        scope.spawn(|| {
+            barrier.wait();
+            let sibling = fixture.path().join("sibling.bin");
+            for _ in 0..2000 {
+                std::fs::write(&sibling, b"activity").unwrap();
+                std::fs::remove_file(&sibling).unwrap();
+            }
+        });
+        barrier.wait();
+        (0..100).try_for_each(|_| {
+            let plan = Plan::manual(&index, &[id])?;
+            assert_eq!(plan.preview().logical, 9);
+            assert_eq!(
+                plan.verify(id)?.identity()?,
+                index.entry(id)?.file_state.unwrap().identity
+            );
+            Ok::<_, voldiq_core::Error>(())
+        })
+    });
+    reviewed.unwrap();
+    let after = voldiq_core::windows::identity(fixture.path()).unwrap();
+    assert_eq!(before.key, after.key);
+    assert_ne!(before.change_time, after.change_time);
+    assert_eq!(std::fs::read(selected).unwrap(), b"unchanged");
+}
+
+#[test]
 fn preview_uses_real_sizes_and_verification_pins_identity_against_mutation() {
     let fixture = tempfile::tempdir().unwrap();
     let path = fixture.path().join("a.bin");

@@ -32,11 +32,11 @@ pub fn wide(path: &Path) -> Vec<u16> {
 
 #[cfg(windows)]
 pub fn identity(path: &Path) -> Result<FileIdentity> {
-    Ok(metadata_identity(path)?.1)
+    file_identity(&open_metadata(path)?)
 }
 
 #[cfg(windows)]
-pub fn metadata_identity(path: &Path) -> Result<(std::fs::Metadata, FileIdentity)> {
+fn open_metadata(path: &Path) -> Result<std::fs::File> {
     use std::os::windows::io::FromRawHandle;
     use windows_sys::Win32::{Foundation::*, Storage::FileSystem::*};
     let path = wide(path);
@@ -54,17 +54,22 @@ pub fn metadata_identity(path: &Path) -> Result<(std::fs::Metadata, FileIdentity
         if handle == INVALID_HANDLE_VALUE {
             return Err(std::io::Error::last_os_error().into());
         }
-        let file = std::fs::File::from_raw_handle(handle);
-        let before = file_identity(&file)?;
-        let metadata = file.metadata()?;
-        let identity = file_identity(&file)?;
-        if before.key != identity.key || before.change_time != identity.change_time {
-            return Err(crate::Error::Invalid(
-                "File changed while reading metadata.".into(),
-            ));
-        }
-        Ok((metadata, identity))
+        Ok(std::fs::File::from_raw_handle(handle))
     }
+}
+
+#[cfg(windows)]
+pub fn metadata_identity(path: &Path) -> Result<(std::fs::Metadata, FileIdentity)> {
+    let file = open_metadata(path)?;
+    let before = file_identity(&file)?;
+    let metadata = file.metadata()?;
+    let identity = file_identity(&file)?;
+    if before.key != identity.key || before.change_time != identity.change_time {
+        return Err(crate::Error::Invalid(
+            "File changed while reading metadata.".into(),
+        ));
+    }
+    Ok((metadata, identity))
 }
 
 #[cfg(unix)]
