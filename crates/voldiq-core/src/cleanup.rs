@@ -1,5 +1,7 @@
 use crate::{Error, Kind, NodeId, Result, index::Index, windows};
 use serde::Serialize;
+#[cfg(all(test, windows))]
+mod disposition_tests;
 pub mod rules;
 use std::{
     collections::HashSet,
@@ -248,6 +250,7 @@ impl Plan {
             file,
             parents,
             path: planned.path.clone(),
+            stamp: current,
         })
     }
 }
@@ -257,6 +260,7 @@ pub struct VerifiedFile {
     pub(crate) file: std::fs::File,
     pub(crate) parents: Vec<std::fs::File>,
     pub(crate) path: PathBuf,
+    stamp: Stamp,
 }
 
 #[cfg(windows)]
@@ -269,6 +273,49 @@ impl VerifiedFile {
     }
     pub fn pinned_parents(&self) -> usize {
         self.parents.len()
+    }
+
+    /// Permanently unlinks this verified file handle. This never recycles or falls back to a path API.
+    /// The caller must provide explicit permanent-deletion confirmation and durable operation logging.
+    pub fn remove_permanently(self) -> Result<()> {
+        use std::os::windows::io::AsRawHandle;
+        use windows_sys::Win32::Storage::FileSystem::{
+            FILE_DISPOSITION_FLAG_DELETE, FILE_DISPOSITION_FLAG_FORCE_IMAGE_SECTION_CHECK,
+            FILE_DISPOSITION_FLAG_POSIX_SEMANTICS, FILE_DISPOSITION_INFO_EX, FileDispositionInfoEx,
+            SetFileInformationByHandle,
+        };
+        let metadata = self.file.metadata()?;
+        validate_file(&metadata)?;
+        let identity = windows::file_identity(&self.file)?;
+        let stamp = Stamp {
+            identity: identity.key,
+            size: metadata.len(),
+            modified: metadata.modified()?,
+            change_time: identity.change_time,
+        };
+        if stamp != self.stamp || metadata.permissions().readonly() {
+            return Err(Error::Invalid("File changed or is read-only.".into()));
+        }
+        let info = FILE_DISPOSITION_INFO_EX {
+            Flags: FILE_DISPOSITION_FLAG_DELETE
+                | FILE_DISPOSITION_FLAG_POSIX_SEMANTICS
+                | FILE_DISPOSITION_FLAG_FORCE_IMAGE_SECTION_CHECK,
+        };
+        // The verified handle and all ancestor handles stay owned until this synchronous call finishes.
+        let success = unsafe {
+            SetFileInformationByHandle(
+                self.file.as_raw_handle(),
+                FileDispositionInfoEx,
+                (&info as *const FILE_DISPOSITION_INFO_EX).cast(),
+                std::mem::size_of::<FILE_DISPOSITION_INFO_EX>() as u32,
+            )
+        };
+        if success == 0 {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        // POSIX disposition removes this link when its deleting handle closes; other links/readers may retain data.
+        drop(self);
+        Ok(())
     }
 }
 

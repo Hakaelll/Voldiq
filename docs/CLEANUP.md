@@ -1,6 +1,6 @@
 # Cleanup previews
 
-The current delivery supports manual, duplicate and indexed temporary-file selections with read-only previews. It does not expose recycling or permanent deletion yet. A preview is not approval to execute a destructive operation.
+The current delivery supports manual, duplicate, indexed temporary-file and old-file selections with read-only previews. It does not expose recycling or permanent deletion yet. A preview is not approval to execute a destructive operation. The core's handle-bound permanent-disposition primitive remains separate from a confirmed, logged application transaction.
 
 ## Manual file rule
 
@@ -53,6 +53,18 @@ Duplicate checkboxes start empty and remain selected across result pages. The fr
 The preview shows retained paths under Keep. This is evidence at preview creation, not a guarantee at a future deletion time. The executor must repeat retained-copy validation and preserve that copy through the destructive transaction. No recycling command is exposed in this delivery.
 
 Additional cleanup rules, compatible cache discovery, developer tool commands, confirmed recycling, result logging and undo integration are still open work.
+
+## Handle-bound permanent-disposition primitive
+
+`VerifiedFile::remove_permanently` is a core primitive for a future explicitly confirmed advanced action. It consumes the retained leaf and ancestor handles, rereads the exact planned identity/size/modification/change-time stamp, rejects read-only files and calls `SetFileInformationByHandle` with SDK `FILE_DISPOSITION_INFO_EX`. Flags request delete, POSIX semantics and an image-section check. There is no filename-based fallback, attribute override, recycling call or IPC executor.
+
+Microsoft documents that [POSIX disposition removes the visible link when the deleting handle closes](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddk/ns-ntddk-_file_disposition_information_ex), while existing handles may retain the data. Consequently this primitive does not report physical space reclaimed or promise that other links disappear. Unsupported filesystems and native failures remain errors.
+
+Four controlled Windows/NTFS fixture tests verify removal of only the approved link, an unchanged retained hard link, continued reads through a preexisting reader, last-link removal while a reader retains data, rejection of substitution before verification, rejection of read-only targets and rejection of metadata changed after verification. Every destructive call targets files freshly created inside the test's owned temporary directory; unrelated fixture files survive. Nine existing cleanup/rule/duplicate-selection integration tests also pass.
+
+This primitive is not a completed cleanup transaction. Before exposing it, the application still needs explicit permanent-deletion confirmation, durable intent/result records, interruption and partial-failure handling, duplicate keep-copy authority and index invalidation/refresh. Recycling remains the intended default and is a separate unresolved handoff. No cleanup action is exposed to users by this change.
+
+The metadata recheck and disposition are separate calls. Later attribute changes can still race with disposition, although the retained handle prevents substitution of another file. These tests do not prove that a file is unused or cover every mapped-section, filesystem or filter configuration. The source-only review found no blocker for this unexposed primitive and confirmed these limits.
 
 ## Native recycling handoff investigation
 
