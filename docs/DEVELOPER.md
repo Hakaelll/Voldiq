@@ -48,4 +48,20 @@ cargo test -p voldiq --bin voldiq developer_commands::tests
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-Configuration-file and per-disk pnpm discovery, custom global virtual-store locations, bookkeeping classification and Docker analysis remain pending. Docker storage must be inspected through its supported commands or APIs. Its internal folders must not be deleted directly. Cleanup execution and explicit confirmation remain separate unfinished requirements.
+Configuration-file and per-disk pnpm discovery, custom global virtual-store locations and bookkeeping classification remain pending. Cleanup execution and explicit confirmation remain separate unfinished requirements.
+
+## Docker Engine analysis
+
+The Docker panel performs only `GET /version` and a negotiated `GET /v1.x/system/df` on a local Windows named pipe. It defaults to `\\.\pipe\docker_engine` and accepts a local `npipe:////./pipe/NAME` or `npipe://./pipe/NAME` through `DOCKER_HOST`. TCP, SSH and remote pipes are rejected. Docker CLI contexts and configuration files are not read; the panel identifies the actual queried pipe. No Docker command, project script, service startup or folder deletion is performed.
+
+The client supports Engine API 1.31–1.56, selecting the lower of the daemon's advertised version and 1.56 and checking its minimum version. Newer responses use `ImageUsage`, `ContainerUsage`, `VolumeUsage` and `BuildCacheUsage`. Legacy responses use `LayersSize` for images, `SizeRw` for containers, volume `UsageData.Size` and unshared build-cache records. Shared cache records remain in the item count. This follows the [current Engine schema](https://docs.docker.com/reference/api/engine/version/v1.56.yaml), [API changes](https://docs.docker.com/reference/api/engine/version-history/) and Docker's [legacy summary adapter](https://github.com/moby/moby/blob/master/client/system_disk_usage.go).
+
+Missing measurements and the daemon's `-1` unknown-size sentinel remain Unknown. Invalid negative values, overflow and values beyond JavaScript's exact integer range are rejected. Categories are not added to a grand total: sizes may overlap and are Engine measurements, not Windows physical allocation or promised reclaimable bytes. Volumes are explicitly labelled persistent data.
+
+The complete request sequence has a 15-second deadline. Headers, body and wire buffering are bounded; HTTP failures, truncation, unsupported transfer encoding and ambiguous framing return errors. The panel remains usable before a drive scan and has no management actions.
+
+On 2026-10-12, seven native tests passed, including four Docker tests covering current/legacy accounting, version and endpoint validation, HTTP framing, and an actual Windows named-pipe GET exchange plus silent-server timeout. Svelte checks, production frontend build and strict workspace Clippy passed. Source-only review found and corrected legacy shared-cache overcounting. The default local Docker pipe was unavailable in a read-only connection probe; acceptance with a running Docker Engine remains pending. No visual automation was used.
+
+```powershell
+cargo test -p voldiq --bin voldiq docker_commands::tests
+```

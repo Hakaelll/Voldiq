@@ -1,5 +1,7 @@
 # Implementation ledger
 
+Docker storage now has an independent read-only local Engine API panel with version negotiation, four category summaries, persistent-volume labels, unknown-size preservation, shared-cache accounting, bounded HTTP transport and a 15-second deadline. Seven native tests pass, including a real Windows named-pipe fixture and timeout. Svelte checks, production build and strict workspace Clippy pass. The default Docker pipe is unavailable locally, so live Engine acceptance remains pending. Context-file discovery and management actions are not implemented. See `docs/DEVELOPER.md`.
+
 Voldiq is under active development. A task becomes DONE only after its acceptance checks pass. The supplied specification is preserved in `docs/reference/requirements.md`.
 
 | ID | Task | Priority | Status | Dependencies | Acceptance criteria | Related files |

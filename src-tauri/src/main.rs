@@ -12,6 +12,7 @@ use tauri::Manager;
 use tauri::{State, ipc::Channel};
 mod cleanup_commands;
 mod developer_commands;
+mod docker_commands;
 mod snapshot_commands;
 use cleanup_commands::*;
 use snapshot_commands::*;
@@ -522,6 +523,7 @@ fn main() {
             preview_duplicate_cleanup,
             discard_cleanup,
             query_developer_storage,
+            docker_commands::query_docker_storage,
             get_details,
             get_file_types,
             get_issues,

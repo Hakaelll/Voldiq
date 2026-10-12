@@ -7,6 +7,7 @@
   import Duplicates from './components/Duplicates.svelte';
   import History from './components/History.svelte';
   import DeveloperStorage from './components/DeveloperStorage.svelte';
+  import DockerStorage from './components/DockerStorage.svelte';
   import CleanupPreviewDialog from './components/CleanupPreview.svelte';
   import CleanupRules from './components/CleanupRules.svelte';
   import {
@@ -548,6 +549,7 @@
         </section>
       {:else if view === 'developer'}
         <DeveloperStorage enabled={ready && !busy} {revision} onselect={select} onerror={report} />
+        <DockerStorage />
       {:else if view === 'history'}
         <History
           enabled={ready && !busy && historical === null}
