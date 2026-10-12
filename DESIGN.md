@@ -266,6 +266,10 @@ The Scanning group includes a compact Concurrency limit select with numeric valu
 
 Settings adds an Index heading and Clear current analysis button. The action clears the loaded view after the native command succeeds and is disabled during operations or without a loaded path. It leaves saved history and local preferences intact. Engine errors use the existing notice rather than another confirmation dialog or explanatory panel.
 
+### Large-item filters
+
+Large files adds an Items selector beside its existing filters, with Files and Folders choices. It defaults to Files, and Reset filters restores that choice. The same virtual list and details panel display folders without another explanatory paragraph or management action. Folder rows open their indexed scope through the existing navigation handler.
+
 ### Recent paths
 
 The toolbar shows a 170px Recent selector only when completed scans have saved paths. The native select exposes full paths in its options and resets after an explicit choice, allowing the same path to be selected again. It is disabled during operations and in the browser preview. The existing wrapping toolbar contains it without widening the document. Settings provides a compact clear action. Stored routes do not introduce another navigation panel or explanatory paragraphs.

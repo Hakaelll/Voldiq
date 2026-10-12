@@ -24,6 +24,7 @@ pub struct Query {
     pub min_size: u64,
     pub modified_before: Option<u64>,
     pub files_only: bool,
+    pub kind: Option<Kind>,
     pub sort: String,
     pub offset: usize,
     pub limit: usize,
@@ -39,6 +40,7 @@ impl Default for Query {
             min_size: 0,
             modified_before: None,
             files_only: false,
+            kind: None,
             sort: "size".into(),
             offset: 0,
             limit: 100,
@@ -143,6 +145,7 @@ impl Index {
                 query.parent.is_none_or(|id| entry.parent == Some(id))
                     && query.scope.is_none_or(|id| self.in_scope(entry.id, id))
                     && (!query.files_only || entry.kind == Kind::File)
+                    && query.kind.is_none_or(|kind| entry.kind == kind)
                     && entry.logical >= query.min_size
                     && (text.is_empty() || entry.name.to_lowercase().contains(&text))
                     && (extension.is_empty()

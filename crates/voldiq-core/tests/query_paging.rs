@@ -1,5 +1,107 @@
 use std::{collections::HashSet, sync::atomic::AtomicBool};
-use voldiq_core::{NodeId, ScanOptions, index::Query, scanner::scan};
+use voldiq_core::{Kind, NodeId, ScanOptions, index::Query, scanner::scan};
+
+#[test]
+fn kind_filter_ranks_real_folders_and_preserves_scopes_and_paging() {
+    let fixture = tempfile::tempdir().unwrap();
+    std::fs::create_dir_all(fixture.path().join("big/nested")).unwrap();
+    std::fs::create_dir(fixture.path().join("small")).unwrap();
+    for (path, bytes) in [
+        ("big/a.bin", 30),
+        ("big/nested/b.bin", 10),
+        ("small/c.bin", 5),
+        ("huge.bin", 100),
+    ] {
+        std::fs::write(fixture.path().join(path), vec![1; bytes]).unwrap();
+    }
+    let index = scan(
+        fixture.path(),
+        &ScanOptions::default(),
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    let folders = Query {
+        kind: Some(Kind::Directory),
+        limit: 1,
+        ..Query::default()
+    };
+    let mut ranked = Vec::new();
+    for offset in 0..3 {
+        let page = index
+            .query(&Query {
+                offset,
+                ..folders.clone()
+            })
+            .unwrap();
+        assert_eq!(page.total, 3);
+        assert_eq!(page.items.len(), 1);
+        assert_eq!(page.items[0].kind, Kind::Directory);
+        ranked.push(page.items[0].clone());
+    }
+    assert_eq!(
+        ranked
+            .iter()
+            .map(|e| (e.name.as_str(), e.logical))
+            .collect::<Vec<_>>(),
+        [("big", 40), ("nested", 10), ("small", 5)]
+    );
+    assert_eq!(
+        index
+            .query(&Query {
+                min_size: 11,
+                ..folders.clone()
+            })
+            .unwrap()
+            .total,
+        1
+    );
+    let scoped = index
+        .query(&Query {
+            scope: Some(ranked[0].id),
+            limit: 100,
+            ..folders.clone()
+        })
+        .unwrap();
+    assert_eq!(
+        scoped
+            .items
+            .iter()
+            .map(|e| e.name.as_str())
+            .collect::<Vec<_>>(),
+        ["big", "nested"]
+    );
+    assert_eq!(
+        index
+            .query(&Query {
+                text: "NEST".into(),
+                ..folders.clone()
+            })
+            .unwrap()
+            .total,
+        1
+    );
+    assert_eq!(
+        index
+            .query(&Query {
+                files_only: true,
+                ..folders
+            })
+            .unwrap()
+            .total,
+        0
+    );
+    let files = index
+        .query(&Query {
+            kind: Some(Kind::File),
+            ..Query::default()
+        })
+        .unwrap();
+    assert_eq!(files.total, 4);
+    assert_eq!(files.items[0].name, "huge.bin");
+    assert!(files.items.iter().all(|e| e.kind == Kind::File));
+    assert_eq!(index.query(&Query::default()).unwrap().total, 7);
+}
 
 #[test]
 fn name_sort_preserves_ascii_and_unicode_lowercase_order() {

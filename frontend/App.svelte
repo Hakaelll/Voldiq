@@ -66,6 +66,7 @@
   let text = $state(''),
     extension = $state(''),
     minSize = $state(100),
+    largeKind = $state<'file' | 'directory'>('file'),
     before = $state(''),
     sort = $state('size');
   let error = $state(''),
@@ -115,7 +116,8 @@
     extension,
     min_size: view === 'large' ? Math.max(0, minSize) * 1024 * 1024 : 0,
     ...(before ? { modified_before: new Date(before).getTime() / 1000 } : {}),
-    files_only: view === 'large',
+    files_only: view === 'large' && largeKind === 'file',
+    ...(view === 'large' ? { kind: largeKind } : {}),
     sort,
   });
   let nodes = $derived.by(() => {
@@ -847,7 +849,11 @@
               <div class="filter-bar">
                 <label>Extension<input bind:value={extension} placeholder="All extensions" /></label
                 >{#if view === 'large'}<label
-                    >Minimum MiB<input type="number" min="0" bind:value={minSize} /></label
+                    >Items<select bind:value={largeKind}
+                      ><option value="file">Files</option><option value="directory">Folders</option
+                      ></select
+                    ></label
+                  ><label>Minimum MiB<input type="number" min="0" bind:value={minSize} /></label
                   ><label>Modified before<input type="date" bind:value={before} /></label
                   >{/if}<label
                   >Sort<select bind:value={sort}
@@ -860,6 +866,7 @@
                     extension = '';
                     before = '';
                     minSize = 100;
+                    largeKind = 'file';
                   }}>Reset filters</button
                 >
               </div>

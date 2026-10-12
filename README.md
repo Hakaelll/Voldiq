@@ -81,6 +81,8 @@ Duplicate selections retain a copy from each group and reread full BLAKE3 conten
 
 Select regular files in Explorer or Large files and use Review selection to inspect their real paths, sizes and potential allocation. Rust retains immutable plans and checks scanned identities, change times, exclusions and native Windows protected locations. Historical captures cannot produce management previews.
 
+In Large files, **Items** switches between files and folders. Folder rankings use indexed subtree logical sizes and the existing scope, search, size and date filters. Open a folder to narrow the scope or inspect its details. Folder totals can overlap through ancestry; rows are rankings rather than an additive space-recovery estimate. Management selection continues to accept regular files only.
+
 The advanced **Permanently delete…** action requires typing `DELETE` and confirming the irreversible operation. Each file is verified through retained native handles, its intent is committed before removal, and its result is recorded afterward. Duplicate selections also pin and freshly hash one preserved copy per group throughout execution, then freshly hash every selected file before removal. Results distinguish removal, failure, cancellation and unrecorded outcomes. Closing the result triggers a fresh analysis. This action does not use the Recycle Bin and has no undo; interrupted work is never retried automatically. Recycling is still pending. See [cleanup guarantees and remaining work](docs/CLEANUP.md).
 
 Cleanup activity lists saved per-file results and operation start times, including interrupted outcomes after restart. It is read-only and paginated; unknown results never imply successful removal or trigger retries.

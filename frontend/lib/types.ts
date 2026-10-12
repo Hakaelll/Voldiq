@@ -114,6 +114,7 @@ export interface Query {
   min_size?: number;
   modified_before?: number;
   files_only?: boolean;
+  kind?: Entry['kind'];
   sort?: string;
   offset?: number;
   limit?: number;
