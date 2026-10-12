@@ -288,6 +288,10 @@ progress::-webkit-progress-value {
   border: 0;
   padding-left: 0;
 }
+.recent-select {
+  width: 170px;
+  max-width: 100%;
+}
 .search {
   display: flex;
   align-items: center;

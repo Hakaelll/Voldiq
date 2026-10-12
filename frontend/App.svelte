@@ -12,6 +12,7 @@
   import CleanupRules from './components/CleanupRules.svelte';
   import RecycleBin from './components/RecycleBin.svelte';
   import CleanupActivity from './components/CleanupActivity.svelte';
+  import { readRecentPaths, rememberPath } from './lib/recent-paths';
   import {
     bytes,
     date,
@@ -49,6 +50,8 @@
   let volumes = $state<Volume[]>([]),
     volumePath = $state(''),
     scanPath = $state('');
+  let defaultDrive = $state('');
+  let recentPaths = $state<string[]>([]);
   let operation = $state<Progress | null>(null),
     scanId = $state<number | null>(null);
   let ready = $state(false),
@@ -228,6 +231,10 @@
         error = update.method;
         scanId = null;
       } else if (update.phase === 'complete' || update.phase === 'cancelled') {
+        if (update.phase === 'complete' && update.entries > 0 && !update.previous) {
+          recentPaths = rememberPath(recentPaths, path);
+          savePreferences();
+        }
         ready = update.entries > 0;
         scanId = null;
         details = null;
@@ -324,7 +331,8 @@
         if ('reduceMotion' in value && typeof value.reduceMotion === 'boolean')
           reduceMotion = value.reduceMotion;
         if ('defaultDrive' in value && typeof value.defaultDrive === 'string')
-          volumePath = value.defaultDrive;
+          defaultDrive = volumePath = value.defaultDrive;
+        if ('recentPaths' in value) recentPaths = readRecentPaths(value.recentPaths);
       }
     } catch {
       error = 'Saved preferences could not be read. Defaults restored.';
@@ -365,7 +373,8 @@
           theme,
           sizeMode,
           reduceMotion,
-          defaultDrive: volumePath,
+          defaultDrive,
+          recentPaths,
         }),
       );
     } catch (problem) {
@@ -441,6 +450,21 @@
       ><button onclick={choose} disabled={busy || !isTauri()}
         ><Icon name="folder" />Choose folder</button
       >
+      {#if recentPaths.length}
+        <select
+          class="recent-select"
+          aria-label="Recently analyzed paths"
+          disabled={busy || !isTauri()}
+          onchange={(event) => {
+            const path = event.currentTarget.value;
+            event.currentTarget.value = '';
+            void start(path);
+          }}
+        >
+          <option value="">Recent</option>
+          {#each recentPaths as path}<option value={path}>{path}</option>{/each}
+        </select>
+      {/if}
       <div class="search">
         <Icon name="search" /><input
           bind:this={search}
@@ -544,8 +568,10 @@
           >
           <h2>Scanning</h2>
           <label
-            >Default drive<select bind:value={volumePath} onchange={savePreferences}
-              >{#each volumes as drive}<option value={drive.path}>{drive.path} {drive.name}</option
+            >Default drive<select bind:value={defaultDrive} onchange={savePreferences}
+              ><option value="">First available</option>{#each volumes as drive}<option
+                  value={drive.path}
+                  disabled={!drive.accessible}>{drive.path} {drive.name}</option
                 >{/each}</select
             ></label
           ><label
@@ -555,6 +581,12 @@
               rows="5"
               placeholder="C:\\folder"></textarea></label
           >
+          {#if recentPaths.length}<button
+              onclick={() => {
+                recentPaths = [];
+                savePreferences();
+              }}>Clear recent paths</button
+            >{/if}
         </section>
       {:else if view === 'developer'}
         <DeveloperStorage enabled={ready && !busy} {revision} onselect={select} onerror={report} />
