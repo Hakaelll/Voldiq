@@ -11,6 +11,7 @@
   import CleanupPreviewDialog from './components/CleanupPreview.svelte';
   import CleanupRules from './components/CleanupRules.svelte';
   import RecycleBin from './components/RecycleBin.svelte';
+  import CleanupActivity from './components/CleanupActivity.svelte';
   import {
     bytes,
     date,
@@ -724,6 +725,7 @@
               }}
               onerror={report}
             />
+            <CleanupActivity {revision} {busy} />
           {:else if view === 'duplicates'}
             <Duplicates
               {scope}

@@ -38,7 +38,7 @@ The virtual explorer and large-file list expose native checkboxes without automa
 
 The backend retains one plan session. Discard identifies that session, so a stale discard cannot remove a newer plan. Starting a scan or loading a snapshot clears frontend selection and preview. Execution requires the exact session ID, exact confirmation and the same live index allocation; it consumes the session once. The Engine operation guard prevents concurrent analyses. Index and duplicate authority are invalidated before mutations; the frontend clears stale measurements and starts a fresh scan when the result closes.
 
-The permanent executor commits intent before each filesystem operation, verifies and removes the retained native handle, then commits the result. Changed files remain failures; cancellation affects the next unstarted file. Journal failures stop immediately. Already observed outcomes remain in the report, and results that could not be persisted are explicitly marked unrecorded. No retry action is offered. Native `query_cleanup_history` provides bounded read-only audit rows; a dedicated history interface is still pending.
+The permanent executor commits intent before each filesystem operation, verifies and removes the retained native handle, then commits the result. Changed files remain failures; cancellation affects the next unstarted file. Journal failures stop immediately. Already observed outcomes remain in the report, and results that could not be persisted are explicitly marked unrecorded. No retry action is offered. Native `query_cleanup_history` provides bounded read-only audit rows to Cleanup activity, with saved paths, results and operation start times. The interface displays 50 rows per page, uses one extra row to detect a following page and pauses queries during active work. Requests invalidated by revision changes, busy state or unmount cannot replace current results. Pagination restores keyboard focus to the activity region.
 
 Three real owned-fixture executor tests cover removal, changed-file failure, cancellation, pre-cancelled work, duplicate keep-authority rejection and an actual SQLite result-write rejection after deletion. The latter returns the removed-but-unrecorded item, leaves the next file untouched and recovers to unknown/cancelled on reopening. A native command test rejects missing/lowercase confirmations, wrong IDs, rescanned indexes and second consumption. Workspace tests pass; final targeted cleanup tests, Svelte diagnostics, production build and strict Clippy pass. No personal files were deleted for verification, and no rendered interaction is claimed.
 
@@ -56,7 +56,7 @@ Duplicate checkboxes start empty and remain selected across result pages. The fr
 
 The preview shows retained paths under Keep. This is evidence at preview creation, not a guarantee at a future deletion time. The executor must repeat retained-copy validation and preserve that copy through the destructive transaction. No recycling command is exposed in this delivery.
 
-Additional cleanup rules, official developer tool commands, confirmed recycling, result-history presentation and recycling undo integration are still open work.
+Additional cleanup rules, official developer tool commands, confirmed recycling and recycling undo integration are still open work.
 
 ## Durable operation journal
 
@@ -68,7 +68,7 @@ Reopening converts interrupted `in_flight` items to `unknown` and unstarted `pre
 
 Four controlled tests use real SQLite files and disposable Windows fixtures. They cover mixed success/failure/cancellation surviving reopen, exact identity serialization, bounded paging, duplicate transition rejection, failure to commit intent, failure to commit a result after actual deletion, replacement-file preservation across repeated recovery, exclusive-owner refusal, numeric rollback and foreign/future database rejection. They simulate interrupted caller state and SQLite write rejection; power-loss/device-failure durability and complete application restart integration are not claimed.
 
-The application initializes this journal at `cleanup.db` in its local data directory. An unavailable journal disables execution through a reported error while analysis remains usable. The confirmed permanent executor and bounded audit query use it; the result-history interface, duplicate retention and default recycling transaction remain pending.
+The application initializes this journal at `cleanup.db` in its local data directory. An unavailable journal disables execution through a reported error while analysis remains usable. The confirmed permanent executor and bounded audit query use it. Cleanup activity keeps `in_flight` results unresolved and recovered `unknown` results unknown; neither becomes success. It has no retry, restore or deletion action. Duplicate retention and the default recycling transaction remain pending.
 
 ## Handle-bound permanent-disposition primitive
 

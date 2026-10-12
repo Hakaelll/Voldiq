@@ -80,6 +80,20 @@ fn durable_results_distinguish_failure_cancellation_and_success() {
     let journal = Journal::open(&database).unwrap();
     let results = journal.items(0, 100).unwrap();
     assert_eq!(results.len(), 3);
+    let created: i64 = journal
+        .connection
+        .query_row(
+            "SELECT created FROM operations WHERE id=?1",
+            [operation.0],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert!(created > 0);
+    assert!(
+        results
+            .iter()
+            .all(|item| item.created == created && item.operation == operation.0)
+    );
     assert!(
         results
             .iter()
@@ -96,7 +110,7 @@ fn durable_results_distinguish_failure_cancellation_and_success() {
             .any(|item| item.node == ids[2] && item.state == "cancelled")
     );
     assert_eq!(journal.items(0, 1).unwrap().len(), 1);
-    assert_eq!(journal.items(1, 1).unwrap().len(), 1);
+    assert_eq!(journal.items(1, 1).unwrap()[0].node, results[1].node);
     assert!(journal.items(3, 100).unwrap().is_empty());
     assert!(!fixture.path().join("success.bin").exists());
     assert_eq!(std::fs::read(failure).unwrap(), b"fixture content");
@@ -104,6 +118,55 @@ fn durable_results_distinguish_failure_cancellation_and_success() {
         std::fs::read(fixture.path().join("cancel.bin")).unwrap(),
         b"fixture content"
     );
+}
+
+#[test]
+fn history_pages_keep_each_operations_timestamp_and_order() {
+    let fixture = tempfile::tempdir().unwrap();
+    let files = tempfile::tempdir().unwrap();
+    let (plan, _) = fixture_plan(files.path(), &["first.bin", "second.bin", "third.bin"]);
+    let database = fixture.path().join("cleanup.sqlite");
+    let mut journal = Journal::open(&database).unwrap();
+    let first = journal.prepare_permanent(&plan).unwrap();
+    journal.cancel_pending(first).unwrap();
+    journal.finish(first).unwrap();
+    let second = journal.prepare_permanent(&plan).unwrap();
+    journal.cancel_pending(second).unwrap();
+    journal.finish(second).unwrap();
+    for (operation, created) in [(first, 100_i64), (second, 200_i64)] {
+        journal
+            .connection
+            .execute(
+                "UPDATE operations SET created=?1 WHERE id=?2",
+                params![created, operation.0],
+            )
+            .unwrap();
+    }
+    drop(journal);
+    let journal = Journal::open(&database).unwrap();
+    let page = journal.items(0, 4).unwrap();
+    assert_eq!(page.len(), 4);
+    assert!(
+        page[..3]
+            .iter()
+            .all(|item| item.operation == second.0 && item.created == 200)
+    );
+    assert!(
+        page[..3]
+            .windows(2)
+            .all(|pair| pair[0].node.0 < pair[1].node.0)
+    );
+    assert_eq!(page[3].operation, first.0);
+    assert_eq!(page[3].created, 100);
+    assert_eq!(journal.items(3, 1).unwrap()[0].node, page[3].node);
+    assert_eq!(journal.items(4, 4).unwrap().len(), 2);
+    assert!(journal.items(6, 4).unwrap().is_empty());
+    for name in ["first.bin", "second.bin", "third.bin"] {
+        assert_eq!(
+            std::fs::read(files.path().join(name)).unwrap(),
+            b"fixture content"
+        );
+    }
 }
 
 #[test]

@@ -77,6 +77,8 @@ Select regular files in Explorer or Large files and use Review selection to insp
 
 The advanced **Permanently delete…** action requires typing `DELETE` and confirming the irreversible operation. Each file is verified through retained native handles, its intent is committed before removal, and its result is recorded afterward. Results distinguish removal, failure, cancellation and unrecorded outcomes. Closing the result triggers a fresh analysis. This action does not use the Recycle Bin and has no undo; interrupted work is never retried automatically. Duplicate cleanup remains preview-only, and recycling is still pending. See [cleanup guarantees and remaining work](docs/CLEANUP.md).
 
+Cleanup activity lists saved per-file results and operation start times, including interrupted outcomes after restart. It is read-only and paginated; unknown results never imply successful removal or trigger retries.
+
 ## Developer storage
 
 The developer view classifies indexed Cargo targets, Node.js dependencies and build output, Python bytecode caches, Gradle project caches and .NET build directories. It recognizes current-user Cargo, npm, pnpm, pip, Gradle and NuGet locations, including supported absolute environment overrides. NuGet installed packages and pnpm shared links are labelled Dependencies, separate from their caches. Project manifests identify ambiguous names such as `target`, `bin` and `build`. Nested candidates belong to their outer artifact so category totals do not count the same subtree twice. Results use bounded pages and expose logical size, allocation and incomplete coverage.

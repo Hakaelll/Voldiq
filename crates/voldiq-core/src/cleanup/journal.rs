@@ -42,6 +42,7 @@ pub struct Item {
     pub path: String,
     pub state: String,
     pub message: Option<String>,
+    pub created: i64,
 }
 
 impl Journal {
@@ -200,8 +201,9 @@ impl Journal {
 
     pub fn items(&self, offset: usize, limit: usize) -> Result<Vec<Item>> {
         let mut statement = self.connection.prepare(
-            "SELECT operation,node,path,state,message FROM items
-            ORDER BY operation DESC,node LIMIT ?1 OFFSET ?2",
+            "SELECT i.operation,i.node,i.path,i.state,i.message,o.created FROM items i
+            JOIN operations o ON o.id=i.operation
+            ORDER BY i.operation DESC,i.node LIMIT ?1 OFFSET ?2",
         )?;
         let rows = statement.query_map(
             params![
@@ -216,6 +218,7 @@ impl Journal {
                     path: row.get(2)?,
                     state: row.get(3)?,
                     message: row.get(4)?,
+                    created: row.get(5)?,
                 })
             },
         )?;
