@@ -53,13 +53,19 @@ pub(crate) fn open_child(parent: &File, name: &OsStr, directory: bool) -> Result
     open_component(parent, name, access, share)
 }
 
-pub(crate) fn open_retained(parent: &File, name: &OsStr) -> Result<File> {
-    open_component(
-        parent,
-        name,
-        FILE_READ_ATTRIBUTES | FILE_READ_DATA,
-        FILE_SHARE_READ,
-    )
+pub(crate) enum LeafAccess {
+    Remove,
+    Retain,
+    CompareAndRemove,
+}
+
+pub(crate) fn open_leaf(parent: &File, name: &OsStr, access: LeafAccess) -> Result<File> {
+    let access = match access {
+        LeafAccess::Remove => FILE_READ_ATTRIBUTES | DELETE,
+        LeafAccess::Retain => FILE_READ_ATTRIBUTES | FILE_READ_DATA,
+        LeafAccess::CompareAndRemove => FILE_READ_ATTRIBUTES | FILE_READ_DATA | DELETE,
+    };
+    open_component(parent, name, access, FILE_SHARE_READ)
 }
 
 fn open_component(parent: &File, name: &OsStr, access: u32, share: u32) -> Result<File> {

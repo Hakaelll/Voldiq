@@ -113,10 +113,7 @@
       <button
         onclick={() => {
           execution = { kind: 'confirm' };
-        }}
-        disabled={plan.preview.retained.length > 0}
-        title={plan.preview.retained.length > 0 ? 'Retained-copy verification pending' : undefined}
-        >Permanently delete…</button
+        }}>Permanently delete…</button
       >
     {:else if execution.kind === 'confirm'}
       <span>Permanent · cannot be undone.</span>

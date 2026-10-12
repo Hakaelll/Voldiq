@@ -47,6 +47,7 @@ struct PlannedFile {
     path: PathBuf,
     stamp: Stamp,
     parents: Vec<(PathBuf, (u64, u64))>,
+    digest: Option<String>,
 }
 
 pub struct Plan {
@@ -84,6 +85,14 @@ impl Plan {
                 .find(|group| group.members.iter().any(|member| member.id == file.id))
                 .ok_or_else(|| Error::Invalid("Retained copy is outside the analysis.".into()))?;
             plan.retained.push((file, group.digest.clone()));
+        }
+        for file in &mut plan.files {
+            let group = analysis
+                .groups
+                .iter()
+                .find(|group| group.members.iter().any(|member| member.id == file.id))
+                .ok_or_else(|| Error::Invalid("Selected file is outside the analysis.".into()))?;
+            file.digest = Some(group.digest.clone());
         }
         Ok(plan)
     }
@@ -200,6 +209,7 @@ impl Plan {
                     change_time: identity.change_time,
                 },
                 parents,
+                digest: None,
             });
         }
         check_cancelled(cancel)?;
@@ -222,7 +232,14 @@ impl Plan {
             .iter()
             .find(|file| file.id == id)
             .ok_or_else(|| Error::Invalid("File is not in the confirmed plan.".into()))?;
-        Self::verify_file(planned, false)
+        Self::verify_file(
+            planned,
+            if planned.digest.is_some() {
+                windows::cleanup_io::LeafAccess::CompareAndRemove
+            } else {
+                windows::cleanup_io::LeafAccess::Remove
+            },
+        )
     }
 
     /// Keeps freshly verified content and namespace authority alive. It grants no removal authority.
@@ -231,36 +248,11 @@ impl Plan {
         &self,
         cancel: &std::sync::atomic::AtomicBool,
     ) -> Result<RetainedCopies> {
-        use std::io::Read;
         let mut files = Vec::new();
         for (planned, digest) in &self.retained {
             check_cancelled(cancel)?;
-            let mut verified = Self::verify_file(planned, true)?;
-            let mut hasher = blake3::Hasher::new();
-            let mut buffer = [0_u8; 64 * 1024];
-            let mut count = 0_u64;
-            loop {
-                check_cancelled(cancel)?;
-                let length = verified.file.read(&mut buffer)?;
-                if length == 0 {
-                    break;
-                }
-                count += length as u64;
-                hasher.update(&buffer[..length]);
-            }
-            let metadata = verified.file.metadata()?;
-            let identity = windows::file_identity(&verified.file)?;
-            if count != planned.stamp.size
-                || metadata.len() != planned.stamp.size
-                || metadata.modified()? != planned.stamp.modified
-                || identity.key != planned.stamp.identity
-                || identity.change_time != planned.stamp.change_time
-                || hasher.finalize().to_hex().as_str() != digest
-            {
-                return Err(Error::Invalid(
-                    "Retained copy changed. Rescan and analyze again.".into(),
-                ));
-            }
+            let mut verified = Self::verify_file(planned, windows::cleanup_io::LeafAccess::Retain)?;
+            verified.check_digest(digest, cancel)?;
             files.push(verified);
         }
         check_cancelled(cancel)?;
@@ -268,7 +260,10 @@ impl Plan {
     }
 
     #[cfg(windows)]
-    fn verify_file(planned: &PlannedFile, retained: bool) -> Result<VerifiedFile> {
+    fn verify_file(
+        planned: &PlannedFile,
+        access: windows::cleanup_io::LeafAccess,
+    ) -> Result<VerifiedFile> {
         let mut parents = Vec::new();
         // Pin ancestor names from the volume root inward; independently check the opened leaf's identity.
         for (path, expected) in planned.parents.iter().rev() {
@@ -300,11 +295,7 @@ impl Plan {
             .path
             .file_name()
             .ok_or_else(|| Error::Invalid("File name unavailable.".into()))?;
-        let file = if retained {
-            windows::cleanup_io::open_retained(parent, name)?
-        } else {
-            windows::cleanup_io::open_child(parent, name, false)?
-        };
+        let file = windows::cleanup_io::open_leaf(parent, name, access)?;
         let metadata = file.metadata()?;
         validate_file(&metadata)?;
         let identity = windows::file_identity(&file)?;
@@ -336,6 +327,51 @@ pub struct VerifiedFile {
 
 #[cfg(windows)]
 impl VerifiedFile {
+    fn check_stamp(&self) -> Result<()> {
+        let metadata = self.file.metadata()?;
+        validate_file(&metadata)?;
+        let identity = windows::file_identity(&self.file)?;
+        if (Stamp {
+            identity: identity.key,
+            size: metadata.len(),
+            modified: metadata.modified()?,
+            change_time: identity.change_time,
+        }) != self.stamp
+        {
+            return Err(Error::Invalid("File changed since preview.".into()));
+        }
+        Ok(())
+    }
+
+    fn check_digest(
+        &mut self,
+        expected: &str,
+        cancel: &std::sync::atomic::AtomicBool,
+    ) -> Result<()> {
+        use std::io::{Read, Seek};
+        self.check_stamp()?;
+        self.file.rewind()?;
+        let mut hasher = blake3::Hasher::new();
+        let mut buffer = [0_u8; 64 * 1024];
+        let mut count = 0_u64;
+        loop {
+            check_cancelled(cancel)?;
+            let length = self.file.read(&mut buffer)?;
+            if length == 0 {
+                break;
+            }
+            count += length as u64;
+            hasher.update(&buffer[..length]);
+        }
+        self.check_stamp()?;
+        if count != self.stamp.size || hasher.finalize().to_hex().as_str() != expected {
+            return Err(Error::Invalid(
+                "Duplicate content changed. Analyze again.".into(),
+            ));
+        }
+        Ok(())
+    }
+
     pub fn path(&self) -> &Path {
         &self.path
     }

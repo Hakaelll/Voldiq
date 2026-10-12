@@ -254,7 +254,7 @@ The developer destination uses the existing rail and compact header. Its bordere
 
 Cleanup presents one compact temporary-file rule with its age and extension criteria, Scan user temp, candidate totals, native checkboxes and bounded pages. Not indexed and Partial distinguish unavailable or incomplete coverage. Its selections open the shared preview.
 
-Duplicate review uses the same preview and lists retained paths under Keep. Native checkboxes begin empty; group selection cannot consume its last copy. A compact Cancel action is available during fresh content verification.
+Duplicate review uses the same preview and lists retained paths under Keep. Native checkboxes begin empty; group selection cannot consume its last copy. A compact Cancel action is available during fresh content verification. The advanced permanent action uses the same irreversible wording and typed DELETE confirmation as manual selections; the backend holds verified copies throughout removal.
 
 File checkboxes share the name cell and appear only for complete regular files in a current scan. A compact footer reports selection count, Review selection and Clear. The native dialog presents full paths with wrapping, right-aligned Logical and Potential values and necessary hard-link labels. Close and Escape dismiss it. No files are preselected and no descriptive paragraph appears in the product. Compiler and source checks cover this addition; populated native visual acceptance remains with the user.
 

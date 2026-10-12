@@ -1,6 +1,6 @@
 # Cleanup previews
 
-The current delivery supports manual, duplicate, indexed temporary-file and old-file selections with previews. Manual, temporary and old-file plans can use an explicitly confirmed advanced permanent-removal action. Duplicate selections remain preview-only. Recycling is not exposed, and no destructive operation runs automatically. Preview alone never approves execution.
+The current delivery supports manual, duplicate, indexed temporary-file and old-file selections with previews and an explicitly confirmed advanced permanent-removal action. Duplicate execution preserves a verified copy per group throughout removal. Recycling is not exposed, and no destructive operation runs automatically. Preview alone never approves execution.
 
 ## Manual file rule
 
@@ -54,7 +54,7 @@ The Cleanup view exposes Scan user temp, bounded candidate pages and Review sele
 
 Duplicate checkboxes start empty and remain selected across result pages. The frontend and backend both reject selecting every member of a group. The backend rejects selections outside the current analysis and analysis results from an older index. For every touched group it chooses one unselected copy to retain, reads the full content of that copy and every selected file with BLAKE3, and compares the original group digest. These reads bypass the hash cache and check the scanned file identity and native change time. The review can be cancelled during content reads.
 
-The preview shows retained paths under Keep. This is evidence at preview creation, not a guarantee at a future deletion time. The executor must repeat retained-copy validation and preserve that copy through the destructive transaction. No recycling command is exposed in this delivery.
+The preview shows retained paths under Keep. The confirmed permanent executor repeats retained-copy validation, holds those native handles through the destructive transaction and freshly hashes selected content through its verified removal handle. No recycling command is exposed in this delivery.
 
 Additional cleanup rules, official developer tool commands, confirmed recycling and recycling undo integration are still open work.
 
@@ -64,7 +64,9 @@ Duplicate plans now capture the preserved copy's exact file and ancestor stamps 
 
 Three controlled Windows fixture tests cover write/rename/delete exclusion while ordinary reading remains possible, handle release, changed content and identity, cancellation and incorrect digest rejection. A writable file mapping still rejects acquisition with `ERROR_SHARING_VIOLATION` after its original file handle is closed; unmapping and closing the mapping restores acquisition. This matches the [documented write-sharing rule](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilea). Other filesystems and filter drivers are not proved by this NTFS fixture.
 
-The permanent executor and native/UI gates still reject duplicate execution. Before those gates can open, the executor must retain this guard throughout removal, bind every selected file to the matching preserved group, rehash selected content through verified handles and preserve per-file journal and cancellation behavior.
+The confirmed permanent executor acquires every preserved copy before committing operation intent. Selected digests must match preserved-group digests; selected leaves receive read-data and DELETE access with no write/delete sharing. Every selected content read bypasses the hash cache, checks cancellation, and verifies the full stamp before and after hashing. Preserved-copy stamps are checked again before removal; their handles remain owned until execution returns. Failed acquisition releases any earlier copies and removes nothing. Cancellation before or during selected hashing prevents that removal and subsequent unstarted items remain cancelled. A cancelled in-flight item can be recorded failed with its cancellation reason; this never implies removal.
+
+Three executor tests use disposable real Windows files across two distinct content groups. They prove preserved copies reject write/rename/delete attempts during every result callback, selected links alone disappear, successful results survive reopening, a changed second keeper aborts before journal intent and releases the first, cancellation preserves pending files, and changed selected content remains intact. A wrong digest fails a fresh selected-handle read. Existing failure-to-record and partial-outcome tests continue to pass. Native manual interaction, other filesystem/filter behavior and power-loss durability remain unverified.
 
 ## Durable operation journal
 
@@ -76,7 +78,7 @@ Reopening converts interrupted `in_flight` items to `unknown` and unstarted `pre
 
 Four controlled tests use real SQLite files and disposable Windows fixtures. They cover mixed success/failure/cancellation surviving reopen, exact identity serialization, bounded paging, duplicate transition rejection, failure to commit intent, failure to commit a result after actual deletion, replacement-file preservation across repeated recovery, exclusive-owner refusal, numeric rollback and foreign/future database rejection. They simulate interrupted caller state and SQLite write rejection; power-loss/device-failure durability and complete application restart integration are not claimed.
 
-The application initializes this journal at `cleanup.db` in its local data directory. An unavailable journal disables execution through a reported error while analysis remains usable. The confirmed permanent executor and bounded audit query use it. Cleanup activity keeps `in_flight` results unresolved and recovered `unknown` results unknown; neither becomes success. It has no retry, restore or deletion action. Duplicate retention and the default recycling transaction remain pending.
+The application initializes this journal at `cleanup.db` in its local data directory. An unavailable journal disables execution through a reported error while analysis remains usable. The confirmed permanent executor and bounded audit query use it. Cleanup activity keeps `in_flight` results unresolved and recovered `unknown` results unknown; neither becomes success. It has no retry, restore or deletion action. The default recycling transaction remains pending.
 
 ## Handle-bound permanent-disposition primitive
 
@@ -86,7 +88,7 @@ Microsoft documents that [POSIX disposition removes the visible link when the de
 
 Four controlled Windows/NTFS fixture tests verify removal of only the approved link, an unchanged retained hard link, continued reads through a preexisting reader, last-link removal while a reader retains data, rejection of substitution before verification, rejection of read-only targets and rejection of metadata changed after verification. Every destructive call targets files freshly created inside the test's owned temporary directory; unrelated fixture files survive. Nine existing cleanup/rule/duplicate-selection integration tests also pass.
 
-The confirmed permanent executor now uses this primitive with durable intent/results, cancellation and index invalidation/refresh. It is an explicit advanced action and cannot undo permanent removal. Duplicate keep-copy authority is still required before enabling duplicate execution. Recycling remains a separate unresolved handoff and never silently falls back to this primitive.
+The confirmed permanent executor uses this primitive with durable intent/results, cancellation and index invalidation/refresh, including protected duplicate-copy execution. It is an explicit advanced action and cannot undo permanent removal. Recycling remains a separate unresolved handoff and never silently falls back to this primitive.
 
 The metadata recheck and disposition are separate calls. Later attribute changes can still race with disposition, although the retained handle prevents substitution of another file. These tests do not prove that a file is unused or cover every mapped-section, filesystem or filter configuration. The source-only reviews confirmed these limits; the executor does not claim low-risk removal or reclaimed allocation.
 

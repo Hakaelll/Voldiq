@@ -97,9 +97,6 @@ fn consume_plan(
     if session.id != id || !Arc::ptr_eq(&session._index, current) {
         return Err("Cleanup preview belongs to a previous analysis. Review again.".into());
     }
-    if !session._plan.preview().retained.is_empty() {
-        return Err("Duplicate execution requires retained-copy authority.".into());
-    }
     slot.take()
         .ok_or_else(|| "Cleanup preview is no longer available.".into())
 }

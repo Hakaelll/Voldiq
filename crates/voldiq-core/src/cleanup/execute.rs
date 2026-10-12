@@ -29,17 +29,27 @@ pub fn permanent(
     cancel: &AtomicBool,
     mut progress: impl FnMut(usize),
 ) -> Result<Report> {
-    if !plan.preview.retained.is_empty() {
+    if plan.preview.retained.len() != plan.retained.len()
+        || plan.files.iter().any(|file| match &file.digest {
+            Some(digest) => !plan.retained.iter().any(|(_, keep)| keep == digest),
+            None => !plan.retained.is_empty(),
+        })
+    {
         return Err(Error::Invalid(
             "Duplicate execution requires retained-copy authority.".into(),
         ));
     }
-    let operation = journal.prepare_permanent(&plan)?;
     let mut report = Report {
         items: Vec::new(),
         cancelled: false,
         journal_error: None,
     };
+    let retained = if plan.retained.is_empty() || cancel.load(Ordering::Relaxed) {
+        None
+    } else {
+        Some(plan.verify_retained(cancel)?)
+    };
+    let operation = journal.prepare_permanent(&plan)?;
     for file in &plan.files {
         if cancel.load(Ordering::Relaxed) {
             report.cancelled = true;
@@ -49,9 +59,21 @@ pub fn permanent(
             report.journal_error = Some(error.to_string());
             return Ok(report);
         }
-        let result = plan
-            .verify(file.id)
-            .and_then(|verified| verified.remove_permanently());
+        let result = (|| {
+            let mut verified = plan.verify(file.id)?;
+            if let Some(digest) = &file.digest {
+                verified.check_digest(digest, cancel)?;
+            }
+            if let Some(retained) = &retained {
+                for keep in &retained._files {
+                    keep.check_stamp()?;
+                }
+            }
+            if cancel.load(Ordering::Relaxed) {
+                return Err(Error::Invalid("Cleanup cancelled before removal.".into()));
+            }
+            verified.remove_permanently()
+        })();
         let error = result.err().map(|error| error.to_string());
         let recorded = journal.complete_item(
             operation,
@@ -74,6 +96,7 @@ pub fn permanent(
             return Ok(report);
         }
     }
+    report.cancelled |= cancel.load(Ordering::Relaxed);
     if let Err(error) = journal
         .cancel_pending(operation)
         .and_then(|()| journal.finish(operation))
