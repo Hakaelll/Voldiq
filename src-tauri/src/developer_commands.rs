@@ -2,6 +2,11 @@ use std::{ffi::OsString, path::PathBuf};
 use tauri::Manager;
 use voldiq_core::developer::{CacheLocation, Category};
 
+enum PnpmLocation {
+    Configured(PathBuf),
+    Conventional(PathBuf),
+}
+
 pub(super) fn cache_locations(app: &tauri::AppHandle) -> Vec<CacheLocation> {
     resolve_cache_locations(
         app.path().home_dir().ok(),
@@ -23,6 +28,7 @@ fn resolve_cache_locations(
         environment("NPM_CONFIG_CACHE"),
         local.as_ref().map(|path| path.join("npm-cache")),
     );
+    let pnpm = pnpm_store_location(local.as_ref(), &environment);
     let pip = configured_path(
         environment("PIP_CACHE_DIR"),
         local.as_ref().map(|path| path.join("pip/Cache")),
@@ -74,7 +80,54 @@ fn resolve_cache_locations(
             });
         }
     }
+    if let Some(location) = pnpm {
+        let (base, versions): (PathBuf, &[&str]) = match location {
+            PnpmLocation::Configured(base) => (base, &["v11"]),
+            PnpmLocation::Conventional(base) => (base, &["v3", "v10", "v11"]),
+        };
+        let roots: Vec<_> = if base
+            .file_name()
+            .is_some_and(|name| versions.iter().any(|version| name == *version))
+        {
+            vec![base]
+        } else {
+            versions.iter().map(|version| base.join(version)).collect()
+        };
+        for root in roots {
+            for (directory, category) in [
+                ("files", Category::Cache),
+                ("index", Category::Cache),
+                ("links", Category::Dependencies),
+            ] {
+                if let Ok(path) = root.join(directory).canonicalize() {
+                    locations.push(CacheLocation {
+                        path,
+                        tool: "pnpm",
+                        category,
+                    });
+                }
+            }
+        }
+    }
     locations
+}
+
+fn pnpm_store_location(
+    local: Option<&PathBuf>,
+    environment: &impl Fn(&str) -> Option<OsString>,
+) -> Option<PnpmLocation> {
+    if let Some(value) = environment("PNPM_CONFIG_STORE_DIR").filter(|value| !value.is_empty()) {
+        return configured_path(Some(value), None).map(PnpmLocation::Configured);
+    }
+    if let Some(value) = environment("PNPM_HOME").filter(|value| !value.is_empty()) {
+        return configured_path(Some(value), None)
+            .map(|path| PnpmLocation::Conventional(path.join("store")));
+    }
+    if let Some(value) = environment("XDG_DATA_HOME").filter(|value| !value.is_empty()) {
+        return configured_path(Some(value), None)
+            .map(|path| PnpmLocation::Conventional(path.join("pnpm/store")));
+    }
+    local.map(|path| PnpmLocation::Conventional(path.join("pnpm/store")))
 }
 
 fn configured_path(value: Option<OsString>, default: Option<PathBuf>) -> Option<PathBuf> {
@@ -92,6 +145,91 @@ mod tests {
     use super::*;
     use std::sync::atomic::AtomicBool;
     use voldiq_core::{NodeId, ScanOptions, developer, scanner::scan};
+
+    #[test]
+    fn pnpm_environment_precedence_selects_only_measured_store_storage() {
+        let fixture = tempfile::tempdir().unwrap();
+        let root = fixture.path();
+        let local = root.join("local");
+        for (path, size) in [
+            ("local/pnpm/store/v10/files/pkg", 11),
+            ("local/pnpm/config/settings", 90),
+            ("home/store/v11/files/pkg", 22),
+            ("home/pnpm.exe", 100),
+            ("xdg/pnpm/store/v11/files/pkg", 33),
+            ("configured/v11/files/pkg", 44),
+            ("configured/v11/index/metadata", 2),
+            ("configured/v11/links/pkg/content", 17),
+            ("configured/user-data", 400),
+            ("configured/v11/index.db", 500),
+            ("legacy base/v10/files/unrelated", 66),
+            ("legacy base/v10/v11/files/data", 55),
+        ] {
+            let path = root.join(path);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, vec![1; size]).unwrap();
+        }
+        let index = scan(
+            root,
+            &ScanOptions::default(),
+            &AtomicBool::new(false),
+            |_| {},
+        )
+        .unwrap();
+        for (variables, expected) in [
+            (Vec::new(), 11),
+            (vec![("XDG_DATA_HOME", "xdg")], 33),
+            (vec![("XDG_DATA_HOME", "xdg"), ("PNPM_HOME", "home")], 22),
+            (
+                vec![
+                    ("PNPM_HOME", "home"),
+                    ("PNPM_CONFIG_STORE_DIR", "configured"),
+                ],
+                63,
+            ),
+        ] {
+            let locations = resolve_cache_locations(None, Some(local.clone()), |name| {
+                variables
+                    .iter()
+                    .find(|(key, _)| *key == name)
+                    .map(|(_, value)| root.join(value).into_os_string())
+            });
+            let page = developer::query_with_caches(&index, NodeId(0), 0, 100, &locations).unwrap();
+            assert_eq!(page.total, if expected == 63 { 3 } else { 1 });
+            assert_eq!(page.logical, expected);
+            assert_eq!(page.items[0].tool, "pnpm");
+            assert_eq!(page.items[0].category, Category::Cache);
+            if expected == 63 {
+                assert!(
+                    page.items
+                        .iter()
+                        .any(|item| item.logical == 17 && item.category == Category::Dependencies)
+                );
+            }
+        }
+        let versioned = resolve_cache_locations(None, None, |name| {
+            (name == "PNPM_CONFIG_STORE_DIR").then(|| root.join("configured/v11").into_os_string())
+        });
+        let versioned_page =
+            developer::query_with_caches(&index, NodeId(0), 0, 100, &versioned).unwrap();
+        assert_eq!(versioned_page.logical, 63);
+        assert_eq!(versioned_page.total, 3);
+        let legacy_named = resolve_cache_locations(None, None, |name| {
+            (name == "PNPM_CONFIG_STORE_DIR").then(|| root.join("legacy base/v10").into_os_string())
+        });
+        let legacy_page =
+            developer::query_with_caches(&index, NodeId(0), 0, 100, &legacy_named).unwrap();
+        assert_eq!(legacy_page.total, 1);
+        assert_eq!(legacy_page.logical, 55);
+        let relative = resolve_cache_locations(None, Some(local.clone()), |name| {
+            (name == "PNPM_CONFIG_STORE_DIR").then(|| OsString::from("relative/store"))
+        });
+        assert!(relative.is_empty());
+        let missing = resolve_cache_locations(None, Some(local), |name| {
+            (name == "PNPM_CONFIG_STORE_DIR").then(|| root.join("absent").into_os_string())
+        });
+        assert!(missing.is_empty());
+    }
 
     #[test]
     fn tool_locations_classify_measured_dependencies_and_caches_with_overrides() {

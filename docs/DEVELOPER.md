@@ -18,6 +18,7 @@ The Windows resolver also recognizes these locations and their absolute environm
 
 | Tool | Default location | Override | Category |
 |---|---|---|---|
+| pnpm | Versioned directories beneath `%LocalAppData%\pnpm\store` | `PNPM_CONFIG_STORE_DIR`, then `PNPM_HOME\store`, then `XDG_DATA_HOME\pnpm\store` | Cache / Dependencies |
 | pip | `%LocalAppData%\pip\Cache` | `PIP_CACHE_DIR` | Cache |
 | Gradle | `%UserProfile%\.gradle\caches` | `GRADLE_USER_HOME`, then `caches` | Cache |
 | NuGet packages | `%UserProfile%\.nuget\packages` | `NUGET_PACKAGES` | Dependencies |
@@ -28,9 +29,15 @@ These locations follow [pip caching](https://pip.pypa.io/en/stable/topics/cachin
 
 Tool configuration files and command-line overrides are not inspected. When configured locations overlap, a scoped query uses the most specific matching root. Coincident roots retain a dependency category when one is declared. A wider scan still aggregates nested locations into their outer candidate without counting bytes twice.
 
+pnpm discovery follows its documented [store settings](https://pnpm.io/settings/store). `PNPM_HOME` and `XDG_DATA_HOME` are considered before the Windows default. Conventional locations recognize `v3`, `v10` and `v11`. The explicit `PNPM_CONFIG_STORE_DIR` override follows the inspected pnpm 11.25 source: append `v11` unless the path already ends in `v11`. Relative overrides are omitted, and a missing configured store does not fall back to a different existing store.
+
+Only each version's `files` and `index` directories are classified as Cache. `links` is classified separately as Dependencies because the [global virtual store](https://pnpm.io/global-virtual-store) can serve installed packages directly to projects. No outer store candidate absorbs these categories. Sibling binaries, configuration and unrelated files are excluded. Standalone bookkeeping files such as `index.db` remain visible in Explorer but are not included in these developer categories.
+
+This is known-location analysis, not a claim that the discovered store is active for every project. YAML/legacy npmrc configuration, custom global virtual-store paths, stores selected for other disks, project-local store fallback and unrecognized future formats are not discovered automatically. No pnpm command is executed.
+
 ## Verification status
 
-On 2026-10-12, all four developer-storage integration tests, both native resolver tests, formatting and strict workspace Clippy passed. Native fixtures verify all eight global locations with measured totals, three absolute overrides and exclusion of Gradle configuration and runtimes. Source-only review verified scoped cache descendants, historical isolation and overlapping-root category selection. Populated native UI acceptance remains pending.
+On 2026-10-12, four developer-storage integration tests and three native resolver tests passed, with formatting and strict workspace Clippy. The expanded native fixture verifies eight tool locations with measured totals, three absolute overrides and exclusion of Gradle configuration and runtimes. The pnpm fixture checks environment precedence, version suffixes, missing/relative overrides, unrelated sibling exclusion and separate shared dependencies. Source-only review verified scoped cache descendants, historical isolation, overlapping-root categories and pnpm versioned layouts. Populated native UI acceptance remains pending.
 
 Real-filesystem tests cover configured paths, unrelated namesakes, exclusion of Cargo credentials and installed binaries, nested dependencies, totals, paging, scoped cache descendants, incomplete subtree scans and historical rejection of live cache roots. The native unit test covers default, empty, absolute and relative overrides without modifying process environment variables. Reproduce the checks with:
 
@@ -41,4 +48,4 @@ cargo test -p voldiq --bin voldiq developer_commands::tests
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-pnpm store discovery and Docker analysis remain pending. Docker storage must be inspected through its supported commands or APIs. Its internal folders must not be deleted directly. Cleanup execution and explicit confirmation remain separate unfinished requirements.
+Configuration-file and per-disk pnpm discovery, custom global virtual-store locations, bookkeeping classification and Docker analysis remain pending. Docker storage must be inspected through its supported commands or APIs. Its internal folders must not be deleted directly. Cleanup execution and explicit confirmation remain separate unfinished requirements.

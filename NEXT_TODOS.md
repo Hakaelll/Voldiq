@@ -80,6 +80,8 @@ Global Cargo and npm cache analysis now resolves documented current-user locatio
 
 Global analysis now includes pip, Gradle and NuGet. NuGet packages are Dependencies; HTTP and plugin locations are Cache. Gradle selects only its caches directory. Most-specific matching roots preserve scoped categories when configurations overlap, and coincident dependency locations take precedence. Four core integration tests, two native tests, formatting and strict workspace Clippy pass; source-only review confirmed the overlap fix. pnpm store discovery, persisted location evidence, Docker analysis and cleanup execution remain pending.
 
+pnpm analysis now resolves conventional versioned stores and the supported absolute environment override. Files/index directories are Cache; global shared links are Dependencies, with no outer candidate hiding the distinction. A real-scanned native fixture verifies precedence, the pnpm 11 suffix, already-versioned paths, missing/relative configuration and unrelated sibling exclusion. Three native tests and strict workspace Clippy pass. Configuration-file/per-disk discovery, custom virtual-store paths, standalone bookkeeping classification, Docker analysis and cleanup execution remain pending.
+
 ## Manual management previews
 
 The first cleanup rule now discovers and pages indexed user `.tmp`/`.temp` files aged seven days or more. Two real-filesystem tests cover exact totals, age, extension, paging, explicit selection, changed files, historical rejection, exclusions, unscanned locations and partial subtree coverage. Its descriptor records the full rule contract. The Cleanup view supports scanning the actual temporary location and manual preview. Recycling and unused-file execution remain pending.

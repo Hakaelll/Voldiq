@@ -73,7 +73,7 @@ Select regular files in Explorer or Large files and use Review selection to insp
 
 ## Developer storage
 
-The developer view classifies indexed Cargo targets, Node.js dependencies and build output, Python bytecode caches, Gradle project caches and .NET build directories. It recognizes current-user Cargo, npm, pip, Gradle and NuGet locations, including absolute environment overrides. NuGet installed packages are labelled Dependencies; its HTTP and plugin caches are labelled Cache. Project manifests identify ambiguous names such as `target`, `bin` and `build`. Nested candidates belong to their outer artifact so category totals do not count the same subtree twice. Results use bounded pages and expose logical size, allocation and incomplete coverage. Management actions, pnpm store discovery and Docker analysis remain pending. See [developer analysis and configuration limits](docs/DEVELOPER.md).
+The developer view classifies indexed Cargo targets, Node.js dependencies and build output, Python bytecode caches, Gradle project caches and .NET build directories. It recognizes current-user Cargo, npm, pnpm, pip, Gradle and NuGet locations, including supported absolute environment overrides. NuGet installed packages and pnpm shared links are labelled Dependencies, separate from their caches. Project manifests identify ambiguous names such as `target`, `bin` and `build`. Nested candidates belong to their outer artifact so category totals do not count the same subtree twice. Results use bounded pages and expose logical size, allocation and incomplete coverage. Management actions, additional configuration discovery and Docker analysis remain pending. See [developer analysis and configuration limits](docs/DEVELOPER.md).
 
 ## Snapshot history
 
