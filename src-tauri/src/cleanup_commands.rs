@@ -23,6 +23,17 @@ pub struct CleanupPreview {
 }
 
 #[tauri::command]
+pub async fn query_recycle_bin(
+    drive: String,
+) -> Result<voldiq_core::windows::recycle_bin::Summary, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        voldiq_core::windows::recycle_bin::query(&drive).map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
 pub async fn query_cleanup_rule(
     offset: usize,
     limit: usize,

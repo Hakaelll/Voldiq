@@ -519,6 +519,7 @@ fn main() {
             query_files,
             preview_cleanup,
             query_cleanup_rule,
+            query_recycle_bin,
             preview_temporary_cleanup,
             preview_duplicate_cleanup,
             discard_cleanup,

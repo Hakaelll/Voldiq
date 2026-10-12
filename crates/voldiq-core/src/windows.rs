@@ -4,6 +4,7 @@ use std::path::Path;
 
 #[cfg(windows)]
 pub(crate) mod cleanup_io;
+pub mod recycle_bin;
 
 #[derive(Serialize)]
 pub struct Volume {

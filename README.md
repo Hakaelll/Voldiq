@@ -67,6 +67,8 @@ Potential allocation conservatively retains the largest independently allocated 
 
 Cleanup lists indexed `.tmp` and `.temp` files at least seven days old in the Windows user temporary directory. Select files manually, then review their actual paths and sizes. Unscanned and partial coverage remain visible.
 
+The Recycle Bin panel queries Windows for the selected accessible local drive's current item count and size, independently of the scan. Refresh updates the read-only summary. Unavailable results remain distinct from an empty bin; size is not an estimate of physical space recovered.
+
 Duplicate selections retain a copy from each group and reread full BLAKE3 content before showing selected and retained paths. The review is cancellable. Recycling remains under development.
 
 Select regular files in Explorer or Large files and use Review selection to inspect their real paths, sizes and potential allocation. Rust retains immutable plans and checks scanned identities, change times, exclusions and native Windows protected locations. Historical captures cannot produce management previews. Verification tests cover replacement and mutation with controlled files. Recycling and permanent deletion are not exposed yet; see [cleanup guarantees and remaining work](docs/CLEANUP.md).

@@ -10,6 +10,7 @@
   import DockerStorage from './components/DockerStorage.svelte';
   import CleanupPreviewDialog from './components/CleanupPreview.svelte';
   import CleanupRules from './components/CleanupRules.svelte';
+  import RecycleBin from './components/RecycleBin.svelte';
   import {
     bytes,
     date,
@@ -499,11 +500,17 @@
         >
           <span class:working={operation.phase === 'scanning'} class="status-dot"></span><span
             >{operation.phase === 'scanning'
-              ? operation.previous ? 'Refreshing · previous results' : 'Scanning'
+              ? operation.previous
+                ? 'Refreshing · previous results'
+                : 'Scanning'
               : operation.phase === 'complete'
                 ? 'Scan complete'
                 : operation.phase === 'cancelled'
-                  ? operation.entries === 0 ? 'Cancelled' : operation.previous ? 'Cancelled · previous results' : 'Cancelled · partial results'
+                  ? operation.entries === 0
+                    ? 'Cancelled'
+                    : operation.previous
+                      ? 'Cancelled · previous results'
+                      : 'Cancelled · partial results'
                   : 'Scan failed'}</span
           ><span
             >{operation.files.toLocaleString()} files · {bytes(operation.logical)} logical · {(
@@ -701,6 +708,7 @@
               </div>
             </section>
           {:else if view === 'cleanup'}
+            <RecycleBin drive={volumePath} />
             <CleanupRules
               scanning={operation?.phase === 'scanning'}
               {revision}

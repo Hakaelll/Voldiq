@@ -91,3 +91,11 @@ pwsh -NoProfile -File benchmarks/shell-file-id-probe.ps1
 ```
 
 The next handoff design must establish binding at the actual filesystem operation, retain approved file and ancestor authority, and separately prove per-item recycling and recovery. Identity metadata supplied to Shell parsing is insufficient evidence for enabling the executor.
+
+## Read-only Recycle Bin summary
+
+The Cleanup panel calls [SHQueryRecycleBinW](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shqueryrecyclebinw) for the explicitly selected accessible local drive. It uses the Windows SDK structure with `cbSize` initialized and requires `S_OK`. It never reads `$Recycle.Bin` folders, empties the bin, restores items or deletes files. Counts and sizes must be nonnegative and exactly representable by JavaScript; errors remain unavailable results rather than zero totals.
+
+The query runs off the IPC thread. Changing the selected drive or leaving the panel invalidates pending display results. It reports current Shell totals, independently of live or historical scan contents. The reported size does not establish physical allocation or space recovered by emptying the bin.
+
+Three native tests pass, covering numeric boundaries, invalid drive paths and a real read-only query on this Windows host. The live `C:\` query returned zero items and zero bytes. A populated-bin acceptance check remains pending; no user items were created or modified for testing. Emptying, item enumeration, restoration and durable recycling execution remain future work.
