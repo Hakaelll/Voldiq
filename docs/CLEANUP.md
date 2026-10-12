@@ -57,3 +57,31 @@ The documented [Shell deletion interface](https://learn.microsoft.com/en-us/wind
 On this host, atomic directory creation succeeded and new children were denied. The requested access was `0x001600a2`, but the returned handle had `0x001200a2`, without the requested DACL modification right. Native relative rename returned `STATUS_ACCESS_DENIED` (`0xc0000022`); the Win32 attempt returned error 87. Native ACL restoration through the created handle also returned access denied. The fixture was removed using its parent permissions. This disproves that enrollment approach on this host; it does not prove that every possible Windows design is unavailable.
 
 Creating an initially writable staging directory and sealing it afterward is also insufficient: previously granted mutation handles remain authorized. A future implementation needs a proven namespace handoff and durable recovery before any source relocation. A staged item also needs an original-path restoration mechanism because Shell would record the staging path. Per-item [PostDeleteItem](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-ifileoperationprogresssink-postdeleteitem) results must contain an actual Recycle Bin item before reporting recycling, and aborted operations and partial failures must remain distinct. This investigation has not authorized a destructive executor.
+
+## Shell file-ID binding experiment
+
+Microsoft documents [IFileSystemBindData2](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nn-shobjidl_core-ifilesystembinddata2) as information supplied to Shell parsing, with [SetFileID](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-ifilesystembinddata2-setfileid) accepting the file index from `BY_HANDLE_FILE_INFORMATION`. That contract does not establish an immutable handle handoff for recycling.
+
+`benchmarks/shell-file-id-probe.ps1` checks whether a supplied original file ID preserves stream binding after namespace substitution. It creates a unique temporary directory with two controlled contents, implements both binding interfaces with their Windows SDK GUIDs and method order, and runs Shell calls on an STA thread. A successful baseline stream read is required. It then moves the original to a retained fixture path and creates a replacement with a distinct native identity at the original name. Both the previously created Shell item and a new item parsed with the stale ID are opened through `BHID_Stream`. A final read tests the original name after removing only the replacement fixture.
+
+On 2026-10-12, Windows `10.0.26200.0` on NTFS produced:
+
+```text
+baseline=original
+existing_item_stream=replacement
+reparsed_stale_id_stream=replacement
+missing_path_stream=HRESULT_0x80070002
+find_data_reads=2
+file_id_reads=2
+file_id_writes=0
+```
+
+The original and replacement had different native file indices; the retained original's content remained unchanged. The probe records every returned ID and asserts that each equals the original ID, checks the supplied ID before reparsing, and records setter calls. On this run both returned IDs were the original ID and no setter was invoked. The getter counters show the supplied data was consumed during parsing. Nevertheless, these stream bindings followed the replaced name and later failed when that name disappeared. This is a counterexample to treating the supplied ID or parsed Shell item as immutable object authority. It does not measure `IFileOperation.DeleteItem` behavior, nor prove every Windows recycling design impossible.
+
+The probe never invokes a recycling API. Its cleanup checks the resolved temporary prefix, fixture name and absence of a reparse point, deletes only its named fixture files and removes the directory nonrecursively. Reproduce it with:
+
+```powershell
+pwsh -NoProfile -File benchmarks/shell-file-id-probe.ps1
+```
+
+The next handoff design must establish binding at the actual filesystem operation, retain approved file and ancestor authority, and separately prove per-item recycling and recovery. Identity metadata supplied to Shell parsing is insufficient evidence for enabling the executor.
