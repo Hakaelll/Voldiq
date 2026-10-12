@@ -63,6 +63,8 @@ Logical size includes each visible hard-link name. Unique allocated size counts 
 
 Progress reports actual file counts and bytes. Partial results can be explored while scanning; cancellation retains the measured index. No estimated percentage appears when the total is unknown. The initial index has a five-million-entry limit. Reaching the limit yields explicitly incomplete results.
 
+Five scans of a real million-file fixture verified exact counts and sizes with zero errors. See [performance measurements](docs/PERFORMANCE.md#large-real-filesystem-fixture) for raw results, reproduction commands and the limits of this warm-cache scanner baseline.
+
 ## Duplicate analysis
 
 Duplicate discovery groups indexed files by size, samples at most 8 KiB and verifies matching content with complete BLAKE3 hashes. Locked, changed and vanished files produce reported issues. Hard links to the same file identity are represented once. Repeated analysis reuses hashes only after validating file identity, size, modification time and native change time.

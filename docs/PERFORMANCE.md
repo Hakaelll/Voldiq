@@ -10,7 +10,20 @@ cargo run --release -p voldiq-core --example benchmark -- 1000000
 
 Every scan must have the exact file, entry and logical-byte totals, complete coverage, known allocation and zero errors. Root paging and a matching global search must return the expected counts. Output includes actual allocation, elapsed scan/query times, entry layout, and Windows private bytes, working set and lifetime peak working set sampled after queries. These are scanner-process counters, including allocator retention; they exclude the native app and WebView2. The peak includes fixture creation and previous runs, so it is not a per-scan peak.
 
-Five small-fixture runs and strict Clippy passed on 2026-10-13. The first million-file measurement is still running; no completed large-filesystem performance result is claimed here yet. Previous synthetic million-entry query results below remain distinct.
+Five small-fixture runs and strict Clippy passed on 2026-10-13. The large fixture completed five measured scans with exactly 1,000,000 files, 1,000,101 entries, 128,000,000 logical and allocated bytes and zero errors in every run. Root queries returned 100 folders; the name search matched 10,000 files and returned a bounded page of 100. [Raw results](../benchmarks/real-million-2026-10-13.csv) retain each run.
+
+The process exited successfully after cleanup, and a separate filesystem check confirmed its owned temporary directory no longer existed. Read-only review checked all six medians and ranges against the CSV rows.
+
+| Measurement | Median of five | Range |
+|---|---:|---:|
+| Scan | 107,341.048 ms | 107,076.542–158,272.273 ms |
+| Root page | 5.534 ms | 5.355–8.857 ms |
+| Global name search | 67.530 ms | 59.831–74.683 ms |
+| Private bytes after queries | 153,669,632 B | 153,264,128–153,985,024 B |
+| Working set after queries | 149,319,680 B | 149,254,144–149,561,344 B |
+| Lifetime peak working set | 190,713,856 B | 190,578,688–190,914,560 B |
+
+This is a verified warm-directory-scanner baseline on the Windows 11/i7-1165G7/NVMe host described below, not a comparison with another implementation. The scan sources were at `324fd02` with the benchmark changes later committed as `9f22b69`; the measured executable predates the optional kind filter added in `4c3c656`. Its SHA-256 is `25CA3B286FC4F8C9E368C96AA5117B8FC43B106902BD3D3B8599F0DA332B3B8C`. Fixture creation and cleanup are outside timing. The app and other host processes remained open, CPU load was not isolated, and the first scan was slower. No cold-cache control, syscall profile, NTFS fast-path comparison or native UI timing was performed. These measurements do not establish disk bandwidth or a universal scan speed. Previous synthetic million-entry query results below remain distinct.
 
 ## Bounded scan concurrency
 
@@ -25,7 +38,7 @@ Settings now saves a real metadata-concurrency limit from 1 to 8. One worker run
 | 4 | 533.897 ms | 400.964–612.296 ms | 1,843.750 ms |
 | 8 | 368.672 ms | 326.170–508.490 ms | 1,812.500 ms |
 
-Every run measured 10,101 entries, 10,000 files, 1,280,000 logical and allocated bytes, with zero errors. The fixture was newly written and subsequent runs reused warm metadata; this is not disk-bandwidth throughput. More workers reduced elapsed time on this fixture while using more CPU. The host was running the app and development builds, and a before-run CPU-load baseline was unavailable; rotation reduces but does not eliminate that noise. No isolated syscall profile, HDD/USB/network fixture, cold-cache or million-file result has been established. These numbers do not choose a universal fastest setting. The default remains 1 to limit background interference; storage-aware automatic calibration remains pending.
+Every run measured 10,101 entries, 10,000 files, 1,280,000 logical and allocated bytes, with zero errors. The fixture was newly written and subsequent runs reused warm metadata; this is not disk-bandwidth throughput. More workers reduced elapsed time on this fixture while using more CPU. The host was running the app and development builds, and a before-run CPU-load baseline was unavailable; rotation reduces but does not eliminate that noise. No isolated syscall profile, HDD/USB/network fixture, cold-cache or million-file concurrency comparison has been established. These numbers do not choose a universal fastest setting. The default remains 1 to limit background interference; storage-aware automatic calibration remains pending.
 
 ## First scanner baseline
 
@@ -93,4 +106,4 @@ On 2026-10-12, the updated 10,000-file runner verified 10,101 entries, exact log
 
 Cleanup identity baselines increase the measured x64 `Entry` layout from 80 to 112 bytes. This excludes heap allocations and is not total process memory. Historical million-entry query measurements above predate that layout and the additional stable metadata reads; they must not be presented as measurements of the updated scanner. Updated million-entry query measurements remain part of the performance gate.
 
-The pending performance gate includes million-file workloads, broad and deep directory shapes, query latency during indexing, NTFS versus fallback scans, hard-link and sparse-file accuracy, total application memory, cold and warm startup, idle CPU, cancellation latency and Canvas frame times. No 60 FPS or sub-two-second startup guarantee has been validated yet.
+The pending performance gate includes additional large workloads and broad/deep directory shapes, query latency during indexing, NTFS versus fallback scans, hard-link and sparse-file workloads, total application memory, cold and warm startup, idle CPU, cancellation latency and Canvas frame times. The real-million fixture above establishes one scanner baseline, not these wider gates. No 60 FPS or sub-two-second startup guarantee has been validated yet.
