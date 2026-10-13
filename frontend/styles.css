@@ -669,6 +669,18 @@ main {
 .filter-bar button {
   margin-left: auto;
 }
+.filter-bar .extensionless-filter {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+}
+.filter-bar .extensionless-filter input {
+  width: 14px;
+  min-height: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
 .file-table {
   font-size: 12px;
 }

@@ -22,6 +22,7 @@ pub struct Query {
     pub scope: Option<NodeId>,
     pub text: String,
     pub extension: String,
+    pub without_extension: bool,
     pub min_size: u64,
     pub modified_before: Option<u64>,
     pub files_only: bool,
@@ -38,6 +39,7 @@ impl Default for Query {
             scope: None,
             text: String::new(),
             extension: String::new(),
+            without_extension: false,
             min_size: 0,
             modified_before: None,
             files_only: false,
@@ -65,7 +67,7 @@ pub struct Details {
 
 #[derive(Serialize)]
 pub struct FileType {
-    pub extension: String,
+    pub extension: Option<String>,
     pub bytes: u64,
     pub count: u64,
 }
@@ -185,6 +187,9 @@ impl Index {
                 && query.kind.is_none_or(|kind| entry.kind == kind)
                 && entry.logical >= query.min_size
                 && (text.is_empty() || entry.name.to_lowercase().contains(&text))
+                && (!query.without_extension
+                    || (entry.kind == Kind::File
+                        && std::path::Path::new(&entry.name).extension().is_none()))
                 && (extension.is_empty()
                     || std::path::Path::new(&entry.name)
                         .extension()
@@ -244,15 +249,14 @@ impl Index {
 
     pub fn file_types(&self, scope: NodeId) -> Result<Vec<FileType>> {
         self.entry(scope)?;
-        let mut types = std::collections::HashMap::<String, (u64, u64)>::new();
+        let mut types = std::collections::HashMap::<Option<String>, (u64, u64)>::new();
         for entry in &self.entries {
             if entry.kind != Kind::File || !self.in_scope(entry.id, scope) {
                 continue;
             }
             let ext = std::path::Path::new(&entry.name)
                 .extension()
-                .map(|e| e.to_string_lossy().to_lowercase())
-                .unwrap_or_else(|| "No extension".into());
+                .map(|e| e.to_string_lossy().to_lowercase());
             let total = types.entry(ext).or_default();
             total.0 += entry.logical;
             total.1 += 1;

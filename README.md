@@ -63,6 +63,8 @@ Changing a query or closing the file list cancels obsolete filtering and ranking
 
 The file list supports arrow keys, Home, End, Page Up and Page Down from a focused filename. Enter opens the item; Space selects it. Distant keyboard targets fetch a bounded page before receiving focus. Large indices use a bounded scroll range while retaining normal row spacing and wheel steps.
 
+Selecting a file type searches the current folder's indexed subtree, matching the overview totals. **No extension** matches regular files such as `README` and `.gitignore`; folders remain excluded. The same filter is available in Explorer and Large files and clears with Reset filters or Ctrl+K.
+
 Logical size includes each visible hard-link name. Unique allocated size counts a file identity once across the scan. Allocation within an individual folder therefore reflects the link encountered first. Windows volume usage includes metadata and inaccessible or unindexed content; it should not equal the logical total.
 
 Progress reports actual file counts and bytes. Partial results can be explored while scanning; cancellation retains the measured index. No estimated percentage appears when the total is unknown. The initial index has a five-million-entry limit. Reaching the limit yields explicitly incomplete results.

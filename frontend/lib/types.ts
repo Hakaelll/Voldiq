@@ -88,7 +88,7 @@ export interface Page {
   total: number;
 }
 export interface FileType {
-  extension: string;
+  extension: string | null;
   bytes: number;
   count: number;
 }
@@ -111,6 +111,7 @@ export interface Query {
   scope?: NodeId;
   text?: string;
   extension?: string;
+  without_extension?: boolean;
   min_size?: number;
   modified_before?: number;
   files_only?: boolean;

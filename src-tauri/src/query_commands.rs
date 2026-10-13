@@ -183,6 +183,35 @@ mod tests {
     use super::*;
 
     #[test]
+    fn extensionless_ipc_uses_a_boolean_filter_and_nullable_type_key() {
+        assert!(
+            !serde_json::from_str::<Query>("{}")
+                .unwrap()
+                .without_extension
+        );
+        assert!(
+            serde_json::from_str::<Query>(r#"{"without_extension":true}"#)
+                .unwrap()
+                .without_extension
+        );
+        assert!(serde_json::from_str::<Query>(r#"{"without_extension":"true"}"#).is_err());
+        let missing = serde_json::to_value(voldiq_core::index::FileType {
+            extension: None,
+            bytes: 65,
+            count: 4,
+        })
+        .unwrap();
+        assert!(missing["extension"].is_null());
+        let named = serde_json::to_value(voldiq_core::index::FileType {
+            extension: Some("no extension".into()),
+            bytes: 43,
+            count: 1,
+        })
+        .unwrap();
+        assert_eq!(named["extension"], "no extension");
+    }
+
+    #[test]
     fn frontend_reload_cancels_old_work_and_rejects_old_session_messages() {
         let queries = Queries::default();
         let previous = queries.open_session().unwrap();

@@ -23,6 +23,8 @@ Query tests verify complete, stable pages over 1,038 actual files, deterministic
 
 Native query-registry tests verify supersession, cancellation before registration, old completion/cancellation isolation, independent families, safe integer boundaries and frontend reload with a retained native registry. Frontend queue tests use controlled IPC promises to verify one running/one latest pending request, suppression of obsolete errors/results, remount ticket ownership and independent families. They do not exercise the real WebView transport. Manual native cancellation and reload acceptance remain open.
 
+A real file-type fixture verifies nullable extension keys, dotfiles, nested extensionless files, exact counts and logical bytes, folder exclusion, scope, paging, name/size filters and cancellable-query parity. Native JSON tests verify a defaulted boolean filter and distinct null/string type keys. Frontend query-construction tests ensure file-type selections use the same subtree scope as overview totals, while ordinary browsing retains direct-child scope. Manual legend/filter acceptance remains open.
+
 Five duplicate tests verify full BLAKE3 content, matching samples with different middle bytes, unique-size exclusion, sample-only rejection, validated hash reuse, same-size changes, hard-link deduplication, locked and vanished files, and cancellation before full hashing. All data is generated in temporary fixtures.
 
 ## Manual application checks

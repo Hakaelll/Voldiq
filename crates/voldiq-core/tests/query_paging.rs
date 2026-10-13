@@ -2,6 +2,146 @@ use std::{collections::HashSet, sync::atomic::AtomicBool};
 use voldiq_core::{Kind, NodeId, ScanOptions, index::Query, scanner::scan};
 
 #[test]
+fn extensionless_type_selection_matches_only_measured_files_and_preserves_other_filters() {
+    let fixture = tempfile::tempdir().unwrap();
+    std::fs::create_dir(fixture.path().join("plain-folder")).unwrap();
+    std::fs::create_dir(fixture.path().join("empty-folder")).unwrap();
+    for (name, size) in [
+        ("README", 20),
+        (".gitignore", 10),
+        (".env", 5),
+        ("plain-folder/LICENSE", 30),
+        ("archive.tar.gz", 15),
+        ("example.txt", 40),
+        ("file.No extension", 43),
+    ] {
+        std::fs::write(fixture.path().join(name), vec![1; size]).unwrap();
+    }
+    let index = scan(
+        fixture.path(),
+        &ScanOptions::default(),
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    let types = index.file_types(NodeId(0)).unwrap();
+    let missing = types.iter().find(|item| item.extension.is_none()).unwrap();
+    assert_eq!((missing.count, missing.bytes), (4, 65));
+    assert_eq!(types.len(), 4);
+    assert!(
+        types
+            .iter()
+            .any(|item| item.extension.as_deref() == Some("no extension")
+                && item.count == 1
+                && item.bytes == 43)
+    );
+    let query = Query {
+        without_extension: true,
+        sort: "name".into(),
+        ..Query::default()
+    };
+    let page = index.query(&query).unwrap();
+    assert_eq!(page.total, 4);
+    assert_eq!(
+        page.items
+            .iter()
+            .map(|item| item.name.as_str())
+            .collect::<Vec<_>>(),
+        [".env", ".gitignore", "LICENSE", "README"]
+    );
+    assert!(page.items.iter().all(|item| item.kind == Kind::File));
+    let cancellable = index.query_cancellable(&query, || false).unwrap().unwrap();
+    assert_eq!(
+        page.items.iter().map(|item| item.id).collect::<Vec<_>>(),
+        cancellable
+            .items
+            .iter()
+            .map(|item| item.id)
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(
+        index
+            .query(&Query {
+                parent: Some(NodeId(0)),
+                ..query.clone()
+            })
+            .unwrap()
+            .total,
+        3
+    );
+    let folder = index
+        .entries
+        .iter()
+        .find(|item| item.name == "plain-folder")
+        .unwrap()
+        .id;
+    assert_eq!(
+        index
+            .query(&Query {
+                scope: Some(folder),
+                ..query.clone()
+            })
+            .unwrap()
+            .total,
+        1
+    );
+    assert_eq!(
+        index
+            .query(&Query {
+                min_size: 15,
+                ..query.clone()
+            })
+            .unwrap()
+            .total,
+        2
+    );
+    assert_eq!(
+        index
+            .query(&Query {
+                text: "read".into(),
+                ..query.clone()
+            })
+            .unwrap()
+            .items[0]
+            .name,
+        "README"
+    );
+    assert_eq!(
+        index
+            .query(&Query {
+                offset: 2,
+                limit: 1,
+                ..query.clone()
+            })
+            .unwrap()
+            .items[0]
+            .name,
+        "LICENSE"
+    );
+    assert_eq!(
+        index
+            .query(&Query {
+                extension: "txt".into(),
+                ..query.clone()
+            })
+            .unwrap()
+            .total,
+        0
+    );
+    assert_eq!(
+        index
+            .query(&Query {
+                kind: Some(Kind::Directory),
+                ..query
+            })
+            .unwrap()
+            .total,
+        0
+    );
+    assert_eq!(index.query(&Query::default()).unwrap().total, 9);
+}
+
+#[test]
 fn cancelled_query_returns_no_page_and_releases_the_shared_index() {
     use std::sync::{Arc, Barrier, RwLock, atomic::Ordering};
     let fixture = tempfile::tempdir().unwrap();

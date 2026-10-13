@@ -14,6 +14,8 @@
   import CleanupActivity from './components/CleanupActivity.svelte';
   import { readRecentPaths, rememberPath } from './lib/recent-paths';
   import { overviewQueries } from './lib/queries';
+  import { color } from './lib/treemap';
+  import { scopedFileQuery } from './lib/file-query';
   import {
     bytes,
     date,
@@ -66,6 +68,7 @@
     types = $state<FileType[]>([]);
   let text = $state(''),
     extension = $state(''),
+    withoutExtension = $state(false),
     minSize = $state(100),
     largeKind = $state<'file' | 'directory'>('file'),
     before = $state(''),
@@ -111,16 +114,20 @@
   }
   let volume = $derived(volumes.find((v) => v.path === volumePath));
   let busy = $derived(operation?.phase === 'scanning' || analysisBusy);
-  let query = $derived<Query>({
-    ...(view === 'large' || text ? { scope } : { parent: scope }),
-    text,
-    extension,
-    min_size: view === 'large' ? Math.max(0, minSize) * 1024 * 1024 : 0,
-    ...(before ? { modified_before: new Date(before).getTime() / 1000 } : {}),
-    files_only: view === 'large' && largeKind === 'file',
-    ...(view === 'large' ? { kind: largeKind } : {}),
-    sort,
-  });
+  let query = $derived<Query>(
+    scopedFileQuery({
+      scope,
+      ranked: view === 'large',
+      text,
+      extension: withoutExtension ? '' : extension,
+      without_extension: withoutExtension,
+      min_size: view === 'large' ? Math.max(0, minSize) * 1024 * 1024 : 0,
+      ...(before ? { modified_before: new Date(before).getTime() / 1000 } : {}),
+      files_only: view === 'large' && largeKind === 'file',
+      ...(view === 'large' ? { kind: largeKind } : {}),
+      sort,
+    }),
+  );
   let nodes = $derived.by(() => {
     const entries = children.items.map((entry) => ({
       id: entry.id,
@@ -408,6 +415,7 @@
           scope = 0;
           view = 'explorer';
           extension = '';
+          withoutExtension = false;
           before = '';
           details = null;
           selection = new Set();
@@ -819,19 +827,20 @@
               <div class="type-bar">
                 {#each types.slice(0, 8) as item}<span
                     style:flex-grow={item.bytes}
-                    style:background={nodes.find((n) => n.name.endsWith(`.${item.extension}`))
-                      ? '#5f91cb'
-                      : `hsl(${(item.extension.length * 37) % 360} 25% 65%)`}
-                    title={`${item.extension}: ${bytes(item.bytes)}`}
+                    style:background={color(item.extension ?? '<no-extension>')}
+                    title={`${item.extension === null ? 'No extension' : `.${item.extension}`}: ${bytes(item.bytes)}`}
                   ></span>{/each}
               </div>
               <div class="type-legend">
                 {#each types.slice(0, 8) as item}<button
                     onclick={() => {
-                      extension = item.extension === 'No extension' ? '' : item.extension;
+                      withoutExtension = item.extension === null;
+                      extension = item.extension ?? '';
                       view = 'explorer';
                     }}
-                    ><strong>{item.extension}</strong><span>{bytes(item.bytes)}</span><small
+                    ><strong
+                      >{item.extension === null ? 'No extension' : `.${item.extension}`}</strong
+                    ><span>{bytes(item.bytes)}</span><small
                       >{item.count.toLocaleString()} files</small
                     ></button
                   >{/each}
@@ -875,7 +884,15 @@
             />
           {:else}<section class="panel explorer-panel">
               <div class="filter-bar">
-                <label>Extension<input bind:value={extension} placeholder="All extensions" /></label
+                <label
+                  >Extension<input
+                    bind:value={extension}
+                    placeholder="All extensions"
+                    disabled={withoutExtension}
+                  /></label
+                >
+                <label class="extensionless-filter"
+                  ><input type="checkbox" bind:checked={withoutExtension} />No extension</label
                 >{#if view === 'large'}<label
                     >Items<select bind:value={largeKind}
                       ><option value="file">Files</option><option value="directory">Folders</option
@@ -892,6 +909,7 @@
                   onclick={() => {
                     text = '';
                     extension = '';
+                    withoutExtension = false;
                     before = '';
                     minSize = 100;
                     largeKind = 'file';
