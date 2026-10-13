@@ -23,11 +23,13 @@
   function draw(): void {
     if (!canvas || width <= 0 || height <= 0) return;
     const ratio = window.devicePixelRatio || 1;
-    canvas.width = Math.round(width * ratio);
-    canvas.height = Math.round(height * ratio);
+    const pixelWidth = Math.round(width * ratio);
+    const pixelHeight = Math.round(height * ratio);
+    if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
+    if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.scale(ratio, ratio);
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.clearRect(0, 0, width, height);
     for (const rect of rects) {
       ctx.fillStyle = color(rect.name);

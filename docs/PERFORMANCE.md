@@ -27,6 +27,10 @@ The file list requests at most 80 rows per page. Its physical spacer height is c
 
 Geometry tests cover the first and last rows of a five-million-row list, intermediate positions, ordinary uncompressed lists, keyboard endpoints and wheel steps. These tests prove coordinate calculations, not native DOM rendering, focus timing, 60 FPS or real WebView pixel precision. No browser automation or visual inspection was performed. Manual large-index and keyboard acceptance remain open.
 
+## Treemap canvas reuse
+
+Treemap hover and selection redraws now retain the canvas dimensions when CSS size and device-pixel ratio are unchanged. Each draw replaces the transform with the current HiDPI transform rather than accumulating scaling on the reused context. Source review checked balanced clipping state and painting; Svelte diagnostics, existing geometry tests and production compilation pass. Canvas frame time, allocations and native HiDPI presentation remain unmeasured, so this change carries no quantified speedup or FPS claim.
+
 ## Cooperative query cancellation
 
 The core now exposes `Index::query_cancellable`, which returns `None` when its caller cancels. It checks during filtering, ancestor traversal and rank selection, and never returns a partial page. Filtering and partitioning check every 256 steps. Heap fallback checks every 256 roots or extractions; each sift is bounded by heap depth. Final sorting and cloning cover at most 500 entries. These are cooperative checkpoints, not a measured wall-time cancellation guarantee. Existing core `query` callers retain standard-library rank selection. The frontend's overview and file list now use the cancellable native command with independent request ownership and bounded latest-request queues. Native runtime cancellation latency remains unmeasured.
