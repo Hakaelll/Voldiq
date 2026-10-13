@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-pub(super) fn select<T: Copy>(
+pub(super) fn select<T>(
     items: &mut [T],
     nth: usize,
     compare: &impl Fn(&T, &T) -> Ordering,
@@ -21,14 +21,13 @@ pub(super) fn select<T: Copy>(
         let last = high - 1;
         let mut candidates = [low, middle, last];
         candidates.sort_unstable_by(|a, b| compare(&items[*a], &items[*b]));
-        let pivot = items[candidates[1]];
         items.swap(candidates[1], last);
         let mut boundary = low;
         for position in low..last {
             if (position - low) % 256 == 0 && cancelled() {
                 return false;
             }
-            if compare(&items[position], &pivot).is_lt() {
+            if compare(&items[position], &items[last]).is_lt() {
                 items.swap(position, boundary);
                 boundary += 1;
             }
@@ -43,7 +42,7 @@ pub(super) fn select<T: Copy>(
     !cancelled()
 }
 
-fn heap_sort<T: Copy>(
+fn heap_sort<T>(
     items: &mut [T],
     compare: &impl Fn(&T, &T) -> Ordering,
     cancelled: &mut impl FnMut() -> bool,

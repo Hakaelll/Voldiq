@@ -3,16 +3,16 @@ import test from 'node:test';
 import { createQueryRunner, type QueryFamily, type QueryTransport } from './query-runner.ts';
 import type { Page, Query } from './types.ts';
 
-function deferred() {
-  let resolve = (_page: Page | null) => {};
+function deferred<T = Page>() {
+  let resolve = (_page: T | null) => {};
   let reject = (_problem: unknown) => {};
-  const result = new Promise<Page | null>((done, fail) => {
+  const result = new Promise<T | null>((done, fail) => {
     resolve = done;
     reject = fail;
   });
   return {
     result,
-    resolve: (page: Page | null) => resolve(page),
+    resolve: (page: T | null) => resolve(page),
     reject: (problem: unknown) => reject(problem),
   };
 }
@@ -22,7 +22,7 @@ function fixture() {
     family: QueryFamily;
     id: number;
     query: Query;
-    completion: ReturnType<typeof deferred>;
+    completion: ReturnType<typeof deferred<Page>>;
   }[] = [];
   const cancellations: number[] = [];
   const transport: QueryTransport = {
@@ -39,6 +39,28 @@ function fixture() {
 }
 
 const flush = () => new Promise<void>((done) => setImmediate(done));
+
+test('summary requests keep typed scope input and discard the obsolete composite response', async () => {
+  const first = deferred<{ types: number }>();
+  const second = deferred<{ types: number }>();
+  const scopes: number[] = [];
+  const runner = createQueryRunner<{ types: number }, { id: number }>('overview_children', {
+    run: (_family, _request, query) => {
+      scopes.push(query.id);
+      return (scopes.length === 1 ? first : second).result;
+    },
+    cancel: async () => {},
+  });
+  const obsolete = runner.request({ id: 42 });
+  await flush();
+  const latest = runner.request({ id: 7 });
+  assert.equal(await obsolete.result, null);
+  first.resolve({ types: 999 });
+  await flush();
+  assert.deepEqual(scopes, [42, 7]);
+  second.resolve({ types: 3 });
+  assert.deepEqual(await latest.result, { types: 3 });
+});
 
 test('superseding requests cancel current work and queue only the latest query', async () => {
   const { transport, runs, cancellations } = fixture();

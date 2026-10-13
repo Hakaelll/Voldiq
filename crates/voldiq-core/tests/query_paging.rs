@@ -2,6 +2,89 @@ use std::{collections::HashSet, sync::atomic::AtomicBool};
 use voldiq_core::{Kind, NodeId, ScanOptions, index::Query, scanner::scan};
 
 #[test]
+fn type_queries_cancel_aggregation_and_owned_ranking_without_partial_groups() {
+    let fixture = tempfile::tempdir().unwrap();
+    let folder = fixture.path().join("nested");
+    std::fs::create_dir(&folder).unwrap();
+    for extension in 0..80 {
+        std::fs::write(folder.join(format!("data.e{extension:03}")), [1]).unwrap();
+    }
+    std::fs::write(fixture.path().join("README"), [1; 2]).unwrap();
+    let index = scan(
+        fixture.path(),
+        &ScanOptions::default(),
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    assert!(
+        index
+            .file_types_cancellable(NodeId(u32::MAX), || true)
+            .unwrap()
+            .is_none()
+    );
+    let scoped = index
+        .entries
+        .iter()
+        .find(|entry| entry.name == "nested")
+        .unwrap()
+        .id;
+    let completed = index
+        .file_types_cancellable(scoped, || false)
+        .unwrap()
+        .unwrap();
+    assert_eq!(completed.len(), 30);
+    assert_eq!(
+        completed
+            .iter()
+            .map(|item| item.extension.as_deref().unwrap())
+            .collect::<Vec<_>>(),
+        (0..30).map(|i| format!("e{i:03}")).collect::<Vec<_>>()
+    );
+    assert!(
+        completed
+            .iter()
+            .all(|item| item.bytes == 1 && item.count == 1)
+    );
+    let standard = index.file_types(scoped).unwrap();
+    assert_eq!(
+        standard
+            .iter()
+            .map(|item| &item.extension)
+            .collect::<Vec<_>>(),
+        completed
+            .iter()
+            .map(|item| &item.extension)
+            .collect::<Vec<_>>()
+    );
+    let root = index.file_types(NodeId(0)).unwrap();
+    assert_eq!(root[0].extension, None);
+    assert_eq!(root[0].bytes, 2);
+    for checkpoint in [1, 2, 3, 4, 6] {
+        let mut checks = 0;
+        let cancelled = index
+            .file_types_cancellable(NodeId(0), || {
+                checks += 1;
+                checks == checkpoint
+            })
+            .unwrap();
+        assert!(cancelled.is_none(), "checkpoint {checkpoint}");
+        assert_eq!(checks, checkpoint);
+    }
+    let mut checks = 0;
+    assert!(
+        index
+            .file_types_cancellable(scoped, || {
+                checks += 1;
+                checks == 3
+            })
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(index.file_types(scoped).unwrap().len(), 30);
+}
+
+#[test]
 fn extensionless_type_selection_matches_only_measured_files_and_preserves_other_filters() {
     let fixture = tempfile::tempdir().unwrap();
     std::fs::create_dir(fixture.path().join("plain-folder")).unwrap();

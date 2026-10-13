@@ -1,25 +1,28 @@
 import type { Page, Query } from './types';
 
 export type QueryFamily = 'file_list' | 'overview_children';
-export type QueryTransport = {
-  run: (family: QueryFamily, requestId: number, query: Query) => Promise<Page | null>;
+export type QueryTransport<T = Page, Q = Query> = {
+  run: (family: QueryFamily, requestId: number, query: Q) => Promise<T | null>;
   cancel: (family: QueryFamily, requestId: number) => Promise<void>;
 };
 
 let sequence = 0;
-type Job = {
+type Job<T, Q> = {
   id: number;
-  query: Query;
-  resolve: (page: Page | null) => void;
+  query: Q;
+  resolve: (page: T | null) => void;
   reject: (problem: unknown) => void;
   cancelled: boolean;
 };
 
-export function createQueryRunner(family: QueryFamily, transport: QueryTransport) {
-  let active: Job | null = null;
-  let pending: Job | null = null;
+export function createQueryRunner<T = Page, Q = Query>(
+  family: QueryFamily,
+  transport: QueryTransport<T, Q>,
+) {
+  let active: Job<T, Q> | null = null;
+  let pending: Job<T, Q> | null = null;
 
-  function cancelJob(job: Job): void {
+  function cancelJob(job: Job<T, Q>): void {
     if (job.cancelled) return;
     job.cancelled = true;
     job.resolve(null);
@@ -29,7 +32,7 @@ export function createQueryRunner(family: QueryFamily, transport: QueryTransport
     }
   }
 
-  function launch(job: Job): void {
+  function launch(job: Job<T, Q>): void {
     active = job;
     void Promise.resolve()
       .then(() => transport.run(family, job.id, job.query))
@@ -55,12 +58,12 @@ export function createQueryRunner(family: QueryFamily, transport: QueryTransport
     if (active) cancelJob(active);
   }
 
-  function request(query: Query) {
+  function request(query: Q) {
     if (sequence >= Number.MAX_SAFE_INTEGER) throw new Error('Query request limit reached.');
     cancel();
     let cancelRequest = () => {};
-    const result = new Promise<Page | null>((resolve, reject) => {
-      const job: Job = { id: ++sequence, query, resolve, reject, cancelled: false };
+    const result = new Promise<T | null>((resolve, reject) => {
+      const job: Job<T, Q> = { id: ++sequence, query, resolve, reject, cancelled: false };
       cancelRequest = () => cancelJob(job);
       if (active) pending = job;
       else launch(job);

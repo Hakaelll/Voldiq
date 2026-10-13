@@ -5,7 +5,10 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 use tauri::State;
-use voldiq_core::index::{Page, Query};
+use voldiq_core::{
+    NodeId,
+    index::{Details, FileType, Index, Page, Query},
+};
 
 #[derive(Clone, Copy, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -131,6 +134,78 @@ impl Drop for Request {
     }
 }
 
+#[derive(serde::Serialize)]
+pub(crate) struct Overview {
+    directory: Details,
+    children: Page,
+    types: Vec<FileType>,
+}
+
+fn overview(index: &Index, id: NodeId, cancelled: &AtomicBool) -> Result<Option<Overview>, String> {
+    let Some(children) = index
+        .query_cancellable(
+            &Query {
+                parent: Some(id),
+                limit: 250,
+                sort: "size".into(),
+                ..Query::default()
+            },
+            || cancelled.load(Ordering::Relaxed),
+        )
+        .map_err(|e| e.to_string())?
+    else {
+        return Ok(None);
+    };
+    let Some(types) = index
+        .file_types_cancellable(id, || cancelled.load(Ordering::Relaxed))
+        .map_err(|e| e.to_string())?
+    else {
+        return Ok(None);
+    };
+    if cancelled.load(Ordering::Relaxed) {
+        return Ok(None);
+    }
+    let directory = index.details(id).map_err(|e| e.to_string())?;
+    if cancelled.load(Ordering::Relaxed) {
+        return Ok(None);
+    }
+    Ok(Some(Overview {
+        directory,
+        children,
+        types,
+    }))
+}
+
+#[tauri::command]
+pub(crate) async fn query_overview(
+    epoch: u64,
+    id: NodeId,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<Overview>, String> {
+    let family = QueryFamily::OverviewChildren;
+    let Some(cancelled) = engine.queries.begin(epoch, family, request_id)? else {
+        return Ok(None);
+    };
+    let request = Request {
+        engine: engine.inner().clone(),
+        epoch,
+        family,
+        id: request_id,
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        let _request = request;
+        if cancelled.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        let index = _request.engine.index()?;
+        let index = index.read().map_err(|e| e.to_string())?;
+        overview(&index, id, &cancelled)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 pub(crate) fn open_query_session(engine: State<'_, Arc<Engine>>) -> Result<u64, String> {
     engine.queries.open_session()
@@ -181,6 +256,39 @@ pub(crate) async fn query_files_cancellable(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn overview_returns_one_real_index_summary_or_no_cancelled_payload() {
+        let fixture = tempfile::tempdir().unwrap();
+        std::fs::create_dir(fixture.path().join("folder")).unwrap();
+        std::fs::write(fixture.path().join("folder/data.txt"), [1; 7]).unwrap();
+        std::fs::write(fixture.path().join("README"), [1; 3]).unwrap();
+        let cancelled = AtomicBool::new(false);
+        let index = voldiq_core::scanner::scan(
+            fixture.path(),
+            &voldiq_core::ScanOptions::default(),
+            &cancelled,
+            |_| {},
+        )
+        .unwrap();
+        let result = overview(&index, NodeId(0), &cancelled).unwrap().unwrap();
+        assert_eq!(result.directory.entry.logical, 10);
+        assert_eq!(result.children.total, 2);
+        assert_eq!(result.children.items[0].name, "folder");
+        assert_eq!(result.children.items[0].logical, 7);
+        assert_eq!(result.types.len(), 2);
+        assert_eq!(result.types.iter().map(|item| item.bytes).sum::<u64>(), 10);
+        let payload = serde_json::to_value(result).unwrap();
+        assert_eq!(payload["directory"]["entry"]["id"], 0);
+        assert_eq!(payload["children"]["items"][0]["name"], "folder");
+        assert_eq!(payload["types"][0]["extension"], "txt");
+        cancelled.store(true, Ordering::Relaxed);
+        assert!(
+            overview(&index, NodeId(u32::MAX), &cancelled)
+                .unwrap()
+                .is_none()
+        );
+    }
 
     #[test]
     fn extensionless_ipc_uses_a_boolean_filter_and_nullable_type_key() {

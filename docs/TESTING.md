@@ -1,5 +1,7 @@
 # Testing
 
+The overview fixture verifies one native response containing consistent directory details, child rows and file-type bytes, plus cancellation before index access. An 80-extension filesystem fixture verifies deterministic top-30 ties, exact file counts and bytes, standard/cancellable parity, extensionless files and cancellation during filtering, ancestry, group conversion and ranking. A controlled frontend composite-response test verifies that an obsolete overview cannot replace the latest scope. Workspace tests, strict Clippy, 16 frontend tests, Svelte diagnostics and the production build pass for this change. These checks do not measure native transport cancellation latency.
+
 `tests/partial_scan.rs` reads the live shared index from progress callbacks, checks directory totals, cancels after the first file and verifies retained partial results. The callback runs outside the index write lock.
 
 Run on Windows with the Rust MSVC toolchain and C++ Build Tools.

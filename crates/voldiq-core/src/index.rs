@@ -169,18 +169,11 @@ impl Index {
             if query.parent.is_some_and(|id| entry.parent != Some(id)) {
                 continue;
             }
-            if let Some(scope) = query.scope.filter(|id| *id != NodeId(0)) {
-                let mut parent = Some(entry.id);
-                let mut depth = 0;
-                while parent.is_some_and(|id| id != scope) {
-                    if depth % 256 == 0 && cancelled() {
-                        return Ok(None);
-                    }
-                    parent = self.entries[parent.unwrap().0 as usize].parent;
-                    depth += 1;
-                }
-                if parent.is_none() {
-                    continue;
+            if let Some(scope) = query.scope {
+                match self.scope_matches(entry.id, scope, &mut cancelled) {
+                    None => return Ok(None),
+                    Some(false) => continue,
+                    Some(true) => {}
                 }
             }
             if (!query.files_only || entry.kind == Kind::File)
@@ -248,11 +241,64 @@ impl Index {
     }
 
     pub fn file_types(&self, scope: NodeId) -> Result<Vec<FileType>> {
+        self.file_types_inner(scope, || false, false)?
+            .ok_or_else(|| Error::Invalid("Query cancelled.".into()))
+    }
+
+    pub fn file_types_cancellable(
+        &self,
+        scope: NodeId,
+        cancelled: impl FnMut() -> bool,
+    ) -> Result<Option<Vec<FileType>>> {
+        self.file_types_inner(scope, cancelled, true)
+    }
+
+    fn scope_matches(
+        &self,
+        id: NodeId,
+        scope: NodeId,
+        cancelled: &mut impl FnMut() -> bool,
+    ) -> Option<bool> {
+        if scope == NodeId(0) {
+            return Some(true);
+        }
+        let mut parent = Some(id);
+        let mut depth = 0;
+        while let Some(id) = parent {
+            if id == scope {
+                return Some(true);
+            }
+            if depth % 256 == 0 && cancelled() {
+                return None;
+            }
+            parent = self.entries[id.0 as usize].parent;
+            depth += 1;
+        }
+        Some(false)
+    }
+
+    fn file_types_inner(
+        &self,
+        scope: NodeId,
+        mut cancelled: impl FnMut() -> bool,
+        cancellable_ranking: bool,
+    ) -> Result<Option<Vec<FileType>>> {
+        if cancelled() {
+            return Ok(None);
+        }
         self.entry(scope)?;
         let mut types = std::collections::HashMap::<Option<String>, (u64, u64)>::new();
-        for entry in &self.entries {
-            if entry.kind != Kind::File || !self.in_scope(entry.id, scope) {
+        for (position, entry) in self.entries.iter().enumerate() {
+            if position % 256 == 0 && cancelled() {
+                return Ok(None);
+            }
+            if entry.kind != Kind::File {
                 continue;
+            }
+            match self.scope_matches(entry.id, scope, &mut cancelled) {
+                None => return Ok(None),
+                Some(false) => continue,
+                Some(true) => {}
             }
             let ext = std::path::Path::new(&entry.name)
                 .extension()
@@ -261,18 +307,38 @@ impl Index {
             total.0 += entry.logical;
             total.1 += 1;
         }
-        let mut result: Vec<_> = types
-            .into_iter()
-            .map(|(extension, (bytes, count))| FileType {
+        if cancelled() {
+            return Ok(None);
+        }
+        let mut result = Vec::with_capacity(types.len());
+        for (position, (extension, (bytes, count))) in types.into_iter().enumerate() {
+            if position % 256 == 0 && cancelled() {
+                return Ok(None);
+            }
+            result.push(FileType {
                 extension,
                 bytes,
                 count,
-            })
-            .collect();
-        result.sort_unstable_by_key(|item| std::cmp::Reverse(item.bytes));
+            });
+        }
+        let compare =
+            |a: &FileType, b: &FileType| b.bytes.cmp(&a.bytes).then(a.extension.cmp(&b.extension));
+        if result.len() > 30 {
+            if cancellable_ranking {
+                if !rank::select(&mut result, 30, &compare, &mut cancelled) {
+                    return Ok(None);
+                }
+            } else {
+                result.select_nth_unstable_by(30, compare);
+            }
+        }
         // shortcut: only the largest 30 extension groups cross IPC; request a filtered file list to inspect the rest.
         result.truncate(30);
-        Ok(result)
+        result.sort_unstable_by(compare);
+        if cancelled() {
+            return Ok(None);
+        }
+        Ok(Some(result))
     }
 
     pub fn accumulate(&mut self, child: &Entry) {

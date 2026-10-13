@@ -92,6 +92,11 @@ export interface FileType {
   bytes: number;
   count: number;
 }
+export interface Overview {
+  directory: Details;
+  children: Page;
+  types: FileType[];
+}
 export interface Issue {
   path: string;
   message: string;

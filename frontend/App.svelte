@@ -159,21 +159,17 @@
   }
   async function refresh(id = scope): Promise<void> {
     const token = ++refreshToken;
-    const childrenRequest = overviewQueries.request({ parent: id, limit: 250, sort: 'size' });
+    const overviewRequest = overviewQueries.request({ id });
     try {
-      const result = await Promise.all([
-        invoke<Details>('get_details', { id }),
-        childrenRequest.result,
-        invoke<FileType[]>('get_file_types', { id }),
-      ]);
-      if (token !== refreshToken || result[1] === null) return;
-      directory = result[0];
-      children = result[1];
-      types = result[2];
+      const result = await overviewRequest.result;
+      if (token !== refreshToken || result === null) return;
+      directory = result.directory;
+      children = result.children;
+      types = result.types;
       scope = id;
       revision += 1;
     } catch (problem) {
-      childrenRequest.cancel();
+      overviewRequest.cancel();
       if (token === refreshToken) report(problem);
     }
   }

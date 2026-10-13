@@ -23,7 +23,7 @@ use snapshot_commands::*;
 use voldiq_core::{
     NodeId, Progress, ScanOptions, ScanPhase,
     duplicates::{self, Analysis, HashCache},
-    index::{Details, FileType},
+    index::Details,
     scanner::{self, SharedIndex},
     windows::Volume,
 };
@@ -446,23 +446,6 @@ async fn get_details(id: NodeId, engine: State<'_, Arc<Engine>>) -> Result<Detai
 }
 
 #[tauri::command]
-async fn get_file_types(
-    id: NodeId,
-    engine: State<'_, Arc<Engine>>,
-) -> Result<Vec<FileType>, String> {
-    let index = engine.index()?;
-    tauri::async_runtime::spawn_blocking(move || {
-        index
-            .read()
-            .map_err(|e| e.to_string())?
-            .file_types(id)
-            .map_err(|e| e.to_string())
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
-
-#[tauri::command]
 fn get_issues(engine: State<'_, Arc<Engine>>) -> Result<Vec<voldiq_core::Issue>, String> {
     Ok(engine
         .index()?
@@ -542,6 +525,7 @@ fn main() {
             query_duplicate_members,
             get_duplicate_issues,
             query_commands::query_files_cancellable,
+            query_commands::query_overview,
             query_commands::cancel_query,
             query_commands::open_query_session,
             preview_cleanup,
@@ -556,7 +540,6 @@ fn main() {
             query_developer_storage,
             docker_commands::query_docker_storage,
             get_details,
-            get_file_types,
             get_issues,
             reveal_item,
             save_snapshot,
