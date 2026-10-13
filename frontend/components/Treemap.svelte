@@ -40,14 +40,19 @@
         Math.max(0, rect.height - 2),
       );
       if (rect.id === selected || rect.id === hovered?.id) {
-        ctx.strokeStyle = rect.id === selected ? '#1e40af' : '#ffffff';
-        ctx.lineWidth = 2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(rect.x + 1, rect.y + 1, Math.max(0, rect.width - 2), Math.max(0, rect.height - 2));
+        ctx.clip();
+        ctx.strokeStyle = '#101820';
+        ctx.lineWidth = rect.id === selected ? 4 : 2;
         ctx.strokeRect(
           rect.x + 2,
           rect.y + 2,
           Math.max(0, rect.width - 4),
           Math.max(0, rect.height - 4),
         );
+        ctx.restore();
       }
       if (rect.width > 92 && rect.height > 52) {
         ctx.save();
