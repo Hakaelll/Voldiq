@@ -97,6 +97,7 @@ export interface Issue {
   message: string;
 }
 export interface Progress {
+  analyzed_at: number | null;
   previous: boolean;
   phase: 'scanning' | 'complete' | 'cancelled' | 'failed';
   entries: number;

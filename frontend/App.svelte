@@ -227,6 +227,7 @@
     scanPath = path;
     scope = 0;
     operation = {
+      analyzed_at: null,
       previous: false,
       phase: 'scanning',
       entries: 0,
@@ -630,6 +631,9 @@
             >{/if}{#if operation.phase === 'scanning'}<button
               onclick={cancel}
               disabled={scanId === null}>Cancel scan</button
+            >{/if}{#if operation.analyzed_at !== null}<time
+              datetime={new Date(operation.analyzed_at * 1000).toISOString()}
+              title="Analysis date">{date(operation.analyzed_at)}</time
             >{/if}
         </div>{/if}
       {#if view === 'settings'}

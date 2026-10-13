@@ -81,7 +81,7 @@ pub async fn load_snapshot(
             .map_err(|e| e.to_string())?
             .load(id)
             .map_err(|e| e.to_string())?;
-        *engine.index.lock().map_err(|e| e.to_string())? = Some(Arc::new(RwLock::new(index)));
+        engine.publish(Arc::new(RwLock::new(index)), None)?;
         *engine.duplicates.lock().map_err(|e| e.to_string())? = None;
         Ok(())
     })

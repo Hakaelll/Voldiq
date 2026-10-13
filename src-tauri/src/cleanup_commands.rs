@@ -48,7 +48,11 @@ mod execution_tests {
         let current = Arc::new(RwLock::new(index));
         let weak = Arc::downgrade(&current);
         let engine = Arc::new(Engine::default());
-        *engine.index.lock().unwrap() = Some(current.clone());
+        engine.publish(current.clone(), Some(100)).unwrap();
+        assert_eq!(
+            engine.index.lock().unwrap().as_ref().unwrap().analyzed_at,
+            Some(100)
+        );
         let mut cache = HashCache::default();
         let analyze = |cache: &mut HashCache| {
             duplicates::find(
@@ -80,12 +84,17 @@ mod execution_tests {
             id: operation_id,
         };
         assert!(clear_loaded_analysis(engine.clone(), &plans).is_err());
+        assert_eq!(
+            engine.index.lock().unwrap().as_ref().unwrap().analyzed_at,
+            Some(100)
+        );
         assert!(plans.lock().unwrap().is_some() && engine.index().is_ok());
         drop(operation);
         let reader = engine.index().unwrap();
         drop(current);
         clear_loaded_analysis(engine.clone(), &plans).unwrap();
         assert!(engine.index().is_err());
+        assert!(engine.index.lock().unwrap().is_none());
         assert!(engine.duplicates.lock().unwrap().is_none() && plans.lock().unwrap().is_none());
         assert!(reader.read().unwrap().entries.len() >= 3);
         drop(reader);
@@ -334,7 +343,12 @@ pub async fn query_cleanup_rule(
     engine: State<'_, Arc<Engine>>,
 ) -> Result<voldiq_core::cleanup::rules::Page, String> {
     let caches = crate::developer_commands::cache_locations(&app);
-    let index = engine.index.lock().map_err(|e| e.to_string())?.clone();
+    let index = engine
+        .index
+        .lock()
+        .map_err(|e| e.to_string())?
+        .as_ref()
+        .map(|loaded| loaded.index.clone());
     tauri::async_runtime::spawn_blocking(move || {
         let root = std::env::temp_dir();
         let guard = index

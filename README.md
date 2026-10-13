@@ -69,6 +69,8 @@ Logical size includes each visible hard-link name. Unique allocated size counts 
 
 Progress reports actual file counts and bytes. Partial results can be explored while scanning; cancellation retains the measured index. No estimated percentage appears when the total is unknown. The initial index has a five-million-entry limit. Reaching the limit yields explicitly incomplete results.
 
+The status strip shows the native analysis date for completed scans and retained partial results. A cancelled refresh that keeps previous results keeps their original date. Clearing the analysis removes both the index and its date. Historical views show their separate snapshot capture date.
+
 Five scans of a real million-file fixture verified exact counts and sizes with zero errors. See [performance measurements](docs/PERFORMANCE.md#large-real-filesystem-fixture) for raw results, reproduction commands and the limits of this warm-cache scanner baseline.
 
 ## Duplicate analysis

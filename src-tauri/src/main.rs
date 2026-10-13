@@ -10,6 +10,7 @@ use std::{
 };
 use tauri::Manager;
 use tauri::{State, ipc::Channel};
+mod analysis_status;
 mod cleanup_commands;
 mod developer_commands;
 mod docker_commands;
@@ -30,7 +31,7 @@ use voldiq_core::{
 #[derive(Default)]
 struct Engine {
     queries: query_commands::Queries,
-    index: Mutex<Option<SharedIndex>>,
+    index: Mutex<Option<analysis_status::LoadedAnalysis>>,
     active: Mutex<Option<(u64, Arc<AtomicBool>)>>,
     sequence: AtomicU64,
     duplicates: Mutex<Option<Arc<DuplicateRun>>>,
@@ -71,8 +72,14 @@ impl Engine {
         self.index
             .lock()
             .map_err(|e| e.to_string())?
-            .clone()
+            .as_ref()
+            .map(|loaded| loaded.index.clone())
             .ok_or_else(|| "Scan a drive or folder first.".into())
+    }
+    fn publish(&self, index: SharedIndex, analyzed_at: Option<u64>) -> Result<(), String> {
+        *self.index.lock().map_err(|e| e.to_string())? =
+            Some(analysis_status::LoadedAnalysis { index, analyzed_at });
+        Ok(())
     }
 }
 
@@ -99,7 +106,7 @@ async fn choose_folder() -> Result<Option<String>, String> {
 fn start_scan(
     path: String,
     options: ScanOptions,
-    progress: Channel<Progress>,
+    progress: Channel<analysis_status::ScanProgress>,
     engine: State<'_, Arc<Engine>>,
     database: State<'_, SnapshotDatabase>,
 ) -> Result<u64, String> {
@@ -113,6 +120,7 @@ fn start_scan(
         *result = None;
     }
     let previous = engine.index.lock().map_err(|e| e.to_string())?.clone();
+    let previous_date = previous.as_ref().and_then(|loaded| loaded.analyzed_at);
     let store = database.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = operation;
@@ -161,45 +169,66 @@ fn start_scan(
                 &cancel,
                 |update| {
                     if update.phase == ScanPhase::Scanning {
-                        let _ = progress.send(update);
+                        let analyzed_at = if update.previous { previous_date } else { None };
+                        let _ = progress.send(analysis_status::ScanProgress {
+                            progress: update,
+                            analyzed_at,
+                        });
                     } else {
                         final_progress = Some(update);
                     }
                 },
                 |index| {
-                    if let Ok(mut slot) = engine.index.lock() {
-                        *slot = Some(index);
-                    }
+                    let _ = engine.publish(index, None);
                 },
-                previous.as_ref(),
+                previous.as_ref().map(|loaded| &loaded.index),
             )
             .map(Some)
         };
         let mut failure = None;
         match result {
-            Ok(Some(index)) => match engine.index.lock() {
-                Ok(mut slot) => *slot = Some(index),
-                Err(e) => failure = Some(e.to_string()),
-            },
+            Ok(Some(index)) => {
+                let date = final_progress.as_ref().and_then(|update| {
+                    analysis_status::analyzed_at(
+                        update,
+                        previous_date,
+                        std::time::SystemTime::now(),
+                    )
+                });
+                if let Err(error) = engine.publish(index, date) {
+                    failure = Some(error);
+                }
+            }
             Ok(None) => {}
             Err(error) => failure = Some(error.to_string()),
         }
+        let analyzed_at = engine
+            .index
+            .lock()
+            .ok()
+            .and_then(|slot| slot.as_ref().and_then(|loaded| loaded.analyzed_at));
         if let Ok(mut active) = engine.active.lock() {
             *active = None;
         }
         if let Some(error) = failure {
-            let _ = progress.send(Progress {
-                previous: false,
-                phase: ScanPhase::Failed,
-                entries: 0,
-                files: 0,
-                logical: 0,
-                elapsed_ms: 0,
-                errors: 1,
-                method: error,
+            let _ = progress.send(analysis_status::ScanProgress {
+                progress: Progress {
+                    previous: false,
+                    phase: ScanPhase::Failed,
+                    entries: 0,
+                    files: 0,
+                    logical: 0,
+                    elapsed_ms: 0,
+                    errors: 1,
+                    method: error,
+                },
+                analyzed_at,
             });
         } else if let Some(update) = final_progress {
-            let _ = progress.send(update);
+            let _ = progress.send(analysis_status::ScanProgress {
+                progress: update,
+                analyzed_at,
+            });
         }
     });
     Ok(id)
