@@ -1,4 +1,9 @@
-use std::{collections::HashMap, path::PathBuf, time::Instant};
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+    sync::atomic::{AtomicBool, Ordering},
+    time::Instant,
+};
 use voldiq_core::{
     Entry, Kind, NodeId,
     index::{Index, Query},
@@ -51,9 +56,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             u64::from(id.wrapping_mul(7919) % count),
         ));
     }
-    println!("Synthetic in-memory index; no filesystem scan or native UI is measured.");
-    println!("run,query,milliseconds,total,returned");
-    for run in 1..=3 {
+    eprintln!("Synthetic in-memory index; no filesystem scan or native UI is measured.");
+    let search_total = index
+        .entries
+        .iter()
+        .filter(|entry| entry.kind == Kind::File && entry.name.contains("00000"))
+        .count();
+    println!("run,query,method,milliseconds,total,returned");
+    let cancellation = AtomicBool::new(false);
+    for run in 1..=5 {
         for (label, query) in [
             (
                 "root-size",
@@ -96,23 +107,49 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 },
             ),
         ] {
-            let start = Instant::now();
-            let page = index.query(&query)?;
-            let milliseconds = start.elapsed().as_secs_f64() * 1000.0;
-            assert!(page.items.len() <= 100);
-            assert_eq!(
-                page.total,
-                match label {
+            let methods = if run % 2 == 1 {
+                ["standard", "cancellable"]
+            } else {
+                ["cancellable", "standard"]
+            };
+            let mut previous: Option<voldiq_core::index::Page> = None;
+            for method in methods {
+                let start = Instant::now();
+                let page = if method == "standard" {
+                    index.query(&query)?
+                } else {
+                    index
+                        .query_cancellable(&query, || cancellation.load(Ordering::Relaxed))?
+                        .ok_or("Unexpected cancellation")?
+                };
+                let milliseconds = start.elapsed().as_secs_f64() * 1000.0;
+                let expected = match label {
                     "root-size" => 1000,
-                    "name-search" => page.total,
+                    "name-search" => search_total,
                     _ => count as usize,
+                };
+                assert_eq!(page.total, expected);
+                assert_eq!(
+                    page.items.len(),
+                    expected.saturating_sub(query.offset).min(100)
+                );
+                if let Some(previous) = &previous {
+                    assert_eq!(
+                        page.items.iter().map(|entry| entry.id).collect::<Vec<_>>(),
+                        previous
+                            .items
+                            .iter()
+                            .map(|entry| entry.id)
+                            .collect::<Vec<_>>()
+                    );
                 }
-            );
-            println!(
-                "{run},{label},{milliseconds:.3},{},{}",
-                page.total,
-                page.items.len()
-            );
+                println!(
+                    "{run},{label},{method},{milliseconds:.3},{},{}",
+                    page.total,
+                    page.items.len()
+                );
+                previous = Some(page);
+            }
         }
     }
     Ok(())

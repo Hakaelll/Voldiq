@@ -1,6 +1,7 @@
 use crate::{Entry, Error, Issue, Kind, NodeId, Result};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+mod rank;
 
 pub struct Index {
     pub root: PathBuf,
@@ -129,6 +130,27 @@ impl Index {
     }
 
     pub fn query(&self, query: &Query) -> Result<Page> {
+        self.query_inner(query, || false, false)?
+            .ok_or_else(|| Error::Invalid("Query cancelled.".into()))
+    }
+
+    pub fn query_cancellable(
+        &self,
+        query: &Query,
+        cancelled: impl FnMut() -> bool,
+    ) -> Result<Option<Page>> {
+        self.query_inner(query, cancelled, true)
+    }
+
+    fn query_inner(
+        &self,
+        query: &Query,
+        mut cancelled: impl FnMut() -> bool,
+        cancellable_ranking: bool,
+    ) -> Result<Option<Page>> {
+        if cancelled() {
+            return Ok(None);
+        }
         if let Some(id) = query.parent {
             self.entry(id)?;
         }
@@ -137,32 +159,52 @@ impl Index {
         }
         let text = query.text.to_lowercase();
         let extension = query.extension.trim_start_matches('.').to_lowercase();
-        let mut matches: Vec<&Entry> = self
-            .entries
-            .iter()
-            .skip(1)
-            .filter(|entry| {
-                query.parent.is_none_or(|id| entry.parent == Some(id))
-                    && query.scope.is_none_or(|id| self.in_scope(entry.id, id))
-                    && (!query.files_only || entry.kind == Kind::File)
-                    && query.kind.is_none_or(|kind| entry.kind == kind)
-                    && entry.logical >= query.min_size
-                    && (text.is_empty() || entry.name.to_lowercase().contains(&text))
-                    && (extension.is_empty()
-                        || std::path::Path::new(&entry.name)
-                            .extension()
-                            .is_some_and(|ext| ext.to_string_lossy().to_lowercase() == extension))
-                    && query
-                        .modified_before
-                        .is_none_or(|before| entry.modified.is_some_and(|date| date < before))
-            })
-            .collect();
+        let mut matches = Vec::new();
+        for (position, entry) in self.entries.iter().skip(1).enumerate() {
+            if position % 256 == 0 && cancelled() {
+                return Ok(None);
+            }
+            if query.parent.is_some_and(|id| entry.parent != Some(id)) {
+                continue;
+            }
+            if let Some(scope) = query.scope.filter(|id| *id != NodeId(0)) {
+                let mut parent = Some(entry.id);
+                let mut depth = 0;
+                while parent.is_some_and(|id| id != scope) {
+                    if depth % 256 == 0 && cancelled() {
+                        return Ok(None);
+                    }
+                    parent = self.entries[parent.unwrap().0 as usize].parent;
+                    depth += 1;
+                }
+                if parent.is_none() {
+                    continue;
+                }
+            }
+            if (!query.files_only || entry.kind == Kind::File)
+                && query.kind.is_none_or(|kind| entry.kind == kind)
+                && entry.logical >= query.min_size
+                && (text.is_empty() || entry.name.to_lowercase().contains(&text))
+                && (extension.is_empty()
+                    || std::path::Path::new(&entry.name)
+                        .extension()
+                        .is_some_and(|ext| ext.to_string_lossy().to_lowercase() == extension))
+                && query
+                    .modified_before
+                    .is_none_or(|before| entry.modified.is_some_and(|date| date < before))
+            {
+                matches.push(entry);
+            }
+        }
+        if cancelled() {
+            return Ok(None);
+        }
         let total = matches.len();
         if query.offset >= total {
-            return Ok(Page {
+            return Ok(Some(Page {
                 total,
                 items: Vec::new(),
-            });
+            }));
         }
         let compare = |a: &&Entry, b: &&Entry| match query.sort.as_str() {
             "name" => compare_name(&a.name, &b.name).then(a.id.0.cmp(&b.id.0)),
@@ -170,19 +212,34 @@ impl Index {
             _ => b.logical.cmp(&a.logical).then(a.id.0.cmp(&b.id.0)),
         };
         if query.offset > 0 {
-            matches.select_nth_unstable_by(query.offset, compare);
+            if cancellable_ranking {
+                if !rank::select(&mut matches, query.offset, &compare, &mut cancelled) {
+                    return Ok(None);
+                }
+            } else {
+                matches.select_nth_unstable_by(query.offset, compare);
+            }
         }
         let remaining = &mut matches[query.offset..];
         let limit = query.limit.clamp(1, 500).min(remaining.len());
         if limit < remaining.len() {
-            remaining.select_nth_unstable_by(limit, compare);
+            if cancellable_ranking {
+                if !rank::select(remaining, limit, &compare, &mut cancelled) {
+                    return Ok(None);
+                }
+            } else {
+                remaining.select_nth_unstable_by(limit, compare);
+            }
         }
         let page = &mut remaining[..limit];
         page.sort_unstable_by(compare);
-        Ok(Page {
+        if cancelled() {
+            return Ok(None);
+        }
+        Ok(Some(Page {
             total,
             items: page.iter().map(|entry| (*entry).clone()).collect(),
-        })
+        }))
     }
 
     pub fn file_types(&self, scope: NodeId) -> Result<Vec<FileType>> {

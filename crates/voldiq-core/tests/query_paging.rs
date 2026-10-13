@@ -2,6 +2,95 @@ use std::{collections::HashSet, sync::atomic::AtomicBool};
 use voldiq_core::{Kind, NodeId, ScanOptions, index::Query, scanner::scan};
 
 #[test]
+fn cancelled_query_returns_no_page_and_releases_the_shared_index() {
+    use std::sync::{Arc, Barrier, RwLock, atomic::Ordering};
+    let fixture = tempfile::tempdir().unwrap();
+    for file in 0..1500 {
+        std::fs::write(fixture.path().join(format!("file-{file:04}.bin")), [1]).unwrap();
+    }
+    let index = Arc::new(RwLock::new(
+        scan(
+            fixture.path(),
+            &ScanOptions::default(),
+            &AtomicBool::new(false),
+            |_| {},
+        )
+        .unwrap(),
+    ));
+    assert!(
+        index
+            .read()
+            .unwrap()
+            .query_cancellable(
+                &Query {
+                    scope: Some(NodeId(u32::MAX)),
+                    ..Query::default()
+                },
+                || true
+            )
+            .unwrap()
+            .is_none()
+    );
+    let reached = Arc::new(Barrier::new(2));
+    let release = Arc::new(Barrier::new(2));
+    let cancel = Arc::new(AtomicBool::new(false));
+    let worker = {
+        let (index, reached, release, cancel) = (
+            index.clone(),
+            reached.clone(),
+            release.clone(),
+            cancel.clone(),
+        );
+        std::thread::spawn(move || {
+            let mut checks = 0;
+            index
+                .read()
+                .unwrap()
+                .query_cancellable(
+                    &Query {
+                        files_only: true,
+                        ..Query::default()
+                    },
+                    || {
+                        checks += 1;
+                        if checks == 3 {
+                            reached.wait();
+                            release.wait();
+                        }
+                        cancel.load(Ordering::Relaxed)
+                    },
+                )
+                .unwrap()
+                .is_none()
+        })
+    };
+    reached.wait();
+    assert!(index.try_write().is_err());
+    cancel.store(true, Ordering::Relaxed);
+    release.wait();
+    assert!(worker.join().unwrap());
+    assert!(index.try_write().is_ok());
+    let guard = index.read().unwrap();
+    let completed = guard
+        .query_cancellable(
+            &Query {
+                files_only: true,
+                offset: 700,
+                limit: 37,
+                sort: "name".into(),
+                ..Query::default()
+            },
+            || false,
+        )
+        .unwrap()
+        .unwrap();
+    assert_eq!(completed.total, 1500);
+    assert_eq!(completed.items.len(), 37);
+    assert_eq!(completed.items[0].name, "file-0700.bin");
+    assert_eq!(completed.items[36].name, "file-0736.bin");
+}
+
+#[test]
 fn kind_filter_ranks_real_folders_and_preserves_scopes_and_paging() {
     let fixture = tempfile::tempdir().unwrap();
     std::fs::create_dir_all(fixture.path().join("big/nested")).unwrap();

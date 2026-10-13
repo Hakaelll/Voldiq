@@ -17,7 +17,7 @@ The Rust integration tests create temporary fixtures. They check real size aggre
 
 The treemap test checks 100 measured rectangle areas, pairwise non-overlap and viewport bounds. It also checks empty and invalid inputs.
 
-Two query tests verify complete, stable pages over 1,038 actual files, deterministic size/name/date order, case-insensitive filters, zero results beyond the final page, the 500-entry cap and ASCII/Unicode filename ordering.
+Query tests verify complete, stable pages over 1,038 actual files, deterministic size/name/date order, case-insensitive filters, zero results beyond the final page, the 500-entry cap and ASCII/Unicode filename ordering. A separate real-file test verifies kind-filtered folder ranking and paging. A 1,500-file fixture cancels a query while it holds a shared-index read lock, verifies no partial page is returned, then acquires the write lock and checks a completed cancellable page. Rank unit tests compare every pivot against sorted ordered, reversed, repeated and scrambled inputs and interrupt both partitioning and heap fallback. Native IPC/UI query cancellation remains pending.
 
 Five duplicate tests verify full BLAKE3 content, matching samples with different middle bytes, unique-size exclusion, sample-only rejection, validated hash reuse, same-size changes, hard-link deduplication, locked and vanished files, and cancellation before full hashing. All data is generated in temporary fixtures.
 

@@ -1,5 +1,25 @@
 # Performance measurements
 
+## Cooperative query cancellation
+
+The core now exposes `Index::query_cancellable`, which returns `None` when its caller cancels. It checks during filtering, ancestor traversal and rank selection, and never returns a partial page. Filtering and partitioning check every 256 steps. Heap fallback checks every 256 roots or extractions; each sift is bounded by heap depth. Final sorting and cloning cover at most 500 entries. These are cooperative checkpoints, not a measured wall-time cancellation guarantee. Existing `query` callers retain standard-library rank selection. Native IPC and frontend cancellation are still pending.
+
+```powershell
+cargo run --release -p voldiq-core --example query_benchmark
+```
+
+Five rounds compare both methods on the same synthetic in-memory index of 1,000,000 files and 1,000 folders. Method order alternates. Each round asserts exact totals, page lengths and identical ordered IDs. The cancellable method reads an unset atomic flag. The name-search case matches zero entries, so it measures filtering without ranking. [Raw results](../benchmarks/query-cancellation-2026-10-13.csv) contain all 50 samples from 2026-10-13 on the Windows 11/i7-1165G7 host with Rust 1.97.1/MSVC.
+
+| Query | Standard median, range | Cancellable median, range |
+|---|---:|---:|
+| Root size | 5.680 ms, 5.401–7.067 | 6.173 ms, 5.420–6.839 |
+| Global size | 34.466 ms, 32.159–50.738 | 23.354 ms, 20.229–25.575 |
+| Global name | 214.876 ms, 205.225–222.990 | 242.544 ms, 225.208–255.455 |
+| Global modified date | 39.983 ms, 31.352–42.453 | 33.582 ms, 30.849–37.378 |
+| Name search | 88.276 ms, 76.776–104.752 | 93.400 ms, 79.782–99.505 |
+
+The cancellable name ranking is slower on this fixture. The other differences do not establish a general speedup. No compilation or test suite ran during timing, but host background load remained uncontrolled. This comparison excludes filesystem scanning, IPC, UI rendering and actual cancellation latency. The rank algorithm uses median-of-three partitioning with a bounded-depth heap fallback and constant auxiliary ranking memory; the matched-entry vector still scales with the number of matches.
+
 ## Large real-filesystem fixture
 
 The Windows `benchmark` example accepts 100 to 1,000,000 files and performs five scans with the production default metadata concurrency of one. It creates real 128-byte files in 100 owned temporary folders, checks available space before creation, and removes its own directory when finished. The space allowance is 8,192 bytes per file plus 512 MiB; this is a preflight safety check, not a guarantee against concurrent disk consumption. Fixture creation is excluded from scan timings and warms filesystem metadata.
