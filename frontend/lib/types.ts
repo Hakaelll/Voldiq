@@ -54,6 +54,7 @@ export interface DeveloperPage {
   total: number;
   logical: number;
   allocated: number;
+  categories: { category: DeveloperItem['category']; directories: number; logical: number }[];
 }
 export interface Entry {
   id: NodeId;

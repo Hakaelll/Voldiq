@@ -36,6 +36,14 @@ pub struct Page {
     pub total: usize,
     pub logical: u64,
     pub allocated: u64,
+    pub categories: Vec<CategoryTotal>,
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize)]
+pub struct CategoryTotal {
+    pub category: Category,
+    pub directories: usize,
+    pub logical: u64,
 }
 
 /// Classifies indexed project directories. It does not discover or remove data on disk.
@@ -203,6 +211,23 @@ pub fn query_with_caches(
     let total = candidates.len();
     let logical = candidates.iter().map(|item| item.logical).sum();
     let allocated = candidates.iter().map(|item| item.allocated).sum();
+    let mut categories: Vec<_> = [Category::Dependencies, Category::Build, Category::Cache]
+        .into_iter()
+        .map(|category| CategoryTotal {
+            category,
+            directories: 0,
+            logical: 0,
+        })
+        .collect();
+    for item in &candidates {
+        let slot = match item.category {
+            Category::Dependencies => 0,
+            Category::Build => 1,
+            Category::Cache => 2,
+        };
+        categories[slot].logical += item.logical;
+        categories[slot].directories += 1;
+    }
     candidates.sort_unstable_by(|a, b| b.logical.cmp(&a.logical).then(a.id.0.cmp(&b.id.0)));
     let mut items: Vec<_> = candidates
         .into_iter()
@@ -217,5 +242,6 @@ pub fn query_with_caches(
         total,
         logical,
         allocated,
+        categories,
     })
 }

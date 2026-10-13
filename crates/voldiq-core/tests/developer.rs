@@ -42,6 +42,17 @@ fn indexed_project_artifacts_are_classified_without_counting_nested_storage_twic
     let page = developer::query(&index, NodeId(0), 0, 100).unwrap();
     assert_eq!(page.total, 5);
     assert_eq!(page.logical, 248);
+    assert_eq!(
+        page.categories
+            .iter()
+            .map(|total| (total.category, total.directories, total.logical))
+            .collect::<Vec<_>>(),
+        [
+            (Category::Dependencies, 1, 64),
+            (Category::Build, 3, 176),
+            (Category::Cache, 1, 8),
+        ]
+    );
     assert_eq!(page.items[0].tool, "Cargo");
     assert_eq!(page.items[1].category, Category::Dependencies);
     assert_eq!(
@@ -56,6 +67,7 @@ fn indexed_project_artifacts_are_classified_without_counting_nested_storage_twic
     assert_eq!(paged.items[0].id, page.items[2].id);
     assert_eq!(paged.total, 5);
     assert_eq!(paged.logical, 248);
+    assert_eq!(paged.categories, page.categories);
     assert!(developer::query(&index, NodeId(u32::MAX), 0, 10).is_err());
 }
 

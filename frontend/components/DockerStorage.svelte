@@ -19,6 +19,17 @@
     | { kind: 'ready'; data: DockerStorage }
     | { kind: 'error'; message: string };
   let state = $state<LoadState>({ kind: 'idle' });
+  let largest = $derived(
+    state.kind === 'ready'
+      ? Math.max(0, ...state.data.categories.map((item) => item.size ?? 0))
+      : 0,
+  );
+  const colors = {
+    images: '#075bdd',
+    containers: '#087f8c',
+    volumes: '#ed701b',
+    build_cache: '#717a84',
+  };
   let generation = 0;
   async function load(): Promise<void> {
     const token = ++generation;
@@ -37,7 +48,7 @@
 
 <section class="docker-storage" aria-label="Docker storage" aria-busy={state.kind === 'loading'}>
   <div class="docker-summary">
-    <span>Docker · local engine</span>
+    <h2>Docker <small>· Local engine</small></h2>
     <button onclick={load} disabled={state.kind === 'loading'}>
       {state.kind === 'loading' ? 'Analyzing…' : state.kind === 'ready' ? 'Refresh' : 'Analyze'}
     </button>
@@ -55,7 +66,16 @@
         >{#each state.data.categories as item (item.category)}
           <tr
             ><td>{labels[item.category]}</td><td class="number">{item.count ?? 'Unknown'}</td>
-            <td class="number">{item.size === null ? 'Unknown' : bytes(item.size)}</td></tr
+            <td class="number"
+              ><div class="docker-size">
+                {#if item.size !== null}<span class="docker-bar" aria-hidden="true"
+                    ><span
+                      style:width={`${largest ? (item.size / largest) * 100 : 0}%`}
+                      style:background={colors[item.category]}
+                    ></span></span
+                  >{/if}<span>{item.size === null ? 'Unknown' : bytes(item.size)}</span>
+              </div></td
+            ></tr
           >
         {/each}</tbody
       >
@@ -71,18 +91,40 @@
     margin-top: 16px;
     min-width: 0;
     overflow: hidden;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--surface);
+    border-top: 1px solid var(--border);
+    background: var(--canvas);
   }
   .docker-summary {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 12px 16px;
+    padding: 20px 0 16px;
   }
-  .docker-summary > span,
+  h2 {
+    font-size: 18px;
+  }
+  h2 small {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--secondary);
+  }
+  .docker-size {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  .docker-bar {
+    width: 70px;
+    height: 14px;
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  .docker-bar > span {
+    display: block;
+    height: 100%;
+  }
   .docker-endpoint,
   .docker-note,
   p {
@@ -90,7 +132,7 @@
     font-size: 12px;
   }
   .docker-endpoint {
-    padding: 0 16px 12px;
+    padding: 0 0 12px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -102,7 +144,7 @@
   }
   th,
   td {
-    padding: 10px 16px;
+    padding: 10px 0;
     border-top: 1px solid var(--border);
     text-align: left;
   }
@@ -115,12 +157,12 @@
     font-variant-numeric: tabular-nums;
   }
   .docker-note {
-    padding: 10px 16px;
+    padding: 10px 0;
     border-top: 1px solid var(--border);
   }
   p {
     margin: 0;
-    padding: 0 16px 12px;
+    padding: 0 0 12px;
     overflow-wrap: anywhere;
   }
   .sr-only {

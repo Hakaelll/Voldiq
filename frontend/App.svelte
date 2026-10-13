@@ -7,7 +7,6 @@
   import Duplicates from './components/Duplicates.svelte';
   import History from './components/History.svelte';
   import DeveloperStorage from './components/DeveloperStorage.svelte';
-  import DockerStorage from './components/DockerStorage.svelte';
   import CleanupPreviewDialog from './components/CleanupPreview.svelte';
   import CleanupRules from './components/CleanupRules.svelte';
   import RecycleBin from './components/RecycleBin.svelte';
@@ -741,8 +740,15 @@
           </section>
         </section>
       {:else if view === 'developer'}
-        <DeveloperStorage enabled={ready && !busy} {revision} onselect={select} onerror={report} />
-        <DockerStorage />
+        <DeveloperStorage
+          enabled={ready && !busy}
+          {revision}
+          onopen={(id) => {
+            view = 'explorer';
+            void open(id);
+          }}
+          onerror={report}
+        />
       {:else if view === 'history'}
         <History
           enabled={ready && !busy && historical === null}
