@@ -1060,29 +1060,86 @@ main {
   }
 }
 .settings-panel {
-  max-width: 640px;
+  max-width: 840px;
+  display: grid;
+  gap: 28px;
+}
+.settings-panel > section {
   display: grid;
   gap: 16px;
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
 }
 .settings-panel h2 {
-  margin-top: 14px;
-  border-bottom: 1px solid var(--border);
-  padding-bottom: 10px;
+  font-size: 21px;
+  margin: 0 0 2px;
 }
-.settings-panel label {
+.settings-panel > section > label,
+.settings-row {
   display: grid;
-  grid-template-columns: 170px 1fr;
+  grid-template-columns: 260px minmax(0, 1fr);
   align-items: center;
   gap: 20px;
 }
-.settings-panel label.check {
-  display: flex;
-}
-.settings-panel p {
-  font-size: 12px;
+.settings-panel select {
+  width: 286px;
+  max-width: 100%;
 }
 .settings-panel textarea {
+  width: 100%;
+  min-width: 0;
   resize: vertical;
+}
+.settings-panel small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.settings-panel input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  margin: 0;
+  accent-color: var(--accent);
+}
+.settings-action {
+  margin-left: 280px;
+}
+.theme-choices {
+  display: flex;
+  gap: 2px;
+}
+.theme-choices label {
+  position: relative;
+  cursor: pointer;
+}
+.theme-choices input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  min-height: 0;
+  opacity: 0;
+}
+.theme-choices span {
+  display: block;
+  min-width: 86px;
+  text-align: center;
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.theme-choices input:checked + span {
+  background: var(--accent-fill);
+  color: #fff;
+  border-color: var(--accent-fill);
+}
+.theme-choices input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.theme-choices input:not(:checked) + span:hover {
+  background: var(--surface);
 }
 .app-footer {
   flex-shrink: 0;
@@ -1433,9 +1490,13 @@ main {
   .table-footer > span {
     display: none;
   }
-  .settings-panel label {
+  .settings-panel > section > label,
+  .settings-row {
     grid-template-columns: 1fr;
     gap: 8px;
+  }
+  .settings-action {
+    margin-left: 0;
   }
 }
 @media (prefers-reduced-motion: reduce) {

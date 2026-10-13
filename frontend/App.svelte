@@ -643,64 +643,102 @@
         </div>{/if}
       {#if view === 'settings'}
         <section class="settings-panel">
-          <h2>Appearance</h2>
-          <label
-            >Theme<select bind:value={theme} onchange={savePreferences}
-              ><option value="light">Light</option><option value="dark">Dark</option></select
-            ></label
-          ><label
-            >Treemap size metric<select bind:value={sizeMode} onchange={savePreferences}
-              ><option value="logical">Logical size</option><option value="allocated"
-                >Unique physical allocation</option
-              ></select
-            ></label
-          ><label class="check"
-            ><input type="checkbox" bind:checked={reduceMotion} onchange={savePreferences} />Reduce
-            motion</label
-          >
-          <h2>Scanning</h2>
-          <label
-            >Scan mode<select bind:value={scanMode} onchange={savePreferences} disabled={busy}>
-              <option value="auto">Automatic</option><option value="directory"
-                >Directory enumeration</option
-              >
-            </select></label
-          >
-          <label
-            >Concurrency limit<select
-              bind:value={scanConcurrency}
-              onchange={savePreferences}
-              disabled={busy}
+          <section aria-labelledby="appearance-heading">
+            <h2 id="appearance-heading">Appearance</h2>
+            <div class="settings-row">
+              <span id="theme-label">Theme</span>
+              <div class="theme-choices" role="group" aria-labelledby="theme-label">
+                <label
+                  ><input
+                    type="radio"
+                    name="theme"
+                    value="light"
+                    checked={theme === 'light'}
+                    onchange={() => {
+                      theme = 'light';
+                      savePreferences();
+                    }}
+                  /><span>Light</span></label
+                >
+                <label
+                  ><input
+                    type="radio"
+                    name="theme"
+                    value="dark"
+                    checked={theme === 'dark'}
+                    onchange={() => {
+                      theme = 'dark';
+                      savePreferences();
+                    }}
+                  /><span>Dark</span></label
+                >
+              </div>
+            </div>
+            <label
+              >Treemap size metric<select bind:value={sizeMode} onchange={savePreferences}
+                ><option value="logical">Logical size</option><option value="allocated"
+                  >Unique physical allocation</option
+                ></select
+              ></label
+            ><label class="check"
+              ><span>Reduce motion</span><input
+                type="checkbox"
+                bind:checked={reduceMotion}
+                onchange={savePreferences}
+              /></label
             >
-              <option value="auto">Automatic</option>
-              {#each [1, 2, 3, 4, 5, 6, 7, 8] as workers}<option value={workers}>{workers}</option
-                >{/each}
-            </select></label
-          >
-          <label
-            >Default drive<select bind:value={defaultDrive} onchange={savePreferences}
-              ><option value="">First available</option>{#each volumes as drive}<option
-                  value={drive.path}
-                  disabled={!drive.accessible}>{drive.path} {drive.name}</option
-                >{/each}</select
-            ></label
-          ><label
-            >Excluded paths · one per line<textarea
-              bind:value={excluded}
-              onchange={savePreferences}
-              rows="5"
-              placeholder="C:\\folder"></textarea></label
-          >
-          {#if recentPaths.length}<button
-              onclick={() => {
-                recentPaths = [];
-                savePreferences();
-              }}>Clear recent paths</button
-            >{/if}
-          <h2>Index</h2>
-          <button onclick={clearAnalysis} disabled={busy || !isTauri() || !scanPath}
-            >Clear current analysis</button
-          >
+          </section>
+          <section aria-labelledby="scanning-heading">
+            <h2 id="scanning-heading">Scanning</h2>
+            <label
+              >Scan mode<select bind:value={scanMode} onchange={savePreferences} disabled={busy}>
+                <option value="auto">Automatic</option><option value="directory"
+                  >Directory enumeration</option
+                >
+              </select></label
+            >
+            <label
+              >Concurrency limit<select
+                bind:value={scanConcurrency}
+                onchange={savePreferences}
+                disabled={busy}
+              >
+                <option value="auto">Automatic</option>
+                {#each [1, 2, 3, 4, 5, 6, 7, 8] as workers}<option value={workers}>{workers}</option
+                  >{/each}
+              </select></label
+            >
+            <label
+              >Default drive<select bind:value={defaultDrive} onchange={savePreferences}
+                ><option value="">First available</option>{#each volumes as drive}<option
+                    value={drive.path}
+                    disabled={!drive.accessible}>{drive.path} {drive.name}</option
+                  >{/each}</select
+              ></label
+            ><label
+              ><span>Excluded paths<small>One per line</small></span><textarea
+                bind:value={excluded}
+                onchange={savePreferences}
+                rows="5"
+                placeholder="C:\\folder"></textarea></label
+            >
+            {#if recentPaths.length}<div class="settings-action">
+                <button
+                  onclick={() => {
+                    recentPaths = [];
+                    savePreferences();
+                  }}>Clear recent paths</button
+                >
+              </div>{/if}
+          </section>
+          <section aria-labelledby="index-heading">
+            <h2 id="index-heading">Index</h2>
+            <div class="settings-action">
+              <button onclick={clearAnalysis} disabled={busy || !isTauri() || !scanPath}
+                >Clear current analysis</button
+              >
+            </div>
+          </section>
         </section>
       {:else if view === 'developer'}
         <DeveloperStorage enabled={ready && !busy} {revision} onselect={select} onerror={report} />
