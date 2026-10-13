@@ -1,6 +1,6 @@
 <script lang="ts">
-  import { invoke } from '@tauri-apps/api/core';
-  import { bytes, date, type Entry, type Page, type Query } from '../lib/types';
+  import { fileQueries } from '../lib/queries';
+  import { bytes, date, type Entry, type Query } from '../lib/types';
   import Icon from './Icon.svelte';
   let {
     query,
@@ -36,20 +36,27 @@
     const next = query;
     const start = desired;
     const token = ++request;
+    let alive = true;
+    let issued: ReturnType<typeof fileQueries.request> | undefined;
     const timer = setTimeout(() => {
-      invoke<Page>('query_files', { query: { ...next, offset: start, limit: 80 } })
+      issued = fileQueries.request({ ...next, offset: start, limit: 80 });
+      issued.result
         .then((page) => {
-          if (token === request) {
+          if (alive && token === request && page) {
             rows = page.items;
             total = page.total;
             offset = start;
           }
         })
         .catch((problem: unknown) => {
-          if (token === request) onerror(problem);
+          if (alive && token === request) onerror(problem);
         });
     }, 40);
-    return () => clearTimeout(timer);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+      issued?.cancel();
+    };
   });
   $effect(() => {
     void query;

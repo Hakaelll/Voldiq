@@ -2,7 +2,7 @@
 
 ## Cooperative query cancellation
 
-The core now exposes `Index::query_cancellable`, which returns `None` when its caller cancels. It checks during filtering, ancestor traversal and rank selection, and never returns a partial page. Filtering and partitioning check every 256 steps. Heap fallback checks every 256 roots or extractions; each sift is bounded by heap depth. Final sorting and cloning cover at most 500 entries. These are cooperative checkpoints, not a measured wall-time cancellation guarantee. Existing `query` callers retain standard-library rank selection. Native IPC and frontend cancellation are still pending.
+The core now exposes `Index::query_cancellable`, which returns `None` when its caller cancels. It checks during filtering, ancestor traversal and rank selection, and never returns a partial page. Filtering and partitioning check every 256 steps. Heap fallback checks every 256 roots or extractions; each sift is bounded by heap depth. Final sorting and cloning cover at most 500 entries. These are cooperative checkpoints, not a measured wall-time cancellation guarantee. Existing core `query` callers retain standard-library rank selection. The frontend's overview and file list now use the cancellable native command with independent request ownership and bounded latest-request queues. Native runtime cancellation latency remains unmeasured.
 
 ```powershell
 cargo run --release -p voldiq-core --example query_benchmark

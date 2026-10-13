@@ -13,6 +13,7 @@ use tauri::{State, ipc::Channel};
 mod cleanup_commands;
 mod developer_commands;
 mod docker_commands;
+mod query_commands;
 #[cfg(test)]
 mod scan_options_tests;
 mod snapshot_commands;
@@ -21,13 +22,14 @@ use snapshot_commands::*;
 use voldiq_core::{
     NodeId, Progress, ScanOptions, ScanPhase,
     duplicates::{self, Analysis, HashCache},
-    index::{Details, FileType, Page, Query},
+    index::{Details, FileType},
     scanner::{self, SharedIndex},
     windows::Volume,
 };
 
 #[derive(Default)]
 struct Engine {
+    queries: query_commands::Queries,
     index: Mutex<Option<SharedIndex>>,
     active: Mutex<Option<(u64, Arc<AtomicBool>)>>,
     sequence: AtomicU64,
@@ -401,20 +403,6 @@ fn get_duplicate_issues(engine: State<'_, Arc<Engine>>) -> Result<Vec<voldiq_cor
 }
 
 #[tauri::command]
-async fn query_files(query: Query, engine: State<'_, Arc<Engine>>) -> Result<Page, String> {
-    let index = engine.index()?;
-    tauri::async_runtime::spawn_blocking(move || {
-        index
-            .read()
-            .map_err(|e| e.to_string())?
-            .query(&query)
-            .map_err(|e| e.to_string())
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
-
-#[tauri::command]
 async fn get_details(id: NodeId, engine: State<'_, Arc<Engine>>) -> Result<Details, String> {
     let index = engine.index()?;
     tauri::async_runtime::spawn_blocking(move || {
@@ -524,7 +512,9 @@ fn main() {
             query_duplicate_groups,
             query_duplicate_members,
             get_duplicate_issues,
-            query_files,
+            query_commands::query_files_cancellable,
+            query_commands::cancel_query,
+            query_commands::open_query_session,
             preview_cleanup,
             query_cleanup_rule,
             query_recycle_bin,

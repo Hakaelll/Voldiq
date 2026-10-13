@@ -59,6 +59,8 @@ Both paths tolerate inaccessible files, report errors and support cancellation. 
 
 **Ctrl+K** opens Explorer at the scan root, clears extension/date filters and focuses the search text. It searches the loaded index, including a historical capture, without scanning again. Typing in Overview's search field opens the matching file list for its current scope. The shortcut is disabled during confirmation dialogs and operations that disable navigation.
 
+Changing a query or closing the file list cancels obsolete filtering and ranking work. Each query family keeps one running request and only its latest pending request; the overview and file list remain independent. Reloading the frontend creates a native query session that invalidates older requests. Cancellation is cooperative and does not return partial query pages.
+
 Logical size includes each visible hard-link name. Unique allocated size counts a file identity once across the scan. Allocation within an individual folder therefore reflects the link encountered first. Windows volume usage includes metadata and inaccessible or unindexed content; it should not equal the logical total.
 
 Progress reports actual file counts and bytes. Partial results can be explored while scanning; cancellation retains the measured index. No estimated percentage appears when the total is unknown. The initial index has a five-million-entry limit. Reaching the limit yields explicitly incomplete results.

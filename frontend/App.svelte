@@ -13,6 +13,7 @@
   import RecycleBin from './components/RecycleBin.svelte';
   import CleanupActivity from './components/CleanupActivity.svelte';
   import { readRecentPaths, rememberPath } from './lib/recent-paths';
+  import { overviewQueries } from './lib/queries';
   import {
     bytes,
     date,
@@ -145,19 +146,27 @@
   function report(problem: unknown): void {
     error = problem instanceof Error ? problem.message : String(problem);
   }
+  function invalidateRefresh(): void {
+    refreshToken += 1;
+    overviewQueries.cancel();
+  }
   async function refresh(id = scope): Promise<void> {
     const token = ++refreshToken;
+    const childrenRequest = overviewQueries.request({ parent: id, limit: 250, sort: 'size' });
     try {
       const result = await Promise.all([
         invoke<Details>('get_details', { id }),
-        invoke<Page>('query_files', { query: { parent: id, limit: 250, sort: 'size' } }),
+        childrenRequest.result,
         invoke<FileType[]>('get_file_types', { id }),
       ]);
-      if (token !== refreshToken) return;
-      [directory, children, types] = result;
+      if (token !== refreshToken || result[1] === null) return;
+      directory = result[0];
+      children = result[1];
+      types = result[2];
       scope = id;
       revision += 1;
     } catch (problem) {
+      childrenRequest.cancel();
       if (token === refreshToken) report(problem);
     }
   }
@@ -176,7 +185,7 @@
   }
   async function open(id: number): Promise<void> {
     const token = ++interactionToken;
-    refreshToken += 1;
+    invalidateRefresh();
     if (id === -1) {
       view = 'explorer';
       return;
@@ -199,7 +208,7 @@
     if (!path || busy) return;
     selection = new Set();
     cleanupPreview = null;
-    refreshToken += 1;
+    invalidateRefresh();
     interactionToken += 1;
     ready = false;
     historical = null;
@@ -280,7 +289,7 @@
   async function clearAnalysis(): Promise<void> {
     if (busy) return;
     analysisBusy = true;
-    refreshToken += 1;
+    invalidateRefresh();
     interactionToken += 1;
     try {
       await invoke('clear_current_analysis');
@@ -309,7 +318,7 @@
   async function loadSnapshot(snapshot: Snapshot): Promise<void> {
     selection = new Set();
     cleanupPreview = null;
-    refreshToken += 1;
+    invalidateRefresh();
     interactionToken += 1;
     details = null;
     operation = null;
@@ -395,7 +404,7 @@
         event.preventDefault();
         if (ready && !analysisBusy && !cleanupPreview && !showIssues) {
           interactionToken += 1;
-          refreshToken += 1;
+          invalidateRefresh();
           scope = 0;
           view = 'explorer';
           extension = '';
@@ -415,7 +424,10 @@
       }
     };
     window.addEventListener('keydown', keyboard);
-    return () => window.removeEventListener('keydown', keyboard);
+    return () => {
+      invalidateRefresh();
+      window.removeEventListener('keydown', keyboard);
+    };
   });
   $effect(() => {
     document.documentElement.dataset.theme = theme;
@@ -1013,7 +1025,7 @@
       }}
       onchanged={() => {
         cleanupNeedsRefresh = true;
-        refreshToken += 1;
+        invalidateRefresh();
         interactionToken += 1;
         ready = false;
         operation = null;
