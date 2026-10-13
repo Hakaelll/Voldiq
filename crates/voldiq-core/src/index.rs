@@ -87,9 +87,24 @@ impl Index {
     }
 
     pub fn path(&self, id: NodeId) -> Result<PathBuf> {
+        self.path_inner(id, || false)?
+            .ok_or_else(|| Error::Invalid("Query cancelled.".into()))
+    }
+
+    fn path_inner(
+        &self,
+        id: NodeId,
+        mut cancelled: impl FnMut() -> bool,
+    ) -> Result<Option<PathBuf>> {
+        if cancelled() {
+            return Ok(None);
+        }
         let mut names = Vec::new();
         let mut node = self.entry(id)?;
         while let Some(parent) = node.parent {
+            if names.len() % 256 == 0 && cancelled() {
+                return Ok(None);
+            }
             names.push(
                 self.native_names
                     .get(&node.id)
@@ -99,29 +114,62 @@ impl Index {
             node = self.entry(parent)?;
         }
         let mut path = self.root.clone();
-        for name in names.into_iter().rev() {
+        for (position, name) in names.into_iter().rev().enumerate() {
+            if position % 256 == 0 && cancelled() {
+                return Ok(None);
+            }
             path.push(name);
         }
-        Ok(path)
+        if cancelled() {
+            return Ok(None);
+        }
+        Ok(Some(path))
     }
 
     pub fn details(&self, id: NodeId) -> Result<Details> {
+        self.details_cancellable(id, || false)?
+            .ok_or_else(|| Error::Invalid("Query cancelled.".into()))
+    }
+
+    pub fn details_cancellable(
+        &self,
+        id: NodeId,
+        mut cancelled: impl FnMut() -> bool,
+    ) -> Result<Option<Details>> {
+        if cancelled() {
+            return Ok(None);
+        }
         let entry = self.entry(id)?.clone();
         let mut ancestors = Vec::new();
         let mut parent = entry.parent;
         while let Some(id) = parent {
+            if ancestors.len() % 256 == 0 && cancelled() {
+                return Ok(None);
+            }
             let node = self.entry(id)?;
             ancestors.push(node.clone());
             parent = node.parent;
         }
-        ancestors.reverse();
-        let path = self.path(id)?;
-        Ok(Details {
+        for position in 0..ancestors.len() / 2 {
+            if position % 256 == 0 && cancelled() {
+                return Ok(None);
+            }
+            let last = ancestors.len() - 1 - position;
+            ancestors.swap(position, last);
+        }
+        let Some(path) = self.path_inner(id, &mut cancelled)? else {
+            return Ok(None);
+        };
+        let details = Details {
             entry,
             path: path.to_string_lossy().into_owned(),
             path_exact: path.to_str().is_some(),
             ancestors,
-        })
+        };
+        if cancelled() {
+            return Ok(None);
+        }
+        Ok(Some(details))
     }
 
     pub fn in_scope(&self, id: NodeId, scope: NodeId) -> bool {

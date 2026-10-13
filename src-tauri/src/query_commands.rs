@@ -165,7 +165,12 @@ fn overview(index: &Index, id: NodeId, cancelled: &AtomicBool) -> Result<Option<
     if cancelled.load(Ordering::Relaxed) {
         return Ok(None);
     }
-    let directory = index.details(id).map_err(|e| e.to_string())?;
+    let Some(directory) = index
+        .details_cancellable(id, || cancelled.load(Ordering::Relaxed))
+        .map_err(|e| e.to_string())?
+    else {
+        return Ok(None);
+    };
     if cancelled.load(Ordering::Relaxed) {
         return Ok(None);
     }
