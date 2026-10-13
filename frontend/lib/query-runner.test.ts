@@ -40,6 +40,45 @@ function fixture() {
 
 const flush = () => new Promise<void>((done) => setImmediate(done));
 
+test('detail supersession and panel cancellation leave file queries running and cannot reopen old details', async () => {
+  const { transport, runs } = fixture();
+  const files = createQueryRunner('file_list', transport);
+  const fileRequest = files.request({});
+  const completions = [deferred<{ path: string }>(), deferred<{ path: string }>(), deferred<{ path: string }>()];
+  const scopes: number[] = [];
+  const cancellations: number[] = [];
+  const details = createQueryRunner<{ path: string }, { id: number }>('details', {
+    run: (family, _request, query) => {
+      assert.equal(family, 'details');
+      scopes.push(query.id);
+      return completions[scopes.length - 1].result;
+    },
+    cancel: async (family, id) => {
+      assert.equal(family, 'details');
+      cancellations.push(id);
+    },
+  });
+  const old = details.request({ id: 42 });
+  await flush();
+  const next = details.request({ id: 7 });
+  assert.equal(await old.result, null);
+  completions[0].reject(new Error('obsolete details'));
+  await flush();
+  details.cancel();
+  assert.equal(await next.result, null);
+  completions[1].resolve({ path: 'closed panel' });
+  await flush();
+  const reopened = details.request({ id: 8 });
+  await flush();
+  old.cancel();
+  assert.equal(cancellations.length, 2);
+  completions[2].resolve({ path: 'current item' });
+  assert.deepEqual(await reopened.result, { path: 'current item' });
+  assert.deepEqual(scopes, [42, 7, 8]);
+  runs[0].completion.resolve({ items: [], total: 3 });
+  assert.deepEqual(await fileRequest.result, { items: [], total: 3 });
+});
+
 test('summary requests keep typed scope input and discard the obsolete composite response', async () => {
   const first = deferred<{ types: number }>();
   const second = deferred<{ types: number }>();

@@ -13,7 +13,7 @@
   import RecycleBin from './components/RecycleBin.svelte';
   import CleanupActivity from './components/CleanupActivity.svelte';
   import { readRecentPaths, rememberPath } from './lib/recent-paths';
-  import { overviewQueries } from './lib/queries';
+  import { overviewQueries, detailQueries } from './lib/queries';
   import { color } from './lib/treemap';
   import { scopedFileQuery } from './lib/file-query';
   import { visibleFileTypes } from './lib/file-types';
@@ -159,6 +159,10 @@
     refreshToken += 1;
     overviewQueries.cancel();
   }
+  function invalidateInteraction(): number {
+    detailQueries.cancel();
+    return ++interactionToken;
+  }
   async function refresh(id = scope): Promise<void> {
     const token = ++refreshToken;
     const overviewRequest = overviewQueries.request({ id });
@@ -176,28 +180,28 @@
     }
   }
   async function select(id: number): Promise<void> {
-    const token = ++interactionToken;
+    const token = invalidateInteraction();
     if (id === -1) {
       view = 'explorer';
       return;
     }
     try {
-      const item = await invoke<Details>('get_details', { id });
-      if (token === interactionToken && ready) details = item;
+      const item = await detailQueries.request({ id }).result;
+      if (item && token === interactionToken && ready) details = item;
     } catch (problem) {
       if (token === interactionToken) report(problem);
     }
   }
   async function open(id: number): Promise<void> {
-    const token = ++interactionToken;
+    const token = invalidateInteraction();
     invalidateRefresh();
     if (id === -1) {
       view = 'explorer';
       return;
     }
     try {
-      const item = await invoke<Details>('get_details', { id });
-      if (token !== interactionToken || !ready) return;
+      const item = await detailQueries.request({ id }).result;
+      if (!item || token !== interactionToken || !ready) return;
       if (item.entry.kind === 'directory') {
         text = '';
         details = null;
@@ -214,7 +218,7 @@
     selection = new Set();
     cleanupPreview = null;
     invalidateRefresh();
-    interactionToken += 1;
+    invalidateInteraction();
     ready = false;
     historical = null;
     directory = null;
@@ -247,6 +251,8 @@
         }
       }
       if (update.phase === 'failed') {
+        invalidateInteraction();
+        details = null;
         error = update.method;
         scanId = null;
       } else if (update.phase === 'complete' || update.phase === 'cancelled') {
@@ -256,6 +262,7 @@
         }
         ready = update.entries > 0;
         scanId = null;
+        invalidateInteraction();
         details = null;
         if (ready) void refresh(scope);
         void invoke<Volume[]>('get_volumes')
@@ -296,7 +303,7 @@
     if (busy) return;
     analysisBusy = true;
     invalidateRefresh();
-    interactionToken += 1;
+    invalidateInteraction();
     try {
       await invoke('clear_current_analysis');
       ready = false;
@@ -325,7 +332,7 @@
     selection = new Set();
     cleanupPreview = null;
     invalidateRefresh();
-    interactionToken += 1;
+    invalidateInteraction();
     details = null;
     operation = null;
     historical = snapshot;
@@ -410,7 +417,7 @@
       if (event.ctrlKey && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         if (ready && !analysisBusy && !cleanupPreview && !showIssues) {
-          interactionToken += 1;
+          invalidateInteraction();
           invalidateRefresh();
           scope = 0;
           view = 'explorer';
@@ -427,12 +434,14 @@
         }
       }
       if (event.key === 'Escape') {
+        invalidateInteraction();
         showIssues = false;
         details = null;
       }
     };
     window.addEventListener('keydown', keyboard);
     return () => {
+      invalidateInteraction();
       invalidateRefresh();
       window.removeEventListener('keydown', keyboard);
     };
@@ -968,6 +977,7 @@
                   class="dismiss"
                   title="Close details"
                   onclick={() => {
+                    invalidateInteraction();
                     details = null;
                   }}><Icon name="close" /></button
                 >
@@ -1061,7 +1071,7 @@
       onchanged={() => {
         cleanupNeedsRefresh = true;
         invalidateRefresh();
-        interactionToken += 1;
+        invalidateInteraction();
         ready = false;
         operation = null;
         selection = new Set();

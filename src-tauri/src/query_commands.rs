@@ -15,6 +15,7 @@ use voldiq_core::{
 pub(crate) enum QueryFamily {
     FileList,
     OverviewChildren,
+    Details,
 }
 
 #[derive(Default)]
@@ -31,7 +32,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 2],
+    slots: [Slot; 3],
 }
 
 impl QueryFamily {
@@ -39,6 +40,7 @@ impl QueryFamily {
         match self {
             Self::FileList => 0,
             Self::OverviewChildren => 1,
+            Self::Details => 2,
         }
     }
 }
@@ -181,19 +183,18 @@ fn overview(index: &Index, id: NodeId, cancelled: &AtomicBool) -> Result<Option<
     }))
 }
 
-#[tauri::command]
-pub(crate) async fn query_overview(
+async fn run_query<T: Send + 'static>(
     epoch: u64,
-    id: NodeId,
+    family: QueryFamily,
     request_id: u64,
-    engine: State<'_, Arc<Engine>>,
-) -> Result<Option<Overview>, String> {
-    let family = QueryFamily::OverviewChildren;
+    engine: Arc<Engine>,
+    execute: impl FnOnce(&Index, &AtomicBool) -> Result<Option<T>, String> + Send + 'static,
+) -> Result<Option<T>, String> {
     let Some(cancelled) = engine.queries.begin(epoch, family, request_id)? else {
         return Ok(None);
     };
     let request = Request {
-        engine: engine.inner().clone(),
+        engine: engine.clone(),
         epoch,
         family,
         id: request_id,
@@ -205,10 +206,48 @@ pub(crate) async fn query_overview(
         }
         let index = _request.engine.index()?;
         let index = index.read().map_err(|e| e.to_string())?;
-        overview(&index, id, &cancelled)
+        execute(&index, &cancelled)
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub(crate) async fn query_overview(
+    epoch: u64,
+    id: NodeId,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<Overview>, String> {
+    run_query(
+        epoch,
+        QueryFamily::OverviewChildren,
+        request_id,
+        engine.inner().clone(),
+        move |index, cancelled| overview(index, id, cancelled),
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn query_details_cancellable(
+    epoch: u64,
+    id: NodeId,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<Details>, String> {
+    run_query(
+        epoch,
+        QueryFamily::Details,
+        request_id,
+        engine.inner().clone(),
+        move |index, cancelled| {
+            index
+                .details_cancellable(id, || cancelled.load(Ordering::Relaxed))
+                .map_err(|error| error.to_string())
+        },
+    )
+    .await
 }
 
 #[tauri::command]
@@ -230,32 +269,21 @@ pub(crate) fn cancel_query(
 pub(crate) async fn query_files_cancellable(
     epoch: u64,
     query: Query,
-    family: QueryFamily,
     request_id: u64,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<Option<Page>, String> {
-    let Some(cancelled) = engine.queries.begin(epoch, family, request_id)? else {
-        return Ok(None);
-    };
-    let request = Request {
-        engine: engine.inner().clone(),
+    run_query(
         epoch,
-        family,
-        id: request_id,
-    };
-    tauri::async_runtime::spawn_blocking(move || {
-        let _request = request;
-        if cancelled.load(Ordering::Relaxed) {
-            return Ok(None);
-        }
-        let index = _request.engine.index()?;
-        let index = index.read().map_err(|e| e.to_string())?;
-        index
-            .query_cancellable(&query, || cancelled.load(Ordering::Relaxed))
-            .map_err(|e| e.to_string())
-    })
+        QueryFamily::FileList,
+        request_id,
+        engine.inner().clone(),
+        move |index, cancelled| {
+            index
+                .query_cancellable(&query, || cancelled.load(Ordering::Relaxed))
+                .map_err(|error| error.to_string())
+        },
+    )
     .await
-    .map_err(|e| e.to_string())?
 }
 
 #[cfg(test)]
@@ -426,5 +454,52 @@ mod tests {
             assert!(queries.cancel(1, QueryFamily::FileList, id).is_err());
         }
         assert!(serde_json::from_str::<QueryFamily>("\"unknown\"").is_err());
+    }
+
+    #[test]
+    fn detail_requests_supersede_independently_and_session_reload_cancels_every_family() {
+        let queries = Queries::default();
+        let epoch = queries.open_session().unwrap();
+        let files = queries
+            .begin(epoch, QueryFamily::FileList, 1)
+            .unwrap()
+            .unwrap();
+        let overview = queries
+            .begin(epoch, QueryFamily::OverviewChildren, 1)
+            .unwrap()
+            .unwrap();
+        let old = queries
+            .begin(epoch, QueryFamily::Details, 1)
+            .unwrap()
+            .unwrap();
+        let latest = queries
+            .begin(epoch, QueryFamily::Details, 2)
+            .unwrap()
+            .unwrap();
+        assert!(old.load(Ordering::Relaxed));
+        queries.finish(epoch, QueryFamily::Details, 1);
+        queries.cancel(epoch, QueryFamily::Details, 1).unwrap();
+        assert!(!latest.load(Ordering::Relaxed));
+        assert!(!files.load(Ordering::Relaxed));
+        assert!(!overview.load(Ordering::Relaxed));
+        let current = queries.open_session().unwrap();
+        assert!(files.load(Ordering::Relaxed));
+        assert!(overview.load(Ordering::Relaxed));
+        assert!(latest.load(Ordering::Relaxed));
+        let reopened = queries
+            .begin(current, QueryFamily::Details, 1)
+            .unwrap()
+            .unwrap();
+        queries.cancel(epoch, QueryFamily::Details, 500).unwrap();
+        queries.finish(epoch, QueryFamily::Details, 1);
+        assert!(!reopened.load(Ordering::Relaxed));
+        queries.cancel(current, QueryFamily::Details, 1).unwrap();
+        assert!(reopened.load(Ordering::Relaxed));
+        assert!(
+            queries
+                .begin(current, QueryFamily::Details, 1)
+                .unwrap()
+                .is_none()
+        );
     }
 }

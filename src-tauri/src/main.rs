@@ -23,7 +23,6 @@ use snapshot_commands::*;
 use voldiq_core::{
     NodeId, Progress, ScanOptions, ScanPhase,
     duplicates::{self, Analysis, HashCache},
-    index::Details,
     scanner::{self, SharedIndex},
     windows::Volume,
 };
@@ -432,20 +431,6 @@ fn get_duplicate_issues(engine: State<'_, Arc<Engine>>) -> Result<Vec<voldiq_cor
 }
 
 #[tauri::command]
-async fn get_details(id: NodeId, engine: State<'_, Arc<Engine>>) -> Result<Details, String> {
-    let index = engine.index()?;
-    tauri::async_runtime::spawn_blocking(move || {
-        index
-            .read()
-            .map_err(|e| e.to_string())?
-            .details(id)
-            .map_err(|e| e.to_string())
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
-
-#[tauri::command]
 fn get_issues(engine: State<'_, Arc<Engine>>) -> Result<Vec<voldiq_core::Issue>, String> {
     Ok(engine
         .index()?
@@ -535,6 +520,7 @@ fn main() {
             get_duplicate_issues,
             query_commands::query_files_cancellable,
             query_commands::query_overview,
+            query_commands::query_details_cancellable,
             query_commands::cancel_query,
             query_commands::open_query_session,
             preview_cleanup,
@@ -548,7 +534,6 @@ fn main() {
             query_cleanup_history,
             query_developer_storage,
             docker_commands::query_docker_storage,
-            get_details,
             get_issues,
             reveal_item,
             open_windows_storage,

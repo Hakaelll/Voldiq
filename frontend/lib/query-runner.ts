@@ -1,6 +1,6 @@
 import type { Page, Query } from './types';
 
-export type QueryFamily = 'file_list' | 'overview_children';
+export type QueryFamily = 'file_list' | 'overview_children' | 'details';
 export type QueryTransport<T = Page, Q = Query> = {
   run: (family: QueryFamily, requestId: number, query: Q) => Promise<T | null>;
   cancel: (family: QueryFamily, requestId: number) => Promise<void>;
