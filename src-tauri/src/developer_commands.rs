@@ -172,6 +172,32 @@ mod tests {
     use voldiq_core::{NodeId, ScanOptions, developer, scanner::scan};
 
     #[test]
+    fn developer_query_defaults_and_ipc_filters_are_strict() {
+        let query: developer::Query = serde_json::from_str("{}").unwrap();
+        assert_eq!(query.scope, NodeId(0));
+        assert_eq!(query.offset, 0);
+        assert_eq!(query.limit, 50);
+        assert_eq!(query.category, None);
+        assert_eq!(query.sort, developer::Sort::Size);
+        let filtered: developer::Query =
+            serde_json::from_str(r#"{"category":"build","sort":"name","offset":2,"limit":1}"#)
+                .unwrap();
+        assert_eq!(filtered.category, Some(Category::Build));
+        assert_eq!(filtered.sort, developer::Sort::Name);
+        assert_eq!(filtered.offset, 2);
+        for invalid in [
+            r#"{"category":"other"}"#,
+            r#"{"sort":"tool"}"#,
+            r#"{"offset":-1}"#,
+            r#"{"scope":-1}"#,
+            r#"{"limit":1.5}"#,
+            r#"{"unknown":true}"#,
+        ] {
+            assert!(serde_json::from_str::<developer::Query>(invalid).is_err());
+        }
+    }
+
+    #[test]
     fn pnpm_environment_precedence_selects_only_measured_store_storage() {
         let fixture = tempfile::tempdir().unwrap();
         let root = fixture.path();
@@ -219,7 +245,17 @@ mod tests {
                     .find(|(key, _)| *key == name)
                     .map(|(_, value)| root.join(value).into_os_string())
             });
-            let page = developer::query_with_caches(&index, NodeId(0), 0, 100, &locations).unwrap();
+            let page = developer::query_with_caches(
+                &index,
+                &developer::Query {
+                    scope: NodeId(0),
+                    offset: 0,
+                    limit: 100,
+                    ..Default::default()
+                },
+                &locations,
+            )
+            .unwrap();
             assert_eq!(page.total, if expected == 63 { 3 } else { 1 });
             assert_eq!(page.logical, expected);
             assert_eq!(page.items[0].tool, "pnpm");
@@ -235,15 +271,33 @@ mod tests {
         let versioned = resolve_cache_locations(None, None, |name| {
             (name == "PNPM_CONFIG_STORE_DIR").then(|| root.join("configured/v11").into_os_string())
         });
-        let versioned_page =
-            developer::query_with_caches(&index, NodeId(0), 0, 100, &versioned).unwrap();
+        let versioned_page = developer::query_with_caches(
+            &index,
+            &developer::Query {
+                scope: NodeId(0),
+                offset: 0,
+                limit: 100,
+                ..Default::default()
+            },
+            &versioned,
+        )
+        .unwrap();
         assert_eq!(versioned_page.logical, 63);
         assert_eq!(versioned_page.total, 3);
         let legacy_named = resolve_cache_locations(None, None, |name| {
             (name == "PNPM_CONFIG_STORE_DIR").then(|| root.join("legacy base/v10").into_os_string())
         });
-        let legacy_page =
-            developer::query_with_caches(&index, NodeId(0), 0, 100, &legacy_named).unwrap();
+        let legacy_page = developer::query_with_caches(
+            &index,
+            &developer::Query {
+                scope: NodeId(0),
+                offset: 0,
+                limit: 100,
+                ..Default::default()
+            },
+            &legacy_named,
+        )
+        .unwrap();
         assert_eq!(legacy_page.total, 1);
         assert_eq!(legacy_page.logical, 55);
         let relative = resolve_cache_locations(None, Some(local.clone()), |name| {
@@ -290,7 +344,17 @@ mod tests {
         )
         .unwrap();
         let defaults = resolve_cache_locations(Some(home.clone()), Some(local.clone()), |_| None);
-        let page = developer::query_with_caches(&index, NodeId(0), 0, 100, &defaults).unwrap();
+        let page = developer::query_with_caches(
+            &index,
+            &developer::Query {
+                scope: NodeId(0),
+                offset: 0,
+                limit: 100,
+                ..Default::default()
+            },
+            &defaults,
+        )
+        .unwrap();
         assert_eq!(page.total, 8);
         assert_eq!(page.logical, 588);
         let packages = page.items.iter().find(|item| item.logical == 300).unwrap();
@@ -311,7 +375,17 @@ mod tests {
             };
             Some(root.join(path).into_os_string())
         });
-        let page = developer::query_with_caches(&index, NodeId(0), 0, 100, &overridden).unwrap();
+        let page = developer::query_with_caches(
+            &index,
+            &developer::Query {
+                scope: NodeId(0),
+                offset: 0,
+                limit: 100,
+                ..Default::default()
+            },
+            &overridden,
+        )
+        .unwrap();
         assert_eq!(page.total, 8);
         assert_eq!(page.logical, 1308);
         assert!(page.items.iter().any(|item| item.tool == "NuGet"
@@ -329,9 +403,18 @@ mod tests {
         );
         index.snapshot_id = Some(1);
         assert_eq!(
-            developer::query_with_caches(&index, NodeId(0), 0, 100, &overridden)
-                .unwrap()
-                .total,
+            developer::query_with_caches(
+                &index,
+                &developer::Query {
+                    scope: NodeId(0),
+                    offset: 0,
+                    limit: 100,
+                    ..Default::default()
+                },
+                &overridden
+            )
+            .unwrap()
+            .total,
             0
         );
     }

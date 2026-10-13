@@ -280,7 +280,17 @@ mod tests {
                     Some(root.join(value).into_os_string())
                 },
             );
-            let page = developer::query_with_caches(&index, NodeId(0), 0, 100, &locations).unwrap();
+            let page = developer::query_with_caches(
+                &index,
+                &developer::Query {
+                    scope: NodeId(0),
+                    offset: 0,
+                    limit: 100,
+                    ..Default::default()
+                },
+                &locations,
+            )
+            .unwrap();
             assert_eq!(page.logical, expected);
             assert!(
                 page.items

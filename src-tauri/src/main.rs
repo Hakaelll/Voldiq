@@ -498,9 +498,7 @@ async fn open_windows_storage() -> Result<(), String> {
 #[tauri::command]
 async fn query_developer_storage(
     app: tauri::AppHandle,
-    scope: NodeId,
-    offset: usize,
-    limit: usize,
+    query: voldiq_core::developer::Query,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<voldiq_core::developer::Page, String> {
     let shared = engine.index()?;
@@ -516,7 +514,7 @@ async fn query_developer_storage(
             developer_commands::cache_locations(&app)
         };
         let index = shared.read().map_err(|e| e.to_string())?;
-        voldiq_core::developer::query_with_caches(&index, scope, offset, limit, &caches)
+        voldiq_core::developer::query_with_caches(&index, &query, &caches)
             .map_err(|e| e.to_string())
     })
     .await

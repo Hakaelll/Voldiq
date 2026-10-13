@@ -1,5 +1,5 @@
 use crate::{Kind, NodeId, Result, index::Index};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
@@ -9,12 +9,42 @@ pub struct CacheLocation {
     pub category: Category,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Category {
     Dependencies,
     Build,
     Cache,
+}
+
+#[derive(Clone, Copy, Debug, Default, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum Sort {
+    #[default]
+    Size,
+    Name,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct Query {
+    pub scope: NodeId,
+    pub offset: usize,
+    pub limit: usize,
+    pub category: Option<Category>,
+    pub sort: Sort,
+}
+
+impl Default for Query {
+    fn default() -> Self {
+        Self {
+            scope: NodeId(0),
+            offset: 0,
+            limit: 50,
+            category: None,
+            sort: Sort::Size,
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -47,8 +77,8 @@ pub struct CategoryTotal {
 }
 
 /// Classifies indexed project directories. It does not discover or remove data on disk.
-pub fn query(index: &Index, scope: NodeId, offset: usize, limit: usize) -> Result<Page> {
-    query_with_caches(index, scope, offset, limit, &[])
+pub fn query(index: &Index, query: &Query) -> Result<Page> {
+    query_with_caches(index, query, &[])
 }
 
 fn classified(index: &Index, scope: NodeId, caches: &[CacheLocation]) -> Result<Vec<Item>> {
@@ -188,14 +218,8 @@ pub(crate) fn project_build_scopes(index: &Index, caches: &[CacheLocation]) -> R
     Ok(scopes)
 }
 
-pub fn query_with_caches(
-    index: &Index,
-    scope: NodeId,
-    offset: usize,
-    limit: usize,
-    caches: &[CacheLocation],
-) -> Result<Page> {
-    let mut candidates = classified(index, scope, caches)?;
+pub fn query_with_caches(index: &Index, query: &Query, caches: &[CacheLocation]) -> Result<Page> {
+    let mut candidates = classified(index, query.scope, caches)?;
     // Nested artifacts belong to the outer candidate so totals never double-count a subtree.
     let ids: HashSet<_> = candidates.iter().map(|item| item.id).collect();
     candidates.retain(|item| {
@@ -208,9 +232,6 @@ pub fn query_with_caches(
         }
         true
     });
-    let total = candidates.len();
-    let logical = candidates.iter().map(|item| item.logical).sum();
-    let allocated = candidates.iter().map(|item| item.allocated).sum();
     let mut categories: Vec<_> = [Category::Dependencies, Category::Build, Category::Cache]
         .into_iter()
         .map(|category| CategoryTotal {
@@ -228,11 +249,25 @@ pub fn query_with_caches(
         categories[slot].logical += item.logical;
         categories[slot].directories += 1;
     }
-    candidates.sort_unstable_by(|a, b| b.logical.cmp(&a.logical).then(a.id.0.cmp(&b.id.0)));
+    if let Some(category) = query.category {
+        candidates.retain(|item| item.category == category);
+    }
+    let total = candidates.len();
+    let logical = candidates.iter().map(|item| item.logical).sum();
+    let allocated = candidates.iter().map(|item| item.allocated).sum();
+    candidates.sort_unstable_by(|a, b| {
+        let order = match query.sort {
+            Sort::Size => b.logical.cmp(&a.logical),
+            Sort::Name => index.entries[a.id.0 as usize]
+                .name
+                .cmp(&index.entries[b.id.0 as usize].name),
+        };
+        order.then(a.id.0.cmp(&b.id.0))
+    });
     let mut items: Vec<_> = candidates
         .into_iter()
-        .skip(offset)
-        .take(limit.clamp(1, 100))
+        .skip(query.offset)
+        .take(query.limit.clamp(1, 100))
         .collect();
     for item in &mut items {
         item.path = index.path(item.id)?.to_string_lossy().into_owned();

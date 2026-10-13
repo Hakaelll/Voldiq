@@ -22,20 +22,27 @@
   const colors = { dependencies: '#075bdd', build: '#087f8c', cache: '#ed701b' };
   let loadState = $state<'loading' | 'ready' | 'unavailable'>('loading');
   let offset = $state(0);
+  let category = $state<DeveloperItem['category'] | ''>('');
+  let sort = $state<'size' | 'name'>('size');
+  let totalLogical = $derived(
+    page?.categories?.reduce((sum, group) => sum + group.logical, 0) ?? 0,
+  );
+  let totalDirectories = $derived(
+    page?.categories?.reduce((sum, group) => sum + group.directories, 0) ?? 0,
+  );
   let generation = 0;
   let region: HTMLDivElement;
   let detailsRegion: HTMLElement;
   async function load(next: number): Promise<void> {
     const token = ++generation;
+    const focusTarget = document.activeElement;
     const restoreFocus =
       region?.contains(document.activeElement) && !detailsRegion?.contains(document.activeElement);
     loadState = 'loading';
     selected = null;
     try {
       const result = await invoke<DeveloperPage>('query_developer_storage', {
-        scope: 0,
-        offset: next,
-        limit,
+        query: { scope: 0, offset: next, limit, category: category || null, sort },
       });
       if (token !== generation) return;
       page = result;
@@ -49,13 +56,20 @@
     }
     if (restoreFocus) {
       await tick();
-      if (token === generation) region?.focus();
+      if (token === generation) {
+        if (focusTarget instanceof HTMLElement && focusTarget.isConnected) {
+          if (document.activeElement === document.body) focusTarget.focus();
+        } else region?.focus();
+      }
     }
   }
   $effect(() => {
     revision;
+    category;
+    sort;
     if (enabled)
       untrack(() => {
+        offset = 0;
         void load(0);
       });
     else {
@@ -79,14 +93,13 @@
 >
   {#if enabled && loadState === 'ready' && page}
     <div class="developer-summary">
-      <span>{page.total.toLocaleString()} directories · {bytes(page.logical)} logical</span><button
-        onclick={() => load(0)}><Icon name="scan" />Refresh</button
-      >
+      <span>{totalDirectories.toLocaleString()} directories · {bytes(totalLogical)} logical</span
+      ><button onclick={() => load(0)}><Icon name="scan" />Refresh</button>
     </div>
     {#if page.categories}<div class="developer-distribution">
         <div class="developer-bar" aria-hidden="true">
           {#each page.categories as category}<span
-              style:width={`${page.logical ? (category.logical / page.logical) * 100 : 0}%`}
+              style:width={`${totalLogical ? (category.logical / totalLogical) * 100 : 0}%`}
               style:background={colors[category.category]}
             ></span>{/each}
         </div>
@@ -104,6 +117,27 @@
   {/if}
   <div class="developer-layout">
     <div class="developer-list">
+      <div class="developer-list-heading">
+        <h2>Projects and caches</h2>
+        <div class="developer-filters">
+          <select
+            aria-label="Developer storage category"
+            bind:value={category}
+            disabled={!enabled || loadState === 'loading'}
+          >
+            <option value="">All categories</option><option value="dependencies"
+              >Dependencies</option
+            ><option value="build">Build artifacts</option><option value="cache">Cache</option>
+          </select>
+          <select
+            aria-label="Developer storage order"
+            bind:value={sort}
+            disabled={!enabled || loadState === 'loading'}
+          >
+            <option value="size">Largest first</option><option value="name">Name</option>
+          </select>
+        </div>
+      </div>
       {#if !enabled}
         <div class="developer-empty">Scan a drive or folder</div>
       {:else if loadState === 'loading'}
@@ -111,9 +145,10 @@
       {:else if loadState === 'unavailable'}
         <div class="developer-empty"><button onclick={() => load(offset)}>Retry</button></div>
       {:else if page}
-        {#if page.items.length === 0}<div class="developer-empty">No indexed developer storage</div>
+        {#if page.items.length === 0}<div class="developer-empty">
+            {category ? 'No matching directories' : 'No indexed developer storage'}
+          </div>
         {:else}
-          <h2>Projects and caches</h2>
           <div class="developer-scroll">
             <table>
               <thead
@@ -301,6 +336,27 @@
   .developer-list h2 {
     font-size: 21px;
     margin-bottom: 22px;
+  }
+  .developer-list-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+  }
+  .developer-list-heading h2 {
+    margin: 0;
+  }
+  .developer-filters {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+  .developer-filters select {
+    max-width: 100%;
+    font-size: 13px;
   }
   .developer-details {
     min-width: 0;

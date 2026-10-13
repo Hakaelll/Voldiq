@@ -176,7 +176,17 @@ mod tests {
             |_| {},
         )
         .unwrap();
-        let page = developer::query_with_caches(&index, NodeId(0), 0, 100, &locations).unwrap();
+        let page = developer::query_with_caches(
+            &index,
+            &developer::Query {
+                scope: NodeId(0),
+                offset: 0,
+                limit: 100,
+                ..Default::default()
+            },
+            &locations,
+        )
+        .unwrap();
         assert_eq!(page.total, 1);
         assert_eq!(page.logical, 31);
         assert_eq!(
@@ -257,7 +267,17 @@ mod tests {
                         .map(|(_, path)| path.clone().into_os_string())
                 },
             );
-            let page = developer::query_with_caches(&index, NodeId(0), 0, 100, &locations).unwrap();
+            let page = developer::query_with_caches(
+                &index,
+                &developer::Query {
+                    scope: NodeId(0),
+                    offset: 0,
+                    limit: 100,
+                    ..Default::default()
+                },
+                &locations,
+            )
+            .unwrap();
             assert_eq!(page.total, 1);
             assert_eq!(page.logical, expected);
             assert_eq!(page.items[0].tool, "npm");
@@ -274,9 +294,18 @@ mod tests {
             },
         );
         assert_eq!(
-            developer::query_with_caches(&index, NodeId(0), 0, 100, &locations)
-                .unwrap()
-                .logical,
+            developer::query_with_caches(
+                &index,
+                &developer::Query {
+                    scope: NodeId(0),
+                    offset: 0,
+                    limit: 100,
+                    ..Default::default()
+                },
+                &locations
+            )
+            .unwrap()
+            .logical,
             37
         );
         assert_eq!(

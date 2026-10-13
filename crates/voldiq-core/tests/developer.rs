@@ -39,7 +39,16 @@ fn indexed_project_artifacts_are_classified_without_counting_nested_storage_twic
         |_| {},
     )
     .unwrap();
-    let page = developer::query(&index, NodeId(0), 0, 100).unwrap();
+    let page = developer::query(
+        &index,
+        &developer::Query {
+            scope: NodeId(0),
+            offset: 0,
+            limit: 100,
+            ..Default::default()
+        },
+    )
+    .unwrap();
     assert_eq!(page.total, 5);
     assert_eq!(page.logical, 248);
     assert_eq!(
@@ -62,13 +71,81 @@ fn indexed_project_artifacts_are_classified_without_counting_nested_storage_twic
             .count(),
         1
     );
-    let paged = developer::query(&index, NodeId(0), 2, 2).unwrap();
+    let paged = developer::query(
+        &index,
+        &developer::Query {
+            scope: NodeId(0),
+            offset: 2,
+            limit: 2,
+            ..Default::default()
+        },
+    )
+    .unwrap();
     assert_eq!(paged.items.len(), 2);
     assert_eq!(paged.items[0].id, page.items[2].id);
     assert_eq!(paged.total, 5);
     assert_eq!(paged.logical, 248);
     assert_eq!(paged.categories, page.categories);
-    assert!(developer::query(&index, NodeId(u32::MAX), 0, 10).is_err());
+    let filtered = developer::query(
+        &index,
+        &developer::Query {
+            category: Some(Category::Build),
+            sort: developer::Sort::Name,
+            offset: 1,
+            limit: 1,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(filtered.total, 3);
+    assert_eq!(filtered.logical, 176);
+    assert_eq!(filtered.items.len(), 1);
+    assert!(filtered.items[0].path.ends_with("dist"));
+    assert_eq!(filtered.categories, page.categories);
+    let ordered = developer::query(
+        &index,
+        &developer::Query {
+            category: Some(Category::Build),
+            sort: developer::Sort::Name,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(
+        ordered
+            .items
+            .iter()
+            .map(|item| std::path::Path::new(&item.path)
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap())
+            .collect::<Vec<_>>(),
+        ["bin", "dist", "target"]
+    );
+    let cache_only = developer::query(
+        &index,
+        &developer::Query {
+            category: Some(Category::Cache),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(cache_only.total, 1);
+    assert_eq!(cache_only.logical, 8);
+    assert_eq!(cache_only.categories, page.categories);
+    assert!(
+        developer::query(
+            &index,
+            &developer::Query {
+                scope: NodeId(u32::MAX),
+                offset: 0,
+                limit: 10,
+                ..Default::default()
+            }
+        )
+        .is_err()
+    );
 }
 
 #[test]
@@ -112,7 +189,17 @@ fn explicit_cache_roots_use_indexed_sizes_without_classifying_credentials_or_nam
             category: Category::Cache,
         },
     ];
-    let page = developer::query_with_caches(&index, NodeId(0), 0, 100, &caches).unwrap();
+    let page = developer::query_with_caches(
+        &index,
+        &developer::Query {
+            scope: NodeId(0),
+            offset: 0,
+            limit: 100,
+            ..Default::default()
+        },
+        &caches,
+    )
+    .unwrap();
     assert_eq!(page.total, 3);
     assert_eq!(page.logical, 142);
     assert!(
@@ -121,7 +208,17 @@ fn explicit_cache_roots_use_indexed_sizes_without_classifying_credentials_or_nam
             .all(|item| item.category == Category::Cache)
     );
     let registry = page.items.iter().find(|item| item.logical == 80).unwrap();
-    let scoped = developer::query_with_caches(&index, registry.id, 0, 100, &caches).unwrap();
+    let scoped = developer::query_with_caches(
+        &index,
+        &developer::Query {
+            scope: registry.id,
+            offset: 0,
+            limit: 100,
+            ..Default::default()
+        },
+        &caches,
+    )
+    .unwrap();
     assert_eq!(scoped.total, 1);
     assert_eq!(scoped.logical, 80);
     let child = index
@@ -129,20 +226,49 @@ fn explicit_cache_roots_use_indexed_sizes_without_classifying_credentials_or_nam
         .iter()
         .find(|entry| entry.parent == Some(registry.id) && entry.name == "cache")
         .unwrap();
-    let child_page = developer::query_with_caches(&index, child.id, 0, 100, &caches).unwrap();
+    let child_page = developer::query_with_caches(
+        &index,
+        &developer::Query {
+            scope: child.id,
+            offset: 0,
+            limit: 100,
+            ..Default::default()
+        },
+        &caches,
+    )
+    .unwrap();
     assert_eq!(child_page.total, 1);
     assert_eq!(child_page.logical, 80);
     assert_eq!(child_page.items[0].id, child.id);
     assert_eq!(child_page.items[0].category, Category::Cache);
-    let paged = developer::query_with_caches(&index, NodeId(0), 1, 1, &caches).unwrap();
+    let paged = developer::query_with_caches(
+        &index,
+        &developer::Query {
+            scope: NodeId(0),
+            offset: 1,
+            limit: 1,
+            ..Default::default()
+        },
+        &caches,
+    )
+    .unwrap();
     assert_eq!(paged.items[0].id, page.items[1].id);
     assert_eq!(paged.total, 3);
     assert_eq!(paged.logical, 142);
     assert!(
-        developer::query_with_caches(&index, NodeId(0), 3, 10, &caches)
-            .unwrap()
-            .items
-            .is_empty()
+        developer::query_with_caches(
+            &index,
+            &developer::Query {
+                scope: NodeId(0),
+                offset: 3,
+                limit: 10,
+                ..Default::default()
+            },
+            &caches
+        )
+        .unwrap()
+        .items
+        .is_empty()
     );
 }
 
@@ -167,14 +293,34 @@ fn scanning_inside_a_cache_classifies_only_the_measured_subtree_and_keeps_partia
         tool: "Cargo",
         category: Category::Cache,
     }];
-    let page = developer::query_with_caches(&index, NodeId(0), 0, 10, &caches).unwrap();
+    let page = developer::query_with_caches(
+        &index,
+        &developer::Query {
+            scope: NodeId(0),
+            offset: 0,
+            limit: 10,
+            ..Default::default()
+        },
+        &caches,
+    )
+    .unwrap();
     assert_eq!(page.total, 1);
     assert_eq!(page.logical, 6);
     assert_eq!(page.items[0].id, NodeId(0));
     assert!(page.items[0].incomplete);
     assert_eq!(page.items[0].category, Category::Cache);
     index.snapshot_id = Some(1);
-    let historical = developer::query_with_caches(&index, NodeId(0), 0, 10, &caches).unwrap();
+    let historical = developer::query_with_caches(
+        &index,
+        &developer::Query {
+            scope: NodeId(0),
+            offset: 0,
+            limit: 10,
+            ..Default::default()
+        },
+        &caches,
+    )
+    .unwrap();
     assert_eq!(historical.total, 0);
     assert_eq!(historical.logical, 0);
 }
@@ -207,7 +353,17 @@ fn overlapping_locations_preserve_the_most_specific_scoped_dependency_category()
             category: Category::Dependencies,
         },
     ];
-    let whole = developer::query_with_caches(&index, NodeId(0), 0, 10, &locations).unwrap();
+    let whole = developer::query_with_caches(
+        &index,
+        &developer::Query {
+            scope: NodeId(0),
+            offset: 0,
+            limit: 10,
+            ..Default::default()
+        },
+        &locations,
+    )
+    .unwrap();
     assert_eq!(whole.total, 1);
     assert_eq!(whole.logical, 22);
     for name in ["packages", "pkg"] {
@@ -217,7 +373,17 @@ fn overlapping_locations_preserve_the_most_specific_scoped_dependency_category()
             .find(|entry| entry.name == name)
             .unwrap()
             .id;
-        let page = developer::query_with_caches(&index, scope, 0, 10, &locations).unwrap();
+        let page = developer::query_with_caches(
+            &index,
+            &developer::Query {
+                scope,
+                offset: 0,
+                limit: 10,
+                ..Default::default()
+            },
+            &locations,
+        )
+        .unwrap();
         assert_eq!(page.total, 1);
         assert_eq!(page.logical, 17);
         assert_eq!(page.items[0].tool, "NuGet");
@@ -230,7 +396,17 @@ fn overlapping_locations_preserve_the_most_specific_scoped_dependency_category()
         |_| {},
     )
     .unwrap();
-    let page = developer::query_with_caches(&subtree, NodeId(0), 0, 10, &locations).unwrap();
+    let page = developer::query_with_caches(
+        &subtree,
+        &developer::Query {
+            scope: NodeId(0),
+            offset: 0,
+            limit: 10,
+            ..Default::default()
+        },
+        &locations,
+    )
+    .unwrap();
     assert_eq!(page.total, 1);
     assert_eq!(page.items[0].category, Category::Dependencies);
     let coincident = [
@@ -245,7 +421,17 @@ fn overlapping_locations_preserve_the_most_specific_scoped_dependency_category()
             category: Category::Cache,
         },
     ];
-    let page = developer::query_with_caches(&subtree, NodeId(0), 0, 10, &coincident).unwrap();
+    let page = developer::query_with_caches(
+        &subtree,
+        &developer::Query {
+            scope: NodeId(0),
+            offset: 0,
+            limit: 10,
+            ..Default::default()
+        },
+        &coincident,
+    )
+    .unwrap();
     assert_eq!(page.items[0].tool, "NuGet");
     assert_eq!(page.items[0].category, Category::Dependencies);
 }

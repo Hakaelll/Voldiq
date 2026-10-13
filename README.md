@@ -26,6 +26,8 @@ pnpm tauri dev
 
 The browser-only preview, `pnpm dev`, intentionally cannot scan your computer. Run the native app for filesystem access.
 
+Development and test builds use limited debug information and disable incremental compilation to reduce disk cache growth. Release settings are unchanged. Build artifacts still accumulate under `target`; remove `target/debug` only after development builds and the development app have stopped. Keep `target/release` when retaining a built app or installer.
+
 ```powershell
 pnpm check
 pnpm test
@@ -112,6 +114,8 @@ Settings persist the default drive, excluded paths, theme, size metric, reduced 
 **Clear current analysis** releases the loaded index, duplicate results, cached hashes and pending cleanup previews. Files, saved snapshots, cleanup activity and preferences remain available. Active operations must finish or be cancelled first. A new scan or explicitly loaded snapshot is required to explore an index again.
 
 ## Developer storage
+
+Filter indexed directories by Dependencies, Build artifacts or Cache, and order them by size or name. Filters apply before paging. The category bar retains totals for all classified directories; the list count follows the selected category.
 
 The developer view classifies indexed Cargo targets, Node.js dependencies and build output, Python bytecode caches, Gradle project caches and .NET build directories. It recognizes current-user Cargo, npm, pnpm, pip, Gradle and NuGet locations, including supported absolute environment overrides. npm discovery also reads supported `.npmrc` cache settings. pip discovery reads supported Windows `pip.ini` sources and combines configured caches for recognized commands, with native folder resolution and explicit/environment precedence. NuGet installed packages and pnpm shared links are labelled Dependencies, separate from their caches. Project manifests identify ambiguous names such as `target`, `bin` and `build`. Nested candidates belong to their outer artifact so category totals do not count the same subtree twice. Results use bounded pages and expose logical size, allocation and incomplete coverage.
 
