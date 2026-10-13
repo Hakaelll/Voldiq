@@ -92,50 +92,64 @@ pub fn metadata_identity(path: &Path) -> Result<(std::fs::Metadata, FileIdentity
 
 #[cfg(windows)]
 pub fn protected_directories() -> Result<Vec<std::path::PathBuf>> {
-    use std::{ffi::OsString, os::windows::ffi::OsStringExt};
-    use windows_sys::Win32::{System::Com::CoTaskMemFree, UI::Shell::*};
-    let mut paths = Vec::new();
-    for folder in [
+    use windows_sys::Win32::UI::Shell::*;
+    [
         FOLDERID_Windows,
         FOLDERID_ProgramFiles,
         FOLDERID_ProgramFilesX86,
         FOLDERID_ProgramData,
-    ] {
-        let mut raw = std::ptr::null_mut();
-        let status = unsafe {
-            SHGetKnownFolderPath(
-                &folder,
-                KF_FLAG_DEFAULT as u32,
-                std::ptr::null_mut(),
-                &mut raw,
-            )
-        };
-        if status < 0 || raw.is_null() {
-            if !raw.is_null() {
-                unsafe { CoTaskMemFree(raw.cast()) };
-            }
-            return Err(crate::Error::Invalid(format!(
-                "Protected Windows location unavailable: {status:#x}."
-            )));
+    ]
+    .iter()
+    .map(known_folder_path)
+    .collect()
+}
+
+#[cfg(windows)]
+pub fn pip_configuration_directories() -> Result<[std::path::PathBuf; 2]> {
+    use windows_sys::Win32::UI::Shell::{FOLDERID_ProgramData, FOLDERID_RoamingAppData};
+    Ok([
+        known_folder_path(&FOLDERID_ProgramData)?,
+        known_folder_path(&FOLDERID_RoamingAppData)?,
+    ])
+}
+
+#[cfg(windows)]
+fn known_folder_path(folder: &windows_sys::core::GUID) -> Result<std::path::PathBuf> {
+    use std::{ffi::OsString, os::windows::ffi::OsStringExt};
+    use windows_sys::Win32::{System::Com::CoTaskMemFree, UI::Shell::*};
+    let mut raw = std::ptr::null_mut();
+    let status = unsafe {
+        SHGetKnownFolderPath(
+            folder,
+            KF_FLAG_DEFAULT as u32,
+            std::ptr::null_mut(),
+            &mut raw,
+        )
+    };
+    if status < 0 || raw.is_null() {
+        if !raw.is_null() {
+            unsafe { CoTaskMemFree(raw.cast()) };
         }
-        let mut length = 0;
-        while length < 32768 && unsafe { *raw.add(length) } != 0 {
-            length += 1;
-        }
-        let path = if length < 32768 {
-            Some(std::path::PathBuf::from(OsString::from_wide(unsafe {
-                std::slice::from_raw_parts(raw, length)
-            })))
-        } else {
-            None
-        };
-        unsafe { CoTaskMemFree(raw.cast()) };
-        let path = path
-            .filter(|path| path.is_absolute())
-            .ok_or_else(|| crate::Error::Invalid("Invalid protected Windows location.".into()))?;
-        paths.push(path);
+        return Err(crate::Error::Invalid(format!(
+            "Protected Windows location unavailable: {status:#x}."
+        )));
     }
-    Ok(paths)
+    let mut length = 0;
+    while length < 32768 && unsafe { *raw.add(length) } != 0 {
+        length += 1;
+    }
+    let path = if length < 32768 {
+        Some(std::path::PathBuf::from(OsString::from_wide(unsafe {
+            std::slice::from_raw_parts(raw, length)
+        })))
+    } else {
+        None
+    };
+    unsafe { CoTaskMemFree(raw.cast()) };
+    let path = path
+        .filter(|path| path.is_absolute())
+        .ok_or_else(|| crate::Error::Invalid("Invalid protected Windows location.".into()))?;
+    Ok(path)
 }
 
 #[cfg(windows)]

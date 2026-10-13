@@ -1,7 +1,9 @@
 use std::{ffi::OsString, path::PathBuf};
 use tauri::Manager;
 use voldiq_core::developer::{CacheLocation, Category};
+mod config_file;
 mod npm_config;
+mod pip_config;
 
 enum PnpmLocation {
     Configured(PathBuf),
@@ -9,16 +11,31 @@ enum PnpmLocation {
 }
 
 pub(super) fn cache_locations(app: &tauri::AppHandle) -> Vec<CacheLocation> {
-    resolve_cache_locations(
+    #[cfg(windows)]
+    let pip_directories = voldiq_core::windows::pip_configuration_directories().ok();
+    #[cfg(not(windows))]
+    let pip_directories = None;
+    resolve_cache_locations_with_pip(
         app.path().home_dir().ok(),
         app.path().local_data_dir().ok(),
+        pip_directories,
         |name| std::env::var_os(name),
     )
 }
 
+#[cfg(test)]
 fn resolve_cache_locations(
     home: Option<PathBuf>,
     local: Option<PathBuf>,
+    environment: impl Fn(&str) -> Option<OsString>,
+) -> Vec<CacheLocation> {
+    resolve_cache_locations_with_pip(home, local, None, environment)
+}
+
+fn resolve_cache_locations_with_pip(
+    home: Option<PathBuf>,
+    local: Option<PathBuf>,
+    pip_directories: Option<[PathBuf; 2]>,
     environment: impl Fn(&str) -> Option<OsString>,
 ) -> Vec<CacheLocation> {
     let cargo = configured_path(
@@ -27,9 +44,11 @@ fn resolve_cache_locations(
     );
     let npm = npm_config::cache_location(home.as_ref(), local.as_ref(), &environment);
     let pnpm = pnpm_store_location(local.as_ref(), &environment);
-    let pip = configured_path(
-        environment("PIP_CACHE_DIR"),
-        local.as_ref().map(|path| path.join("pip/Cache")),
+    let pip = pip_config::cache_locations(
+        home.as_ref(),
+        local.as_ref(),
+        pip_directories.as_ref(),
+        &environment,
     );
     let gradle = configured_path(
         environment("GRADLE_USER_HOME"),
@@ -60,7 +79,6 @@ fn resolve_cache_locations(
             Category::Cache,
         ),
         (npm, "npm", Category::Cache),
-        (pip, "pip", Category::Cache),
         (
             gradle.map(|path| path.join("caches")),
             "Gradle",
@@ -75,6 +93,15 @@ fn resolve_cache_locations(
                 path,
                 tool,
                 category,
+            });
+        }
+    }
+    for path in pip {
+        if let Ok(path) = path.canonicalize() {
+            locations.push(CacheLocation {
+                path,
+                tool: "pip",
+                category: Category::Cache,
             });
         }
     }
