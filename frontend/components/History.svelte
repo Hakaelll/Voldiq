@@ -201,126 +201,160 @@
       <h2>No snapshots yet</h2>
     </section>
   {:else}
-    <section class="panel snapshot-list" aria-label="Saved snapshots">
-      {#each snapshots as snapshot (snapshot.id)}
-        <article class="snapshot-row">
-          <Icon name="disk" />
-          <div class="snapshot-name">
-            <strong title={snapshot.root}>{snapshot.root}</strong><small
-              >{date(snapshot.captured)}{#if !snapshot.complete}
-                · Partial{/if}</small
+    <div class="history-layout">
+      <div class="history-captures">
+        <h2>Snapshots</h2>
+        <section class="panel snapshot-list" aria-label="Saved snapshots">
+          {#each snapshots as snapshot (snapshot.id)}
+            <article
+              class="snapshot-row"
+              class:selected={snapshot.id === before || snapshot.id === after}
             >
-          </div>
-          <span class="number">{bytes(snapshot.logical)}</span>
-          <button onclick={() => open(snapshot)} disabled={working}>Open</button>
-          {#if deleting === snapshot.id}
-            <button
-              bind:this={cancelButton}
-              onclick={() => cancelDelete(snapshot.id)}
-              disabled={working}>Cancel</button
-            ><button class="danger" onclick={() => remove(snapshot.id)} disabled={working}
-              >Delete snapshot</button
+              <Icon name="disk" />
+              <div class="snapshot-name">
+                <strong title={date(snapshot.captured)}>{date(snapshot.captured)}</strong><small
+                  title={snapshot.root}>{snapshot.root}</small
+                >
+              </div>
+              {#if !snapshot.complete}<span class="snapshot-status">Partial</span>{/if}
+              <span class="number">{bytes(snapshot.logical)}</span>
+              <span class="snapshot-entries" title="Indexed entries"
+                >{snapshot.entries.toLocaleString()}</span
+              >
+              <button onclick={() => open(snapshot)} disabled={working}>Open</button>
+              {#if deleting === snapshot.id}
+                <button
+                  bind:this={cancelButton}
+                  onclick={() => cancelDelete(snapshot.id)}
+                  disabled={working}>Cancel</button
+                ><button class="danger" onclick={() => remove(snapshot.id)} disabled={working}
+                  >Delete snapshot</button
+                >
+              {:else}
+                <button
+                  title="Delete snapshot"
+                  data-delete-snapshot={snapshot.id}
+                  aria-label={`Delete snapshot from ${date(snapshot.captured)}`}
+                  onclick={() => confirmDelete(snapshot.id)}
+                  disabled={working}><Icon name="trash" /></button
+                >
+              {/if}
+            </article>
+          {/each}
+          {#if offset || snapshots.length === limit}<div class="duplicate-pagination">
+              <button
+                onclick={() => refresh(Math.max(0, offset - limit))}
+                disabled={working || offset === 0}>Previous</button
+              ><span
+                >{snapshots.length
+                  ? `${offset + 1}–${offset + snapshots.length}`
+                  : 'End of history'}</span
+              ><button
+                onclick={() => refresh(offset + limit)}
+                disabled={working || snapshots.length < limit}>Next</button
+              >
+            </div>{/if}
+        </section>
+        {#if trend.length > 1}<section
+            class="panel history-trend"
+            aria-label="Recorded logical size"
+          >
+            <div class="panel-heading">
+              <h2>Logical size</h2>
+              <span>{bytes(trend[0]?.logical ?? 0)} → {bytes(trend.at(-1)?.logical ?? 0)}</span>
+            </div>
+            <svg
+              viewBox="0 0 600 104"
+              role="img"
+              aria-label={`Logical size across ${trend.length} saved snapshots`}
             >
-          {:else}
-            <button
-              title="Delete snapshot"
-              data-delete-snapshot={snapshot.id}
-              aria-label={`Delete snapshot from ${date(snapshot.captured)}`}
-              onclick={() => confirmDelete(snapshot.id)}
-              disabled={working}><Icon name="trash" /></button
+              <polyline
+                {points}
+                fill="none"
+                stroke="var(--accent)"
+                stroke-width="2"
+                vector-effect="non-scaling-stroke"
+              />
+            </svg>
+          </section>{/if}
+      </div>
+      <div class="history-comparison">
+        <h2>Compare snapshots</h2>
+        <div class="history-compare">
+          <label
+            >Before<select
+              bind:value={before}
+              onchange={() => {
+                resetComparison();
+                after =
+                  snapshots.find((s) => s.root_key === previous?.root_key && s.id !== before)?.id ??
+                  before;
+              }}
+              disabled={working}
             >
-          {/if}
-        </article>
-      {/each}
-      {#if offset || snapshots.length === limit}<div class="duplicate-pagination">
+              {#each snapshots as s}<option value={s.id}
+                  >{s.root} · {date(s.captured)} · {bytes(s.logical)}</option
+                >{/each}
+            </select></label
+          >
+          <label
+            >After<select bind:value={after} onchange={resetComparison} disabled={working}>
+              {#each compatible as s}<option value={s.id}
+                  >{date(s.captured)} · {bytes(s.logical)}</option
+                >{/each}
+            </select></label
+          >
           <button
-            onclick={() => refresh(Math.max(0, offset - limit))}
-            disabled={working || offset === 0}>Previous</button
-          ><span
-            >{snapshots.length
-              ? `${offset + 1}–${offset + snapshots.length}`
-              : 'End of history'}</span
-          ><button
-            onclick={() => refresh(offset + limit)}
-            disabled={working || snapshots.length < limit}>Next</button
+            onclick={() => compare()}
+            disabled={working || !before || !after || before === after}>Compare</button
           >
-        </div>{/if}
-    </section>
-    <div class="history-compare">
-      <label
-        >Before<select
-          bind:value={before}
-          onchange={() => {
-            resetComparison();
-            after =
-              snapshots.find((s) => s.root_key === previous?.root_key && s.id !== before)?.id ??
-              before;
-          }}
-          disabled={working}
-        >
-          {#each snapshots as s}<option value={s.id}
-              >{s.root} · {date(s.captured)} · {bytes(s.logical)}</option
-            >{/each}
-        </select></label
-      >
-      <label
-        >After<select bind:value={after} onchange={resetComparison} disabled={working}>
-          {#each compatible as s}<option value={s.id}
-              >{date(s.captured)} · {bytes(s.logical)}</option
-            >{/each}
-        </select></label
-      >
-      <button onclick={() => compare()} disabled={working || !before || !after || before === after}
-        >Compare</button
-      >
+        </div>
+        {#if comparison}<section class="panel change-list">
+            <div class="panel-heading">
+              <h2>{difference(comparison.delta)}</h2>
+              <span
+                >{comparison.total.toLocaleString()} changes{#if !comparison.reliable}
+                  · Partial coverage{/if}</span
+              >
+            </div>
+            {#if !comparison.changes.length}<p class="history-no-changes">No changes</p>{/if}
+            {#if comparison.changes.length}<div class="history-change-columns">
+                <span>Path</span><span>Change</span><span>Before</span><span>After</span>
+              </div>{/if}
+            {#each comparison.changes as change}
+              <div class="change-row">
+                <Icon name={change.directory ? 'folder' : 'file'} /><span title={change.path}
+                  >{change.path}</span
+                ><small>{labels[change.kind]}</small>
+                <span class="number"
+                  >{change.kind === 'added'
+                    ? '—'
+                    : change.kind === 'newly_observed'
+                      ? 'Unavailable'
+                      : bytes(change.before)}</span
+                >
+                <span class="number"
+                  >{change.kind === 'removed'
+                    ? '—'
+                    : change.kind === 'unobserved'
+                      ? 'Unavailable'
+                      : bytes(change.after)}</span
+                >
+              </div>
+            {/each}
+            {#if comparison.total > 50}<div class="duplicate-pagination">
+                <button
+                  onclick={() => compare(Math.max(0, changeOffset - 50))}
+                  disabled={working || changeOffset === 0}>Previous</button
+                ><span
+                  >{changeOffset + 1}–{changeOffset + comparison.changes.length} of {comparison.total}</span
+                ><button
+                  onclick={() => compare(changeOffset + 50)}
+                  disabled={working || changeOffset + 50 >= comparison.total}>Next</button
+                >
+              </div>{/if}
+          </section>{/if}
+      </div>
     </div>
-    {#if trend.length > 1}<section class="panel history-trend" aria-label="Recorded logical size">
-        <div class="panel-heading">
-          <h2>Recorded size</h2>
-          <span>{bytes(trend[0]?.logical ?? 0)} → {bytes(trend.at(-1)?.logical ?? 0)}</span>
-        </div>
-        <svg
-          viewBox="0 0 600 104"
-          role="img"
-          aria-label={`Logical size across ${trend.length} saved snapshots`}
-          ><polyline
-            {points}
-            fill="none"
-            stroke="var(--accent)"
-            stroke-width="2"
-            vector-effect="non-scaling-stroke"
-          /></svg
-        >
-      </section>{/if}
-    {#if comparison}<section class="panel change-list">
-        <div class="panel-heading">
-          <h2>{difference(comparison.delta)}</h2>
-          <span
-            >{comparison.total.toLocaleString()} changes{#if !comparison.reliable}
-              · Partial coverage{/if}</span
-          >
-        </div>
-        {#if !comparison.changes.length}<p class="history-no-changes">No changes</p>{/if}
-        {#each comparison.changes as change}
-          <div class="change-row">
-            <Icon name={change.directory ? 'folder' : 'file'} /><span title={change.path}
-              >{change.path}</span
-            ><small>{labels[change.kind]}</small><strong class="number"
-              >{difference(change.delta)}</strong
-            >
-          </div>
-        {/each}
-        {#if comparison.total > 50}<div class="duplicate-pagination">
-            <button
-              onclick={() => compare(Math.max(0, changeOffset - 50))}
-              disabled={working || changeOffset === 0}>Previous</button
-            ><span
-              >{changeOffset + 1}–{changeOffset + comparison.changes.length} of {comparison.total}</span
-            ><button
-              onclick={() => compare(changeOffset + 50)}
-              disabled={working || changeOffset + 50 >= comparison.total}>Next</button
-            >
-          </div>{/if}
-      </section>{/if}
   {/if}
 </div>
