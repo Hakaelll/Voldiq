@@ -49,6 +49,38 @@ pub struct Comparison {
     pub reliable: bool,
     pub total: usize,
     pub changes: Vec<Change>,
+    pub file_changes: FileChanges,
+}
+
+#[derive(Debug, Default, PartialEq, Eq, Serialize)]
+pub struct FileChangeTotal {
+    pub files: u64,
+    pub logical: u64,
+}
+
+impl FileChangeTotal {
+    fn add(&mut self, logical: u64) -> Result<()> {
+        self.logical = self.logical.checked_add(logical).ok_or_else(|| {
+            Error::Invalid("Comparison file total exceeds unsigned range.".into())
+        })?;
+        self.files += 1;
+        Ok(())
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Eq, Serialize)]
+pub struct ChangedFiles {
+    pub files: u64,
+    pub delta: i64,
+}
+
+#[derive(Debug, Default, PartialEq, Eq, Serialize)]
+pub struct FileChanges {
+    pub added: FileChangeTotal,
+    pub changed: ChangedFiles,
+    pub removed: FileChangeTotal,
+    pub newly_observed: FileChangeTotal,
+    pub unobserved: FileChangeTotal,
 }
 
 #[derive(Debug, PartialEq)]
@@ -516,6 +548,7 @@ impl Store {
         offset: usize,
         limit: usize,
     ) -> Result<Comparison> {
+        let _read_transaction = self.connection.unchecked_transaction()?;
         let summary = |id| -> Result<(i64, u64, bool)> {
             Ok(self.connection.query_row(
                 "SELECT root_id,logical,complete FROM snapshots WHERE id=?1",
@@ -535,6 +568,53 @@ impl Store {
             params![before, after, root],
             |r| r.get(0),
         )?;
+        let totals_query = format!(
+            "SELECT o.kind,n.kind,
+            CASE WHEN o.kind=1 THEN o.logical ELSE 0 END,
+            CASE WHEN n.kind=1 THEN n.logical ELSE 0 END
+            {DIFFERENCES} AND (o.kind=1 OR n.kind=1)"
+        );
+        let mut totals_statement = self.connection.prepare(&totals_query)?;
+        let totals_records = totals_statement.query_map(params![before, after, root], |r| {
+            Ok((
+                r.get::<_, Option<i64>>(0)?,
+                r.get::<_, Option<i64>>(1)?,
+                unsigned(r, 2)?,
+                unsigned(r, 3)?,
+            ))
+        })?;
+        let mut file_changes = FileChanges::default();
+        for record in totals_records {
+            let (old_kind, new_kind, old, new) = record?;
+            match (old_kind, new_kind) {
+                (None, Some(1)) => {
+                    if old_complete {
+                        file_changes.added.add(new)?;
+                    } else {
+                        file_changes.newly_observed.add(new)?;
+                    }
+                }
+                (Some(1), None) => {
+                    if new_complete {
+                        file_changes.removed.add(old)?;
+                    } else {
+                        file_changes.unobserved.add(old)?;
+                    }
+                }
+                _ => {
+                    file_changes.changed.files += 1;
+                    file_changes.changed.delta = file_changes
+                        .changed
+                        .delta
+                        .checked_add(signed_delta(old, new)?)
+                        .ok_or_else(|| {
+                            Error::Invalid(
+                                "Comparison file difference exceeds signed range.".into(),
+                            )
+                        })?;
+                }
+            }
+        }
         let query = format!(
             "SELECT p.id,o.logical,n.logical,COALESCE(n.kind,o.kind) {DIFFERENCES}
             ORDER BY ABS(COALESCE(n.logical,0)-COALESCE(o.logical,0)) DESC,p.id LIMIT ?4 OFFSET ?5"
@@ -594,6 +674,7 @@ impl Store {
             total: usize::try_from(total)
                 .map_err(|_| Error::Invalid("Invalid comparison count.".into()))?,
             changes,
+            file_changes,
         })
     }
 

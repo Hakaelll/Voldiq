@@ -196,6 +196,13 @@ export interface SnapshotComparison {
   reliable: boolean;
   total: number;
   changes: SnapshotChange[];
+  file_changes: {
+    added: { files: number; logical: number };
+    changed: { files: number; delta: number };
+    removed: { files: number; logical: number };
+    newly_observed: { files: number; logical: number };
+    unobserved: { files: number; logical: number };
+  };
 }
 
 export function difference(value: number): string {

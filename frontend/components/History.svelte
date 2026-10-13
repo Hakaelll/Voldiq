@@ -350,6 +350,36 @@
           >
         </div>
         {#if comparison}<section class="panel change-list">
+            {#if comparison.file_changes}
+              <div class="history-change-summary">
+                <div>
+                  <span>Added</span><strong>{bytes(comparison.file_changes.added.logical)}</strong
+                  ><small>{comparison.file_changes.added.files.toLocaleString()} files</small>
+                </div>
+                <div>
+                  <span>Changed</span><strong
+                    >{difference(comparison.file_changes.changed.delta)}</strong
+                  ><small>{comparison.file_changes.changed.files.toLocaleString()} files</small>
+                </div>
+                <div>
+                  <span>Removed</span><strong
+                    >{bytes(comparison.file_changes.removed.logical)}</strong
+                  ><small>{comparison.file_changes.removed.files.toLocaleString()} files</small>
+                </div>
+              </div>
+              {#if comparison.file_changes.newly_observed.files || comparison.file_changes.unobserved.files}<div
+                  class="history-coverage-summary"
+                >
+                  {#if comparison.file_changes.newly_observed.files}<span
+                      >Newly observed · {comparison.file_changes.newly_observed.files.toLocaleString()}
+                      files · {bytes(comparison.file_changes.newly_observed.logical)}</span
+                    >{/if}
+                  {#if comparison.file_changes.unobserved.files}<span
+                      >Not observed · {comparison.file_changes.unobserved.files.toLocaleString()} files
+                      · {bytes(comparison.file_changes.unobserved.logical)}</span
+                    >{/if}
+                </div>{/if}
+            {/if}
             <div class="panel-heading">
               <h2>{difference(comparison.delta)}</h2>
               <span

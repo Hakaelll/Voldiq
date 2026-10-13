@@ -17,6 +17,67 @@ fn capture(path: &Path) -> Index {
 }
 
 #[test]
+fn file_change_totals_cover_all_pages_without_counting_parent_sizes() {
+    let fixture = tempfile::tempdir().unwrap();
+    let database = tempfile::tempdir().unwrap();
+    std::fs::create_dir(fixture.path().join("nested")).unwrap();
+    let mut store = Store::open(&database.path().join("history.db")).unwrap();
+    let before = store
+        .save(&capture(fixture.path()), &AtomicBool::new(false))
+        .unwrap();
+    for i in 1..=60 {
+        std::fs::write(fixture.path().join(format!("nested/file-{i}")), vec![42; i]).unwrap();
+    }
+    std::fs::write(fixture.path().join("nested/empty"), []).unwrap();
+    let after = store
+        .save(&capture(fixture.path()), &AtomicBool::new(false))
+        .unwrap();
+    let first = store.compare(before, after, 0, 1).unwrap();
+    let last = store.compare(before, after, 60, 1).unwrap();
+    let outside = store.compare(before, after, 1000, 1).unwrap();
+    assert_eq!(first.changes.len(), 1);
+    assert!(outside.changes.is_empty());
+    assert_eq!(first.file_changes, last.file_changes);
+    assert_eq!(first.file_changes, outside.file_changes);
+    assert_eq!(first.file_changes.added.files, 61);
+    assert_eq!(first.file_changes.added.logical, 1830);
+    assert_eq!(first.file_changes.changed.delta, 0);
+    assert_eq!(first.file_changes.changed.files, 0);
+    assert_eq!(first.file_changes.removed.files, 0);
+    assert_eq!(first.delta, 1830);
+}
+
+#[test]
+fn file_directory_transitions_count_only_regular_file_bytes() {
+    let fixture = tempfile::tempdir().unwrap();
+    let database = tempfile::tempdir().unwrap();
+    std::fs::write(fixture.path().join("to-folder"), [1; 4]).unwrap();
+    std::fs::create_dir(fixture.path().join("to-file")).unwrap();
+    std::fs::write(fixture.path().join("to-file/old-child"), [1; 5]).unwrap();
+    let mut store = Store::open(&database.path().join("history.db")).unwrap();
+    let before = store
+        .save(&capture(fixture.path()), &AtomicBool::new(false))
+        .unwrap();
+    std::fs::remove_file(fixture.path().join("to-folder")).unwrap();
+    std::fs::create_dir(fixture.path().join("to-folder")).unwrap();
+    std::fs::write(fixture.path().join("to-folder/new-child"), [1; 7]).unwrap();
+    std::fs::remove_file(fixture.path().join("to-file/old-child")).unwrap();
+    std::fs::remove_dir(fixture.path().join("to-file")).unwrap();
+    std::fs::write(fixture.path().join("to-file"), [1; 9]).unwrap();
+    let after = store
+        .save(&capture(fixture.path()), &AtomicBool::new(false))
+        .unwrap();
+    let comparison = store.compare(before, after, 0, 1).unwrap();
+    assert_eq!(comparison.file_changes.added.logical, 7);
+    assert_eq!(comparison.file_changes.added.files, 1);
+    assert_eq!(comparison.file_changes.removed.logical, 5);
+    assert_eq!(comparison.file_changes.removed.files, 1);
+    assert_eq!(comparison.file_changes.changed.delta, 5);
+    assert_eq!(comparison.file_changes.changed.files, 2);
+    assert_eq!(comparison.delta, 7);
+}
+
+#[test]
 fn history_survives_restart_and_compares_actual_directory_changes() {
     let fixture = tempfile::tempdir().unwrap();
     let database = tempfile::tempdir().unwrap();
@@ -52,6 +113,12 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     let comparison = store.compare(before, after, 0, 200).unwrap();
     assert!(comparison.reliable);
     assert_eq!(comparison.delta, 28);
+    assert_eq!(comparison.file_changes.added.logical, 14);
+    assert_eq!(comparison.file_changes.added.files, 1);
+    assert_eq!(comparison.file_changes.changed.delta, 21);
+    assert_eq!(comparison.file_changes.changed.files, 1);
+    assert_eq!(comparison.file_changes.removed.logical, 7);
+    assert_eq!(comparison.file_changes.removed.files, 1);
     assert!(
         comparison
             .changes
@@ -73,6 +140,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     let page = store.compare(before, after, 1, 1).unwrap();
     assert_eq!(page.total, comparison.total);
     assert_eq!(page.changes.len(), 1);
+    assert_eq!(page.file_changes, comparison.file_changes);
     assert_eq!(store.load(after).unwrap().entries[0].logical, 47);
 }
 
@@ -153,6 +221,13 @@ fn incomplete_capture_does_not_assert_deletions_and_coverage_must_match() {
     let second = store.save(&partial, &AtomicBool::new(false)).unwrap();
     let comparison = store.compare(first, second, 0, 20).unwrap();
     assert!(!comparison.reliable);
+    assert_eq!(comparison.file_changes.removed.files, 0);
+    assert_eq!(comparison.file_changes.unobserved.files, 1);
+    assert_eq!(comparison.file_changes.unobserved.logical, 10);
+    let reverse = store.compare(second, first, 0, 20).unwrap();
+    assert_eq!(reverse.file_changes.added.files, 0);
+    assert_eq!(reverse.file_changes.newly_observed.files, 1);
+    assert_eq!(reverse.file_changes.newly_observed.logical, 10);
     assert!(comparison.changes.iter().any(|c| c.kind == "unobserved"));
     assert!(!comparison.changes.iter().any(|c| c.kind == "removed"));
     assert!(
