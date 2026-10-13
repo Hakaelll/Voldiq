@@ -1,5 +1,11 @@
 # Performance measurements
 
+## Bounded virtual file list
+
+The file list requests at most 80 rows per page. Its physical spacer height is capped at 8,000,000 CSS pixels, while logical coordinates cover the full indexed row count. Visible rows retain 36-pixel spacing. Scrollbar position maps to logical index position; pure vertical wheel pixel, line and page deltas map back to normal logical steps. Diagonal/horizontal gestures and Ctrl/Shift-modified events retain native browser behavior. Clipping prevents stale pages from extending the physical scroll range while a new query is pending.
+
+Geometry tests cover the first and last rows of a five-million-row list, intermediate positions, ordinary uncompressed lists, keyboard endpoints and wheel steps. These tests prove coordinate calculations, not native DOM rendering, focus timing, 60 FPS or real WebView pixel precision. No browser automation or visual inspection was performed. Manual large-index and keyboard acceptance remain open.
+
 ## Cooperative query cancellation
 
 The core now exposes `Index::query_cancellable`, which returns `None` when its caller cancels. It checks during filtering, ancestor traversal and rank selection, and never returns a partial page. Filtering and partitioning check every 256 steps. Heap fallback checks every 256 roots or extractions; each sift is bounded by heap depth. Final sorting and cloning cover at most 500 entries. These are cooperative checkpoints, not a measured wall-time cancellation guarantee. Existing core `query` callers retain standard-library rank selection. The frontend's overview and file list now use the cancellable native command with independent request ownership and bounded latest-request queues. Native runtime cancellation latency remains unmeasured.

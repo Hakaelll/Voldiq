@@ -1,5 +1,13 @@
 <script lang="ts">
+  import { onDestroy, onMount, tick } from 'svelte';
   import { fileQueries } from '../lib/queries';
+  import {
+    virtualWindow,
+    rowTop,
+    scrollToRow,
+    keyboardRow,
+    wheelScroll,
+  } from '../lib/virtual-list';
   import { bytes, date, type Entry, type Query } from '../lib/types';
   import Icon from './Icon.svelte';
   let {
@@ -23,14 +31,16 @@
     manageable?: boolean;
     oncheck?: (id: number, checked: boolean) => void;
   } = $props();
-  const rowHeight = 36;
   let scrollTop = $state(0),
     total = $state(0),
     rows = $state<Entry[]>([]),
     offset = $state(0);
   let viewport: HTMLDivElement;
+  let viewportHeight = $state(420);
+  let pendingFocus = $state<number | null>(null);
   let request = 0;
-  let desired = $derived(Math.max(0, Math.floor((scrollTop - rowHeight) / rowHeight) - 8));
+  let window = $derived(virtualWindow(total, viewportHeight, scrollTop));
+  let desired = $derived(window.offset);
   $effect(() => {
     void revision;
     const next = query;
@@ -60,15 +70,76 @@
   });
   $effect(() => {
     void query;
+    pendingFocus = null;
     if (viewport) viewport.scrollTop = 0;
     scrollTop = 0;
   });
+  $effect(() => {
+    const target = pendingFocus;
+    const start = offset;
+    const count = rows.length;
+    if (target === null || target < start || target >= start + count) return;
+    const token = request;
+    void tick().then(() => {
+      if (pendingFocus !== target || token !== request) return;
+      const button = viewport.querySelector<HTMLButtonElement>(`button[data-index="${target}"]`);
+      if (button) {
+        button.focus({ preventScroll: true });
+        pendingFocus = null;
+      }
+    });
+  });
+  onDestroy(() => {
+    request += 1;
+    pendingFocus = null;
+  });
+  onMount(() => {
+    function wheel(event: WheelEvent): void {
+      pendingFocus = null;
+      const next = wheelScroll(window, event);
+      if (next === null || next === scrollTop) return;
+      event.preventDefault();
+      viewport.scrollTop = next;
+      scrollTop = viewport.scrollTop;
+    }
+    function cancelFocus(event: FocusEvent | PointerEvent): void {
+      if (pendingFocus === null) return;
+      const target = event.target;
+      if (
+        event.type === 'focusin' &&
+        target instanceof HTMLElement &&
+        viewport.contains(target) &&
+        target.dataset.index === String(pendingFocus)
+      )
+        return;
+      pendingFocus = null;
+    }
+    document.addEventListener('focusin', cancelFocus);
+    document.addEventListener('pointerdown', cancelFocus);
+    viewport.addEventListener('wheel', wheel, { passive: false });
+    return () => {
+      document.removeEventListener('focusin', cancelFocus);
+      document.removeEventListener('pointerdown', cancelFocus);
+      viewport.removeEventListener('wheel', wheel);
+    };
+  });
+  function navigate(event: KeyboardEvent, index: number): void {
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    const target = keyboardRow(event.key, pendingFocus ?? index, total, window.visibleHeight);
+    if (target === null) return;
+    event.preventDefault();
+    pendingFocus = target;
+    viewport.scrollTop = scrollToRow(window, target);
+    scrollTop = viewport.scrollTop;
+  }
 </script>
 
 <div class="file-table" role="table" aria-label="Indexed files" aria-rowcount={total + 1}>
   <div
     class="table-scroll"
+    role="rowgroup"
     bind:this={viewport}
+    bind:clientHeight={viewportHeight}
     onscroll={() => {
       scrollTop = viewport.scrollTop;
     }}
@@ -78,14 +149,14 @@
         role="columnheader">Modified</span
       ><span role="columnheader">Type</span>
     </div>
-    <div class="virtual-rows" style:height={`${total * rowHeight}px`}>
+    <div class="virtual-rows" style:height={`${window.height}px`}>
       {#each rows as entry, i (entry.id)}
         <div
           class:selected={entry.id === selected}
           class="table-row"
           role="row"
           aria-rowindex={offset + i + 2}
-          style:top={`${(offset + i) * rowHeight}px`}
+          style:top={`${rowTop(window, offset + i)}px`}
         >
           <span role="cell" class="file-label">
             {#if manageable}
@@ -99,11 +170,15 @@
             {/if}
             <button
               class="file-name"
+              data-index={offset + i}
               title={entry.name}
               onclick={() => onselect(entry)}
               ondblclick={() => onopen(entry)}
               onkeydown={(event) => {
-                if (event.key === 'Enter') onopen(entry);
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  onopen(entry);
+                } else navigate(event, offset + i);
               }}
               ><Icon name={entry.kind === 'directory' ? 'folder' : 'file'} /><span
                 >{entry.name}</span

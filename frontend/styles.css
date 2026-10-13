@@ -712,6 +712,7 @@ main {
 .virtual-rows {
   position: relative;
   min-width: 740px;
+  overflow: clip;
 }
 .table-row {
   height: 36px;

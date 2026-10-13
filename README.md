@@ -61,6 +61,8 @@ Both paths tolerate inaccessible files, report errors and support cancellation. 
 
 Changing a query or closing the file list cancels obsolete filtering and ranking work. Each query family keeps one running request and only its latest pending request; the overview and file list remain independent. Reloading the frontend creates a native query session that invalidates older requests. Cancellation is cooperative and does not return partial query pages.
 
+The file list supports arrow keys, Home, End, Page Up and Page Down from a focused filename. Enter opens the item; Space selects it. Distant keyboard targets fetch a bounded page before receiving focus. Large indices use a bounded scroll range while retaining normal row spacing and wheel steps.
+
 Logical size includes each visible hard-link name. Unique allocated size counts a file identity once across the scan. Allocation within an individual folder therefore reflects the link encountered first. Windows volume usage includes metadata and inaccessible or unindexed content; it should not equal the logical total.
 
 Progress reports actual file counts and bytes. Partial results can be explored while scanning; cancellation retains the measured index. No estimated percentage appears when the total is unknown. The initial index has a five-million-entry limit. Reaching the limit yields explicitly incomplete results.
