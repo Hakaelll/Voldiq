@@ -150,6 +150,8 @@ A controlled real-filesystem test covers the exact 90-day boundary, recent files
 
 ## Read-only Recycle Bin summary
 
+Cleanup also offers **Windows storage**, which opens the official Windows Storage settings page through the documented [`ms-settings:storagesense` URI](https://learn.microsoft.com/en-us/windows/apps/develop/launch/launch-settings). Windows owns its cleanup choices and confirmation. The no-argument native command accepts no arbitrary URI, runs Shell activation off the IPC thread, initializes/uninitializes its COM apartment and reports launch errors. It does not execute cleanup, change settings, empty the Recycle Bin or report recovered bytes. Windows changes require a fresh Voldiq scan to update indexed results. Strict workspace Clippy, Svelte diagnostics and production compilation pass; actual Settings activation remains a manual acceptance check.
+
 The Cleanup panel calls [SHQueryRecycleBinW](https://learn.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-shqueryrecyclebinw) for the explicitly selected accessible local drive. It uses the Windows SDK structure with `cbSize` initialized and requires `S_OK`. It never reads `$Recycle.Bin` folders, empties the bin, restores items or deletes files. Counts and sizes must be nonnegative and exactly representable by JavaScript; errors remain unavailable results rather than zero totals.
 
 The query runs off the IPC thread. Changing the selected drive or leaving the panel invalidates pending display results. It reports current Shell totals, independently of live or historical scan contents. The reported size does not establish physical allocation or space recovered by emptying the bin.

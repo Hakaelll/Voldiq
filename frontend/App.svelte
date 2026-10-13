@@ -860,6 +860,10 @@
               </div>
             </section>
           {:else if view === 'cleanup'}
+            <button disabled={busy} onclick={async () => {
+              try { await invoke('open_windows_storage'); }
+              catch (problem) { report(problem); }
+            }}>Windows storage</button>
             <RecycleBin drive={volumePath} />
             <CleanupRules
               scanning={operation?.phase === 'scanning'}

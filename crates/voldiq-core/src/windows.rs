@@ -7,6 +7,8 @@ pub(crate) mod cleanup_io;
 pub mod recycle_bin;
 mod storage;
 pub use storage::storage_seek_penalty;
+mod settings;
+pub use settings::open_storage_settings;
 
 #[derive(Serialize)]
 pub struct Volume {

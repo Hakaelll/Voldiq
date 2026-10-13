@@ -85,6 +85,8 @@ Potential allocation conservatively retains the largest independently allocated 
 
 ## File management
 
+Cleanup's **Windows storage** button opens the system's Storage settings for Windows-managed cleanup. Windows controls the operation and its confirmations; rescan afterward to refresh Voldiq's results.
+
 Cleanup lists indexed `.tmp` and `.temp` files at least seven days old in the Windows user temporary directory. Select files manually, then review their actual paths and sizes. Unscanned and partial coverage remain visible.
 
 Choose **Project temporary files** to review the same age and extension criteria within indexed Cargo, Node.js, CMake and .NET build artifacts. Project manifests must be present and complete in the scan. Recognized dependency trees and configured global caches remain excluded, including those nested inside build output. Source files and unrelated directories are omitted; files still require explicit selection and a freshly verified preview.

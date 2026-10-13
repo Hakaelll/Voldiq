@@ -477,6 +477,15 @@ async fn reveal_item(id: NodeId, engine: State<'_, Arc<Engine>>) -> Result<(), S
 }
 
 #[tauri::command]
+async fn open_windows_storage() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        voldiq_core::windows::open_storage_settings().map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
 async fn query_developer_storage(
     app: tauri::AppHandle,
     scope: NodeId,
@@ -542,6 +551,7 @@ fn main() {
             get_details,
             get_issues,
             reveal_item,
+            open_windows_storage,
             save_snapshot,
             list_snapshots,
             load_snapshot,
