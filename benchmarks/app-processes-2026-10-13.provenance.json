@@ -1,0 +1,14 @@
+{
+  "sourceCheckoutCommit": "87aa6cbce4e5c1891e530c188cb798fe004a6af2",
+  "nativeProcessId": 25492,
+  "nativeStartedUtc": "2026-10-13T06:26:22.8352570Z",
+  "nativeExecutableSha256": "C99B86844EC0189CA3CA4A283082CE1D7428F1E4C2E1A46306E6E4A6C0A4422A",
+  "observerSha256": "AAE5F4536DCB0DC3BFC1F7471E049190899F87E3714EAA0774A9AC1D6E478E03",
+  "webviewProductVersion": "154.0.4258.62",
+  "logicalProcessors": 8,
+  "workload": "Newly launched release; no automated UI input. UI state and user interaction were not inspected.",
+  "scope": "Native Voldiq plus associated WebView2 descendants; CPU of successfully observed surviving identities, summed private bytes and overlapping working sets.",
+  "samples": 5,
+  "baselineSamples": 1,
+  "readErrors": 0
+}

@@ -1,5 +1,26 @@
 # Performance measurements
 
+## Native application process observation
+
+The release executable built from application sources at `87aa6cb` was opened on 2026-10-13. A read-only observer collected Voldiq and associated WebView2 descendants over one baseline and five intervals of 5.162–5.192 seconds. Seven process identities remained measurable in every sample, with zero counter-read errors. No compilation, scan benchmark or automated UI input ran during capture. User interaction, current UI state and host background load were not inspected, so this is an observed release-process baseline rather than a controlled idle or populated-analysis acceptance test.
+
+```powershell
+./scripts/measure_app_processes.ps1 -TargetPid <VoldiqPID> -OutputPath "$PWD/benchmarks/app-processes.csv" -IntervalSeconds 5 -Samples 5
+```
+
+The target must already be running. The observer does not launch, terminate or control it. Root identity changes abort capture; output paths stay inside the repository and existing files are preserved. Float fields use invariant formatting. [Summary rows](../benchmarks/app-processes-2026-10-13.csv), [per-process counters](../benchmarks/app-processes-2026-10-13.processes.csv) and [provenance](../benchmarks/app-processes-2026-10-13.provenance.json) allow independent recalculation. The executable hash matches the distribution verifier record.
+
+| Counter | Median of five | Range |
+|---|---:|---:|
+| Total private bytes | 173,699,072 B | 173,633,536–181,952,512 B |
+| Native private bytes | 5,775,360 B | 5,775,360–5,775,360 B |
+| WebView2 private bytes | 167,923,712 B | 167,858,176–176,177,152 B |
+| Summed working sets | 396,005,376 B | 395,898,880–417,546,240 B |
+
+Private bytes describe allocations that cannot be shared between processes. Working sets include resident pages; adding them can count shared pages repeatedly. These counters are not interchangeable, and the summed working set is not a unique physical-memory total. See Microsoft's [private-byte definition](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.privatememorysize64) and [working-set definition](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.workingset64).
+
+CPU counters did not advance over any of the five intervals. The observer reports surviving-process CPU seconds divided by elapsed seconds, with 100% representing one core. It does not capture CPU consumed by processes that exit between observations. The availability-change columns describe newly measured or no-longer-measured identities, including failed reads, rather than confirmed lifecycle events. All interval availability changes were zero here. This observation does not establish continuous zero CPU, loaded-index memory, startup latency, 60 FPS or completion of the full memory/idle targets.
+
 ## Bounded virtual file list
 
 The file list requests at most 80 rows per page. Its physical spacer height is capped at 8,000,000 CSS pixels, while logical coordinates cover the full indexed row count. Visible rows retain 36-pixel spacing. Scrollbar position maps to logical index position; pure vertical wheel pixel, line and page deltas map back to normal logical steps. Diagonal/horizontal gestures and Ctrl/Shift-modified events retain native browser behavior. Clipping prevents stale pages from extending the physical scroll range while a new query is pending.

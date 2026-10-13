@@ -73,6 +73,8 @@ The status strip shows the native analysis date for completed scans and retained
 
 Five scans of a real million-file fixture verified exact counts and sizes with zero errors. See [performance measurements](docs/PERFORMANCE.md#large-real-filesystem-fixture) for raw results, reproduction commands and the limits of this warm-cache scanner baseline.
 
+The current release also has a [native/WebView2 resource observation](docs/PERFORMANCE.md#native-application-process-observation), with per-process memory and CPU counters. Its scope and remaining idle/rendering checks are documented separately from scanner benchmarks.
+
 ## Duplicate analysis
 
 Duplicate discovery groups indexed files by size, samples at most 8 KiB and verifies matching content with complete BLAKE3 hashes. Locked, changed and vanished files produce reported issues. Hard links to the same file identity are represented once. Repeated analysis reuses hashes only after validating file identity, size, modification time and native change time.

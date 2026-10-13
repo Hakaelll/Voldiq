@@ -32,6 +32,17 @@ Release signing and a public download are not configured. Packaging does not clo
 
 ## Latest build evidence, 2026-10-13
 
+`pnpm tauri build` completed with application sources at `87aa6cb`. This build includes query cancellation, bounded keyboard navigation, extensionless filtering and native analysis dates. The [static verification record](../benchmarks/distribution-2026-10-13-current.json) passed architecture/version, offline WebView2 configuration, runtime signature and supplied icon checks. Its checkout reference records the build session; the executable does not embed a verified Git commit.
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| Native x64 executable, version 0.1.0, unsigned | 12,568,576 | `C99B86844EC0189CA3CA4A283082CE1D7428F1E4C2E1A46306E6E4A6C0A4422A` |
+| NSIS installer, version 0.1.0, unsigned | 220,514,926 | `CF4FAE447DE036A73A0803A22031F36BBD7ECC63539F88834E39F7C7C208C6EE` |
+
+The new release executable was launched and remained running through the [native/WebView2 process measurement](PERFORMANCE.md#native-application-process-observation). No installer execution or UI automation took place. Clean-machine offline installation, populated native interaction and uninstall still require acceptance.
+
+## Earlier build evidence, 2026-10-13
+
 `pnpm tauri build` completed with the application sources at checkout `4b70b68`. The static verifier passed after the build. This checkout reference records the build session; the executable does not embed a verified Git commit.
 
 | Artifact | Evidence |
