@@ -3,6 +3,7 @@
   const paths: Record<string, string> = {
     overview: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z',
     folder: 'M3 7V5h6l2 2h10v13H3z',
+    code: 'M8 6l-6 6 6 6 M16 6l6 6-6 6 M14 3l-4 18',
     scan: 'M20 7a8 8 0 1 0 1 9 M20 3v5h-5',
     search: 'M21 21l-5-5 M18 10a8 8 0 1 1-16 0 8 8 0 0 1 16 0',
     large: 'M6 3h8l4 4v14H6z M14 3v5h4 M9 12h6 M9 16h6',

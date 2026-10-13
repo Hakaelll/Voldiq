@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { layout, color, type Rect, type WeightedNode } from '../lib/treemap';
+  import { layout, mapColor, type Rect, type WeightedNode } from '../lib/treemap';
   import { bytes } from '../lib/types';
   let {
     nodes,
@@ -32,7 +32,8 @@
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.clearRect(0, 0, width, height);
     for (const rect of rects) {
-      ctx.fillStyle = color(rect.name);
+      const paint = mapColor(rect.name);
+      ctx.fillStyle = paint.fill;
       ctx.fillRect(
         rect.x + 1,
         rect.y + 1,
@@ -44,7 +45,7 @@
         ctx.beginPath();
         ctx.rect(rect.x + 1, rect.y + 1, Math.max(0, rect.width - 2), Math.max(0, rect.height - 2));
         ctx.clip();
-        ctx.strokeStyle = '#101820';
+        ctx.strokeStyle = paint.ink;
         ctx.lineWidth = rect.id === selected ? 4 : 2;
         ctx.strokeRect(
           rect.x + 2,
@@ -59,7 +60,7 @@
         ctx.beginPath();
         ctx.rect(rect.x + 10, rect.y + 8, rect.width - 20, rect.height - 16);
         ctx.clip();
-        ctx.fillStyle = '#101820';
+        ctx.fillStyle = paint.ink;
         ctx.font = '600 13px "Segoe UI", sans-serif';
         ctx.fillText(rect.name, rect.x + 12, rect.y + 24);
         ctx.font = '12px "Segoe UI", sans-serif';

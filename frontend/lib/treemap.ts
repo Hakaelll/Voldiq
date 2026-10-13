@@ -63,9 +63,19 @@ export function layout(nodes: WeightedNode[], width: number, height: number): Re
   return output;
 }
 
-const colors = ['#5f91cb', '#d1a358', '#8fae84', '#9c8ec5', '#819eab', '#b0928d'];
-export function color(name: string): string {
+const colors = [
+  { fill: '#075bdd', ink: '#ffffff' },
+  { fill: '#123f86', ink: '#ffffff' },
+  { fill: '#087f8c', ink: '#ffffff' },
+  { fill: '#ed701b', ink: '#101820' },
+  { fill: '#c59127', ink: '#101820' },
+  { fill: '#717a84', ink: '#000000' },
+];
+export function mapColor(name: string): { fill: string; ink: string } {
   let hash = 0;
   for (const char of name) hash = (Math.imul(hash, 31) + char.charCodeAt(0)) | 0;
-  return colors[(hash >>> 0) % colors.length] ?? '#819eab';
+  return colors[(hash >>> 0) % colors.length] ?? { fill: '#717a84', ink: '#000000' };
+}
+export function color(name: string): string {
+  return mapColor(name).fill;
 }

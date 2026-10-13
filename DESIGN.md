@@ -2,18 +2,18 @@
 name: Voldiq
 description: Compact Windows storage analysis with measured data and a white workspace.
 colors:
-  accent: "#2563eb"
-  accent-fill: "#1e40af"
+  accent: "#0057d9"
+  accent-fill: "#0057d9"
   accent-hover: "#173784"
-  selected: "#edf3ff"
+  selected: "#e9edf2"
   canvas: "#fff"
-  surface: "#fafafa"
-  paper: "#f5f5f5"
-  border: "#e5e5e5"
+  surface: "#f7f8fa"
+  paper: "#edf0f5"
+  border: "#e5eaf1"
   strong: "#d4d4d4"
-  text: "#171717"
-  secondary: "#525252"
-  muted: "#737373"
+  text: "#151c36"
+  secondary: "#4f5d7b"
+  muted: "#5c6984"
   error: "#a32424"
   dark-canvas: "#181b20"
   dark-surface: "#1e2228"
@@ -27,27 +27,27 @@ colors:
   dark-accent-fill: "#315ba6"
   dark-selected: "#263c60"
   dark-error: "#f29797"
-  map-blue: "#5f91cb"
-  map-ochre: "#d1a358"
-  map-green: "#8fae84"
-  map-violet: "#9c8ec5"
-  map-slate: "#819eab"
-  map-rose: "#b0928d"
+  map-blue: "#075bdd"
+  map-navy: "#123f86"
+  map-teal: "#087f8c"
+  map-orange: "#ed701b"
+  map-ochre: "#c59127"
+  map-slate: "#717a84"
 typography:
   headline:
     fontFamily: "Segoe UI Variable, Segoe UI, sans-serif"
-    fontSize: "25px"
+    fontSize: "30px"
     fontWeight: 600
     lineHeight: 1.25
     letterSpacing: "-0.02em"
   title:
     fontFamily: "Segoe UI Variable, Segoe UI, sans-serif"
-    fontSize: "14px"
+    fontSize: "17px"
     fontWeight: 600
     lineHeight: 1.4
   body:
     fontFamily: "Segoe UI Variable, Segoe UI, sans-serif"
-    fontSize: "13px"
+    fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.6
   label:
@@ -64,7 +64,7 @@ typography:
     fontWeight: 600
     letterSpacing: "-0.02em"
 rounded:
-  radius: "6px"
+  radius: "3px"
   inset: "3px"
   dialog: "8px"
 spacing:
@@ -178,15 +178,15 @@ The palette uses white and neutral gray for structure, blue for interaction, and
 
 The UI uses Segoe UI Variable with Segoe UI and sans-serif fallbacks. It has no separate display face. Canvas text uses Segoe UI explicitly. Use the frontmatter roles as the recorded hierarchy; paragraph body text has the body line height, while controls keep their native inherited line height.
 
-Page headings use `headline`, panel and settings headings use `title`, paragraphs and controls use `body`, dense file rows and descriptions use `label`, and footer text and small annotations use `metadata`. Capacity figures use `metric`, dropping to 20px at the first desktop breakpoint. The welcome heading is a local 24px variation, and the brand wordmark is a local 21px variation; neither establishes another reusable role.
+Page headings use `headline`, panel and settings headings use `title`, paragraphs and controls use `body`, dense file rows and descriptions use `label`, and footer text and small annotations use `metadata`. The unscanned capacity strip uses `metric`, dropping to 20px at the first desktop breakpoint; populated Overview uses compact 13px label/value rows. The welcome heading is a local 24px variation, and the brand wordmark uses 27px or 24px at the first breakpoint.
 
 **The Measured Number Rule.** Keep storage sizes and file counts aligned with tabular numerals. Right-align the file list's logical-size column; allow names and paths to wrap or truncate according to their container.
 
 ## Layout
 
-The desktop shell has a collapsed rail of 64px and an expanded rail of 200px. The rail is sticky and fills the viewport. The toolbar is 66px high. Main content uses the page spacing token; the settings form stops at 640px and places 170px labels beside controls with a 20px gap.
+The desktop shell has a collapsed rail of 64px and an expanded rail of 216px. The rail fills the viewport with its own overflow behavior. The toolbar has a 66px minimum height and can wrap. Main content uses the page spacing token; the settings form currently stops at 640px and places 170px labels beside controls with a 20px gap.
 
-The populated overview has a four-part capacity strip and a content grid with a 1.9-to-1 column ratio, a minimum 290px secondary column and a panel gap. The map occupies a 360px-high inset. The file list uses 36px rows and a 420px scrolling viewport. Its virtual content keeps a 740px minimum width.
+The populated overview follows `interface/01-overview-root.png` and `02-overview-folder.png`: a 248px summary column with measured capacity, index totals and largest items, followed by a dominant map and file-type legend. The summary narrows to 210px below 1100px; below 840px the sections stack without hiding largest items. Map height scales from 360px to 600px. The capacity strip remains only in the unscanned overview. Other data views use their shared header without an extra capacity strip. The file list retains its 36px logical rows and existing bounded virtualization.
 
 History uses a 12px control gap and 18px spacing below its toolbar. Snapshot rows have a 68px minimum height, medium vertical padding and panel-gap horizontal padding. Before and After selects wrap with a 180px minimum label width. Its recorded-size graphic is 110px high and uses the existing accent color.
 
@@ -230,7 +230,7 @@ Panels have a fine border, canvas background and the standard control radius. Pa
 
 ### Storage map and capacity
 
-The capacity strip aligns labeled figures in divided columns. The map sizes rectangles from actual logical or allocated bytes, with small gaps between regions. Selection uses an outline and hover exposes a neutral bordered tooltip. A List action provides access to the explorer. The Canvas implementation and its dark-theme appearance still need native populated review.
+The populated summary aligns measured capacity and index figures in label/value rows, with a labelled capacity meter. The map sizes rectangles from actual logical or allocated bytes, with small gaps between regions. Selection uses an outline and hover exposes a neutral bordered tooltip. Map/List controls and a local metric selector retain real navigation and saved metric behavior. The Canvas implementation and its dark-theme appearance still need native populated review.
 
 ### File list
 
@@ -306,6 +306,8 @@ Preview, incomplete coverage and engine errors appear as compact bordered messag
 
 Independently generated file-type colors, virtual-list geometry and dialog accessibility behavior remain implementation details to assess in populated native views. The shared primary hover color is recorded as shipped, not as proof of complete dark-theme interaction review. No craft-floor defect was reported by the supplied mechanical scan; this record does not extend that result beyond its checked scope.
 
-The treemap retains the same six fills in both themes. Labels and interaction outlines use `#101820`, whose computed contrast against every fill is at least 5.45:1. Selection uses a four-pixel stroke and hover two pixels, so their distinction also uses thickness. Strokes are clipped to each filled rectangle, preserving adjacent small cells. The previous blue selection stroke fell below 3:1 on two fills; its replacement exceeds the [non-text contrast threshold](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html). These source-color calculations do not establish complete accessibility or native rendering acceptance.
+The treemap uses the reference's blue, navy, teal, orange, ochre and gray palette in both themes. Each fill has an explicit white or dark ink pair; the computed minimum contrast is 4.746:1. Labels and interaction outlines use the same paired ink. Selection requests a four-pixel stroke and hover two pixels, so their distinction also uses thickness. Strokes are clipped to each filled rectangle. These source-color calculations do not establish complete accessibility or native rendering acceptance.
+
+The nine images in `interface/` are the user-pinned direction. Their sample data is illustrative and never shipped as measurements. This pass adapts the shared shell and both Overview compositions; the distinct Explorer, Large files, Duplicates, Cleanup, Developer, History and Settings layouts still need their corresponding implementation passes. Hierarchical map regions in the root reference require measured descendant data; the current map remains a measured direct-child layout. No browser or native visual automation was used.
 
 The file-type summary displays eight ranked groups and a neutral Other segment. Segment weights use measured logical bytes; Other includes every remaining regular-file group, including groups omitted from the bounded native response. Its legend shows combined bytes and file count without offering an extension-filter action. Empty files contribute to counts but add no byte weight. This behavior is source- and fixture-verified; native presentation remains for manual acceptance.

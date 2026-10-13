@@ -1,6 +1,27 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { layout } from './treemap.ts';
+import { layout, mapColor, color } from './treemap.ts';
+
+test('all map palette fills have readable paired ink and consistent legend colors', () => {
+  const luminance = (hex: string) => {
+    const channel = (offset: number) => {
+      const value = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+      return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+  };
+  const seen = new Set<string>();
+  for (const name of ['a', 'b', 'c', 'd', 'e', 'f']) {
+    const paint = mapColor(name);
+    seen.add(paint.fill);
+    assert.equal(color(name), paint.fill);
+    const fill = luminance(paint.fill),
+      ink = luminance(paint.ink);
+    const contrast = (Math.max(fill, ink) + 0.05) / (Math.min(fill, ink) + 0.05);
+    assert.ok(contrast >= 4.5, `${paint.fill}/${paint.ink}: ${contrast}`);
+  }
+  assert.equal(seen.size, 6);
+});
 
 test('rectangle areas preserve measured ratios and stay inside the viewport', () => {
   const nodes = Array.from({ length: 100 }, (_, id) => ({

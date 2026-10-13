@@ -2,7 +2,7 @@
   import { onMount, tick } from 'svelte';
   import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
   import Icon from './components/Icon.svelte';
-  import Treemap from './components/Treemap.svelte';
+  import Overview from './components/Overview.svelte';
   import FileTable from './components/FileTable.svelte';
   import Duplicates from './components/Duplicates.svelte';
   import History from './components/History.svelte';
@@ -14,9 +14,7 @@
   import CleanupActivity from './components/CleanupActivity.svelte';
   import { readRecentPaths, rememberPath } from './lib/recent-paths';
   import { overviewQueries, detailQueries } from './lib/queries';
-  import { color } from './lib/treemap';
   import { scopedFileQuery } from './lib/file-query';
-  import { visibleFileTypes } from './lib/file-types';
   import {
     bytes,
     date,
@@ -46,7 +44,7 @@
     { id: 'large', label: 'Large files', icon: 'large' },
     { id: 'duplicates', label: 'Duplicates', icon: 'duplicate' },
     { id: 'cleanup', label: 'Cleanup', icon: 'trash' },
-    { id: 'developer', label: 'Developer storage', icon: 'folder' },
+    { id: 'developer', label: 'Developer storage', icon: 'code' },
     { id: 'history', label: 'History', icon: 'history' },
   ];
   let view = $state<View>('overview');
@@ -67,7 +65,6 @@
     details = $state<Details | null>(null);
   let children = $state<Page>({ items: [], total: 0 }),
     types = $state<FileTypes>({ items: [], total_bytes: 0, total_files: 0 });
-  const typeDistribution = $derived(visibleFileTypes(types));
   let text = $state(''),
     extension = $state(''),
     withoutExtension = $state(false),
@@ -485,9 +482,7 @@
       onclick={() => {
         expanded = !expanded;
         savePreferences();
-      }}
-      ><Icon name={expanded ? 'collapse' : 'expand'} />{#if expanded}<span>Collapse navigation</span
-        >{/if}</button
+      }}><Icon name={expanded ? 'collapse' : 'expand'} /></button
     >
     <nav aria-label="Main navigation">
       {#each navigation as item}<button
@@ -500,17 +495,19 @@
             view = item.id;
             text = '';
           }}
-          ><Icon name={item.icon} />{#if expanded}<span>{item.label}</span>{/if}</button
+          ><Icon name={item.icon} size={20} />{#if expanded}<span>{item.label}</span>{/if}</button
         >{/each}
     </nav>
     <div class="nav-bottom">
-      {#if expanded && volume}<div class="drive-summary">
+      {#if expanded && volume?.accessible}<div class="drive-summary">
           <span><Icon name="disk" />{volume.name || volume.path}</span><progress
+            aria-label="Drive space used"
             value={volume.total - volume.free}
             max={volume.total || 1}
           ></progress><small
             >{bytes(volume.total - volume.free)} of {bytes(volume.total)} used</small
           >
+          <small>{bytes(volume.free)} free</small>
         </div>{/if}<button
         class:active={view === 'settings'}
         title="Settings"
@@ -718,7 +715,7 @@
           onerror={report}
         />
       {:else}
-        {#if volume && view !== 'duplicates'}<section
+        {#if volume?.accessible && view === 'overview' && !ready}<section
             class="capacity-strip"
             aria-label="Volume capacity"
           >
@@ -776,103 +773,45 @@
                 >{/if}
             </div>{/if}
           {#if directory?.entry.incomplete}<div class="notice">Incomplete coverage</div>{/if}
-          {#if view === 'overview'}<div class="overview-grid">
-              <section class="panel map-panel">
-                <div class="panel-heading">
-                  <div>
-                    <h2>Storage map</h2>
-                    <p>
-                      {sizeMode === 'logical' ? 'Logical size' : 'Unique allocation'}
-                    </p>
-                  </div>
-                  <button
-                    title="Open list"
-                    onclick={() => {
-                      view = 'explorer';
-                    }}><Icon name="list" />List</button
-                  >
-                </div>
-                <Treemap
-                  {nodes}
-                  selected={details?.entry.id ?? null}
-                  onselect={(id) => {
-                    void select(id);
-                  }}
-                  onopen={(id) => {
-                    void open(id);
-                  }}
-                />
-              </section>
-              <section class="panel largest-panel">
-                <div class="panel-heading">
-                  <h2>Largest items</h2>
-                  <button
-                    onclick={() => {
-                      view = 'explorer';
-                    }}>See all</button
-                  >
-                </div>
-                <div class="ranking-head"><span>Name</span><span>Logical size</span></div>
-                {#each children.items.slice(0, 10) as entry}<button
-                    class="ranking-row"
-                    onclick={() => {
-                      void select(entry.id);
-                    }}
-                    ondblclick={() => {
-                      void open(entry.id);
-                    }}
-                    ><Icon name={entry.kind === 'directory' ? 'folder' : 'file'} /><span
-                      title={entry.name}>{entry.name}</span
-                    ><strong>{bytes(entry.logical)}</strong><span class="size-bar"
-                      ><span
-                        style:width={`${directory?.entry.logical ? (entry.logical / directory.entry.logical) * 100 : 0}%`}
-                      ></span></span
-                    ></button
-                  >{/each}
-              </section>
-            </div>
-            <section class="panel type-panel">
-              <div class="panel-heading">
-                <div>
-                  <h2>File types</h2>
-                </div>
-              </div>
-              <div class="type-bar">
-                {#each typeDistribution.items as item}<span
-                    style:flex-grow={item.bytes}
-                    style:background={color(item.extension ?? '<no-extension>')}
-                    title={`${item.extension === null ? 'No extension' : `.${item.extension}`}: ${bytes(item.bytes)}`}
-                  ></span>{/each}
-                {#if typeDistribution.otherBytes > 0}<span
-                    style:flex-grow={typeDistribution.otherBytes}
-                    style:background="var(--muted)"
-                    title={`Other: ${bytes(typeDistribution.otherBytes)}`}
-                  ></span>{/if}
-              </div>
-              <div class="type-legend">
-                {#each typeDistribution.items as item}<button
-                    onclick={() => {
-                      withoutExtension = item.extension === null;
-                      extension = item.extension ?? '';
-                      view = 'explorer';
-                    }}
-                    ><strong
-                      >{item.extension === null ? 'No extension' : `.${item.extension}`}</strong
-                    ><span>{bytes(item.bytes)}</span><small
-                      >{item.count.toLocaleString()} files</small
-                    ></button
-                  >{/each}
-                {#if typeDistribution.otherFiles > 0}<div class="type-other">
-                    <strong>Other</strong><span>{bytes(typeDistribution.otherBytes)}</span>
-                    <small>{typeDistribution.otherFiles.toLocaleString()} files</small>
-                  </div>{/if}
-              </div>
-            </section>
+          {#if view === 'overview'}
+            <Overview
+              {volume}
+              {directory}
+              {children}
+              {nodes}
+              {types}
+              selected={details}
+              {sizeMode}
+              onmetric={(metric) => {
+                sizeMode = metric;
+                savePreferences();
+              }}
+              onselect={(id) => {
+                void select(id);
+              }}
+              onopen={(id) => {
+                void open(id);
+              }}
+              onlist={() => {
+                view = 'explorer';
+              }}
+              ontype={(item) => {
+                withoutExtension = item.extension === null;
+                extension = item.extension ?? '';
+                view = 'explorer';
+              }}
+            />
           {:else if view === 'cleanup'}
-            <button disabled={busy} onclick={async () => {
-              try { await invoke('open_windows_storage'); }
-              catch (problem) { report(problem); }
-            }}>Windows storage</button>
+            <button
+              disabled={busy}
+              onclick={async () => {
+                try {
+                  await invoke('open_windows_storage');
+                } catch (problem) {
+                  report(problem);
+                }
+              }}>Windows storage</button
+            >
             <RecycleBin drive={volumePath} />
             <CleanupRules
               scanning={operation?.phase === 'scanning'}

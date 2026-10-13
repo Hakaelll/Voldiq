@@ -127,6 +127,8 @@ Saved captures can be reopened and compared after restarting. Comparisons requir
 
 ## Project documentation
 
+The nine [interface references](interface/README.md) supplied by the user define the current visual direction. Overview and the shared shell are being adapted to their composition with measured engine data; the images are references rather than screenshots of shipped behavior.
+
 [Implementation ledger](NEXT_TODOS.md) · [Product brief](PRODUCT.md) · [Requirements](docs/reference/requirements.md) · [Interface reference](docs/reference/design-inspiration.md)
 
 ## License
