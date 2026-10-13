@@ -1,6 +1,7 @@
 use std::{ffi::OsString, path::PathBuf};
 use tauri::Manager;
 use voldiq_core::developer::{CacheLocation, Category};
+mod npm_config;
 
 enum PnpmLocation {
     Configured(PathBuf),
@@ -24,10 +25,7 @@ fn resolve_cache_locations(
         environment("CARGO_HOME"),
         home.as_ref().map(|path| path.join(".cargo")),
     );
-    let npm = configured_path(
-        environment("NPM_CONFIG_CACHE"),
-        local.as_ref().map(|path| path.join("npm-cache")),
-    );
+    let npm = npm_config::cache_location(home.as_ref(), local.as_ref(), &environment);
     let pnpm = pnpm_store_location(local.as_ref(), &environment);
     let pip = configured_path(
         environment("PIP_CACHE_DIR"),

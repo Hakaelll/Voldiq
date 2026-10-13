@@ -12,7 +12,11 @@ Manifest entries must be complete. The Cleanup view's Project temporary files ru
 
 Global-cache analysis resolves the current Windows profile and local-data directory through Tauri's native path resolver. An absolute `CARGO_HOME` overrides the profile's `.cargo` location. Only its `registry` and `git` directories are classified as cache; installed tools, configuration and credentials outside those directories are excluded. These locations are described in the [Cargo home documentation](https://doc.rust-lang.org/cargo/guide/cargo-home.html).
 
-An absolute `NPM_CONFIG_CACHE` overrides the Windows `%LocalAppData%\npm-cache` default described in the [npm cache documentation](https://docs.npmjs.com/cli/v7/commands/npm-cache/). Project and user `.npmrc` files are not read; paths configured only there are not discovered automatically. Relative overrides are omitted because the application's working directory cannot establish the tool's intended base.
+An absolute `NPM_CONFIG_CACHE` has priority. Otherwise npm discovery reads the profile's `.npmrc`, or an absolute `NPM_CONFIG_USERCONFIG` override, followed by an explicitly supplied absolute `NPM_CONFIG_GLOBALCONFIG` when the user file has no cache setting. With no recognized setting, it uses Windows `%LocalAppData%\npm-cache`. This follows the supported part of [npm's configuration order](https://docs.npmjs.com/cli/v11/using-npm/config/) and [npmrc format](https://docs.npmjs.com/cli/v11/configuring-npm/npmrc/).
+
+Reads are limited to 65,536 UTF-8 bytes and extract only the top-level scalar `cache` setting. Comments, repeated scalar settings, quoted paths, escaped comment characters, `${VARIABLE}` substitutions, optional `${VARIABLE?}` substitutions and `~/` home paths are supported. Escaped variable expressions retain their literal path according to [npm's backslash-parity rule](https://github.com/npm/cli/blob/latest/workspaces/config/lib/env-replace.js). Windows file opens reject reparse/cloud-placeholder leaves before content reads. Configuration contents and credentials are never returned through IPC or persisted.
+
+Unreadable, oversized or uninterpretable files and relative, array-valued or unresolved paths omit npm classification instead of measuring another cache. Project/CLI/builtin settings, inferred global-config locations and user-file `globalconfig` redirects remain uninspected. Some quoted forms accepted by npm's permissive INI parser are conservatively omitted. No npm command runs, and these known locations do not prove the active cache for every project.
 
 Locations must exist and resolve to indexed directories. The query uses their recorded sizes rather than scanning again. A scan or query rooted inside a cache reports only that measured subtree. Historical indexes omit live global-cache classification because the locations are not recorded with snapshots. Their project classifications continue to use recorded rows. Persisting cache-location evidence remains pending.
 
@@ -29,7 +33,7 @@ The Windows resolver also recognizes these locations and their absolute environm
 
 These locations follow [pip caching](https://pip.pypa.io/en/stable/topics/caching/) and its [cache-directory option](https://pip.pypa.io/en/stable/cli/pip/), [Gradle directory layout](https://docs.gradle.org/current/userguide/directory_layout.html) and [NuGet package/cache management](https://learn.microsoft.com/en-us/nuget/consume-packages/managing-the-global-packages-and-cache-folders). NuGet projects can use packages directly from the global packages directory, so it is labelled Dependencies. Gradle configuration, daemon files, installed JDKs and wrapper distributions are outside the selected `caches` directory.
 
-Tool configuration files and command-line overrides are not inspected. When configured locations overlap, a scoped query uses the most specific matching root. Coincident roots retain a dependency category when one is declared. A wider scan still aggregates nested locations into their outer candidate without counting bytes twice.
+Configuration files for tools other than the supported npm sources, and command-line overrides, are not inspected. When configured locations overlap, a scoped query uses the most specific matching root. Coincident roots retain a dependency category when one is declared. A wider scan still aggregates nested locations into their outer candidate without counting bytes twice.
 
 pnpm discovery follows its documented [store settings](https://pnpm.io/settings/store). `PNPM_HOME` and `XDG_DATA_HOME` are considered before the Windows default. Conventional locations recognize `v3`, `v10` and `v11`. The explicit `PNPM_CONFIG_STORE_DIR` override follows the inspected pnpm 11.25 source: append `v11` unless the path already ends in `v11`. Relative overrides are omitted, and a missing configured store does not fall back to a different existing store.
 
@@ -50,7 +54,9 @@ cargo test -p voldiq --bin voldiq developer_commands::tests
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
-Configuration-file and per-disk pnpm discovery, custom global virtual-store locations and bookkeeping classification remain pending. Cleanup execution and explicit confirmation remain separate unfinished requirements.
+On 2026-10-13, seven native developer resolver tests passed, including four npm configuration tests. Real fixtures verify precedence and measured totals, literal escaped variables versus existing expanded namesakes, comments/quotes/Unicode, bounded reads, invalid UTF-8 and unresolved/relative paths. Workspace tests passed before the final escape correction; the seven resolver tests and strict workspace Clippy then verified that correction. Source review found the escaped-variable misclassification and checked the fix. Native populated acceptance remains pending.
+
+Broader configuration-file and per-disk pnpm discovery, custom global virtual-store locations and bookkeeping classification remain pending. Cleanup execution and explicit confirmation remain separate unfinished requirements.
 
 ## Docker Engine analysis
 
