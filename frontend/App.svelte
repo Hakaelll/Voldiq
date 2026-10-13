@@ -569,7 +569,7 @@
         /><kbd>Ctrl K</kbd>
       </div>
     </header>
-    <main>
+    <main class:file-view={ready && (view === 'explorer' || view === 'large')}>
       <div class="page-heading">
         <div>
           <h1>
@@ -773,191 +773,212 @@
                 >{/if}
             </div>{/if}
           {#if directory?.entry.incomplete}<div class="notice">Incomplete coverage</div>{/if}
-          {#if view === 'overview'}
-            <Overview
-              {volume}
-              {directory}
-              {children}
-              {nodes}
-              {types}
-              selected={details}
-              {sizeMode}
-              onmetric={(metric) => {
-                sizeMode = metric;
-                savePreferences();
-              }}
-              onselect={(id) => {
-                void select(id);
-              }}
-              onopen={(id) => {
-                void open(id);
-              }}
-              onlist={() => {
-                view = 'explorer';
-              }}
-              ontype={(item) => {
-                withoutExtension = item.extension === null;
-                extension = item.extension ?? '';
-                view = 'explorer';
-              }}
-            />
-          {:else if view === 'cleanup'}
-            <button
-              disabled={busy}
-              onclick={async () => {
-                try {
-                  await invoke('open_windows_storage');
-                } catch (problem) {
-                  report(problem);
-                }
-              }}>Windows storage</button
-            >
-            <RecycleBin drive={volumePath} />
-            <CleanupRules
-              scanning={operation?.phase === 'scanning'}
-              {revision}
-              {busy}
-              manageable={ready && !historical}
-              onscan={start}
-              onbusy={(value) => {
-                analysisBusy = value;
-              }}
-              onpreview={(plan) => {
-                cleanupPreview = plan;
-              }}
-              onerror={report}
-            />
-            <CleanupActivity {revision} {busy} />
-          {:else if view === 'duplicates'}
-            <Duplicates
-              {scope}
-              enabled={ready && !busy}
-              onbusy={(value) => {
-                analysisBusy = value;
-              }}
-              onselect={(id) => {
-                void select(id);
-              }}
-              onissues={(items) => {
-                issues = items;
-                showIssues = true;
-              }}
-              onerror={report}
-              onpreview={(plan) => {
-                cleanupPreview = plan;
-              }}
-            />
-          {:else}<section class="panel explorer-panel">
-              <div class="filter-bar">
-                <label
-                  >Extension<input
-                    bind:value={extension}
-                    placeholder="All extensions"
-                    disabled={withoutExtension}
-                  /></label
-                >
-                <label class="extensionless-filter"
-                  ><input type="checkbox" bind:checked={withoutExtension} />No extension</label
-                >{#if view === 'large'}<label
-                    >Items<select bind:value={largeKind}
-                      ><option value="file">Files</option><option value="directory">Folders</option
-                      ></select
-                    ></label
-                  ><label>Minimum MiB<input type="number" min="0" bind:value={minSize} /></label
-                  ><label>Modified before<input type="date" bind:value={before} /></label
-                  >{/if}<label
-                  >Sort<select bind:value={sort}
-                    ><option value="size">Largest first</option><option value="name">Name</option
-                    ><option value="modified">Newest first</option></select
-                  ></label
-                ><button
-                  onclick={() => {
-                    text = '';
-                    extension = '';
-                    withoutExtension = false;
-                    before = '';
-                    minSize = 100;
-                    largeKind = 'file';
-                  }}>Reset filters</button
-                >
-              </div>
-              <FileTable
-                {query}
-                {revision}
-                selected={details?.entry.id ?? null}
-                checked={selection}
-                manageable={!busy && historical === null}
-                oncheck={checkFile}
-                onselect={(entry) => {
-                  void select(entry.id);
+          <div
+            class:file-workspace={view === 'explorer' || view === 'large'}
+            class:has-details={details !== null}
+          >
+            {#if view === 'overview'}
+              <Overview
+                {volume}
+                {directory}
+                {children}
+                {nodes}
+                {types}
+                selected={details}
+                {sizeMode}
+                onmetric={(metric) => {
+                  sizeMode = metric;
+                  savePreferences();
                 }}
-                onopen={(entry) => {
-                  void open(entry.id);
+                onselect={(id) => {
+                  void select(id);
+                }}
+                onopen={(id) => {
+                  void open(id);
+                }}
+                onlist={() => {
+                  view = 'explorer';
+                }}
+                ontype={(item) => {
+                  withoutExtension = item.extension === null;
+                  extension = item.extension ?? '';
+                  view = 'explorer';
+                }}
+              />
+            {:else if view === 'cleanup'}
+              <button
+                disabled={busy}
+                onclick={async () => {
+                  try {
+                    await invoke('open_windows_storage');
+                  } catch (problem) {
+                    report(problem);
+                  }
+                }}>Windows storage</button
+              >
+              <RecycleBin drive={volumePath} />
+              <CleanupRules
+                scanning={operation?.phase === 'scanning'}
+                {revision}
+                {busy}
+                manageable={ready && !historical}
+                onscan={start}
+                onbusy={(value) => {
+                  analysisBusy = value;
+                }}
+                onpreview={(plan) => {
+                  cleanupPreview = plan;
                 }}
                 onerror={report}
               />
-              {#if selection.size > 0}<div class="selection-bar">
-                  <span>{selection.size} selected</span><button
-                    disabled={busy || historical !== null}
-                    onclick={previewSelection}>Review selection</button
-                  ><button
-                    disabled={busy}
-                    onclick={() => {
-                      selection = new Set();
-                    }}>Clear</button
+              <CleanupActivity {revision} {busy} />
+            {:else if view === 'duplicates'}
+              <Duplicates
+                {scope}
+                enabled={ready && !busy}
+                onbusy={(value) => {
+                  analysisBusy = value;
+                }}
+                onselect={(id) => {
+                  void select(id);
+                }}
+                onissues={(items) => {
+                  issues = items;
+                  showIssues = true;
+                }}
+                onerror={report}
+                onpreview={(plan) => {
+                  cleanupPreview = plan;
+                }}
+              />
+            {:else}<section class="panel explorer-panel">
+                <div class="filter-bar">
+                  <label
+                    >Extension<input
+                      bind:value={extension}
+                      placeholder="All extensions"
+                      disabled={withoutExtension}
+                    /></label
                   >
-                </div>{/if}
-            </section>{/if}
-          {#if details}<section class="details-panel">
-              <div>
-                <Icon name={details.entry.kind === 'directory' ? 'folder' : 'file'} />
-                <h2>{details.entry.name}</h2>
-                <button
-                  class="dismiss"
-                  title="Close details"
-                  onclick={() => {
-                    invalidateInteraction();
-                    details = null;
-                  }}><Icon name="close" /></button
-                >
-              </div>
-              <p class="path">{details.path}</p>
-              <dl>
-                <div>
-                  <dt>Logical size</dt>
-                  <dd>{bytes(details.entry.logical)}</dd>
-                </div>
-                <div>
-                  <dt>Unique allocated size</dt>
-                  <dd>
-                    {details.entry.allocation_known
-                      ? bytes(details.entry.allocated)
-                      : `${bytes(details.entry.allocated)} · incomplete`}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Modified</dt>
-                  <dd>{date(details.entry.modified)}</dd>
-                </div>
-                <div>
-                  <dt>Files</dt>
-                  <dd>{details.entry.files.toLocaleString()}</dd>
-                </div>
-              </dl>
-              <div class="detail-actions">
-                <button onclick={reveal}><Icon name="external" />Show in Explorer</button><button
-                  onclick={copy}
-                  disabled={!details.path_exact}
-                  title={details.path_exact ? 'Copy path' : 'Path contains non-Unicode characters'}
-                  ><Icon name="copy" />Copy path</button
-                >{#if details.entry.kind === 'directory'}<button
+                  <label class="extensionless-filter"
+                    ><input type="checkbox" bind:checked={withoutExtension} />No extension</label
+                  >{#if view === 'large'}<label
+                      >Items<select bind:value={largeKind}
+                        ><option value="file">Files</option><option value="directory"
+                          >Folders</option
+                        ></select
+                      ></label
+                    ><label>Minimum MiB<input type="number" min="0" bind:value={minSize} /></label
+                    ><label>Modified before<input type="date" bind:value={before} /></label
+                    >{/if}<label
+                    >Sort<select bind:value={sort}
+                      ><option value="size">Largest first</option><option value="name">Name</option
+                      ><option value="modified">Newest first</option></select
+                    ></label
+                  ><button
                     onclick={() => {
-                      void open(details?.entry.id ?? 0);
-                    }}
-                    disabled={analysisBusy}><Icon name="folder" />Explore folder</button
-                  >{/if}
-              </div>
-            </section>{/if}
+                      text = '';
+                      extension = '';
+                      withoutExtension = false;
+                      before = '';
+                      minSize = 100;
+                      largeKind = 'file';
+                    }}>Reset filters</button
+                  >
+                </div>
+                <FileTable
+                  {query}
+                  {revision}
+                  selected={details?.entry.id ?? null}
+                  checked={selection}
+                  manageable={!busy && historical === null}
+                  oncheck={checkFile}
+                  onselect={(entry) => {
+                    void select(entry.id);
+                  }}
+                  onopen={(entry) => {
+                    void open(entry.id);
+                  }}
+                  onerror={report}
+                />
+                {#if selection.size > 0}<div class="selection-bar">
+                    <span>{selection.size} selected</span><button
+                      disabled={busy || historical !== null}
+                      onclick={previewSelection}>Review selection</button
+                    ><button
+                      disabled={busy}
+                      onclick={() => {
+                        selection = new Set();
+                      }}>Clear</button
+                    >
+                  </div>{/if}
+              </section>{/if}
+            {#if details}<section class="details-panel">
+                <div>
+                  <Icon name={details.entry.kind === 'directory' ? 'folder' : 'file'} />
+                  <h2>{details.entry.name}</h2>
+                  <button
+                    class="dismiss"
+                    aria-label="Close details"
+                    title="Close details"
+                    onclick={() => {
+                      invalidateInteraction();
+                      details = null;
+                    }}><Icon name="close" /></button
+                  >
+                </div>
+                <p class="path">{details.path}</p>
+                <dl>
+                  <div>
+                    <dt>Logical size</dt>
+                    <dd>{bytes(details.entry.logical)}</dd>
+                  </div>
+                  <div>
+                    <dt>Unique allocated size</dt>
+                    <dd>
+                      {details.entry.allocation_known
+                        ? bytes(details.entry.allocated)
+                        : `${bytes(details.entry.allocated)} · incomplete`}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt>Modified</dt>
+                    <dd>{date(details.entry.modified)}</dd>
+                  </div>
+                  <div>
+                    <dt>Type</dt>
+                    <dd>
+                      {details.entry.kind === 'directory'
+                        ? 'Folder'
+                        : details.entry.kind === 'link'
+                          ? 'Reparse point'
+                          : details.entry.hard_link
+                            ? 'File · hard link'
+                            : 'File'}
+                    </dd>
+                  </div>
+                  {#if details.entry.kind === 'directory'}<div>
+                      <dt>Files</dt>
+                      <dd>{details.entry.files.toLocaleString()}</dd>
+                    </div>{/if}
+                </dl>
+                <div class="detail-actions">
+                  <button onclick={reveal}><Icon name="external" />Show in Explorer</button><button
+                    onclick={copy}
+                    disabled={!details.path_exact}
+                    title={details.path_exact
+                      ? 'Copy path'
+                      : 'Path contains non-Unicode characters'}
+                    ><Icon name="copy" />Copy path</button
+                  >{#if details.entry.kind === 'directory'}<button
+                      onclick={() => {
+                        void open(details?.entry.id ?? 0);
+                      }}
+                      disabled={analysisBusy}><Icon name="folder" />Explore folder</button
+                    >{/if}
+                </div>
+              </section>{/if}
+          </div>
         {/if}
       {/if}
     </main>
