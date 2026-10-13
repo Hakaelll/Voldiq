@@ -1476,8 +1476,22 @@ main {
 .history-trend svg {
   display: block;
   width: 100%;
-  height: 110px;
-  padding: 0 16px 10px;
+  height: 244px;
+}
+.history-plot {
+  min-width: 0;
+  width: 100%;
+}
+.trend-axis,
+.trend-value {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.trend-axis {
+  fill: var(--secondary);
+}
+.trend-value {
+  fill: var(--text);
 }
 .change-row,
 .history-change-columns {

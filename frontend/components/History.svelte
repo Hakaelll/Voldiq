@@ -2,6 +2,7 @@
   import { onMount, onDestroy, tick } from 'svelte';
   import { invoke, isTauri } from '@tauri-apps/api/core';
   import Icon from './Icon.svelte';
+  import { historyTrend } from '../lib/history-trend';
   import { bytes, date, difference, type Snapshot, type SnapshotComparison } from '../lib/types';
   let {
     enabled,
@@ -40,17 +41,8 @@
   let previous = $derived(snapshots.find((s) => s.id === before));
   let compatible = $derived(snapshots.filter((s) => s.root_key === previous?.root_key));
   let trend = $derived([...compatible].reverse());
-  let points = $derived.by(() => {
-    if (trend.length < 2) return '';
-    const low = Math.min(...trend.map((s) => s.logical));
-    const high = Math.max(...trend.map((s) => s.logical));
-    return trend
-      .map(
-        (s, i) =>
-          `${12 + (i * 576) / (trend.length - 1)},${88 - ((s.logical - low) * 68) / Math.max(1, high - low)}`,
-      )
-      .join(' ');
-  });
+  let chartWidth = $state(600);
+  let chart = $derived(historyTrend(trend, chartWidth));
   async function refresh(next = offset): Promise<void> {
     const token = ++request;
     const retainFocus = region?.contains(document.activeElement) ?? false;
@@ -255,27 +247,75 @@
               >
             </div>{/if}
         </section>
-        {#if trend.length > 1}<section
-            class="panel history-trend"
-            aria-label="Recorded logical size"
-          >
+        {#if chart}<section class="panel history-trend" aria-label="Recorded logical size">
             <div class="panel-heading">
               <h2>Logical size</h2>
               <span>{bytes(trend[0]?.logical ?? 0)} → {bytes(trend.at(-1)?.logical ?? 0)}</span>
             </div>
-            <svg
-              viewBox="0 0 600 104"
-              role="img"
-              aria-label={`Logical size across ${trend.length} saved snapshots`}
-            >
-              <polyline
-                {points}
-                fill="none"
-                stroke="var(--accent)"
-                stroke-width="2"
-                vector-effect="non-scaling-stroke"
-              />
-            </svg>
+            <div class="history-plot" bind:clientWidth={chartWidth}>
+              <svg
+                viewBox={`0 0 ${chartWidth} 244`}
+                role="img"
+                aria-label={`Logical size across ${trend.length} saved snapshots`}
+              >
+                {#each chart.ticks as tick}
+                  <line
+                    x1="60"
+                    x2={chartWidth - 16}
+                    y1={tick.y}
+                    y2={tick.y}
+                    stroke="var(--border)"
+                  />
+                  <text x="52" y={tick.y + 4} text-anchor="end" class="trend-axis"
+                    >{bytes(tick.value)}</text
+                  >
+                {/each}
+                <polyline
+                  points={chart.points.map((point) => `${point.x},${point.y}`).join(' ')}
+                  fill="none"
+                  stroke="var(--accent)"
+                  stroke-width="2"
+                  vector-effect="non-scaling-stroke"
+                />
+                {#each chart.points as point, i}
+                  <circle cx={point.x} cy={point.y} r="3" fill="var(--accent)"
+                    ><title>{date(point.captured)} · {bytes(point.logical)}</title></circle
+                  >
+                  {#if point.labelled}
+                    <text
+                      x={point.x}
+                      y={point.y - 10}
+                      text-anchor={i === 0
+                        ? 'start'
+                        : i === chart.points.length - 1
+                          ? 'end'
+                          : 'middle'}
+                      class="trend-value">{bytes(point.logical)}</text
+                    >
+                    <text
+                      x={point.x}
+                      y="207"
+                      text-anchor={i === 0
+                        ? 'start'
+                        : i === chart.points.length - 1
+                          ? 'end'
+                          : 'middle'}
+                      class="trend-axis"
+                    >
+                      <tspan x={point.x}
+                        >{new Date(point.captured * 1000).toLocaleDateString('en', {
+                          day: '2-digit',
+                          month: 'short',
+                        })}</tspan
+                      >
+                      <tspan x={point.x} dy="17"
+                        >{new Date(point.captured * 1000).getFullYear()}</tspan
+                      >
+                    </text>
+                  {/if}
+                {/each}
+              </svg>
+            </div>
           </section>{/if}
       </div>
       <div class="history-comparison">
