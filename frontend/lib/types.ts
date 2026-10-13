@@ -144,6 +144,7 @@ export interface DuplicateProgress {
 }
 export interface DuplicateGroup {
   key: number;
+  name: string;
   logical: number;
   recoverable: number;
   copies: number;
@@ -165,6 +166,7 @@ export interface DuplicateItem {
   logical: number;
   allocated: number;
   links: number;
+  modified: number | null;
 }
 
 export interface Snapshot {

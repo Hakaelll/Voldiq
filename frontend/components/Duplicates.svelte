@@ -4,6 +4,7 @@
   import Icon from './Icon.svelte';
   import {
     bytes,
+    date,
     type DuplicatePage,
     type DuplicateItem,
     type DuplicateProgress,
@@ -38,8 +39,13 @@
     jobId = $state<number | null>(null);
   let minimum = $state(0),
     loading = $state(false);
+  let loadFailed = $state(false),
+    groupRetryOffset = $state(0);
   let request = 0,
     memberRequest = 0;
+  let memberLoading = $state(false),
+    memberFailed = $state(false);
+  let activeGroup = $derived(page?.groups.find((group) => group.key === openGroup));
   let working = $derived(operation?.phase === 'sampling' || operation?.phase === 'hashing');
   let checked = $state(new Map<number, number>());
   let reviewing = $state(false),
@@ -97,6 +103,8 @@
   async function load(next = offset): Promise<void> {
     const token = ++request;
     loading = true;
+    loadFailed = false;
+    groupRetryOffset = next;
     try {
       const result = await invoke<DuplicatePage | null>('query_duplicate_groups', {
         offset: next,
@@ -108,8 +116,12 @@
       openGroup = null;
       members = [];
       memberRequest += 1;
+      if (result?.groups[0]) void expand(result.groups[0].key);
     } catch (problem) {
-      if (token === request) onerror(problem);
+      if (token === request) {
+        loadFailed = true;
+        onerror(problem);
+      }
     } finally {
       if (token === request) loading = false;
     }
@@ -119,6 +131,8 @@
     openGroup = group;
     members = [];
     memberOffset = next;
+    memberLoading = true;
+    memberFailed = false;
     try {
       const result = await invoke<DuplicateItem[]>('query_duplicate_members', {
         group,
@@ -127,7 +141,12 @@
       });
       if (token === memberRequest) members = result;
     } catch (problem) {
-      if (token === memberRequest) onerror(problem);
+      if (token === memberRequest) {
+        memberFailed = true;
+        onerror(problem);
+      }
+    } finally {
+      if (token === memberRequest) memberLoading = false;
     }
   }
   async function start(): Promise<void> {
@@ -135,6 +154,10 @@
     request += 1;
     memberRequest += 1;
     page = null;
+    loadFailed = false;
+    loading = false;
+    memberLoading = false;
+    memberFailed = false;
     checked = new Map();
     members = [];
     openGroup = null;
@@ -221,104 +244,142 @@
         )} read</span
       >
     </div>{/if}
+  {#if loadFailed}<div class="table-empty">
+      <button onclick={() => load(groupRetryOffset)}>Retry loading groups</button>
+    </div>{/if}
   {#if page}
-    {#if checked.size}<div class="filter-bar">
-        <span>{checked.size} selected</span><button
-          class="primary"
-          onclick={review}
-          disabled={!enabled || reviewing}>Review selection</button
-        ><button
-          onclick={() => {
-            checked = new Map();
-          }}
-          disabled={reviewing}>Clear</button
-        >{#if reviewing}<span>Verifying content</span><button
-            onclick={cancelReview}
-            disabled={reviewId === null}>Cancel</button
-          >{/if}
-      </div>{/if}
     <div class="duplicate-summary">
       <div><span>Duplicate groups</span><strong>{page.total.toLocaleString()}</strong></div>
       <div><span>Potential allocation</span><strong>{bytes(page.recoverable)}</strong></div>
       {#if page.cancelled}<span>Partial results</span>{/if}
       {#if page.errors}<button onclick={issues}>{page.errors} issues</button>{/if}
     </div>
-    {#each page.groups as group (group.key)}
-      <section class="panel duplicate-group">
-        <button
-          class="duplicate-group-heading"
-          aria-expanded={openGroup === group.key}
-          onclick={() => {
-            if (openGroup === group.key) {
-              openGroup = null;
-              memberRequest += 1;
-            } else void expand(group.key);
-          }}
-        >
-          <Icon name={openGroup === group.key ? 'collapse' : 'expand'} />
-          <strong>{group.copies.toLocaleString()} copies</strong><span
-            >{bytes(group.logical)} each</span
+    <div class="duplicate-layout">
+      <section class="duplicate-groups" aria-label="Duplicate groups">
+        <h2>Groups</h2>
+        <div class="duplicate-group-columns">
+          <span>Name</span><span>Copies</span><span>Potential allocation</span>
+        </div>
+        {#each page.groups as group (group.key)}
+          <button
+            class="duplicate-group-heading"
+            class:selected={openGroup === group.key}
+            aria-pressed={openGroup === group.key}
+            disabled={loading || reviewing}
+            onclick={() => expand(group.key)}
           >
-          <span class="number">{bytes(group.recoverable)}</span>
-        </button>
-        {#if openGroup === group.key}
-          <div class="duplicate-members">
-            {#each members as item (item.id)}
-              <div class="duplicate-choice">
-                <input
-                  type="checkbox"
-                  aria-label={`Select ${item.path}`}
-                  checked={checked.has(item.id)}
-                  disabled={!enabled || reviewing}
-                  onchange={(event) => {
-                    check(item.id, group.key, group.copies, event.currentTarget.checked);
-                    event.currentTarget.checked = checked.has(item.id);
-                  }}
-                />
-                <button
-                  class="duplicate-member"
-                  onclick={() => onselect(item.id)}
-                  title={item.path}
-                >
-                  <Icon name="file" /><span
-                    ><strong>{item.name}</strong><small>{item.path}</small></span
-                  >
-                  {#if item.links > 1}<small>Hard link</small>{/if}<span class="number"
-                    >{bytes(item.allocated)}</span
-                  >
-                </button>
-              </div>
-            {/each}
+            <span class="duplicate-group-name"
+              ><Icon name="file" /><strong title={group.name}>{group.name}</strong></span
+            >
+            <span>{group.copies.toLocaleString()}</span>
+            <span class="number">{bytes(group.recoverable)}</span>
+          </button>
+        {/each}
+        {#if page.total === 0}<div class="table-empty">No duplicates found</div>{/if}
+        {#if page.total > groupLimit}<div class="duplicate-pagination">
+            <button
+              onclick={() => load(Math.max(0, offset - groupLimit))}
+              disabled={offset === 0 || loading}>Previous</button
+            >
+            <span>{offset + 1}–{Math.min(page.total, offset + groupLimit)} of {page.total}</span>
+            <button
+              onclick={() => load(offset + groupLimit)}
+              disabled={offset + groupLimit >= page.total || loading}>Next</button
+            >
+          </div>{/if}
+      </section>
+      <section class="duplicate-content" aria-label="Group files">
+        {#if activeGroup}
+          <div class="duplicate-content-heading">
+            <div>
+              <h2>{activeGroup.name}</h2>
+              <p>
+                {bytes(activeGroup.logical)} each · {activeGroup.copies.toLocaleString()} copies
+              </p>
+            </div>
+            <div class="duplicate-potential">
+              <strong>{bytes(activeGroup.recoverable)}</strong><small>Potential allocation</small>
+            </div>
           </div>
-          {#if group.copies > memberLimit}<div class="duplicate-pagination">
+          <div class="duplicate-member-columns">
+            <span>Path</span><span>Modified</span><span>Allocated</span>
+          </div>
+          {#if memberLoading}<div class="table-empty" role="status">Loading files</div>
+          {:else if memberFailed}<div class="table-empty">
+              <button onclick={() => expand(activeGroup.key, memberOffset)}>Retry</button>
+            </div>
+          {:else}
+            <div class="duplicate-members">
+              {#each members as item (item.id)}
+                <div class="duplicate-choice">
+                  <input
+                    type="checkbox"
+                    aria-label={`Select ${item.path}`}
+                    checked={checked.has(item.id)}
+                    disabled={!enabled || reviewing}
+                    onchange={(event) => {
+                      check(
+                        item.id,
+                        activeGroup.key,
+                        activeGroup.copies,
+                        event.currentTarget.checked,
+                      );
+                      event.currentTarget.checked = checked.has(item.id);
+                    }}
+                  />
+                  <button
+                    class="duplicate-member"
+                    onclick={() => onselect(item.id)}
+                    title={item.path}
+                  >
+                    <Icon name="file" /><span
+                      ><strong>{item.name}</strong><small>{item.path}</small></span
+                    >
+                    <span class="duplicate-modified"
+                      >{date(item.modified)}{#if item.links > 1}<small>Hard link</small>{/if}</span
+                    ><span class="number">{bytes(item.allocated)}</span>
+                  </button>
+                </div>
+              {/each}
+            </div>
+          {/if}
+          {#if activeGroup.copies > memberLimit}<div class="duplicate-pagination">
               <button
-                onclick={() => expand(group.key, Math.max(0, memberOffset - memberLimit))}
-                disabled={memberOffset === 0}>Previous</button
+                onclick={() => expand(activeGroup.key, Math.max(0, memberOffset - memberLimit))}
+                disabled={memberLoading || memberOffset === 0}>Previous</button
               >
               <span
-                >{memberOffset + 1}–{Math.min(group.copies, memberOffset + memberLimit)} of {group.copies}</span
+                >{memberOffset + 1}–{Math.min(activeGroup.copies, memberOffset + memberLimit)} of {activeGroup.copies}</span
               >
               <button
-                onclick={() => expand(group.key, memberOffset + memberLimit)}
-                disabled={memberOffset + memberLimit >= group.copies}>Next</button
+                onclick={() => expand(activeGroup.key, memberOffset + memberLimit)}
+                disabled={memberLoading || memberOffset + memberLimit >= activeGroup.copies}
+                >Next</button
               >
             </div>{/if}
         {/if}
       </section>
-    {/each}
-    {#if page.total === 0}<div class="table-empty">No duplicates found</div>{/if}
-    {#if page.total > groupLimit}<div class="duplicate-pagination">
-        <button
-          onclick={() => load(Math.max(0, offset - groupLimit))}
-          disabled={offset === 0 || loading}>Previous</button
-        >
-        <span>{offset + 1}–{Math.min(page.total, offset + groupLimit)} of {page.total}</span>
-        <button
-          onclick={() => load(offset + groupLimit)}
-          disabled={offset + groupLimit >= page.total || loading}>Next</button
-        >
-      </div>{/if}
-  {:else if !working && !loading}<div class="table-empty">No duplicate analysis</div>{/if}
+    </div>
+    <div class="selection-bar duplicate-selection">
+      <span>{checked.size ? `${checked.size} selected` : 'No files selected'}</span>
+      {#if reviewing}<span>Verifying content</span><button
+          onclick={cancelReview}
+          disabled={reviewId === null}>Cancel</button
+        >{/if}
+      {#if checked.size}<button
+          onclick={() => {
+            checked = new Map();
+          }}
+          disabled={reviewing}>Clear</button
+        >{/if}
+      <button
+        class="primary"
+        onclick={review}
+        disabled={!enabled || reviewing || checked.size === 0}>Review selection</button
+      >
+    </div>
+  {:else if loading}<div class="table-empty" role="status">Loading groups</div>
+  {:else if !working && !loadFailed}<div class="table-empty">No duplicate analysis</div>{/if}
 </section>
 
 <style>

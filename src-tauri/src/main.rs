@@ -14,6 +14,8 @@ mod analysis_status;
 mod cleanup_commands;
 mod developer_commands;
 mod docker_commands;
+#[cfg(test)]
+mod duplicate_view_tests;
 mod query_commands;
 #[cfg(test)]
 mod scan_options_tests;
@@ -316,6 +318,7 @@ fn start_duplicates(
 #[derive(Serialize)]
 struct DuplicateGroup {
     key: usize,
+    name: String,
     digest: String,
     logical: u64,
     recoverable: u64,
@@ -333,38 +336,58 @@ struct DuplicatePage {
     cache_hits: u64,
 }
 
+fn duplicate_group(
+    key: usize,
+    group: &duplicates::Group,
+    index: &voldiq_core::index::Index,
+) -> Result<DuplicateGroup, String> {
+    let member = group
+        .members
+        .first()
+        .ok_or("Duplicate group has no members.")?;
+    let entry = index.entry(member.id).map_err(|e| e.to_string())?;
+    Ok(DuplicateGroup {
+        key,
+        name: entry.name.clone(),
+        digest: group.digest.clone(),
+        logical: group.logical,
+        recoverable: group.recoverable,
+        copies: group.members.len(),
+    })
+}
+
 #[tauri::command]
-fn query_duplicate_groups(
+async fn query_duplicate_groups(
     offset: usize,
     limit: usize,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<Option<DuplicatePage>, String> {
     let result = engine.duplicates.lock().map_err(|e| e.to_string())?.clone();
-    Ok(result.map(|run| {
+    let Some(run) = result else {
+        return Ok(None);
+    };
+    tauri::async_runtime::spawn_blocking(move || {
         let result = &run.analysis;
-        DuplicatePage {
+        let index = run.index.read().map_err(|e| e.to_string())?;
+        Ok(Some(DuplicatePage {
             groups: result
                 .groups
                 .iter()
                 .enumerate()
                 .skip(offset)
                 .take(limit.clamp(1, 100))
-                .map(|(key, group)| DuplicateGroup {
-                    key,
-                    digest: group.digest.clone(),
-                    logical: group.logical,
-                    recoverable: group.recoverable,
-                    copies: group.members.len(),
-                })
-                .collect(),
+                .map(|(key, group)| duplicate_group(key, group, &index))
+                .collect::<Result<Vec<_>, String>>()?,
             total: result.groups.len(),
             recoverable: result.groups.iter().map(|g| g.recoverable).sum(),
             errors: result.errors,
             cancelled: result.cancelled,
             bytes_read: result.bytes_read,
             cache_hits: result.cache_hits,
-        }
-    }))
+        }))
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[derive(Serialize)]
@@ -375,6 +398,7 @@ struct DuplicateItem {
     logical: u64,
     allocated: u64,
     links: u32,
+    modified: Option<u64>,
 }
 
 #[tauri::command]
@@ -411,6 +435,7 @@ async fn query_duplicate_members(
                     logical: group.logical,
                     allocated: member.allocated,
                     links: member.links,
+                    modified: details.entry.modified,
                 })
             })
             .collect()
