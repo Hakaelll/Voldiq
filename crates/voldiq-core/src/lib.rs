@@ -93,13 +93,32 @@ pub struct ScanOptions {
     pub concurrency: ScanConcurrency,
 }
 
-#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq)]
-#[serde(try_from = "u8")]
-pub struct ScanConcurrency(u8);
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ScanConcurrency(Option<u8>);
+
+impl<'de> Deserialize<'de> for ScanConcurrency {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<Self, D::Error> {
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum Input {
+            Workers(u8),
+            Automatic(String),
+        }
+        match Input::deserialize(deserializer)? {
+            Input::Workers(workers) => Self::try_from(workers).map_err(serde::de::Error::custom),
+            Input::Automatic(value) if value == "auto" => Ok(Self::automatic()),
+            Input::Automatic(_) => Err(serde::de::Error::custom(
+                "Scan concurrency must be auto or an integer from 1 to 8.",
+            )),
+        }
+    }
+}
 
 impl Default for ScanConcurrency {
     fn default() -> Self {
-        Self(1)
+        Self(Some(1))
     }
 }
 
@@ -108,7 +127,7 @@ impl TryFrom<u8> for ScanConcurrency {
 
     fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
         if (1..=8).contains(&value) {
-            Ok(Self(value))
+            Ok(Self(Some(value)))
         } else {
             Err("Scan concurrency must be between 1 and 8.")
         }
@@ -117,7 +136,27 @@ impl TryFrom<u8> for ScanConcurrency {
 
 impl ScanConcurrency {
     pub fn get(self) -> usize {
-        usize::from(self.0)
+        self.0.map_or(1, usize::from)
+    }
+
+    pub const fn automatic() -> Self {
+        Self(None)
+    }
+
+    pub fn for_path(self, path: &std::path::Path) -> usize {
+        if self.0.is_some() {
+            return self.get();
+        }
+        let processors = std::thread::available_parallelism().map_or(1, usize::from);
+        Self::automatic_workers(windows::storage_seek_penalty(path), processors)
+    }
+
+    fn automatic_workers(seek_penalty: Option<bool>, processors: usize) -> usize {
+        if seek_penalty == Some(false) {
+            processors.clamp(1, 2)
+        } else {
+            1
+        }
     }
 }
 
@@ -127,4 +166,23 @@ pub enum ScanMode {
     #[default]
     Auto,
     Directory,
+}
+
+#[cfg(test)]
+mod concurrency_policy_tests {
+    use super::ScanConcurrency;
+    #[test]
+    fn automatic_workers_preserve_seeking_unknown_and_single_processor_limits() {
+        for processors in [0, 1, 2, 8, 64] {
+            assert_eq!(ScanConcurrency::automatic_workers(None, processors), 1);
+            assert_eq!(
+                ScanConcurrency::automatic_workers(Some(true), processors),
+                1
+            );
+            assert_eq!(
+                ScanConcurrency::automatic_workers(Some(false), processors),
+                processors.clamp(1, 2)
+            );
+        }
+    }
 }

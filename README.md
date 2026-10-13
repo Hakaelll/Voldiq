@@ -53,7 +53,7 @@ Drive-root scans attempt read-only NTFS enumeration when current permissions all
 
 Settings offers **Automatic** and **Directory enumeration** scan modes. Automatic keeps NTFS enumeration and verified journal refresh/resume where available. Directory enumeration always creates a fresh conventional index, bypassing NTFS and saved journal checkpoints. Both modes retain exclusions, cancellation, entry limits and measured progress; the choice applies to the next scan and is saved locally.
 
-The saved **Concurrency limit** controls 1–8 simultaneous metadata workers in directory enumeration. Its default of 1 limits background interference. Higher limits use bounded queues and preserve result ordering, allocation deduplication and cancellation; NTFS and journal paths retain their existing execution model. See [concurrency measurements and their limits](docs/PERFORMANCE.md#bounded-scan-concurrency).
+The saved **Concurrency limit** offers Automatic or 1–8 metadata workers in directory enumeration. New UI preferences use Automatic: one worker for devices reporting seek penalties or unavailable information, and at most two for a local fixed device reporting no seek penalty, bounded by available processors. Existing manual preferences remain unchanged; omitted native options still use one worker. Bounded queues preserve ordering, allocation deduplication and cancellation. NTFS and journal paths retain their existing execution model. See [concurrency measurements and their limits](docs/PERFORMANCE.md#bounded-scan-concurrency).
 
 Both paths tolerate inaccessible files, report errors and support cancellation. They record reparse points without following them, which prevents junction loops and avoids reading cloud-only contents.
 

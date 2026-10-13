@@ -16,6 +16,11 @@ fn scan_mode_defaults_to_auto_and_rejects_unknown_ipc_values() {
 
 #[test]
 fn concurrency_is_bounded_and_omitted_requests_use_one_worker() {
+    let automatic: ScanOptions = serde_json::from_str(r#"{"concurrency":"auto"}"#).unwrap();
+    assert_eq!(
+        automatic.concurrency,
+        voldiq_core::ScanConcurrency::automatic()
+    );
     for workers in 1..=8 {
         let options: ScanOptions =
             serde_json::from_value(serde_json::json!({"concurrency": workers})).unwrap();
@@ -29,6 +34,10 @@ fn concurrency_is_bounded_and_omitted_requests_use_one_worker() {
         serde_json::json!(1.5),
         serde_json::json!(null),
         serde_json::json!("2"),
+        serde_json::json!("automatic"),
+        serde_json::json!(true),
+        serde_json::json!({"auto":null}),
+        serde_json::json!(["auto"]),
     ] {
         assert!(
             serde_json::from_value::<ScanOptions>(serde_json::json!({"concurrency": value}))

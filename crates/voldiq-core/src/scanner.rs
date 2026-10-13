@@ -170,11 +170,16 @@ pub fn scan_live(
     {
         return Ok(shared);
     }
+    let workers = if cancel.load(Ordering::Relaxed) {
+        1
+    } else {
+        options.concurrency.for_path(&root)
+    };
     directory::enumerate(
         &shared,
         &exclusions,
         limit,
-        options.concurrency.get(),
+        workers,
         cancel,
         &mut progress,
         start,

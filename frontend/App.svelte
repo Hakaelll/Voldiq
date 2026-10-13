@@ -56,7 +56,7 @@
     scanPath = $state('');
   let defaultDrive = $state('');
   let scanMode = $state<'auto' | 'directory'>('auto');
-  let scanConcurrency = $state(1);
+  let scanConcurrency = $state<number | 'auto'>('auto');
   let recentPaths = $state<string[]>([]);
   let operation = $state<Progress | null>(null),
     scanId = $state<number | null>(null);
@@ -387,10 +387,11 @@
           scanMode = value.scanMode;
         if (
           'scanConcurrency' in value &&
-          typeof value.scanConcurrency === 'number' &&
-          Number.isInteger(value.scanConcurrency) &&
-          value.scanConcurrency >= 1 &&
-          value.scanConcurrency <= 8
+          (value.scanConcurrency === 'auto' ||
+            (typeof value.scanConcurrency === 'number' &&
+              Number.isInteger(value.scanConcurrency) &&
+              value.scanConcurrency >= 1 &&
+              value.scanConcurrency <= 8))
         )
           scanConcurrency = value.scanConcurrency;
       }
@@ -665,6 +666,7 @@
               onchange={savePreferences}
               disabled={busy}
             >
+              <option value="auto">Automatic</option>
               {#each [1, 2, 3, 4, 5, 6, 7, 8] as workers}<option value={workers}>{workers}</option
                 >{/each}
             </select></label

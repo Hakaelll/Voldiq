@@ -30,8 +30,15 @@ fn bounded_parallel_metadata_keeps_paths_sizes_identities_exclusions_and_hard_li
     .unwrap();
     let excluded = std::fs::canonicalize(fixture.path().join("目录-11")).unwrap();
     let mut expected = None;
-    for workers in [1, 2, 4, 8] {
-        let mut options = options(workers);
+    for concurrency in [
+        ScanConcurrency::try_from(1).unwrap(),
+        ScanConcurrency::try_from(2).unwrap(),
+        ScanConcurrency::try_from(4).unwrap(),
+        ScanConcurrency::try_from(8).unwrap(),
+        ScanConcurrency::automatic(),
+    ] {
+        let mut options = options(1);
+        options.concurrency = concurrency;
         options.exclusions = vec![excluded.to_str().unwrap().into()];
         let index =
             scanner::scan(fixture.path(), &options, &AtomicBool::new(false), |_| {}).unwrap();
@@ -72,8 +79,27 @@ fn parallel_cancellation_keeps_live_queries_consistent_and_limits_remain_exact()
     for file in 0..300 {
         std::fs::write(fixture.path().join(format!("{file}.bin")), [0_u8; 9]).unwrap();
     }
-    for workers in [2, 8] {
-        let mut options = options(workers);
+    let mut pre_cancelled_options = options(1);
+    pre_cancelled_options.concurrency = ScanConcurrency::automatic();
+    let mut phase = ScanPhase::Scanning;
+    let cancelled = scanner::scan(
+        fixture.path(),
+        &pre_cancelled_options,
+        &AtomicBool::new(true),
+        |update| phase = update.phase,
+    )
+    .unwrap();
+    assert_eq!(cancelled.entries.len(), 1);
+    assert_eq!(cancelled.entries[0].files, 0);
+    assert!(cancelled.entries[0].incomplete);
+    assert_eq!(phase, ScanPhase::Cancelled);
+    for concurrency in [
+        ScanConcurrency::try_from(2).unwrap(),
+        ScanConcurrency::try_from(8).unwrap(),
+        ScanConcurrency::automatic(),
+    ] {
+        let mut options = options(1);
+        options.concurrency = concurrency;
         options.max_entries = Some(19);
         let limited =
             scanner::scan(fixture.path(), &options, &AtomicBool::new(false), |_| {}).unwrap();
