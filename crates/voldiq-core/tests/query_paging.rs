@@ -33,9 +33,11 @@ fn type_queries_cancel_aggregation_and_owned_ranking_without_partial_groups() {
         .file_types_cancellable(scoped, || false)
         .unwrap()
         .unwrap();
-    assert_eq!(completed.len(), 30);
+    assert_eq!(completed.items.len(), 30);
+    assert_eq!((completed.total_bytes, completed.total_files), (80, 80));
     assert_eq!(
         completed
+            .items
             .iter()
             .map(|item| item.extension.as_deref().unwrap())
             .collect::<Vec<_>>(),
@@ -43,23 +45,27 @@ fn type_queries_cancel_aggregation_and_owned_ranking_without_partial_groups() {
     );
     assert!(
         completed
+            .items
             .iter()
             .all(|item| item.bytes == 1 && item.count == 1)
     );
     let standard = index.file_types(scoped).unwrap();
     assert_eq!(
         standard
+            .items
             .iter()
             .map(|item| &item.extension)
             .collect::<Vec<_>>(),
         completed
+            .items
             .iter()
             .map(|item| &item.extension)
             .collect::<Vec<_>>()
     );
     let root = index.file_types(NodeId(0)).unwrap();
-    assert_eq!(root[0].extension, None);
-    assert_eq!(root[0].bytes, 2);
+    assert_eq!((root.total_bytes, root.total_files), (82, 81));
+    assert_eq!(root.items[0].extension, None);
+    assert_eq!(root.items[0].bytes, 2);
     for checkpoint in [1, 2, 3, 4, 6] {
         let mut checks = 0;
         let cancelled = index
@@ -81,7 +87,7 @@ fn type_queries_cancel_aggregation_and_owned_ranking_without_partial_groups() {
             .unwrap()
             .is_none()
     );
-    assert_eq!(index.file_types(scoped).unwrap().len(), 30);
+    assert_eq!(index.file_types(scoped).unwrap().items.len(), 30);
 }
 
 #[test]
@@ -107,7 +113,7 @@ fn extensionless_type_selection_matches_only_measured_files_and_preserves_other_
         |_| {},
     )
     .unwrap();
-    let types = index.file_types(NodeId(0)).unwrap();
+    let types = index.file_types(NodeId(0)).unwrap().items;
     let missing = types.iter().find(|item| item.extension.is_none()).unwrap();
     assert_eq!((missing.count, missing.bytes), (4, 65));
     assert_eq!(types.len(), 4);

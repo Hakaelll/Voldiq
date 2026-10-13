@@ -35,7 +35,7 @@ fn scans_real_files_aggregates_and_paginates() {
         })
         .unwrap();
     assert_eq!(page.items[0].logical, 17);
-    assert_eq!(index.file_types(NodeId(0)).unwrap().len(), 2);
+    assert_eq!(index.file_types(NodeId(0)).unwrap().items.len(), 2);
     assert!(index.path(page.items[0].id).unwrap().exists());
     assert!(index.details(page.items[0].id).unwrap().ancestors.len() == 2);
 }

@@ -65,6 +65,8 @@ The file list supports arrow keys, Home, End, Page Up and Page Down from a focus
 
 Selecting a file type searches the current folder's indexed subtree, matching the overview totals. **No extension** matches regular files such as `README` and `.gitignore`; folders remain excluded. The same filter is available in Explorer and Large files and clears with Reset filters or Ctrl+K.
 
+The file-type bar shows the eight largest groups and **Other**, using measured logical bytes from all regular files in the current scope. Other includes groups outside the displayed list and reports their combined file count.
+
 Logical size includes each visible hard-link name. Unique allocated size counts a file identity once across the scan. Allocation within an individual folder therefore reflects the link encountered first. Windows volume usage includes metadata and inaccessible or unindexed content; it should not equal the logical total.
 
 Progress reports actual file counts and bytes. Partial results can be explored while scanning; cancellation retains the measured index. No estimated percentage appears when the total is unknown. The initial index has a five-million-entry limit. Reaching the limit yields explicitly incomplete results.

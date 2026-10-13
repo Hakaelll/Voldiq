@@ -92,10 +92,15 @@ export interface FileType {
   bytes: number;
   count: number;
 }
+export interface FileTypes {
+  items: FileType[];
+  total_bytes: number;
+  total_files: number;
+}
 export interface Overview {
   directory: Details;
   children: Page;
-  types: FileType[];
+  types: FileTypes;
 }
 export interface Issue {
   path: string;

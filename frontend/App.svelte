@@ -16,12 +16,13 @@
   import { overviewQueries } from './lib/queries';
   import { color } from './lib/treemap';
   import { scopedFileQuery } from './lib/file-query';
+  import { visibleFileTypes } from './lib/file-types';
   import {
     bytes,
     date,
     type Entry,
     type Details,
-    type FileType,
+    type FileTypes,
     type Issue,
     type Page,
     type Progress,
@@ -65,7 +66,8 @@
   let directory = $state<Details | null>(null),
     details = $state<Details | null>(null);
   let children = $state<Page>({ items: [], total: 0 }),
-    types = $state<FileType[]>([]);
+    types = $state<FileTypes>({ items: [], total_bytes: 0, total_files: 0 });
+  const typeDistribution = $derived(visibleFileTypes(types));
   let text = $state(''),
     extension = $state(''),
     withoutExtension = $state(false),
@@ -218,7 +220,7 @@
     directory = null;
     details = null;
     children = { items: [], total: 0 };
-    types = [];
+    types = { items: [], total_bytes: 0, total_files: 0 };
     error = '';
     scanPath = path;
     scope = 0;
@@ -305,7 +307,7 @@
       scope = 0;
       directory = details = null;
       children = { items: [], total: 0 };
-      types = [];
+      types = { items: [], total_bytes: 0, total_files: 0 };
       selection = new Set();
       cleanupPreview = null;
       cleanupNeedsRefresh = false;
@@ -825,14 +827,19 @@
                 </div>
               </div>
               <div class="type-bar">
-                {#each types.slice(0, 8) as item}<span
+                {#each typeDistribution.items as item}<span
                     style:flex-grow={item.bytes}
                     style:background={color(item.extension ?? '<no-extension>')}
                     title={`${item.extension === null ? 'No extension' : `.${item.extension}`}: ${bytes(item.bytes)}`}
                   ></span>{/each}
+                {#if typeDistribution.otherBytes > 0}<span
+                    style:flex-grow={typeDistribution.otherBytes}
+                    style:background="var(--muted)"
+                    title={`Other: ${bytes(typeDistribution.otherBytes)}`}
+                  ></span>{/if}
               </div>
               <div class="type-legend">
-                {#each types.slice(0, 8) as item}<button
+                {#each typeDistribution.items as item}<button
                     onclick={() => {
                       withoutExtension = item.extension === null;
                       extension = item.extension ?? '';
@@ -844,6 +851,10 @@
                       >{item.count.toLocaleString()} files</small
                     ></button
                   >{/each}
+                {#if typeDistribution.otherFiles > 0}<div class="type-other">
+                    <strong>Other</strong><span>{bytes(typeDistribution.otherBytes)}</span>
+                    <small>{typeDistribution.otherFiles.toLocaleString()} files</small>
+                  </div>{/if}
               </div>
             </section>
           {:else if view === 'cleanup'}
@@ -1051,7 +1062,7 @@
         details = null;
         directory = null;
         children = { items: [], total: 0 };
-        types = [];
+        types = { items: [], total_bytes: 0, total_files: 0 };
       }}
       onerror={report}
     />{/key}{/if}

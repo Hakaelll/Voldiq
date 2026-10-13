@@ -631,7 +631,8 @@ main {
   gap: 16px;
   flex-wrap: wrap;
 }
-.type-legend button {
+.type-legend button,
+.type-legend .type-other {
   display: grid;
   text-align: left;
   gap: 5px;

@@ -72,6 +72,13 @@ pub struct FileType {
     pub count: u64,
 }
 
+#[derive(Serialize)]
+pub struct FileTypes {
+    pub items: Vec<FileType>,
+    pub total_bytes: u64,
+    pub total_files: u64,
+}
+
 impl Index {
     pub fn entry(&self, id: NodeId) -> Result<&Entry> {
         self.entries.get(id.0 as usize).ok_or_else(|| {
@@ -240,7 +247,7 @@ impl Index {
         }))
     }
 
-    pub fn file_types(&self, scope: NodeId) -> Result<Vec<FileType>> {
+    pub fn file_types(&self, scope: NodeId) -> Result<FileTypes> {
         self.file_types_inner(scope, || false, false)?
             .ok_or_else(|| Error::Invalid("Query cancelled.".into()))
     }
@@ -249,7 +256,7 @@ impl Index {
         &self,
         scope: NodeId,
         cancelled: impl FnMut() -> bool,
-    ) -> Result<Option<Vec<FileType>>> {
+    ) -> Result<Option<FileTypes>> {
         self.file_types_inner(scope, cancelled, true)
     }
 
@@ -282,12 +289,14 @@ impl Index {
         scope: NodeId,
         mut cancelled: impl FnMut() -> bool,
         cancellable_ranking: bool,
-    ) -> Result<Option<Vec<FileType>>> {
+    ) -> Result<Option<FileTypes>> {
         if cancelled() {
             return Ok(None);
         }
         self.entry(scope)?;
         let mut types = std::collections::HashMap::<Option<String>, (u64, u64)>::new();
+        let mut total_bytes = 0;
+        let mut total_files = 0;
         for (position, entry) in self.entries.iter().enumerate() {
             if position % 256 == 0 && cancelled() {
                 return Ok(None);
@@ -306,6 +315,8 @@ impl Index {
             let total = types.entry(ext).or_default();
             total.0 += entry.logical;
             total.1 += 1;
+            total_bytes += entry.logical;
+            total_files += 1;
         }
         if cancelled() {
             return Ok(None);
@@ -338,7 +349,11 @@ impl Index {
         if cancelled() {
             return Ok(None);
         }
-        Ok(Some(result))
+        Ok(Some(FileTypes {
+            items: result,
+            total_bytes,
+            total_files,
+        }))
     }
 
     pub fn accumulate(&mut self, child: &Entry) {

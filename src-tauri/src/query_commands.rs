@@ -7,7 +7,7 @@ use std::sync::{
 use tauri::State;
 use voldiq_core::{
     NodeId,
-    index::{Details, FileType, Index, Page, Query},
+    index::{Details, FileTypes, Index, Page, Query},
 };
 
 #[derive(Clone, Copy, Deserialize)]
@@ -138,7 +138,7 @@ impl Drop for Request {
 pub(crate) struct Overview {
     directory: Details,
     children: Page,
-    types: Vec<FileType>,
+    types: FileTypes,
 }
 
 fn overview(index: &Index, id: NodeId, cancelled: &AtomicBool) -> Result<Option<Overview>, String> {
@@ -276,12 +276,24 @@ mod tests {
         assert_eq!(result.children.total, 2);
         assert_eq!(result.children.items[0].name, "folder");
         assert_eq!(result.children.items[0].logical, 7);
-        assert_eq!(result.types.len(), 2);
-        assert_eq!(result.types.iter().map(|item| item.bytes).sum::<u64>(), 10);
+        assert_eq!(result.types.items.len(), 2);
+        assert_eq!(
+            result
+                .types
+                .items
+                .iter()
+                .map(|item| item.bytes)
+                .sum::<u64>(),
+            10
+        );
+        assert_eq!(result.types.total_bytes, 10);
+        assert_eq!(result.types.total_files, 2);
         let payload = serde_json::to_value(result).unwrap();
         assert_eq!(payload["directory"]["entry"]["id"], 0);
         assert_eq!(payload["children"]["items"][0]["name"], "folder");
-        assert_eq!(payload["types"][0]["extension"], "txt");
+        assert_eq!(payload["types"]["items"][0]["extension"], "txt");
+        assert_eq!(payload["types"]["total_bytes"], 10);
+        assert_eq!(payload["types"]["total_files"], 2);
         cancelled.store(true, Ordering::Relaxed);
         assert!(
             overview(&index, NodeId(u32::MAX), &cancelled)

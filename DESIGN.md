@@ -305,3 +305,5 @@ Preview, incomplete coverage and engine errors appear as compact bordered messag
 - Don't add another full sidebar when navigation labels can expand in the existing rail.
 
 Not canonized or repaired in this documentation pass: the map's hard-coded light text/outline colors, independently generated file-type colors, virtual-list geometry and dialog accessibility behavior remain implementation details to assess in populated native views. The shared primary hover color is recorded as shipped, not as proof of complete dark-theme interaction review. No craft-floor defect was reported by the supplied mechanical scan; this record does not extend that result beyond its checked scope.
+
+The file-type summary displays eight ranked groups and a neutral Other segment. Segment weights use measured logical bytes; Other includes every remaining regular-file group, including groups omitted from the bounded native response. Its legend shows combined bytes and file count without offering an extension-filter action. Empty files contribute to counts but add no byte weight. This behavior is source- and fixture-verified; native presentation remains for manual acceptance.
