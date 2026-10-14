@@ -35,7 +35,7 @@ Default recycling requires a proven namespace handoff, durable per-item results 
 
 Developer analysis recognizes measured projects and supported current-user tool configurations. Additional configuration discovery and persisted cache-location evidence remain open. Browser/application caches and developer management need explicit supported rules and verification before becoming cleanup actions. Docker volumes remain persistent data and are not direct-delete candidates.
 
-The performance document separates warm scanner fixtures, query fixtures and process observations. Warm startup below two seconds, ordinary 60 FPS interaction, loaded memory budgets, cancellation latency and privileged NTFS versus directory scanning remain acceptance targets. The new descendant query adds a bounded-candidate linear pass; its cost has not been measured.
+The performance document separates warm scanner fixtures, query fixtures and process observations. Warm startup below two seconds, ordinary 60 FPS interaction, loaded memory budgets, cancellation latency and privileged NTFS versus directory scanning remain acceptance targets. The descendant query adds a bounded-candidate linear pass. A million-entry debug diagnostic now records its wall/thread CPU cost in the performance document; release, concurrent and whole-app measurements remain pending.
 
 The user owns visual acceptance and has requested no Computer Use or automated screen inspection. CLI compilation, real fixtures and process/window metadata are allowed and remain separate evidence. No source-level review is described as a completed visual check.
 

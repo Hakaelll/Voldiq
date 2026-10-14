@@ -200,23 +200,6 @@ svg {
   border-radius: 50%;
   padding: 3px;
 }
-.nav-toggle {
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  justify-content: flex-start;
-  font-size: 11px;
-  padding: 8px;
-  margin-bottom: 18px;
-}
-.expanded .nav-toggle {
-  position: absolute;
-  top: 28px;
-  right: 6px;
-  min-height: 24px;
-  padding: 3px;
-  margin: 0;
-}
 .navigation nav {
   display: grid;
   gap: 5px;
@@ -1645,7 +1628,7 @@ main {
     font-size: 24px;
   }
   .app-shell.expanded {
-    grid-template-columns: 175px minmax(0, 1fr);
+    grid-template-columns: 216px minmax(0, 1fr);
   }
   .toolbar {
     padding: 0 18px;
@@ -1691,17 +1674,13 @@ main {
     width: 32px;
     height: 32px;
   }
-  .expanded .nav-toggle {
-    position: static;
-    margin-bottom: 18px;
-  }
   .app-shell.expanded {
     grid-template-columns: 64px minmax(0, 1fr);
   }
-  .navigation .brand strong,
-  .navigation button span,
-  .drive-summary {
-    display: none;
+  .expanded .navigation {
+    width: 216px;
+    z-index: 2;
+    box-shadow: 8px 0 20px #00000014;
   }
   .toolbar {
     height: auto;

@@ -50,7 +50,9 @@
     { id: 'history', label: 'History', icon: 'history' },
   ];
   let view = $state<View>('overview');
-  let expanded = $state(true);
+  let navigationHovered = $state(false);
+  let navigationKeyboardFocus = $state(false);
+  let expanded = $derived(navigationHovered || navigationKeyboardFocus);
   let volumes = $state<Volume[]>([]),
     volumePath = $state(''),
     scanPath = $state('');
@@ -414,7 +416,6 @@
     try {
       const value: unknown = JSON.parse(localStorage.getItem('voldiq-preferences') ?? '{}');
       if (value && typeof value === 'object') {
-        if ('expanded' in value && typeof value.expanded === 'boolean') expanded = value.expanded;
         if ('excluded' in value && typeof value.excluded === 'string') excluded = value.excluded;
         if ('theme' in value && (value.theme === 'light' || value.theme === 'dark'))
           theme = value.theme;
@@ -490,7 +491,6 @@
       localStorage.setItem(
         'voldiq-preferences',
         JSON.stringify({
-          expanded,
           excluded,
           theme,
           sizeMode,
@@ -508,22 +508,43 @@
 </script>
 
 <div class="app-shell" class:expanded>
-  <aside class="navigation">
+  <aside
+    class="navigation"
+    onpointerenter={(event) => {
+      if (event.pointerType !== 'touch') navigationHovered = true;
+    }}
+    onpointerleave={(event) => {
+      navigationHovered = false;
+      const active = document.activeElement;
+      navigationKeyboardFocus =
+        active instanceof HTMLElement &&
+        event.currentTarget.contains(active) &&
+        active.matches(':focus-visible');
+    }}
+    onfocusin={(event) => {
+      navigationKeyboardFocus =
+        event.target instanceof HTMLElement && event.target.matches(':focus-visible');
+    }}
+    onfocusout={(event) => {
+      if (
+        !(event.relatedTarget instanceof Node) ||
+        !event.currentTarget.contains(event.relatedTarget)
+      )
+        navigationKeyboardFocus = false;
+    }}
+  >
     <div class="brand">
       <img src="/symbol.png" alt="" width="32" height="32" />{#if expanded}<strong>Voldiq</strong
         >{/if}
     </div>
-    <button
-      class="nav-toggle"
-      title={expanded ? 'Collapse navigation' : 'Expand navigation'}
-      aria-label={expanded ? 'Collapse navigation' : 'Expand navigation'}
-      onclick={() => {
-        expanded = !expanded;
-        savePreferences();
-      }}><Icon name={expanded ? 'collapse' : 'expand'} /></button
-    >
     <nav aria-label="Main navigation">
       {#each navigation as item}<button
+          onpointerdown={() => {
+            navigationKeyboardFocus = false;
+          }}
+          onkeydown={() => {
+            navigationKeyboardFocus = true;
+          }}
           class:active={view === item.id}
           title={item.label}
           disabled={analysisBusy}
@@ -548,6 +569,12 @@
           <small>{bytes(volume.free)} free</small>
         </div>{/if}<button
         class:active={view === 'settings'}
+        onpointerdown={() => {
+          navigationKeyboardFocus = false;
+        }}
+        onkeydown={() => {
+          navigationKeyboardFocus = true;
+        }}
         title="Settings"
         disabled={analysisBusy}
         aria-label="Settings"
