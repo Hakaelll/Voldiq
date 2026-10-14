@@ -13,7 +13,7 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "tauri": "tauri",
     "test:core": "cargo test -p voldiq-core",
-    "test": "node --experimental-strip-types --test frontend/lib/treemap.test.ts frontend/lib/recent-paths.test.ts frontend/lib/query-runner.test.ts frontend/lib/virtual-list.test.ts frontend/lib/file-query.test.ts frontend/lib/file-types.test.ts frontend/lib/history-trend.test.ts frontend/lib/cleanup-selection.test.ts"
+    "test": "node --experimental-strip-types --test frontend/lib/treemap.test.ts frontend/lib/recent-paths.test.ts frontend/lib/query-runner.test.ts frontend/lib/virtual-list.test.ts frontend/lib/file-query.test.ts frontend/lib/file-types.test.ts frontend/lib/history-trend.test.ts frontend/lib/cleanup-selection.test.ts frontend/lib/snapshot-pair.test.ts"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",

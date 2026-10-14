@@ -3,6 +3,7 @@
   import { invoke, isTauri } from '@tauri-apps/api/core';
   import Icon from './Icon.svelte';
   import { historyTrend } from '../lib/history-trend';
+  import { updateSnapshotPair } from '../lib/snapshot-pair';
   import { bytes, date, difference, type Snapshot, type SnapshotComparison } from '../lib/types';
   let {
     enabled,
@@ -38,11 +39,19 @@
     unobserved: 'Not observed',
     newly_observed: 'Newly observed',
   };
-  let previous = $derived(snapshots.find((s) => s.id === before));
+  let pair = $derived(snapshots.filter((s) => s.id === before || s.id === after));
+  let previous = $derived(snapshots.find((s) => s.id === (before || after)));
   let compatible = $derived(snapshots.filter((s) => s.root_key === previous?.root_key));
   let trend = $derived([...compatible].reverse());
   let chartWidth = $state(600);
   let chart = $derived(historyTrend(trend, chartWidth));
+  function selectCapture(snapshot: Snapshot, selected: boolean): void {
+    const next = updateSnapshotPair(pair, snapshot, selected);
+    if (!next) return;
+    resetComparison();
+    before = next[0]?.id ?? 0;
+    after = next[1]?.id ?? 0;
+  }
   async function refresh(next = offset): Promise<void> {
     const token = ++request;
     const retainFocus = region?.contains(document.activeElement) ?? false;
@@ -202,7 +211,20 @@
               class="snapshot-row"
               class:selected={snapshot.id === before || snapshot.id === after}
             >
-              <Icon name="disk" />
+              <input
+                class="snapshot-select"
+                type="checkbox"
+                aria-label={`Compare snapshot ${date(snapshot.captured)} · ${snapshot.root}`}
+                checked={snapshot.id === before || snapshot.id === after}
+                disabled={working ||
+                  (!pair.some((s) => s.id === snapshot.id) &&
+                    (pair.length === 2 ||
+                      (pair.length === 1 && pair[0].root_key !== snapshot.root_key)))}
+                onchange={(event) => {
+                  selectCapture(snapshot, event.currentTarget.checked);
+                  event.currentTarget.checked = snapshot.id === before || snapshot.id === after;
+                }}
+              />
               <div class="snapshot-name">
                 <strong title={date(snapshot.captured)}>{date(snapshot.captured)}</strong><small
                   title={snapshot.root}>{snapshot.root}</small
@@ -332,6 +354,7 @@
               }}
               disabled={working}
             >
+              <option value={0}>Select snapshot</option>
               {#each snapshots as s}<option value={s.id}
                   >{s.root} · {date(s.captured)} · {bytes(s.logical)}</option
                 >{/each}
@@ -339,6 +362,7 @@
           >
           <label
             >After<select bind:value={after} onchange={resetComparison} disabled={working}>
+              <option value={0}>Select snapshot</option>
               {#each compatible as s}<option value={s.id}
                   >{date(s.captured)} · {bytes(s.logical)}</option
                 >{/each}

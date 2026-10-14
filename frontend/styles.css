@@ -905,6 +905,13 @@ main {
   text-align: center;
   color: var(--muted);
 }
+.snapshot-select {
+  width: 16px;
+  height: 16px;
+  min-height: 0;
+  padding: 0;
+  accent-color: var(--accent);
+}
 .detail-children {
   border-top: 1px solid var(--border);
   margin-top: 24px;
