@@ -48,6 +48,9 @@
   let activeGroup = $derived(page?.groups.find((group) => group.key === openGroup));
   let working = $derived(operation?.phase === 'sampling' || operation?.phase === 'hashing');
   let checked = $state(new Map<number, number>());
+  const groupSelected = $derived(
+    activeGroup ? [...checked.values()].filter((key) => key === activeGroup.key).length : 0,
+  );
   let reviewing = $state(false),
     reviewId = $state<number | null>(null);
   let alive = true;
@@ -272,7 +275,13 @@
               ><Icon name="file" /><strong title={group.name}>{group.name}</strong></span
             >
             <span>{group.copies.toLocaleString()}</span>
-            <span class="number">{bytes(group.recoverable)}</span>
+            <span class="number"
+              >{bytes(group.recoverable)}<span class="group-size-track" aria-hidden="true"
+                ><span
+                  style:width={`${page.recoverable ? Math.min(100, (group.recoverable / page.recoverable) * 100) : 0}%`}
+                ></span></span
+              ></span
+            >
           </button>
         {/each}
         {#if page.total === 0}<div class="table-empty">No duplicates found</div>{/if}
@@ -301,6 +310,23 @@
               <strong>{bytes(activeGroup.recoverable)}</strong><small>Potential allocation</small>
             </div>
           </div>
+          <div
+            class="copy-balance"
+            role="img"
+            aria-label={`${activeGroup.copies - groupSelected} copies unselected, ${groupSelected} selected for review`}
+          >
+            <span
+              class="copies-kept"
+              style:flex-grow={activeGroup.copies - groupSelected}
+              title={`${activeGroup.copies - groupSelected} copies unselected`}
+              >Keep {activeGroup.copies - groupSelected}</span
+            >
+            {#if groupSelected > 0}<span
+                class="copies-selected"
+                style:flex-grow={groupSelected}
+                title={`${groupSelected} selected for review`}>Selected {groupSelected}</span
+              >{/if}
+          </div>
           <div class="duplicate-member-columns">
             <span>Path</span><span>Modified</span><span>Allocated</span>
           </div>
@@ -311,7 +337,7 @@
           {:else}
             <div class="duplicate-members">
               {#each members as item (item.id)}
-                <div class="duplicate-choice">
+                <div class="duplicate-choice" class:chosen={checked.has(item.id)}>
                   <input
                     type="checkbox"
                     aria-label={`Select ${item.path}`}
@@ -333,7 +359,10 @@
                     title={item.path}
                   >
                     <Icon name="file" /><span
-                      ><strong>{item.name}</strong><small>{item.path}</small></span
+                      ><strong>{item.name}</strong><small>{item.path}</small><small
+                        class="copy-state"
+                        >{checked.has(item.id) ? 'Selected for review' : 'Keep'}</small
+                      ></span
                     >
                     <span class="duplicate-modified"
                       >{date(item.modified)}{#if item.links > 1}<small>Hard link</small>{/if}</span
@@ -383,6 +412,51 @@
 </section>
 
 <style>
+  .group-size-track {
+    display: block;
+    height: 3px;
+    background: var(--paper);
+    margin-top: 6px;
+  }
+  .group-size-track > span {
+    display: block;
+    height: 100%;
+    background: var(--accent-fill);
+  }
+  .copy-balance {
+    display: flex;
+    height: 34px;
+    gap: 2px;
+    margin: 0 0 18px;
+    overflow: hidden;
+  }
+  .copy-balance > span {
+    flex-basis: 0;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 34px;
+    text-indent: 10px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .copies-kept {
+    background: #075bdd;
+    color: #ffffff;
+  }
+  .copies-selected {
+    background: #ed701b;
+    color: #101820;
+  }
+  .duplicate-choice.chosen {
+    background: var(--selected);
+  }
+  .duplicate-choice :global(.copy-state) {
+    color: var(--accent);
+    font-weight: 500;
+    margin-top: 4px;
+  }
   .duplicate-choice {
     display: flex;
     align-items: center;

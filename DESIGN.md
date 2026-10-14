@@ -141,6 +141,8 @@ Explorer rows now pair their logical sizes with compact bars scaled to the large
 
 Developer storage uses a 44px measured category strip with bytes, percentages and directory counts below. Its category legends are filter buttons with pressed states; choosing a category twice or choosing All categories clears that filter. The legend and reset/order controls remain mounted through loading, while interaction is disabled. Category totals continue to describe the complete deduplicated result rather than the currently filtered page.
 
+Duplicate group rows include compact meters relative to the report's total potential allocation. The active group's copy-balance strip compares its unselected and selected copy counts across member pages. Each member identifies Keep or Selected for review, and selected rows use the shared selection surface. These are selection states, not deletion results or verified retained-file authority; the native review remains mandatory.
+
 **Creative North Star: "The Windows storage workspace"**
 
 Voldiq puts paths, file sizes and scan coverage in a compact desktop workspace. The built interface follows the user-selected white Windows direction and supplied Palantir, Linear and Dub references. Fine dividers organize the rail, toolbar and content without decorative elevation. Segoe UI keeps the controls consistent with Windows expectations.
