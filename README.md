@@ -117,6 +117,8 @@ Settings persist the default drive, excluded paths, theme, size metric, reduced 
 
 ## Developer storage
 
+The category chart shows measured logical bytes, percentages and directory counts. Select Dependencies, Build artifacts or Cache directly in its legend to filter the indexed list; select the same category again or All categories to reset. Global category totals remain visible while browsing a filtered page.
+
 Filter indexed directories by Dependencies, Build artifacts or Cache, and order them by size or name. Filters apply before paging. The category bar retains totals for all classified directories; the list count follows the selected category.
 
 The developer view classifies indexed Cargo targets, Node.js dependencies and build output, Python bytecode caches, Gradle project caches and .NET build directories. It recognizes current-user Cargo, npm, pnpm, pip, Gradle and NuGet locations, including supported absolute environment overrides. npm discovery also reads supported `.npmrc` cache settings. pip discovery reads supported Windows `pip.ini` sources and combines configured caches for recognized commands, with native folder resolution and explicit/environment precedence. NuGet installed packages and pnpm shared links are labelled Dependencies, separate from their caches. Project manifests identify ambiguous names such as `target`, `bin` and `build`. Nested candidates belong to their outer artifact so category totals do not count the same subtree twice. Results use bounded pages and expose logical size, allocation and incomplete coverage.

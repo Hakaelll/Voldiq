@@ -91,27 +91,48 @@
   tabindex="-1"
   aria-busy={enabled && loadState === 'loading'}
 >
-  {#if enabled && loadState === 'ready' && page}
+  {#if enabled && page}
     <div class="developer-summary">
       <span>{totalDirectories.toLocaleString()} directories · {bytes(totalLogical)} logical</span
-      ><button onclick={() => load(0)}><Icon name="scan" />Refresh</button>
+      ><button disabled={loadState === 'loading'} onclick={() => load(0)}
+        ><Icon name="scan" />Refresh</button
+      >
     </div>
     {#if page.categories}<div class="developer-distribution">
         <div class="developer-bar" aria-hidden="true">
-          {#each page.categories as category}<span
-              style:width={`${totalLogical ? (category.logical / totalLogical) * 100 : 0}%`}
-              style:background={colors[category.category]}
+          {#each page.categories as group}<span
+              style:flex-grow={group.logical}
+              style:background={colors[group.category]}
+              title={`${labels[group.category]}: ${bytes(group.logical)}`}
             ></span>{/each}
         </div>
-        <div class="developer-legend">
-          {#each page.categories as category}<div>
-              <span class="category-swatch" style:background={colors[category.category]}></span>
+        <div
+          class="developer-legend"
+          role="group"
+          aria-label="Filter developer storage by category"
+        >
+          {#each page.categories as group}<button
+              class:active={category === group.category}
+              aria-pressed={category === group.category}
+              disabled={loadState === 'loading'}
+              onclick={() => {
+                category = category === group.category ? '' : group.category;
+              }}
+            >
+              <span class="category-swatch" style:background={colors[group.category]}></span>
               <div>
-                <strong>{labels[category.category]}</strong><small
-                  >{bytes(category.logical)} · {category.directories.toLocaleString()} directories</small
+                <strong>{labels[group.category]}</strong>
+                <span class="category-value"
+                  >{bytes(group.logical)}
+                  <span
+                    >({totalLogical
+                      ? ((group.logical / totalLogical) * 100).toFixed(1)
+                      : '0.0'}%)</span
+                  ></span
                 >
+                <small>{group.directories.toLocaleString()} directories</small>
               </div>
-            </div>{/each}
+            </button>{/each}
         </div>
       </div>{/if}
   {/if}
@@ -120,15 +141,14 @@
       <div class="developer-list-heading">
         <h2>Projects and caches</h2>
         <div class="developer-filters">
-          <select
-            aria-label="Developer storage category"
-            bind:value={category}
+          <button
+            class:active={category === ''}
+            aria-pressed={category === ''}
             disabled={!enabled || loadState === 'loading'}
+            onclick={() => {
+              category = '';
+            }}>All categories</button
           >
-            <option value="">All categories</option><option value="dependencies"
-              >Dependencies</option
-            ><option value="build">Build artifacts</option><option value="cache">Cache</option>
-          </select>
           <select
             aria-label="Developer storage order"
             bind:value={sort}
@@ -411,12 +431,16 @@
     padding: 12px 0 24px;
   }
   .developer-bar {
-    height: 36px;
+    height: 44px;
     display: flex;
     gap: 1px;
     overflow: hidden;
     border-radius: var(--radius);
     background: var(--surface);
+  }
+  .developer-bar > span {
+    flex-basis: 0;
+    min-width: 0;
   }
   .developer-legend {
     display: grid;
@@ -424,11 +448,39 @@
     gap: 20px;
     padding-top: 18px;
   }
-  .developer-legend > div {
+  .developer-legend > button {
     display: flex;
     align-items: flex-start;
     gap: 12px;
     min-width: 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    text-align: left;
+    justify-content: flex-start;
+    padding: 12px;
+    white-space: normal;
+  }
+  .developer-legend > button:hover {
+    background: var(--surface);
+  }
+  .developer-legend > button.active,
+  .developer-filters > button.active {
+    background: var(--selected);
+  }
+  .developer-legend > button > div {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .category-value {
+    display: block;
+    margin-top: 6px;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .category-value > span {
+    font-size: 12px;
+    color: var(--secondary);
   }
   .developer-legend strong {
     font-size: 14px;
