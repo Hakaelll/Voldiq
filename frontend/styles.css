@@ -519,6 +519,7 @@ main {
 }
 .map-caption {
   display: flex;
+  flex-wrap: wrap;
   gap: 16px;
   justify-content: space-between;
   padding: 10px 0;
@@ -526,12 +527,16 @@ main {
   color: var(--secondary);
 }
 .map-caption > span:first-child {
+  flex: 1 1 180px;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.map-caption > span:last-child {
+.map-selection-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
   white-space: nowrap;
 }
 .overview-loading {
@@ -648,10 +653,10 @@ main {
   flex-basis: 0;
 }
 .type-legend {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   margin: 14px 0 0;
   gap: 16px;
-  flex-wrap: wrap;
 }
 .type-legend button,
 .type-legend .type-other {

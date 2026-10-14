@@ -7,6 +7,7 @@ export interface WeightedNode {
   paint?: { fill: string; ink: string };
 }
 export interface Rect extends WeightedNode {
+  share?: number;
   x: number;
   y: number;
   width: number;
@@ -67,8 +68,10 @@ export function layout(nodes: WeightedNode[], width: number, height: number): Re
 
 export function nestedLayout(nodes: WeightedNode[], width: number, height: number): Rect[] {
   const output: Rect[] = [];
-  for (const parent of layout(nodes, width, height)) {
-    output.push(parent);
+  const roots = layout(nodes, width, height);
+  const total = roots.reduce((sum, root) => sum + root.value, 0);
+  for (const parent of roots) {
+    output.push({ ...parent, share: parent.value / total });
     const children =
       parent.children?.filter((item) => Number.isFinite(item.value) && item.value > 0) ?? [];
     const sum = children.reduce((total, item) => total + item.value, 0);

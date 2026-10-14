@@ -2,6 +2,37 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { layout, nestedLayout, mapColor, color, rankColor } from './treemap.ts';
 
+test('root percentages use rendered measured weights and exclude nested double counting', () => {
+  const rects = nestedLayout(
+    [
+      {
+        id: 1,
+        name: 'folder',
+        value: 75,
+        directory: true,
+        children: [{ id: 3, name: 'child', value: 50, directory: false }],
+      },
+      { id: 2, name: 'file', value: 25, directory: false },
+      { id: 4, name: 'empty', value: 0, directory: false },
+    ],
+    800,
+    500,
+  );
+  assert.deepEqual(
+    rects.filter((rect) => rect.share !== undefined).map((rect) => [rect.id, rect.share]),
+    [
+      [1, 0.75],
+      [2, 0.25],
+    ],
+  );
+  assert.ok(
+    rects
+      .filter((rect) => rect.name === 'child' || rect.name === 'Other')
+      .every((rect) => rect.share === undefined),
+  );
+  assert.deepEqual(nestedLayout([], 800, 500), []);
+});
+
 test('ranked map families retain paired ink and share their parent paint', () => {
   const paint = rankColor(0);
   assert.deepEqual(paint, { fill: '#075bdd', ink: '#ffffff' });

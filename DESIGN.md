@@ -135,6 +135,8 @@ components:
 
 The unscanned Overview pairs a drive summary with the scan controls. The selected drive's measured used percentage forms a ring above its used, free and total bytes. The supplied symbol, primary scan action, folder picker and up to three saved recent paths occupy the second column. The layout stacks on narrow windows and contains long volume names. It adds no illustrative disk values or explanatory paragraphs. Storage-map folder headings are larger than child labels; separators stay within cells that have room for them.
 
+Populated maps show each sufficiently wide root region's percentage of the rendered measured weights, using the selected size metric. Nested children are excluded from this denominator to avoid counting the same bytes twice. The selection caption pairs its path and selected size with its indexed file count. File-type legends use responsive columns with aligned swatches and measured size/count labels.
+
 **Creative North Star: "The Windows storage workspace"**
 
 Voldiq puts paths, file sizes and scan coverage in a compact desktop workspace. The built interface follows the user-selected white Windows direction and supplied Palantir, Linear and Dub references. Fine dividers organize the rail, toolbar and content without decorative elevation. Segoe UI keeps the controls consistent with Windows expectations.

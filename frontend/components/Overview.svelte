@@ -142,13 +142,21 @@
       {:else}<div class="overview-loading" role="status">Loading…</div>{/if}
       {#if directory}<div class="map-caption">
           <span title={selected?.path || directory.path}>{selected?.path || directory.path}</span>
-          <span
-            >{bytes(
-              sizeMode === 'allocated'
-                ? (selected?.entry.allocated ?? directory.entry.allocated)
-                : (selected?.entry.logical ?? directory.entry.logical),
-            )}</span
-          >
+          <div class="map-selection-stats">
+            <span
+              >{bytes(
+                sizeMode === 'allocated'
+                  ? (selected?.entry.allocated ?? directory.entry.allocated)
+                  : (selected?.entry.logical ?? directory.entry.logical),
+              )}</span
+            >
+            <span
+              >{(selected?.entry.kind === 'file'
+                ? 1
+                : (selected?.entry.files ?? directory.entry.files)
+              ).toLocaleString()} files</span
+            >
+          </div>
         </div>{/if}
     </section>
     <section class="type-panel">

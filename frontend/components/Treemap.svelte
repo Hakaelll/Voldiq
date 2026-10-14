@@ -71,7 +71,11 @@
           : '600 13px "Segoe UI", sans-serif';
         ctx.fillText(rect.name, rect.x + 12, rect.y + 24);
         ctx.font = '12px "Segoe UI", sans-serif';
-        ctx.fillText(bytes(rect.value), rect.x + 12, rect.y + 44);
+        const size =
+          rect.share !== undefined && rect.width >= 180
+            ? `${bytes(rect.value)} (${(rect.share * 100).toFixed(1)}%)`
+            : bytes(rect.value);
+        ctx.fillText(size, rect.x + 12, rect.y + 44);
         ctx.restore();
       }
     }
