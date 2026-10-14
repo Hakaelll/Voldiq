@@ -150,6 +150,40 @@ pub(crate) struct SelectedDetails {
     children: Option<Page>,
 }
 
+#[derive(serde::Serialize)]
+pub(crate) struct FilePage {
+    #[serde(flatten)]
+    page: Page,
+    paths: Vec<String>,
+}
+
+fn file_page(
+    index: &Index,
+    query: &Query,
+    cancelled: &AtomicBool,
+) -> Result<Option<FilePage>, String> {
+    let Some(page) = index
+        .query_cancellable(query, || cancelled.load(Ordering::Relaxed))
+        .map_err(|e| e.to_string())?
+    else {
+        return Ok(None);
+    };
+    let mut paths = Vec::with_capacity(page.items.len());
+    for item in &page.items {
+        let Some(path) = index
+            .path_cancellable(item.id, || cancelled.load(Ordering::Relaxed))
+            .map_err(|e| e.to_string())?
+        else {
+            return Ok(None);
+        };
+        paths.push(path.to_string_lossy().into_owned());
+    }
+    if cancelled.load(Ordering::Relaxed) {
+        return Ok(None);
+    }
+    Ok(Some(FilePage { page, paths }))
+}
+
 fn selected_details(
     index: &Index,
     id: NodeId,
@@ -309,17 +343,13 @@ pub(crate) async fn query_files_cancellable(
     query: Query,
     request_id: u64,
     engine: State<'_, Arc<Engine>>,
-) -> Result<Option<Page>, String> {
+) -> Result<Option<FilePage>, String> {
     run_query(
         epoch,
         QueryFamily::FileList,
         request_id,
         engine.inner().clone(),
-        move |index, cancelled| {
-            index
-                .query_cancellable(&query, || cancelled.load(Ordering::Relaxed))
-                .map_err(|error| error.to_string())
-        },
+        move |index, cancelled| file_page(index, &query, cancelled),
     )
     .await
 }
@@ -365,6 +395,51 @@ mod tests {
         assert_eq!(payload["entry"]["id"], 0);
         assert_eq!(payload["children"]["total"], 8);
         let file = children.items[1].id;
+        let query = Query {
+            parent: Some(NodeId(0)),
+            files_only: true,
+            sort: "name".into(),
+            offset: 2,
+            limit: 2,
+            ..Query::default()
+        };
+        let files = file_page(&index, &query, &cancelled).unwrap().unwrap();
+        assert_eq!(files.page.total, 7);
+        assert_eq!(files.page.largest, 7);
+        assert_eq!(
+            files
+                .page
+                .items
+                .iter()
+                .map(|e| e.name.as_str())
+                .collect::<Vec<_>>(),
+            ["file3", "file4"]
+        );
+        assert_eq!(
+            files.paths,
+            [
+                std::fs::canonicalize(fixture.path())
+                    .unwrap()
+                    .join("file3")
+                    .to_string_lossy(),
+                std::fs::canonicalize(fixture.path())
+                    .unwrap()
+                    .join("file4")
+                    .to_string_lossy()
+            ]
+        );
+        let beyond = file_page(
+            &index,
+            &Query {
+                offset: 99,
+                ..query
+            },
+            &cancelled,
+        )
+        .unwrap()
+        .unwrap();
+        assert!(beyond.paths.is_empty());
+        assert_eq!(beyond.page.largest, 7);
         assert!(
             selected_details(&index, file, &cancelled)
                 .unwrap()
@@ -381,6 +456,11 @@ mod tests {
         assert_eq!(nested_children.total, 1);
         assert_eq!(nested_children.items[0].name, "data");
         cancelled.store(true, Ordering::Relaxed);
+        assert!(
+            file_page(&index, &Query::default(), &cancelled)
+                .unwrap()
+                .is_none()
+        );
         assert!(
             selected_details(&index, NodeId(u32::MAX), &cancelled)
                 .unwrap()

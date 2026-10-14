@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { createQueryRunner, type QueryTransport } from './query-runner';
-import type { Page, Overview, NodeId, SelectedDetails } from './types';
+import type { FilePage, Overview, NodeId, SelectedDetails } from './types';
 
 let session: Promise<number> | undefined;
 function querySession(): Promise<number> {
@@ -8,9 +8,9 @@ function querySession(): Promise<number> {
   return session;
 }
 
-const transport: QueryTransport = {
+const transport: QueryTransport<FilePage> = {
   run: async (_family, requestId, query) =>
-    invoke<Page | null>('query_files_cancellable', {
+    invoke<FilePage | null>('query_files_cancellable', {
       epoch: await querySession(),
       requestId,
       query,

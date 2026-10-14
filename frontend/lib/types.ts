@@ -91,6 +91,10 @@ export interface Page {
   items: Entry[];
   total: number;
 }
+export interface FilePage extends Page {
+  largest: number;
+  paths: string[];
+}
 export interface FileType {
   extension: string | null;
   bytes: number;

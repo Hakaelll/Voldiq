@@ -960,6 +960,7 @@
                   >
                 </div>
                 <FileTable
+                  ranked={view === 'large'}
                   {query}
                   {revision}
                   selected={details?.entry.id ?? null}

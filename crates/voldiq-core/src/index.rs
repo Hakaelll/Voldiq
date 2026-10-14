@@ -55,6 +55,7 @@ impl Default for Query {
 pub struct Page {
     pub items: Vec<Entry>,
     pub total: usize,
+    pub largest: u64,
 }
 
 #[derive(Serialize)]
@@ -89,6 +90,14 @@ impl Index {
     pub fn path(&self, id: NodeId) -> Result<PathBuf> {
         self.path_inner(id, || false)?
             .ok_or_else(|| Error::Invalid("Query cancelled.".into()))
+    }
+
+    pub fn path_cancellable(
+        &self,
+        id: NodeId,
+        cancelled: impl FnMut() -> bool,
+    ) -> Result<Option<PathBuf>> {
+        self.path_inner(id, cancelled)
     }
 
     fn path_inner(
@@ -217,6 +226,7 @@ impl Index {
         let text = query.text.to_lowercase();
         let extension = query.extension.trim_start_matches('.').to_lowercase();
         let mut matches = Vec::new();
+        let mut largest = 0;
         for (position, entry) in self.entries.iter().skip(1).enumerate() {
             if position % 256 == 0 && cancelled() {
                 return Ok(None);
@@ -247,6 +257,7 @@ impl Index {
                     .is_none_or(|before| entry.modified.is_some_and(|date| date < before))
             {
                 matches.push(entry);
+                largest = largest.max(entry.logical);
             }
         }
         if cancelled() {
@@ -256,6 +267,7 @@ impl Index {
         if query.offset >= total {
             return Ok(Some(Page {
                 total,
+                largest,
                 items: Vec::new(),
             }));
         }
@@ -291,6 +303,7 @@ impl Index {
         }
         Ok(Some(Page {
             total,
+            largest,
             items: page.iter().map(|entry| (*entry).clone()).collect(),
         }))
     }

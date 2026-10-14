@@ -20,6 +20,7 @@
     checked = new Set<number>(),
     manageable = false,
     oncheck,
+    ranked = false,
   }: {
     query: Query;
     revision: number;
@@ -30,11 +31,14 @@
     checked?: ReadonlySet<number>;
     manageable?: boolean;
     oncheck?: (id: number, checked: boolean) => void;
+    ranked?: boolean;
   } = $props();
   let scrollTop = $state(0),
     total = $state(0),
     rows = $state<Entry[]>([]),
     offset = $state(0);
+  let paths = $state<string[]>([]);
+  let largest = $state(0);
   let viewport: HTMLDivElement;
   let viewportHeight = $state(420);
   let pendingFocus = $state<number | null>(null);
@@ -54,6 +58,8 @@
         .then((page) => {
           if (alive && token === request && page) {
             rows = page.items;
+            paths = page.paths;
+            largest = page.largest;
             total = page.total;
             offset = start;
           }
@@ -134,7 +140,13 @@
   }
 </script>
 
-<div class="file-table" role="table" aria-label="Indexed files" aria-rowcount={total + 1}>
+<div
+  class="file-table"
+  class:ranked
+  role="table"
+  aria-label="Indexed files"
+  aria-rowcount={total + 1}
+>
   <div
     class="table-scroll"
     role="rowgroup"
@@ -171,7 +183,7 @@
             <button
               class="file-name"
               data-index={offset + i}
-              title={entry.name}
+              title={ranked ? (paths[i] ?? entry.name) : entry.name}
               onclick={() => onselect(entry)}
               ondblclick={() => onopen(entry)}
               onkeydown={(event) => {
@@ -181,13 +193,17 @@
                 } else navigate(event, offset + i);
               }}
               ><Icon name={entry.kind === 'directory' ? 'folder' : 'file'} /><span
-                >{entry.name}</span
+                >{entry.name}{#if ranked}<small>{paths[i] ?? ''}</small>{/if}</span
               >{#if entry.incomplete}<Icon name="warning" size={14} />{/if}</button
             ></span
           >
-          <span class="number" role="cell">{bytes(entry.logical)}</span><span role="cell"
-            >{date(entry.modified)}</span
-          ><span role="cell"
+          <span class="number" role="cell"
+            >{bytes(entry.logical)}{#if ranked}<span class="size-track" aria-hidden="true"
+                ><span
+                  style:width={`${largest ? Math.min(100, (entry.logical / largest) * 100) : 0}%`}
+                ></span></span
+              >{/if}</span
+          ><span role="cell">{date(entry.modified)}</span><span role="cell"
             >{entry.kind === 'directory'
               ? 'Folder'
               : entry.kind === 'link'
@@ -207,6 +223,30 @@
 </div>
 
 <style>
+  .ranked .file-name > span {
+    display: block;
+    line-height: 15px;
+    white-space: nowrap;
+  }
+  .ranked .file-name small {
+    display: block;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .size-track {
+    display: block;
+    height: 3px;
+    background: var(--paper);
+    margin-top: 5px;
+  }
+  .size-track > span {
+    display: block;
+    height: 100%;
+    background: var(--accent-fill);
+  }
   .file-label {
     display: flex;
     align-items: center;
