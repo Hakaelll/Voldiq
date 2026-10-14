@@ -1,10 +1,12 @@
 param(
+    [ValidateSet('Chrome', 'Edge')][string]$Browser = 'Chrome',
     [string]$LocalDataDirectory = [Environment]::GetFolderPath('LocalApplicationData'),
     [string]$OutputPath,
     [switch]$SelfTest
 )
 
 $ErrorActionPreference = 'Stop'
+$browserParts = if ($Browser -eq 'Chrome') { @('Google', 'Chrome') } else { @('Microsoft', 'Edge') }
 
 function Test-SimpleCacheEnvelope {
     param([byte[]]$Header, [byte[]]$Footer, [long]$Length)
@@ -14,6 +16,13 @@ function Test-SimpleCacheEnvelope {
     return [BitConverter]::ToUInt64($Header, 0) -eq $initialMagic -and
         [BitConverter]::ToUInt64($Footer, 0) -eq $finalMagic -and
         [BitConverter]::ToUInt32($Header, 12) -le ($Length - 48)
+}
+
+function Test-BlockCachePrefix {
+    param([byte[]]$Prefix, [long]$Length)
+    return $Prefix.Length -eq 8 -and $Length -ge 8192 -and
+        [BitConverter]::ToUInt32($Prefix, 0) -eq [Convert]::ToUInt32('c104cac3', 16) -and
+        [BitConverter]::ToUInt32($Prefix, 4) -eq 0x20000
 }
 
 if ($SelfTest) {
@@ -32,7 +41,7 @@ if ($SelfTest) {
     $fixtureDirectories = @($fixtureRoot)
     $fixtureFiles = @()
     try {
-        foreach ($part in @('Google', 'Chrome', 'User Data', 'Default', 'Cache', 'Cache_Data')) {
+        foreach ($part in @($browserParts + @('User Data', 'Default', 'Cache', 'Cache_Data'))) {
             $fixtureDirectories += [IO.Path]::Combine($fixtureDirectories[-1], $part)
         }
         foreach ($directory in $fixtureDirectories) { [void][IO.Directory]::CreateDirectory($directory) }
@@ -48,7 +57,7 @@ if ($SelfTest) {
         [IO.File]::WriteAllBytes($fixtureFiles[-1], [byte[]]($header + $privateBody + $footer))
         $fixtureFiles += [IO.Path]::Combine($fixtureDirectories[4], '2222222222222222_0')
         [IO.File]::WriteAllBytes($fixtureFiles[-1], [byte[]]($header + $privateBody + $footer))
-        $fixtureJson = & $PSCommandPath -LocalDataDirectory $fixtureRoot
+        $fixtureJson = & $PSCommandPath -Browser $Browser -LocalDataDirectory $fixtureRoot
         $fixtureReport = $fixtureJson | ConvertFrom-Json
         if ($fixtureReport.profilesExamined -ne 1 -or $fixtureReport.entriesExamined -ne 2 -or
             $fixtureReport.recognizedEnvelopes -ne 1 -or $fixtureReport.unrecognizedEnvelopes -ne 1 -or
@@ -58,13 +67,25 @@ if ($SelfTest) {
         if ($fixtureJson.Contains($fixtureRoot) -or $fixtureJson.Contains('private-fixture')) {
             throw 'Fixture path or content leaked into the report'
         }
+        $block = New-Object byte[] 8192
+        [BitConverter]::GetBytes([Convert]::ToUInt32('c104cac3', 16)).CopyTo($block, 0)
+        [BitConverter]::GetBytes([uint32]0x20000).CopyTo($block, 4)
+        $fixtureFiles += [IO.Path]::Combine($cacheDirectory, 'data_0')
+        [IO.File]::WriteAllBytes($fixtureFiles[-1], $block)
+        $fixtureFiles += [IO.Path]::Combine($cacheDirectory, 'data_1')
+        [IO.File]::WriteAllBytes($fixtureFiles[-1], (New-Object byte[] 8192))
+        $blockReport = (& $PSCommandPath -Browser $Browser -LocalDataDirectory $fixtureRoot) | ConvertFrom-Json
+        if ($blockReport.blockHeadersExamined -ne 2 -or $blockReport.recognizedBlockPrefixes -ne 1 -or
+            $blockReport.unrecognizedBlockPrefixes -ne 1 -or $blockReport.blockReadFailures -ne 0) {
+            throw 'Blockfile fixture counts do not match the expected prefix observations'
+        }
         for ($n = 1; $n -le 105; $n++) {
             $fixtureFiles += [IO.Path]::Combine($cacheDirectory, ('{0:x16}_0' -f $n))
             [IO.File]::WriteAllBytes($fixtureFiles[-1], [byte[]]($header + $privateBody + $footer))
         }
-        $boundedReport = (& $PSCommandPath -LocalDataDirectory $fixtureRoot) | ConvertFrom-Json
-        if ($boundedReport.entriesExamined -ne 100 -or
-            ($boundedReport.recognizedEnvelopes + $boundedReport.unrecognizedEnvelopes + $boundedReport.readFailures) -ne 100) {
+        $boundedReport = (& $PSCommandPath -Browser $Browser -LocalDataDirectory $fixtureRoot) | ConvertFrom-Json
+        if ($boundedReport.fileNamesObserved -ne 100 -or $boundedReport.entriesExamined -gt 100 -or
+            ($boundedReport.recognizedEnvelopes + $boundedReport.unrecognizedEnvelopes + $boundedReport.readFailures) -ne $boundedReport.entriesExamined) {
             throw 'Entry observation exceeded or failed to reach the 100-entry bound'
         }
     } finally {
@@ -78,7 +99,7 @@ if ($SelfTest) {
 }
 
 if (-not [IO.Path]::IsPathRooted($LocalDataDirectory)) { throw 'Local data path must be absolute' }
-$profileRoot = [IO.Path]::Combine($LocalDataDirectory, 'Google', 'Chrome', 'User Data')
+$profileRoot = [IO.Path]::Combine($LocalDataDirectory, $browserParts[0], $browserParts[1], 'User Data')
 $examined = 0
 $recognized = 0
 $unrecognized = 0
@@ -86,6 +107,12 @@ $readFailures = 0
 $skippedPaths = 0
 $profilesExamined = 0
 $versions = @{}
+$fileNamesObserved = 0
+$nameShapes = @{ simpleDense = 0; simpleSparse = 0; blockData = 0; blockExternal = 0; index = 0; other = 0 }
+$blockHeadersExamined = 0
+$recognizedBlockPrefixes = 0
+$unrecognizedBlockPrefixes = 0
+$blockReadFailures = 0
 
 if (Test-Path -LiteralPath $profileRoot -PathType Container) {
     $profileDirectories = @(Get-ChildItem -LiteralPath $profileRoot -Directory |
@@ -103,16 +130,31 @@ if (Test-Path -LiteralPath $profileRoot -PathType Container) {
         }
         if (-not $available) { $skippedPaths++; continue }
         $profilesExamined++
-        foreach ($entry in Get-ChildItem -LiteralPath $cachePath -File |
-            Where-Object { $_.Name -cmatch '^[0-9a-f]{16}_[01]$' } |
-            Select-Object -First (100 - $examined)) {
+        foreach ($entry in Get-ChildItem -LiteralPath $cachePath -File -Force |
+            Select-Object -First (100 - $fileNamesObserved)) {
+            $fileNamesObserved++
+            $shape = if ($entry.Name -cmatch '^[0-9a-f]{16}_[01]$') { 'simpleDense' }
+                elseif ($entry.Name -cmatch '^[0-9a-f]{16}_s$') { 'simpleSparse' }
+                elseif ($entry.Name -cmatch '^data_[0-9]+$') { 'blockData' }
+                elseif ($entry.Name -cmatch '^f_[0-9a-f]+$') { 'blockExternal' }
+                elseif ($entry.Name -eq 'index') { 'index' }
+                else { 'other' }
+            $nameShapes[$shape]++
+            if ($shape -ne 'simpleDense' -and $shape -ne 'blockData') { continue }
             if (([int]$entry.Attributes -band 0x441400) -ne 0) { $skippedPaths++; continue }
-            $examined++
+            if ($shape -eq 'blockData') { $blockHeadersExamined++ } else { $examined++ }
             $stream = $null
             try {
                 $stream = [IO.File]::Open($entry.FullName, [IO.FileMode]::Open,
                     [IO.FileAccess]::Read, [IO.FileShare]::ReadWrite -bor [IO.FileShare]::Delete)
                 $length = $stream.Length
+                if ($shape -eq 'blockData') {
+                    $prefix = New-Object byte[] 8
+                    if ($stream.Read($prefix, 0, 8) -eq 8 -and (Test-BlockCachePrefix $prefix $length)) {
+                        $recognizedBlockPrefixes++
+                    } else { $unrecognizedBlockPrefixes++ }
+                    continue
+                }
                 $header = New-Object byte[] 24
                 $footer = New-Object byte[] 24
                 if ($length -lt 48 -or $stream.Read($header, 0, 24) -ne 24) { $unrecognized++; continue }
@@ -124,10 +166,12 @@ if (Test-Path -LiteralPath $profileRoot -PathType Container) {
                     if (-not $versions.ContainsKey($version)) { $versions[$version] = 0 }
                     $versions[$version]++
                 } else { $unrecognized++ }
-            } catch { $readFailures++ }
+            } catch {
+                if ($shape -eq 'blockData') { $blockReadFailures++ } else { $readFailures++ }
+            }
             finally { if ($null -ne $stream) { $stream.Dispose() } }
         }
-        if ($examined -ge 100) { break }
+        if ($fileNamesObserved -ge 100) { break }
     }
 }
 
@@ -135,11 +179,17 @@ $report = [ordered]@{
     checkedUtc = [DateTime]::UtcNow.ToString('o')
     sourceCommit = (git rev-parse HEAD)
     probeSha256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash
-    browser = 'Chrome, default Windows user-data location'
+    browser = "$Browser, default Windows user-data location"
     scope = 'Read-only envelope observation; no keys, URLs, bodies or file paths recorded'
-    limits = @{ profiles = 10; entries = 100; bytesReadPerEntry = 48 }
+    limits = @{ profiles = 10; fileNames = 100; entries = 100; bytesReadPerEntry = 48 }
     profilesExamined = $profilesExamined
     entriesExamined = $examined
+    fileNamesObserved = $fileNamesObserved
+    nameShapes = $nameShapes
+    blockHeadersExamined = $blockHeadersExamined
+    recognizedBlockPrefixes = $recognizedBlockPrefixes
+    unrecognizedBlockPrefixes = $unrecognizedBlockPrefixes
+    blockReadFailures = $blockReadFailures
     recognizedEnvelopes = $recognized
     unrecognizedEnvelopes = $unrecognized
     readFailures = $readFailures

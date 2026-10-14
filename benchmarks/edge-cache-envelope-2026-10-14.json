@@ -1,0 +1,35 @@
+{
+  "checkedUtc": "2026-10-14T19:54:49.6353620Z",
+  "sourceCommit": "6828be18841bd53a8ced3e57728704a509855cdb",
+  "probeSha256": "D1C2DE372104CBE75C696CB45E5CF14A88D9F05C6BA132CF55FA4CC724F9D58D",
+  "browser": "Edge, default Windows user-data location",
+  "scope": "Read-only envelope observation; no keys, URLs, bodies or file paths recorded",
+  "limits": {
+    "profiles": 10,
+    "bytesReadPerEntry": 48,
+    "fileNames": 100,
+    "entries": 100
+  },
+  "profilesExamined": 1,
+  "entriesExamined": 0,
+  "fileNamesObserved": 100,
+  "nameShapes": {
+    "index": 0,
+    "blockExternal": 96,
+    "blockData": 4,
+    "other": 0,
+    "simpleSparse": 0,
+    "simpleDense": 0
+  },
+  "blockHeadersExamined": 4,
+  "recognizedBlockPrefixes": 4,
+  "unrecognizedBlockPrefixes": 0,
+  "blockReadFailures": 0,
+  "recognizedEnvelopes": 0,
+  "unrecognizedEnvelopes": 0,
+  "readFailures": 0,
+  "skippedPaths": 0,
+  "versions": {},
+  "cleanupAuthorized": false,
+  "raceFreeVerification": false
+}

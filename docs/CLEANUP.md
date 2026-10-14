@@ -4,18 +4,19 @@ The current delivery supports manual, duplicate, indexed user/project temporary-
 
 ## Browser cache format investigation
 
-`scripts/probe_chrome_cache.ps1` observes the default Windows Chrome user-data location documented by [Chromium](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/user_data_dir.md). It considers Default and numbered Profile directories, then only dense Simple Cache filenames inside `Cache/Cache_Data`. The filename shape comes from Chromium's [simple_util.cc](https://raw.githubusercontent.com/chromium/chromium/main/net/disk_cache/simple/simple_util.cc).
+`scripts/probe_browser_cache.ps1` observes the default Windows user-data locations for Chrome and Edge, documented by [Chromium](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/user_data_dir.md) and [Microsoft](https://learn.microsoft.com/en-us/deployedge/edge-learnmore-create-user-directory-vars). It considers Default and numbered Profile directories, then observes up to 100 filenames across at most ten profiles inside `Cache/Cache_Data`. It records naming categories without retaining filenames. Simple Cache filename shapes come from Chromium's [simple_util.cc](https://raw.githubusercontent.com/chromium/chromium/main/net/disk_cache/simple/simple_util.cc).
 
-Each observation reads a 24-byte header and 24-byte trailing record. Initial/final magic and a bounded key length identify an envelope, using the [Simple Cache layout](https://raw.githubusercontent.com/chromium/chromium/main/net/disk_cache/simple/simple_entry_format.h). This does not validate CRCs, the full stream layout or supported versions. Attribute checks precede the read but are not atomic with file opening. The probe grants no cleanup authority.
+For dense Simple Cache entries it reads a 24-byte header and 24-byte trailing record. Initial/final magic and a bounded key length identify an envelope, using the [Simple Cache layout](https://raw.githubusercontent.com/chromium/chromium/main/net/disk_cache/simple/simple_entry_format.h). For Blockfile `data_` files it reads only the eight-byte magic/version prefix and requires the 8192-byte minimum header size described by [disk_format_base.h](https://raw.githubusercontent.com/chromium/chromium/main/net/disk_cache/blockfile/disk_format_base.h). External Blockfile payloads are not opened. This does not validate CRCs, complete stream layouts, block allocation maps or cache ownership. Attribute checks precede the read but are not atomic with file opening. The probe grants no cleanup authority.
 
 ```powershell
-./scripts/probe_chrome_cache.ps1 -SelfTest
-./scripts/probe_chrome_cache.ps1 -OutputPath benchmarks/chrome-cache-envelope.json
+./scripts/probe_browser_cache.ps1 -SelfTest
+./scripts/probe_browser_cache.ps1 -Browser Edge -SelfTest
+./scripts/probe_browser_cache.ps1 -Browser Edge -OutputPath benchmarks/edge-cache-envelope.json
 ```
 
-The self-check uses owned disposable files to test a recognized envelope, a rejected envelope, ignored filenames/locations, private-content omission and the 100-entry observation limit. It removes only its exact created files and empty directories. The report contains counters and format versions, with no cache paths, keys, URLs or bodies.
+Both browser self-checks use owned disposable files to test recognized/rejected envelopes and Blockfile prefixes, ignored locations, private-content omission and the global 100-filename observation limit. They remove only their exact created files and empty directories. The report contains counters and format versions, with no cache paths, keys, URLs or bodies.
 
-The [2026-10-14 observation](../benchmarks/chrome-cache-envelope-2026-10-14.json) examined zero profiles and zero entries at the default location. It provides no real-browser format evidence on this host. Custom data/cache locations, other browsers, complete format validation and integration with retained native file authority remain pending. No browser-cache cleanup action is exposed.
+The earlier [Chrome observation](../benchmarks/chrome-cache-envelope-2026-10-14.json) examined zero profiles and zero entries at the default location. The [Edge observation](../benchmarks/edge-cache-envelope-2026-10-14.json) sampled 100 filenames in one profile: four Blockfile data names and 96 external names. All four data files had the expected Blockfile prefix. No dense Simple Cache names occurred in that sample. This evidence requires the implementation to account for Blockfile storage; a Simple Cache-only rule would miss the observed cache. The sample does not establish the complete directory's contents or approve removing it. Custom locations, other browsers, complete validation and integration with retained native file authority remain pending. No browser-cache cleanup action is exposed.
 
 ## Project temporary files
 
