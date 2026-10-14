@@ -140,24 +140,22 @@
 
 <style>
   section {
-    margin-top: 16px;
+    margin-top: 24px;
     min-width: 0;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--surface);
+    border-top: 1px solid var(--border);
   }
   header,
   footer {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 16px;
+    padding: 16px 0;
   }
   header {
     justify-content: space-between;
   }
   p {
-    padding: 0 16px 16px;
+    padding: 0 0 16px;
     overflow-wrap: anywhere;
   }
   .rows {
@@ -173,7 +171,7 @@
   th,
   td {
     text-align: left;
-    padding: 10px 16px;
+    padding: 10px 0;
     border-top: 1px solid var(--border);
     vertical-align: top;
     overflow-wrap: anywhere;

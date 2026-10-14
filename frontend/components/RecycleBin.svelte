@@ -2,6 +2,7 @@
   import { onDestroy } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { bytes } from '../lib/types';
+  import Icon from './Icon.svelte';
 
   let { drive }: { drive: string } = $props();
   type Summary = { drive: string; items: number; size: number };
@@ -32,23 +33,17 @@
 
 <section aria-label="Recycle Bin" aria-busy={state.kind === 'loading'}>
   <div class="summary">
-    <span>Recycle Bin · {drive}</span>
+    <div class="identity">
+      <Icon name="trash" size={22} /><strong>Recycle Bin</strong>
+      {#if state.kind === 'ready'}<span
+          >{state.data.items.toLocaleString()} items · {bytes(state.data.size)}</span
+        >{/if}
+    </div>
     <button onclick={load} disabled={!drive || state.kind === 'loading'}>
       {state.kind === 'loading' ? 'Analyzing…' : state.kind === 'ready' ? 'Refresh' : 'Analyze'}
     </button>
   </div>
-  {#if state.kind === 'ready'}
-    <dl>
-      <div>
-        <dt>Items</dt>
-        <dd>{state.data.items.toLocaleString()}</dd>
-      </div>
-      <div>
-        <dt>Size</dt>
-        <dd>{bytes(state.data.size)}</dd>
-      </div>
-    </dl>
-  {:else if state.kind === 'error'}
+  {#if state.kind === 'error'}
     <p role="status">{state.message}</p>
   {/if}
 </section>
@@ -57,19 +52,23 @@
   section {
     margin-top: 16px;
     min-width: 0;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--surface);
+    border-block: 1px solid var(--border);
   }
   .summary {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 12px 16px;
+    padding: 14px 0;
+  }
+  .identity {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+    flex-wrap: wrap;
   }
   span,
-  dt,
   p {
     color: var(--muted);
     font-size: 12px;
@@ -80,17 +79,6 @@
   }
   button {
     flex-shrink: 0;
-  }
-  dl {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 32px;
-    margin: 0;
-    padding: 0 16px 16px;
-  }
-  dd {
-    margin: 4px 0 0;
-    font-variant-numeric: tabular-nums;
   }
   p {
     margin: 0;
