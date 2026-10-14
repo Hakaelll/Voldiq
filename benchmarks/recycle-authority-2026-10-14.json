@@ -1,0 +1,9 @@
+{
+  "checkedUtc": "2026-10-14T18:49:24.9589589Z",
+  "checkoutCommit": "a8cfe09b66ba363eef3bf8e28b54a91e576649b2",
+  "probeSha256": "478AE44E4DC746EE0F0568182316FA223CCB4F51286D87602487EFE70F68E258",
+  "scope": "Disposable staging authority probe; no recycling API or personal files.",
+  "result": "sealed_create_status=0x00000000; granted_access=0x001200a2; staging_requested_access=0x001600a2; source_requested_access=0x00010080; source_granted_access=0x00110080; parent_requested_access=0x00020080; parent_granted_access=0x00120080; rename=False; rename_error=87; native_rename_status=0xc0000022; new_child_denied=True",
+  "fixtureCleanupCompleted": true,
+  "recyclingVerified": false
+}
