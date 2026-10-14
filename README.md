@@ -7,6 +7,8 @@ Voldiq maps the files on a drive or in a folder so you can understand where spac
 
 > **Development status:** Voldiq is under active construction. The current source includes real volume discovery, live conventional scanning, search, a virtual file list, a proportional treemap, BLAKE3 duplicate analysis and persistent SQLite snapshots. The complete product acceptance checklist remains open. See [NEXT_TODOS.md](NEXT_TODOS.md).
 
+The [product acceptance record](docs/ACCEPTANCE.md) tracks the original requirements, available evidence and remaining Windows verification. Run `./scripts/verify_project.ps1` for the complete automated source gate.
+
 ## Principles
 
 - Local and offline. No account, cloud service, advertising or telemetry.

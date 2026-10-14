@@ -1,5 +1,7 @@
 # Testing
 
+Run `./scripts/verify_project.ps1` from PowerShell to check Rust formatting, frontend diagnostics and behavior tests, all workspace Rust tests, strict Clippy and the production frontend build. It stops on the first failed command and emits a JSON summary only after every stage passes. Native interaction, performance targets and installed-app acceptance are separate gates in [product acceptance](ACCEPTANCE.md).
+
 A native registry fixture verifies detail supersession, old completion/cancellation isolation, independence from files/overview and cancellation of all three families on frontend-session reload. A controlled frontend queue fixture checks obsolete detail errors, dismissal, reopening and continued file-list results. Six native query tests, strict workspace Clippy, all 19 frontend tests, Svelte diagnostics and production compilation pass. Source review covers App dismissal, scan terminal and analysis-replacement hooks; no native/WebView interaction was automated.
 
 `tests/details.rs` creates 300 nested folders and a Unicode file. It verifies a complete canonical path, 301 correctly ordered ancestors, parity with ordinary details, cancellation at every observed checkpoint, cancellation before invalid-ID validation and empty root ancestry. Existing unpaired UTF-16 path fixtures also run through the shared path/detail implementation. Native overview calls the cancellable detail path, retaining its complete-response contract. These checks do not measure IPC cancellation latency or allocation/disposal time.
