@@ -163,6 +163,19 @@ Baseline and final runs use the same deterministic index, in release builds on t
 
 ## Open performance gates
 
+### Bounded descendant query, debug diagnostic
+
+`cargo test -p voldiq benchmark_million_entry_overview -- --ignored --nocapture` creates a synthetic in-memory index with 16 folders and 1,000,000 one-byte file entries. Construction is outside the timed region. Five runs alternate the complete synchronous overview and its descendant helper. Each result is consumed and checked for exact totals, 12 branches, 96 children and stable retained IDs. No disk scan, IPC, Canvas or whole-app memory is measured.
+
+| Current path | Median of five runs | Range | Median thread CPU |
+|---|---:|---:|---:|
+| Complete overview | 381.740 ms | 377.328–476.004 ms | 375.000 ms |
+| Descendant helper | 70.123 ms | 68.854–84.434 ms | 78.125 ms |
+
+The [current raw runs](../benchmarks/overview-million-debug-after-2026-10-14.txt) use the unoptimized development/test profile. [GetThreadTimes](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getthreadtimes) supplies kernel/user CPU ticks for the executing thread. Observed counters advance in 15.625 ms steps, so CPU can slightly exceed a short wall interval. Comparable wall and CPU times support CPU work on one synchronous thread as the dominant cost; they do not distinguish instruction execution from memory stalls.
+
+The helper now rejects candidates that cannot beat the weakest of its retained eight before sorting. Logical-size and stable-ID ordering remain unchanged. [Earlier diagnostic runs](../benchmarks/overview-million-debug-before-2026-10-14.txt) measured the same generated shape before this rejection. The two source versions ran in sequential batches rather than randomized interleaving, and complete-overview ranges overlap. These records therefore do not establish a controlled application speedup. Release latency, varied file sizes, deeper scopes, concurrent scanning and native rendering remain open gates.
+
 On 2026-10-12, the updated 10,000-file runner verified 10,101 entries, exact logical totals and zero errors in all three runs. Scan times were 699.856, 658.685 and 1,167.019 ms; root page times were 0.078, 0.062 and 0.072 ms; global search times were 0.788, 0.742 and 0.814 ms. The runner measured the current entry layout as 112 bytes. Fixture creation warmed filesystem state; host background work and cache state were not controlled. The spread and historical changes cannot be attributed to a specific optimization. This updates the small-fixture evidence, not the million-file or whole-drive gates.
 
 Cleanup identity baselines increase the measured x64 `Entry` layout from 80 to 112 bytes. This excludes heap allocations and is not total process memory. Historical million-entry query measurements above predate that layout and the additional stable metadata reads; they must not be presented as measurements of the updated scanner. Updated million-entry query measurements remain part of the performance gate.

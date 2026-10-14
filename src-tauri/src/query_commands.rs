@@ -169,6 +169,14 @@ fn map_branches(index: &Index, children: &Page, cancelled: &AtomicBool) -> Optio
             return None;
         }
         if let Some(items) = entry.parent.and_then(|parent| groups.get_mut(&parent.0)) {
+            if items.len() == 8
+                && items.last().is_some_and(|last| {
+                    entry.logical < last.logical
+                        || (entry.logical == last.logical && entry.id.0 >= last.id.0)
+                })
+            {
+                continue;
+            }
             items.push(entry);
             items.sort_unstable_by(|a, b| b.logical.cmp(&a.logical).then(a.id.0.cmp(&b.id.0)));
             items.truncate(8);
@@ -406,6 +414,160 @@ pub(crate) async fn query_files_cancellable(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[cfg(windows)]
+    #[ignore = "Synthetic million-entry query measurement; run explicitly with --ignored --nocapture"]
+    fn benchmark_million_entry_overview() {
+        fn thread_cpu_ticks() -> u64 {
+            #[link(name = "kernel32")]
+            unsafe extern "system" {
+                fn GetCurrentThread() -> isize;
+                fn GetThreadTimes(
+                    thread: isize,
+                    created: *mut u32,
+                    exited: *mut u32,
+                    kernel: *mut u32,
+                    user: *mut u32,
+                ) -> i32;
+            }
+            let mut created = [0_u32; 2];
+            let mut exited = [0_u32; 2];
+            let mut kernel = [0_u32; 2];
+            let mut user = [0_u32; 2];
+            assert_ne!(
+                unsafe {
+                    GetThreadTimes(
+                        GetCurrentThread(),
+                        created.as_mut_ptr(),
+                        exited.as_mut_ptr(),
+                        kernel.as_mut_ptr(),
+                        user.as_mut_ptr(),
+                    )
+                },
+                0
+            );
+            ((u64::from(kernel[1]) << 32) | u64::from(kernel[0]))
+                + ((u64::from(user[1]) << 32) | u64::from(user[0]))
+        }
+        let fixture = tempfile::tempdir().unwrap();
+        let cancelled = AtomicBool::new(false);
+        let mut index = voldiq_core::scanner::scan(
+            fixture.path(),
+            &voldiq_core::ScanOptions::default(),
+            &cancelled,
+            |_| {},
+        )
+        .unwrap();
+        let template = index.entries[0].clone();
+        for id in 1..=16_u32 {
+            let mut entry = template.clone();
+            entry.id = NodeId(id);
+            entry.parent = Some(NodeId(0));
+            entry.name = format!("folder-{id}");
+            entry.logical = 0;
+            entry.allocated = 0;
+            entry.files = 0;
+            index.entries.push(entry);
+        }
+        for id in 17..1_000_017_u32 {
+            let parent = 1 + (id - 17) % 16;
+            let mut entry = template.clone();
+            entry.id = NodeId(id);
+            entry.parent = Some(NodeId(parent));
+            entry.kind = voldiq_core::Kind::File;
+            entry.file_state = None;
+            entry.name = format!("file-{id:08}.dat");
+            entry.logical = 1;
+            entry.allocated = 1;
+            entry.files = 1;
+            index.entries[parent as usize].logical += 1;
+            index.entries[parent as usize].allocated += 1;
+            index.entries[parent as usize].files += 1;
+            index.entries.push(entry);
+        }
+        index.entries[0].logical = 1_000_000;
+        index.entries[0].allocated = 1_000_000;
+        index.entries[0].files = 1_000_000;
+        let children = index
+            .query_cancellable(
+                &Query {
+                    parent: Some(NodeId(0)),
+                    limit: 250,
+                    ..Query::default()
+                },
+                || false,
+            )
+            .unwrap()
+            .unwrap();
+        let verify_branches = |branches: &[MapBranch]| {
+            assert_eq!(branches.len(), 12);
+            assert_eq!(
+                branches
+                    .iter()
+                    .map(|branch| branch.items.len())
+                    .sum::<usize>(),
+                96
+            );
+            for branch in branches {
+                assert_eq!(
+                    branch
+                        .items
+                        .iter()
+                        .map(|item| item.id.0)
+                        .collect::<Vec<_>>(),
+                    (0..8)
+                        .map(|position| 16 + branch.parent.0 + position * 16)
+                        .collect::<Vec<_>>()
+                );
+                assert!(
+                    branch
+                        .items
+                        .iter()
+                        .all(|item| item.parent == Some(branch.parent) && item.logical == 1)
+                );
+            }
+        };
+        println!(
+            "SYNTHETIC_OVERVIEW_SCOPE,debug_profile,memory_index,no_disk_scan,no_ipc,no_canvas,no_whole_app_measurement"
+        );
+        println!(
+            "run,query,milliseconds,thread_cpu_milliseconds,index_entries,branches,children,errors"
+        );
+        for run in 1..=5 {
+            let cases = if run % 2 == 0 {
+                ["branches", "overview"]
+            } else {
+                ["overview", "branches"]
+            };
+            for case in cases {
+                let cpu_before = thread_cpu_ticks();
+                let started = std::time::Instant::now();
+                if case == "overview" {
+                    let result = overview(&index, NodeId(0), &cancelled).unwrap().unwrap();
+                    let elapsed = started.elapsed();
+                    let cpu_ms = (thread_cpu_ticks() - cpu_before) as f64 / 10_000.0;
+                    assert_eq!(result.directory.entry.logical, 1_000_000);
+                    assert_eq!(result.types.total_bytes, 1_000_000);
+                    assert_eq!(result.types.total_files, 1_000_000);
+                    verify_branches(&result.branches);
+                    println!(
+                        "{run},{case},{:.3},{cpu_ms:.3},1000017,12,96,0",
+                        elapsed.as_secs_f64() * 1000.0
+                    );
+                } else {
+                    let branches = map_branches(&index, &children, &cancelled).unwrap();
+                    let elapsed = started.elapsed();
+                    let cpu_ms = (thread_cpu_ticks() - cpu_before) as f64 / 10_000.0;
+                    verify_branches(&branches);
+                    println!(
+                        "{run},{case},{:.3},{cpu_ms:.3},1000017,12,96,0",
+                        elapsed.as_secs_f64() * 1000.0
+                    );
+                }
+            }
+        }
+    }
 
     #[test]
     fn overview_map_branches_are_bounded_ranked_and_direct() {

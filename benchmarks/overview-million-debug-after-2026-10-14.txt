@@ -1,0 +1,21 @@
+   Compiling voldiq v0.1.0 (C:\Users\yagol\Documents\GitHub\Voldiq\src-tauri)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.58s
+     Running unittests src\main.rs (target\debug\deps\voldiq-2e8ed0f820227852.exe)
+
+running 1 test
+SYNTHETIC_OVERVIEW_SCOPE,debug_profile,memory_index,no_disk_scan,no_ipc,no_canvas,no_whole_app_measurement
+run,query,milliseconds,thread_cpu_milliseconds,index_entries,branches,children,errors
+1,overview,476.004,484.375,1000017,12,96,0
+1,branches,84.434,78.125,1000017,12,96,0
+2,branches,71.054,78.125,1000017,12,96,0
+2,overview,381.740,375.000,1000017,12,96,0
+3,overview,377.328,375.000,1000017,12,96,0
+3,branches,69.984,78.125,1000017,12,96,0
+4,branches,70.123,62.500,1000017,12,96,0
+4,overview,377.789,375.000,1000017,12,96,0
+5,overview,388.650,390.625,1000017,12,96,0
+5,branches,68.854,78.125,1000017,12,96,0
+test query_commands::tests::benchmark_million_entry_overview ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 31 filtered out; finished in 2.73s
+
