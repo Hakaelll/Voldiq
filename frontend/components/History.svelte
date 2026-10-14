@@ -2,6 +2,7 @@
   import { onMount, onDestroy, tick } from 'svelte';
   import { invoke, isTauri } from '@tauri-apps/api/core';
   import Icon from './Icon.svelte';
+  import SnapshotChangeBars from './SnapshotChangeBars.svelte';
   import { historyTrend } from '../lib/history-trend';
   import { updateSnapshotPair } from '../lib/snapshot-pair';
   import { bytes, date, difference, type Snapshot, type SnapshotComparison } from '../lib/types';
@@ -375,22 +376,7 @@
         </div>
         {#if comparison}<section class="panel change-list">
             {#if comparison.file_changes}
-              <div class="history-change-summary">
-                <div>
-                  <span>Added</span><strong>{bytes(comparison.file_changes.added.logical)}</strong
-                  ><small>{comparison.file_changes.added.files.toLocaleString()} files</small>
-                </div>
-                <div>
-                  <span>Changed</span><strong
-                    >{difference(comparison.file_changes.changed.delta)}</strong
-                  ><small>{comparison.file_changes.changed.files.toLocaleString()} files</small>
-                </div>
-                <div>
-                  <span>Removed</span><strong
-                    >{bytes(comparison.file_changes.removed.logical)}</strong
-                  ><small>{comparison.file_changes.removed.files.toLocaleString()} files</small>
-                </div>
-              </div>
+              <SnapshotChangeBars changes={comparison.file_changes} />
               {#if comparison.file_changes.newly_observed.files || comparison.file_changes.unobserved.files}<div
                   class="history-coverage-summary"
                 >

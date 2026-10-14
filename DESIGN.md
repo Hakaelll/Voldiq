@@ -143,6 +143,8 @@ Developer storage uses a 44px measured category strip with bytes, percentages an
 
 Duplicate group rows include compact meters relative to the report's total potential allocation. The active group's copy-balance strip compares its unselected and selected copy counts across member pages. Each member identifies Keep or Selected for review, and selected rows use the shared selection surface. These are selection states, not deletion results or verified retained-file authority; the native review remains mandatory.
 
+History compares logical file changes with three bars on a shared signed scale around a central zero line. Added bytes extend right, removed bytes left, and Changed uses its complete signed net difference. Values and file counts remain readable beside each bar, including zero-byte changes. Newly observed and unobserved coverage stay separate and do not affect this scale. No extra chart runtime is loaded.
+
 **Creative North Star: "The Windows storage workspace"**
 
 Voldiq puts paths, file sizes and scan coverage in a compact desktop workspace. The built interface follows the user-selected white Windows direction and supplied Palantir, Linear and Dub references. Fine dividers organize the rail, toolbar and content without decorative elevation. Segoe UI keeps the controls consistent with Windows expectations.

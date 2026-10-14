@@ -1470,30 +1470,10 @@ main {
 .history-change-columns {
   color: var(--secondary);
 }
-.history-change-summary {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 18px;
-  padding: 8px 0 26px;
+.history-coverage-summary {
+  color: var(--secondary);
+  font-size: 12px;
 }
-.history-change-summary > div {
-  display: grid;
-  gap: 7px;
-  min-width: 0;
-  overflow-wrap: anywhere;
-  border-right: 1px solid var(--border);
-  padding-right: 12px;
-}
-.history-change-summary > div:last-child {
-  border: 0;
-  padding-right: 0;
-}
-.history-change-summary strong {
-  font-size: 23px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-}
-.history-change-summary small,
 .history-coverage-summary {
   color: var(--secondary);
   font-size: 12px;
