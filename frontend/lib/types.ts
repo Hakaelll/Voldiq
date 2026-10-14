@@ -116,6 +116,7 @@ export interface Overview {
   directory: Details;
   children: Page;
   types: FileTypes;
+  branches: { parent: NodeId; items: Entry[] }[];
 }
 export interface Issue {
   path: string;

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { layout, mapColor, type Rect, type WeightedNode } from '../lib/treemap';
+  import { nestedLayout, mapColor, type Rect, type WeightedNode } from '../lib/treemap';
   import { bytes } from '../lib/types';
   let {
     nodes,
@@ -19,7 +19,7 @@
     height = $state(0);
   let hovered = $state<Rect | null>(null);
   let tooltip = $state({ x: 0, y: 0 });
-  let rects = $derived(layout(nodes, width, height));
+  let rects = $derived(nestedLayout(nodes, width, height));
   function draw(): void {
     if (!canvas || width <= 0 || height <= 0) return;
     const ratio = window.devicePixelRatio || 1;
@@ -94,9 +94,12 @@
       x: Math.min(width - 220, Math.max(8, x + 14)),
       y: Math.min(height - 60, Math.max(8, y + 14)),
     };
-    return (
-      rects.find((r) => x >= r.x && y >= r.y && x <= r.x + r.width && y <= r.y + r.height) ?? null
-    );
+    for (let index = rects.length - 1; index >= 0; index -= 1) {
+      const rect = rects[index];
+      if (x >= rect.x && y >= rect.y && x <= rect.x + rect.width && y <= rect.y + rect.height)
+        return rect;
+    }
+    return null;
   }
 </script>
 

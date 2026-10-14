@@ -14,6 +14,7 @@
   import { readRecentPaths, rememberPath } from './lib/recent-paths';
   import { overviewQueries, detailQueries } from './lib/queries';
   import { scopedFileQuery } from './lib/file-query';
+  import type { WeightedNode } from './lib/treemap';
   import {
     bytes,
     date,
@@ -21,6 +22,7 @@
     type Details,
     type SelectedDetails,
     type FileTypes,
+    type Overview as OverviewData,
     type Issue,
     type Page,
     type Progress,
@@ -67,6 +69,7 @@
   let detailsPanel = $state<HTMLElement>();
   let children = $state<Page>({ items: [], total: 0 }),
     types = $state<FileTypes>({ items: [], total_bytes: 0, total_files: 0 });
+  let branches = $state<OverviewData['branches']>([]);
   let text = $state(''),
     extension = $state(''),
     withoutExtension = $state(false),
@@ -130,11 +133,19 @@
     }),
   );
   let nodes = $derived.by(() => {
-    const entries = children.items.map((entry) => ({
+    const entries: WeightedNode[] = children.items.map((entry) => ({
       id: entry.id,
       name: entry.name,
       value: sizeMode === 'allocated' ? entry.allocated : entry.logical,
       directory: entry.kind === 'directory',
+      children: branches
+        .find((branch) => branch.parent === entry.id)
+        ?.items.map((child) => ({
+          id: child.id,
+          name: child.name,
+          value: sizeMode === 'allocated' ? child.allocated : child.logical,
+          directory: child.kind === 'directory',
+        })),
     }));
     const total = directory
       ? sizeMode === 'allocated'
@@ -170,6 +181,7 @@
       if (token !== refreshToken || result === null) return;
       directory = result.directory;
       children = result.children;
+      branches = result.branches ?? [];
       types = result.types;
       scope = id;
       revision += 1;

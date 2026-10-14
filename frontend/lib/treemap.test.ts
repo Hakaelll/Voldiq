@@ -1,6 +1,41 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { layout, mapColor, color } from './treemap.ts';
+import { layout, nestedLayout, mapColor, color } from './treemap.ts';
+
+test('nested map preserves child ratios and measured remainder inside its parent', () => {
+  const rects = nestedLayout(
+    [
+      {
+        id: 1,
+        name: 'parent',
+        value: 100,
+        directory: true,
+        children: [
+          { id: 2, name: 'a', value: 60, directory: true },
+          { id: 3, name: 'b', value: 20, directory: false },
+        ],
+      },
+    ],
+    400,
+    300,
+  );
+  assert.equal(rects.length, 4);
+  const [parent, ...children] = rects;
+  assert.deepEqual(
+    children.map((item) => item.value),
+    [60, 20, 20],
+  );
+  assert.equal(children[2].name, 'Other');
+  const area = (400 - 12) * (300 - 58);
+  for (const child of children) {
+    assert.ok(Math.abs((child.width * child.height) / area - child.value / 100) < 1e-8);
+    assert.ok(child.x >= parent.x + 6 && child.y >= parent.y + 52);
+    assert.ok(child.x + child.width <= parent.x + parent.width - 6 + 1e-8);
+    assert.ok(child.y + child.height <= parent.y + parent.height - 6 + 1e-8);
+  }
+  assert.equal(nestedLayout([{ ...parent, value: 10 }], 400, 300).length, 1);
+  assert.equal(nestedLayout([parent], 100, 100).length, 1);
+});
 
 test('all map palette fills have readable paired ink and consistent legend colors', () => {
   const luminance = (hex: string) => {

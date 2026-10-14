@@ -141,6 +141,51 @@ pub(crate) struct Overview {
     directory: Details,
     children: Page,
     types: FileTypes,
+    branches: Vec<MapBranch>,
+}
+
+#[derive(serde::Serialize)]
+pub(crate) struct MapBranch {
+    parent: NodeId,
+    items: Vec<voldiq_core::Entry>,
+}
+
+fn map_branches(index: &Index, children: &Page, cancelled: &AtomicBool) -> Option<Vec<MapBranch>> {
+    if cancelled.load(Ordering::Relaxed) {
+        return None;
+    }
+    let mut groups: std::collections::BTreeMap<u32, Vec<&voldiq_core::Entry>> = children
+        .items
+        .iter()
+        .filter(|entry| entry.kind == voldiq_core::Kind::Directory)
+        .take(12)
+        .map(|entry| (entry.id.0, Vec::new()))
+        .collect();
+    if groups.is_empty() {
+        return Some(Vec::new());
+    }
+    for (position, entry) in index.entries.iter().enumerate() {
+        if position % 256 == 0 && cancelled.load(Ordering::Relaxed) {
+            return None;
+        }
+        if let Some(items) = entry.parent.and_then(|parent| groups.get_mut(&parent.0)) {
+            items.push(entry);
+            items.sort_unstable_by(|a, b| b.logical.cmp(&a.logical).then(a.id.0.cmp(&b.id.0)));
+            items.truncate(8);
+        }
+    }
+    if cancelled.load(Ordering::Relaxed) {
+        return None;
+    }
+    Some(
+        groups
+            .into_iter()
+            .map(|(parent, items)| MapBranch {
+                parent: NodeId(parent),
+                items: items.into_iter().cloned().collect(),
+            })
+            .collect(),
+    )
 }
 
 #[derive(serde::Serialize)]
@@ -252,10 +297,14 @@ fn overview(index: &Index, id: NodeId, cancelled: &AtomicBool) -> Result<Option<
     if cancelled.load(Ordering::Relaxed) {
         return Ok(None);
     }
+    let Some(branches) = map_branches(index, &children, cancelled) else {
+        return Ok(None);
+    };
     Ok(Some(Overview {
         directory,
         children,
         types,
+        branches,
     }))
 }
 
@@ -357,6 +406,39 @@ pub(crate) async fn query_files_cancellable(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn overview_map_branches_are_bounded_ranked_and_direct() {
+        let fixture = tempfile::tempdir().unwrap();
+        for directory in 0..14 {
+            let folder = fixture.path().join(format!("folder{directory}"));
+            std::fs::create_dir(&folder).unwrap();
+            for size in 1..=10 {
+                std::fs::write(folder.join(format!("file{size}")), vec![1; size]).unwrap();
+            }
+        }
+        let cancelled = AtomicBool::new(false);
+        let index = voldiq_core::scanner::scan(
+            fixture.path(),
+            &voldiq_core::ScanOptions::default(),
+            &cancelled,
+            |_| {},
+        )
+        .unwrap();
+        let result = overview(&index, NodeId(0), &cancelled).unwrap().unwrap();
+        assert_eq!(result.branches.len(), 12);
+        for branch in &result.branches {
+            assert_eq!(branch.items.len(), 8);
+            assert_eq!(
+                branch.items.iter().map(|e| e.logical).collect::<Vec<_>>(),
+                [10, 9, 8, 7, 6, 5, 4, 3]
+            );
+            assert!(branch.items.iter().all(|e| e.parent == Some(branch.parent)));
+            assert_eq!(index.entry(branch.parent).unwrap().logical, 55);
+        }
+        cancelled.store(true, Ordering::Relaxed);
+        assert!(map_branches(&index, &result.children, &cancelled).is_none());
+    }
 
     #[test]
     fn selected_folder_details_rank_only_five_direct_children() {

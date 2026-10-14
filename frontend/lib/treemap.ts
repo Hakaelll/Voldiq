@@ -3,6 +3,7 @@ export interface WeightedNode {
   name: string;
   value: number;
   directory: boolean;
+  children?: WeightedNode[];
 }
 export interface Rect extends WeightedNode {
   x: number;
@@ -60,6 +61,25 @@ export function layout(nodes: WeightedNode[], width: number, height: number): Re
     row.push(item);
   }
   if (row.length) place(row);
+  return output;
+}
+
+export function nestedLayout(nodes: WeightedNode[], width: number, height: number): Rect[] {
+  const output: Rect[] = [];
+  for (const parent of layout(nodes, width, height)) {
+    output.push(parent);
+    const children =
+      parent.children?.filter((item) => Number.isFinite(item.value) && item.value > 0) ?? [];
+    const sum = children.reduce((total, item) => total + item.value, 0);
+    if (!children.length || sum > parent.value || parent.width < 150 || parent.height < 140)
+      continue;
+    const remainder = parent.value - sum;
+    if (remainder > 0)
+      children.push({ id: parent.id, name: 'Other', value: remainder, directory: true });
+    for (const child of layout(children, parent.width - 12, parent.height - 58)) {
+      output.push({ ...child, x: child.x + parent.x + 6, y: child.y + parent.y + 52 });
+    }
+  }
   return output;
 }
 
