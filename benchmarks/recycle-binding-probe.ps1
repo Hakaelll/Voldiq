@@ -45,6 +45,15 @@ public static class RecycleBindingProbe {
         if (file == new IntPtr(-1)) throw new IOException("Open failed: " + Marshal.GetLastWin32Error());
         return file;
     }
+    static uint GrantedAccess(IntPtr handle) {
+        IntPtr basic = Marshal.AllocHGlobal(56);
+        try {
+            int status = NtQueryObject(handle, 0, basic, 56, out uint returned);
+            if (status < 0 || returned < 8)
+                throw new IOException("Granted-access query failed: 0x" + ((uint)status).ToString("x8"));
+            return (uint)Marshal.ReadInt32(basic, 4);
+        } finally { Marshal.FreeHGlobal(basic); }
+    }
     public static string Run() {
         if (IntPtr.Size != 8) throw new PlatformNotSupportedException("This probe requires x64 Windows.");
         var temporaryRoot = Path.GetFullPath(Path.GetTempPath());
@@ -88,17 +97,16 @@ public static class RecycleBindingProbe {
             bool renamed = SetFileInformationByHandle(leaf, 3, renameBuffer, (uint)size);
             int renameError = renamed ? 0 : Marshal.GetLastWin32Error();
             int nativeRename = renamed ? 0 : NtSetInformationFile(leaf, out IoStatus renameIo, renameBuffer, (uint)size, 10);
-            IntPtr basic = Marshal.AllocHGlobal(56);
-            uint granted = 0;
-            try {
-                if (NtQueryObject(sealedDirectory, 0, basic, 56, out uint returned) >= 0)
-                    granted = (uint)Marshal.ReadInt32(basic, 4);
-            } finally { Marshal.FreeHGlobal(basic); }
+            uint granted = GrantedAccess(sealedDirectory);
+            uint sourceGranted = GrantedAccess(leaf);
+            uint parentGranted = GrantedAccess(parent);
             bool replacementDenied;
             try { File.WriteAllBytes(Path.Combine(fixture, "sealed", "substitute.bin"), new byte[] { 9 }); replacementDenied = false; }
             catch (UnauthorizedAccessException) { replacementDenied = true; }
             if (!replacementDenied) throw new IOException("Sealed directory allowed an unexpected new child.");
             return "sealed_create_status=0x00000000; granted_access=0x" + granted.ToString("x8") +
+                "; staging_requested_access=0x001600a2; source_requested_access=0x00010080; source_granted_access=0x" + sourceGranted.ToString("x8") +
+                "; parent_requested_access=0x00020080; parent_granted_access=0x" + parentGranted.ToString("x8") +
                 "; rename=" + renamed + "; rename_error=" + renameError + "; native_rename_status=0x" +
                 ((uint)nativeRename).ToString("x8") + "; new_child_denied=" + replacementDenied;
         } finally {
@@ -113,9 +121,21 @@ public static class RecycleBindingProbe {
             if (security != IntPtr.Zero) LocalFree(security);
             if (parentDescriptor != IntPtr.Zero) LocalFree(parentDescriptor);
             foreach (var buffer in new[] { nameBuffer, unicodeBuffer, renameBuffer }) if (buffer != IntPtr.Zero) Marshal.FreeHGlobal(buffer);
-            if (!Path.GetFullPath(fixture).StartsWith(temporaryRoot, StringComparison.OrdinalIgnoreCase))
+            var resolvedFixture = Path.GetFullPath(fixture);
+            if (!String.Equals(Path.GetDirectoryName(resolvedFixture), temporaryRoot.TrimEnd(Path.DirectorySeparatorChar), StringComparison.OrdinalIgnoreCase) ||
+                !Path.GetFileName(resolvedFixture).StartsWith("voldiq-binding-", StringComparison.Ordinal) ||
+                (File.GetAttributes(resolvedFixture) & FileAttributes.ReparsePoint) != 0)
                 throw new IOException("Fixture escaped its temporary root.");
-            Directory.Delete(fixture, true);
+            var sealedPath = Path.Combine(resolvedFixture, "sealed");
+            if (Directory.Exists(sealedPath)) {
+                if ((File.GetAttributes(sealedPath) & FileAttributes.ReparsePoint) != 0)
+                    throw new IOException("Refusing to clean a replaced staging directory.");
+                File.Delete(Path.Combine(sealedPath, "entry.bin"));
+                File.Delete(Path.Combine(sealedPath, "substitute.bin"));
+                Directory.Delete(sealedPath, false);
+            }
+            File.Delete(Path.Combine(resolvedFixture, "original.bin"));
+            Directory.Delete(resolvedFixture, false);
         }
     }
 }

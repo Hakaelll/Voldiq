@@ -114,6 +114,18 @@ Creating an initially writable staging directory and sealing it afterward is als
 
 ## Shell file-ID binding experiment
 
+The staging probe records an authority census: requested and granted masks are recorded separately for the verified source, its parent and the staging directory. A failed `NtQueryObject` call is an explicit probe error rather than an apparent zero-access result. The 2026-10-14 run returned:
+
+| Actor | Requested access | Granted access |
+|---|---|---|
+| Verified source handle | `0x00010080` | `0x00110080` |
+| Parent directory handle | `0x00020080` | `0x00120080` |
+| Staging directory handle | `0x001600a2` | `0x001200a2` |
+
+The staging handle still lacks requested `WRITE_DAC`. Native enrollment and ACL recovery return `0xc0000022`; Win32 rename returns error 87. A new child remains denied. This is evidence against this particular staging design, not a proof that every recycling design is impossible. The probe now checks the exact temporary parent and reparse attributes, deletes only its three named fixture files and removes directories nonrecursively. Unexpected children stop cleanup instead of being recursively removed. The run completed its fixture cleanup and never invoked recycling.
+
+The [current Win32 rename contract](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_rename_info) allows a directory handle with a relative filename. Therefore the earlier Win32 error 87 must not be generalized into a claim that every relative-handle rename is unsupported. [NtCreateFile](https://learn.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntcreatefile) separately documents requested access, sharing and creation-time ACL application. Those contracts do not prove a Shell recycling handoff. The remaining gate is actual enrollment, retained namespace authority, per-item recycling and recovery, not merely parsing a file ID or obtaining a successful metadata query.
+
 Microsoft documents [IFileSystemBindData2](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nn-shobjidl_core-ifilesystembinddata2) as information supplied to Shell parsing, with [SetFileID](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-ifilesystembinddata2-setfileid) accepting the file index from `BY_HANDLE_FILE_INFORMATION`. That contract does not establish an immutable handle handoff for recycling.
 
 `benchmarks/shell-file-id-probe.ps1` checks whether a supplied original file ID preserves stream binding after namespace substitution. It creates a unique temporary directory with two controlled contents, implements both binding interfaces with their Windows SDK GUIDs and method order, and runs Shell calls on an STA thread. A successful baseline stream read is required. It then moves the original to a retained fixture path and creates a replacement with a distinct native identity at the original name. Both the previously created Shell item and a new item parsed with the stale ID are opened through `BHID_Stream`. A final read tests the original name after removing only the replacement fixture.
