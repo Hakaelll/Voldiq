@@ -137,6 +137,8 @@ The unscanned Overview pairs a drive summary with the scan controls. The selecte
 
 Populated maps show each sufficiently wide root region's percentage of the rendered measured weights, using the selected size metric. Nested children are excluded from this denominator to avoid counting the same bytes twice. The selection caption pairs its path and selected size with its indexed file count. File-type legends use responsive columns with aligned swatches and measured size/count labels.
 
+Explorer rows now pair their logical sizes with compact bars scaled to the largest item in the complete filtered result, retaining the virtual row geometry. Folder details show a 48px composition strip for the five measured direct children and the parent remainder. Child colors match the actionable list below. The strip is omitted when child totals exceed the indexed parent size; it never fills missing measurements with sample values.
+
 **Creative North Star: "The Windows storage workspace"**
 
 Voldiq puts paths, file sizes and scan coverage in a compact desktop workspace. The built interface follows the user-selected white Windows direction and supplied Palantir, Linear and Dub references. Fine dividers organize the rail, toolbar and content without decorative elevation. Segoe UI keeps the controls consistent with Windows expectations.

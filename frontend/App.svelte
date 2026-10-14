@@ -5,6 +5,7 @@
   import Overview from './components/Overview.svelte';
   import ScanWelcome from './components/ScanWelcome.svelte';
   import FileTable from './components/FileTable.svelte';
+  import FolderComposition from './components/FolderComposition.svelte';
   import Duplicates from './components/Duplicates.svelte';
   import History from './components/History.svelte';
   import DeveloperStorage from './components/DeveloperStorage.svelte';
@@ -1067,14 +1068,23 @@
                 </div>
                 {#if details.children}<div class="detail-children">
                     <h3>Children ({details.children.total.toLocaleString()})</h3>
-                    {#each details.children.items as child (child.id)}
+                    <FolderComposition
+                      children={details.children.items}
+                      logical={details.entry.logical}
+                    />
+                    {#each details.children.items as child, position (child.id)}
                       <button
                         disabled={analysisBusy}
                         onclick={(event) => {
                           void activateChild(child, event.currentTarget);
                         }}
                       >
-                        <Icon name={child.kind === 'directory' ? 'folder' : 'file'} />
+                        <span
+                          class="child-icon"
+                          style:color={rankColor(position).fill}
+                          aria-hidden="true"
+                          ><Icon name={child.kind === 'directory' ? 'folder' : 'file'} /></span
+                        >
                         <span title={child.name}>{child.name}</span><small
                           >{bytes(child.logical)}{#if child.incomplete}
                             · Partial{/if}</small

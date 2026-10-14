@@ -198,12 +198,13 @@
             ></span
           >
           <span class="number" role="cell"
-            >{bytes(entry.logical)}{#if ranked}<span class="size-track" aria-hidden="true"
-                ><span
-                  style:width={`${largest ? Math.min(100, (entry.logical / largest) * 100) : 0}%`}
-                ></span></span
-              >{/if}</span
-          ><span role="cell">{date(entry.modified)}</span><span role="cell"
+            >{bytes(entry.logical)}<span class="size-track" aria-hidden="true"
+              ><span
+                style:width={`${largest ? Math.min(100, (entry.logical / largest) * 100) : 0}%`}
+              ></span></span
+            ></span
+          >
+          <span role="cell">{date(entry.modified)}</span><span role="cell"
             >{entry.kind === 'directory'
               ? 'Folder'
               : entry.kind === 'link'

@@ -865,6 +865,10 @@ main {
   color: var(--secondary);
   font-variant-numeric: tabular-nums;
 }
+.detail-children button .child-icon {
+  display: flex;
+  flex: 0 0 18px;
+}
 .details-panel {
   margin-top: 16px;
   border: 1px solid var(--border);
