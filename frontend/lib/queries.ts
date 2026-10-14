@@ -1,6 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { createQueryRunner, type QueryTransport } from './query-runner';
-import type { Page, Overview, NodeId, Details } from './types';
+import type { Page, Overview, NodeId, SelectedDetails } from './types';
 
 let session: Promise<number> | undefined;
 function querySession(): Promise<number> {
@@ -20,10 +20,12 @@ const transport: QueryTransport = {
 };
 
 export const fileQueries = createQueryRunner('file_list', transport);
-export const detailQueries = createQueryRunner<Details, { id: NodeId }>('details', {
+export const detailQueries = createQueryRunner<SelectedDetails, { id: NodeId }>('details', {
   run: async (_family, requestId, input) =>
-    invoke<Details | null>('query_details_cancellable', {
-      epoch: await querySession(), requestId, id: input.id,
+    invoke<SelectedDetails | null>('query_details_cancellable', {
+      epoch: await querySession(),
+      requestId,
+      id: input.id,
     }),
   cancel: transport.cancel,
 });

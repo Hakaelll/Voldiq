@@ -143,6 +143,48 @@ pub(crate) struct Overview {
     types: FileTypes,
 }
 
+#[derive(serde::Serialize)]
+pub(crate) struct SelectedDetails {
+    #[serde(flatten)]
+    details: Details,
+    children: Option<Page>,
+}
+
+fn selected_details(
+    index: &Index,
+    id: NodeId,
+    cancelled: &AtomicBool,
+) -> Result<Option<SelectedDetails>, String> {
+    let Some(details) = index
+        .details_cancellable(id, || cancelled.load(Ordering::Relaxed))
+        .map_err(|e| e.to_string())?
+    else {
+        return Ok(None);
+    };
+    let children = if details.entry.kind == voldiq_core::Kind::Directory {
+        let Some(page) = index
+            .query_cancellable(
+                &Query {
+                    parent: Some(id),
+                    limit: 5,
+                    ..Query::default()
+                },
+                || cancelled.load(Ordering::Relaxed),
+            )
+            .map_err(|e| e.to_string())?
+        else {
+            return Ok(None);
+        };
+        Some(page)
+    } else {
+        None
+    };
+    if cancelled.load(Ordering::Relaxed) {
+        return Ok(None);
+    }
+    Ok(Some(SelectedDetails { details, children }))
+}
+
 fn overview(index: &Index, id: NodeId, cancelled: &AtomicBool) -> Result<Option<Overview>, String> {
     let Some(children) = index
         .query_cancellable(
@@ -235,17 +277,13 @@ pub(crate) async fn query_details_cancellable(
     id: NodeId,
     request_id: u64,
     engine: State<'_, Arc<Engine>>,
-) -> Result<Option<Details>, String> {
+) -> Result<Option<SelectedDetails>, String> {
     run_query(
         epoch,
         QueryFamily::Details,
         request_id,
         engine.inner().clone(),
-        move |index, cancelled| {
-            index
-                .details_cancellable(id, || cancelled.load(Ordering::Relaxed))
-                .map_err(|error| error.to_string())
-        },
+        move |index, cancelled| selected_details(index, id, cancelled),
     )
     .await
 }
@@ -289,6 +327,66 @@ pub(crate) async fn query_files_cancellable(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn selected_folder_details_rank_only_five_direct_children() {
+        let fixture = tempfile::tempdir().unwrap();
+        for size in 1..=7 {
+            std::fs::write(fixture.path().join(format!("file{size}")), vec![1; size]).unwrap();
+        }
+        std::fs::create_dir(fixture.path().join("nested")).unwrap();
+        std::fs::write(fixture.path().join("nested/data"), [1; 20]).unwrap();
+        let cancelled = AtomicBool::new(false);
+        let index = voldiq_core::scanner::scan(
+            fixture.path(),
+            &voldiq_core::ScanOptions::default(),
+            &cancelled,
+            |_| {},
+        )
+        .unwrap();
+        let result = selected_details(&index, NodeId(0), &cancelled)
+            .unwrap()
+            .unwrap();
+        let children = result.children.as_ref().unwrap();
+        assert_eq!(children.total, 8);
+        assert_eq!(
+            children
+                .items
+                .iter()
+                .map(|e| e.name.as_str())
+                .collect::<Vec<_>>(),
+            ["nested", "file7", "file6", "file5", "file4"]
+        );
+        assert_eq!(
+            children.items.iter().map(|e| e.logical).collect::<Vec<_>>(),
+            [20, 7, 6, 5, 4]
+        );
+        let payload = serde_json::to_value(&result).unwrap();
+        assert_eq!(payload["entry"]["id"], 0);
+        assert_eq!(payload["children"]["total"], 8);
+        let file = children.items[1].id;
+        assert!(
+            selected_details(&index, file, &cancelled)
+                .unwrap()
+                .unwrap()
+                .children
+                .is_none()
+        );
+        let nested = children.items[0].id;
+        let nested_children = selected_details(&index, nested, &cancelled)
+            .unwrap()
+            .unwrap()
+            .children
+            .unwrap();
+        assert_eq!(nested_children.total, 1);
+        assert_eq!(nested_children.items[0].name, "data");
+        cancelled.store(true, Ordering::Relaxed);
+        assert!(
+            selected_details(&index, NodeId(u32::MAX), &cancelled)
+                .unwrap()
+                .is_none()
+        );
+    }
 
     #[test]
     fn overview_returns_one_real_index_summary_or_no_cancelled_payload() {

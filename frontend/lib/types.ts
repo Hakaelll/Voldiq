@@ -75,6 +75,9 @@ export interface Details {
   ancestors: Entry[];
   path_exact: boolean;
 }
+export interface SelectedDetails extends Details {
+  children: Page | null;
+}
 export interface Volume {
   path: string;
   name: string;

@@ -19,6 +19,7 @@
     date,
     type Entry,
     type Details,
+    type SelectedDetails,
     type FileTypes,
     type Issue,
     type Page,
@@ -61,7 +62,9 @@
     revision = $state(0),
     scope = $state(0);
   let directory = $state<Details | null>(null),
-    details = $state<Details | null>(null);
+    details = $state<SelectedDetails | null>(null);
+  let fileWorkspace = $state<HTMLDivElement>();
+  let detailsPanel = $state<HTMLElement>();
   let children = $state<Page>({ items: [], total: 0 }),
     types = $state<FileTypes>({ items: [], total_bytes: 0, total_files: 0 });
   let text = $state(''),
@@ -186,6 +189,30 @@
       if (item && token === interactionToken && ready) details = item;
     } catch (problem) {
       if (token === interactionToken) report(problem);
+    }
+  }
+  async function activateChild(child: Entry, button: HTMLButtonElement): Promise<void> {
+    let restore = document.activeElement === button;
+    const token = interactionToken + 1;
+    const moved = (event: FocusEvent): void => {
+      if (event.target !== button && event.target !== document.body) restore = false;
+    };
+    document.addEventListener('focusin', moved);
+    try {
+      if (child.kind === 'directory') await open(child.id);
+      else await select(child.id);
+      await tick();
+      if (
+        restore &&
+        token === interactionToken &&
+        !button.isConnected &&
+        document.activeElement === document.body
+      ) {
+        if (details) detailsPanel?.focus();
+        else fileWorkspace?.focus();
+      }
+    } finally {
+      document.removeEventListener('focusin', moved);
     }
   }
   async function open(id: number): Promise<void> {
@@ -818,6 +845,8 @@
             </div>{/if}
           {#if directory?.entry.incomplete}<div class="notice">Incomplete coverage</div>{/if}
           <div
+            bind:this={fileWorkspace}
+            tabindex="-1"
             class:file-workspace={view === 'explorer' || view === 'large'}
             class:has-details={details !== null}
           >
@@ -957,7 +986,7 @@
                     >
                   </div>{/if}
               </section>{/if}
-            {#if details}<section class="details-panel">
+            {#if details}<section class="details-panel" tabindex="-1" bind:this={detailsPanel}>
                 <div>
                   <Icon name={details.entry.kind === 'directory' ? 'folder' : 'file'} />
                   <h2>{details.entry.name}</h2>
@@ -1021,6 +1050,23 @@
                       disabled={analysisBusy}><Icon name="folder" />Explore folder</button
                     >{/if}
                 </div>
+                {#if details.children}<div class="detail-children">
+                    <h3>Children ({details.children.total.toLocaleString()})</h3>
+                    {#each details.children.items as child (child.id)}
+                      <button
+                        disabled={analysisBusy}
+                        onclick={(event) => {
+                          void activateChild(child, event.currentTarget);
+                        }}
+                      >
+                        <Icon name={child.kind === 'directory' ? 'folder' : 'file'} />
+                        <span title={child.name}>{child.name}</span><small
+                          >{bytes(child.logical)}{#if child.incomplete}
+                            · Partial{/if}</small
+                        >
+                      </button>
+                    {/each}
+                  </div>{/if}
               </section>{/if}
           </div>
         {/if}

@@ -905,6 +905,37 @@ main {
   text-align: center;
   color: var(--muted);
 }
+.detail-children {
+  border-top: 1px solid var(--border);
+  margin-top: 24px;
+  padding-top: 20px;
+}
+.detail-children h3 {
+  font-size: 14px;
+  margin: 0 0 12px;
+}
+.detail-children button {
+  display: flex;
+  width: 100%;
+  gap: 10px;
+  padding: 12px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+}
+.detail-children button span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+.detail-children button small {
+  flex-shrink: 0;
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
 .details-panel {
   margin-top: 16px;
   border: 1px solid var(--border);
