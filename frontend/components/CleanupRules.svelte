@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onDestroy, untrack, tick } from 'svelte';
   import { invoke, isTauri } from '@tauri-apps/api/core';
-  import { bytes, type CleanupRulePage, type CleanupPreview } from '../lib/types';
+  import { bytes, date, type CleanupRulePage, type CleanupPreview } from '../lib/types';
   import Icon from './Icon.svelte';
   let {
     revision,
@@ -168,7 +168,7 @@
                 ><tr
                   ><th><span class="sr-only">Selection</span></th><th>Name</th><th class="number"
                     >Logical size</th
-                  ><th class="number">Potential</th></tr
+                  ><th>Modified</th><th class="number">Potential</th></tr
                 ></thead
               >
               <tbody
@@ -194,9 +194,9 @@
                         </div>
                       </div></td
                     >
-                    <td class="number">{bytes(item.logical)}</td><td class="number"
-                      >{bytes(item.reclaimable)}</td
-                    >
+                    <td class="number">{bytes(item.logical)}</td><td class="modified"
+                      >{date(item.modified)}</td
+                    ><td class="number">{bytes(item.reclaimable)}</td>
                   </tr>{/each}</tbody
               >
             </table>
@@ -305,7 +305,7 @@
   }
   table {
     width: 100%;
-    min-width: 600px;
+    min-width: 740px;
     border-collapse: collapse;
     font-size: 13px;
   }
@@ -353,6 +353,10 @@
   }
   .number {
     text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+  .modified {
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
   }

@@ -243,6 +243,7 @@ fn query_scoped(
                 entry.allocated
             },
             hard_link: entry.hard_link,
+            modified: entry.modified,
         });
     }
     Ok(page)

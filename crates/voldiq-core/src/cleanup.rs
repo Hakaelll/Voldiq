@@ -21,6 +21,7 @@ pub struct PreviewItem {
     pub logical: u64,
     pub reclaimable: u64,
     pub hard_link: bool,
+    pub modified: Option<u64>,
 }
 
 #[derive(Clone, Serialize)]
@@ -198,6 +199,7 @@ impl Plan {
                 logical: metadata.len(),
                 reclaimable,
                 hard_link: identity.links > 1,
+                modified: crate::scanner::modified(&metadata),
             });
             files.push(PlannedFile {
                 id,

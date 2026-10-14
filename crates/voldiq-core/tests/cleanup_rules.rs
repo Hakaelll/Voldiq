@@ -128,10 +128,12 @@ fn temporary_rule_requires_indexed_scope_extension_age_and_explicit_current_sele
     assert_eq!(page.logical, 48);
     assert_eq!(page.items.len(), 1);
     assert!(page.items[0].path.ends_with("old.tmp"));
+    assert_eq!(page.items[0].modified, Some(old));
     let next = rules::query(Some(&index), &temporary, now, 1, 1).unwrap();
     assert!(next.items[0].path.ends_with("old.TEMP"));
     let id = page.items[0].id;
     let preview = rules::preview(&index, &temporary, now, &[id]).unwrap();
+    assert_eq!(preview.preview().items[0].modified, Some(old));
     assert_eq!(preview.preview().rule, rules::USER_TEMP.id);
     assert_eq!(preview.preview().items.len(), 1);
     let outside_id = index

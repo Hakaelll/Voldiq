@@ -10,7 +10,14 @@ export interface CleanupPreview {
     rule: string;
     risk: string;
     policy: string;
-    items: { id: NodeId; path: string; logical: number; reclaimable: number; hard_link: boolean }[];
+    items: {
+      id: NodeId;
+      path: string;
+      logical: number;
+      reclaimable: number;
+      hard_link: boolean;
+      modified: number | null;
+    }[];
     logical: number;
     reclaimable: number;
     retained: string[];
