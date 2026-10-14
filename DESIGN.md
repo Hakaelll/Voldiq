@@ -133,6 +133,8 @@ components:
 
 ## Overview
 
+The unscanned Overview pairs a drive summary with the scan controls. The selected drive's measured used percentage forms a ring above its used, free and total bytes. The supplied symbol, primary scan action, folder picker and up to three saved recent paths occupy the second column. The layout stacks on narrow windows and contains long volume names. It adds no illustrative disk values or explanatory paragraphs. Storage-map folder headings are larger than child labels; separators stay within cells that have room for them.
+
 **Creative North Star: "The Windows storage workspace"**
 
 Voldiq puts paths, file sizes and scan coverage in a compact desktop workspace. The built interface follows the user-selected white Windows direction and supplied Palantir, Linear and Dub references. Fine dividers organize the rail, toolbar and content without decorative elevation. Segoe UI keeps the controls consistent with Windows expectations.
@@ -162,7 +164,7 @@ The palette uses white and neutral gray for structure, blue for interaction, and
 
 ### Secondary
 
-- **Measured map colors** use the six `map-` tokens. The map hashes the item name to a palette index. These colors currently distinguish regions, rather than expressing a stable semantic file-type taxonomy.
+- **Measured map colors** use the six `map-` tokens. Root regions receive colors in size-rank order, with later regions using slate. Nested children inherit their enclosing region's fill and paired text color. Largest-item swatches match these regions. File-type summaries retain name-based colors. Neither palette encodes a semantic file-type taxonomy.
 
 ### Neutral
 

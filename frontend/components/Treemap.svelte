@@ -32,7 +32,7 @@
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.clearRect(0, 0, width, height);
     for (const rect of rects) {
-      const paint = mapColor(rect.name);
+      const paint = rect.paint ?? mapColor(rect.name);
       ctx.fillStyle = paint.fill;
       ctx.fillRect(
         rect.x + 1,
@@ -40,6 +40,11 @@
         Math.max(0, rect.width - 2),
         Math.max(0, rect.height - 2),
       );
+      if (rect.width > 3 && rect.height > 3) {
+        ctx.strokeStyle = paint.ink;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(rect.x + 1.5, rect.y + 1.5, rect.width - 3, rect.height - 3);
+      }
       if (rect.id === selected || rect.id === hovered?.id) {
         ctx.save();
         ctx.beginPath();
@@ -61,7 +66,9 @@
         ctx.rect(rect.x + 10, rect.y + 8, rect.width - 20, rect.height - 16);
         ctx.clip();
         ctx.fillStyle = paint.ink;
-        ctx.font = '600 13px "Segoe UI", sans-serif';
+        ctx.font = rect.children?.length
+          ? '600 18px "Segoe UI", sans-serif'
+          : '600 13px "Segoe UI", sans-serif';
         ctx.fillText(rect.name, rect.x + 12, rect.y + 24);
         ctx.font = '12px "Segoe UI", sans-serif';
         ctx.fillText(bytes(rect.value), rect.x + 12, rect.y + 44);

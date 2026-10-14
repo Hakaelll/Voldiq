@@ -3,6 +3,7 @@
   import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
   import Icon from './components/Icon.svelte';
   import Overview from './components/Overview.svelte';
+  import ScanWelcome from './components/ScanWelcome.svelte';
   import FileTable from './components/FileTable.svelte';
   import Duplicates from './components/Duplicates.svelte';
   import History from './components/History.svelte';
@@ -14,7 +15,7 @@
   import { readRecentPaths, rememberPath } from './lib/recent-paths';
   import { overviewQueries, detailQueries } from './lib/queries';
   import { scopedFileQuery } from './lib/file-query';
-  import type { WeightedNode } from './lib/treemap';
+  import { rankColor, type WeightedNode } from './lib/treemap';
   import {
     bytes,
     date,
@@ -135,11 +136,12 @@
     }),
   );
   let nodes = $derived.by(() => {
-    const entries: WeightedNode[] = children.items.map((entry) => ({
+    const entries: WeightedNode[] = children.items.map((entry, position) => ({
       id: entry.id,
       name: entry.name,
       value: sizeMode === 'allocated' ? entry.allocated : entry.logical,
       directory: entry.kind === 'directory',
+      paint: rankColor(position),
       children: branches
         .find((branch) => branch.parent === entry.id)
         ?.items.map((child) => ({
@@ -161,6 +163,7 @@
         name: `${Math.max(0, children.total - children.items.length)} smaller items`,
         value: remainder,
         directory: true,
+        paint: rankColor(5),
       });
     return entries;
   });
@@ -825,47 +828,19 @@
           onerror={report}
         />
       {:else}
-        {#if volume?.accessible && view === 'overview' && !ready}<section
-            class="capacity-strip"
-            aria-label="Volume capacity"
-          >
-            <div><span>Total capacity</span><strong>{bytes(volume.total)}</strong></div>
-            <div>
-              <span>Used on volume</span><strong>{bytes(volume.total - volume.free)}</strong><small
-                >{volume.total
-                  ? (((volume.total - volume.free) / volume.total) * 100).toFixed(1)
-                  : '0'}%</small
-              >
-            </div>
-            <div><span>Free space</span><strong>{bytes(volume.free)}</strong></div>
-            <div>
-              <span>Indexed logical size</span><strong
-                >{ready && directory ? bytes(directory.entry.logical) : 'Not scanned'}</strong
-              ><small
-                >{directory?.entry.incomplete
-                  ? 'Incomplete coverage'
-                  : ready
-                    ? 'Current folder'
-                    : volume.filesystem}</small
-              >
-            </div>
-          </section>{/if}
-        {#if !ready && view !== 'duplicates' && view !== 'cleanup'}<section class="welcome">
-            <div class="welcome-art">
-              <img src="/symbol.png" alt="Voldiq logo" width="72" height="72" />
-            </div>
-            <h2>No scan yet</h2>
-            <div>
-              <button
-                class="primary"
-                onclick={() => start(volumePath)}
-                disabled={!volumePath || busy || !isTauri()}
-                ><Icon name="scan" />Scan selected drive</button
-              ><button onclick={choose} disabled={busy || !isTauri()}
-                ><Icon name="folder" />Choose a folder</button
-              >
-            </div>
-          </section>
+        {#if !ready && view !== 'duplicates' && view !== 'cleanup'}<ScanWelcome
+            {volume}
+            {busy}
+            native={isTauri()}
+            scanning={operation?.phase === 'scanning'}
+            recent={recentPaths}
+            onscan={(path) => {
+              void start(path);
+            }}
+            onchoose={() => {
+              void choose();
+            }}
+          />
         {:else}
           {#if ready}<div class="breadcrumbs">
               <button title="Scan root" onclick={() => open(0)}

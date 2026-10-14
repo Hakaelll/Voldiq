@@ -353,41 +353,6 @@ main {
 .page-heading > button {
   flex-shrink: 0;
 }
-.capacity-strip {
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  padding: 20px 0;
-  margin-bottom: 22px;
-}
-.capacity-strip > div {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  padding: 0 22px;
-  border-right: 1px solid var(--border);
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-.capacity-strip > div:last-child {
-  border: 0;
-}
-.capacity-strip span {
-  width: 100%;
-  color: var(--secondary);
-  font-size: 12px;
-}
-.capacity-strip strong {
-  font-size: 23px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-.capacity-strip small {
-  font-variant-numeric: tabular-nums;
-}
 .scan-status {
   display: flex;
   align-items: center;
@@ -442,37 +407,6 @@ main {
   border: 0;
   padding: 3px;
   background: transparent;
-}
-.welcome {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 430px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
-  text-align: center;
-  padding: 40px 20px;
-}
-.welcome-art {
-  margin-bottom: 20px;
-}
-.welcome h2 {
-  font-size: 24px;
-  letter-spacing: -0.02em;
-  margin-bottom: 10px;
-}
-.welcome p {
-  max-width: 460px;
-  margin-bottom: 24px;
-}
-.welcome > div:not(.welcome-art) {
-  display: flex;
-  gap: 10px;
-}
-.welcome small {
-  margin-top: 24px;
 }
 .breadcrumbs {
   display: flex;
@@ -1646,12 +1580,6 @@ main {
   .overview-grid {
     grid-template-columns: 210px minmax(0, 1fr);
   }
-  .capacity-strip > div {
-    padding: 0 14px;
-  }
-  .capacity-strip strong {
-    font-size: 20px;
-  }
   .table-head,
   .table-row {
     grid-template-columns: minmax(210px, 1fr) 110px 180px 130px;
@@ -1692,13 +1620,6 @@ main {
     width: 100%;
     max-width: none;
     order: 3;
-  }
-  .capacity-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 18px;
-  }
-  .capacity-strip > div:nth-child(2) {
-    border: 0;
   }
   .page-heading {
     align-items: flex-start;

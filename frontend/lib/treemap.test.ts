@@ -1,6 +1,29 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { layout, nestedLayout, mapColor, color } from './treemap.ts';
+import { layout, nestedLayout, mapColor, color, rankColor } from './treemap.ts';
+
+test('ranked map families retain paired ink and share their parent paint', () => {
+  const paint = rankColor(0);
+  assert.deepEqual(paint, { fill: '#075bdd', ink: '#ffffff' });
+  assert.deepEqual(rankColor(99), rankColor(5));
+  assert.deepEqual(rankColor(-1), paint);
+  const rects = nestedLayout(
+    [
+      {
+        id: 1,
+        name: 'root',
+        value: 100,
+        directory: true,
+        paint,
+        children: [{ id: 2, name: 'child', value: 60, directory: false }],
+      },
+    ],
+    400,
+    300,
+  );
+  assert.equal(rects.length, 3);
+  assert.ok(rects.every((rect) => rect.paint === paint));
+});
 
 test('nested map preserves child ratios and measured remainder inside its parent', () => {
   const rects = nestedLayout(

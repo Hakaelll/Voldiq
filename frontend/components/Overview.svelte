@@ -104,14 +104,17 @@
         <h2>Largest items</h2>
         <button onclick={onlist}>See all</button>
       </div>
-      {#each children.items.slice(0, 10) as entry}
+      {#each children.items.slice(0, 10) as entry, position}
         <button
           class="ranking-row"
           class:active={selected?.entry.id === entry.id}
           onclick={() => onselect(entry.id)}
           ondblclick={() => onopen(entry.id)}
         >
-          <span class="item-swatch" style:background={color(entry.name)}></span>
+          <span
+            class="item-swatch"
+            style:background={nodes[position]?.paint?.fill ?? color(entry.name)}
+          ></span>
           <span title={entry.name}>{entry.name}</span><strong>{bytes(entry.logical)}</strong>
         </button>
       {/each}

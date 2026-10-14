@@ -4,6 +4,7 @@ export interface WeightedNode {
   value: number;
   directory: boolean;
   children?: WeightedNode[];
+  paint?: { fill: string; ink: string };
 }
 export interface Rect extends WeightedNode {
   x: number;
@@ -77,7 +78,12 @@ export function nestedLayout(nodes: WeightedNode[], width: number, height: numbe
     if (remainder > 0)
       children.push({ id: parent.id, name: 'Other', value: remainder, directory: true });
     for (const child of layout(children, parent.width - 12, parent.height - 58)) {
-      output.push({ ...child, x: child.x + parent.x + 6, y: child.y + parent.y + 52 });
+      output.push({
+        ...child,
+        paint: parent.paint ?? child.paint,
+        x: child.x + parent.x + 6,
+        y: child.y + parent.y + 52,
+      });
     }
   }
   return output;
@@ -91,6 +97,9 @@ const colors = [
   { fill: '#c59127', ink: '#101820' },
   { fill: '#717a84', ink: '#000000' },
 ];
+export function rankColor(rank: number): { fill: string; ink: string } {
+  return colors[Math.min(Math.max(0, rank), colors.length - 1)] ?? colors[0];
+}
 export function mapColor(name: string): { fill: string; ink: string } {
   let hash = 0;
   for (const char of name) hash = (Math.imul(hash, 31) + char.charCodeAt(0)) | 0;
