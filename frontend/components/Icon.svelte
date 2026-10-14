@@ -11,6 +11,8 @@
       'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8 M12 2v3 M12 19v3 M2 12h3 M19 12h3 M5 5l2 2 M17 17l2 2 M5 19l2-2 M17 7l2-2',
     collapse: 'M15 5l-7 7 7 7',
     expand: 'M9 5l7 7-7 7',
+    'chevron-up': 'M6 15l6-6 6 6',
+    'chevron-down': 'M6 9l6 6 6-6',
     file: 'M6 3h8l4 4v14H6z M14 3v5h4',
     back: 'M20 12H4 M10 6l-6 6 6 6',
     disk: 'M5 4h14l3 12v4H2v-4z M2 16h20 M16 18h1 M19 18h1',

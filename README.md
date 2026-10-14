@@ -65,7 +65,7 @@ Both paths tolerate inaccessible files, report errors and support cancellation. 
 
 Changing a query or closing the file list cancels obsolete filtering and ranking work. Each query family keeps one running request and only its latest pending request; the overview and file list remain independent. Reloading the frontend creates a native query session that invalidates older requests. Cancellation is cooperative and does not return partial query pages.
 
-The file list supports arrow keys, Home, End, Page Up and Page Down from a focused filename. Enter opens the item; Space selects it. Distant keyboard targets fetch a bounded page before receiving focus. Large indices use a bounded scroll range while retaining normal row spacing and wheel steps.
+The file list supports arrow keys, Home, End, Page Up and Page Down from a focused filename. Enter opens the item; Space selects it. Select the Name, Logical size or Modified header to order the indexed results; a chevron marks the active order. Distant keyboard targets fetch a bounded page before receiving focus. Large indices use a bounded scroll range while retaining normal row spacing and wheel steps.
 
 Selecting a file type searches the current folder's indexed subtree, matching the overview totals. **No extension** matches regular files such as `README` and `.gitignore`; folders remain excluded. The same filter is available in Explorer and Large files and clears with Reset filters or Ctrl+K.
 

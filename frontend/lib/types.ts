@@ -143,7 +143,7 @@ export interface Query {
   modified_before?: number;
   files_only?: boolean;
   kind?: Entry['kind'];
-  sort?: string;
+  sort?: 'size' | 'name' | 'modified';
   offset?: number;
   limit?: number;
 }

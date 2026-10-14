@@ -17,6 +17,7 @@
     onselect,
     onopen,
     onerror,
+    onsort,
     checked = new Set<number>(),
     manageable = false,
     oncheck,
@@ -28,6 +29,7 @@
     onselect: (entry: Entry) => void;
     onopen: (entry: Entry) => void;
     onerror: (error: unknown) => void;
+    onsort: (sort: NonNullable<Query['sort']>) => void;
     checked?: ReadonlySet<number>;
     manageable?: boolean;
     oncheck?: (id: number, checked: boolean) => void;
@@ -39,6 +41,7 @@
     offset = $state(0);
   let paths = $state<string[]>([]);
   let largest = $state(0);
+  const activeSort = $derived(query.sort ?? 'size');
   let viewport: HTMLDivElement;
   let viewportHeight = $state(420);
   let pendingFocus = $state<number | null>(null);
@@ -157,9 +160,37 @@
     }}
   >
     <div class="table-head" role="row">
-      <span role="columnheader">Name</span><span role="columnheader">Logical size</span><span
-        role="columnheader">Modified</span
-      ><span role="columnheader">Type</span>
+      <span role="columnheader" aria-sort={activeSort === 'name' ? 'ascending' : 'none'}>
+        <button
+          class:active={activeSort === 'name'}
+          onclick={() => onsort('name')}
+          title="Sort by name"
+          >Name{#if activeSort === 'name'}<Icon name="chevron-up" size={14} />{/if}</button
+        >
+      </span>
+      <span role="columnheader" aria-sort={activeSort === 'size' ? 'descending' : 'none'}>
+        <button
+          class:active={activeSort === 'size'}
+          onclick={() => onsort('size')}
+          title="Sort by logical size, largest first"
+          >Logical size{#if activeSort === 'size'}<Icon
+              name="chevron-down"
+              size={14}
+            />{/if}</button
+        >
+      </span>
+      <span role="columnheader" aria-sort={activeSort === 'modified' ? 'descending' : 'none'}>
+        <button
+          class:active={activeSort === 'modified'}
+          onclick={() => onsort('modified')}
+          title="Sort by modification date, newest first"
+          >Modified{#if activeSort === 'modified'}<Icon
+              name="chevron-down"
+              size={14}
+            />{/if}</button
+        >
+      </span>
+      <span role="columnheader">Type</span>
     </div>
     <div class="virtual-rows" style:height={`${window.height}px`}>
       {#each rows as entry, i (entry.id)}
@@ -224,6 +255,28 @@
 </div>
 
 <style>
+  .table-head button {
+    width: 100%;
+    min-height: 32px;
+    justify-content: flex-start;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--secondary);
+    font-size: inherit;
+    font-weight: 400;
+    gap: 6px;
+  }
+  .table-head > span:nth-child(2) button {
+    justify-content: flex-end;
+  }
+  .table-head button.active {
+    color: var(--text);
+    font-weight: 600;
+  }
+  .table-head button:hover {
+    color: var(--accent);
+  }
   .ranked .file-name > span {
     display: block;
     line-height: 15px;

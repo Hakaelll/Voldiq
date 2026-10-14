@@ -80,7 +80,7 @@
     minSize = $state(100),
     largeKind = $state<'file' | 'directory'>('file'),
     before = $state(''),
-    sort = $state('size');
+    sort = $state<NonNullable<Query['sort']>>('size');
   let error = $state(''),
     issues = $state<Issue[]>([]),
     showIssues = $state(false);
@@ -975,6 +975,9 @@
                   >
                 </div>
                 <FileTable
+                  onsort={(next) => {
+                    sort = next;
+                  }}
                   ranked={view === 'large'}
                   {query}
                   {revision}
