@@ -3,6 +3,7 @@
   import { invoke, isTauri } from '@tauri-apps/api/core';
   import { bytes, date, type CleanupRulePage, type CleanupPreview } from '../lib/types';
   import Icon from './Icon.svelte';
+  import { updateCleanupSelection } from '../lib/cleanup-selection';
   let {
     revision,
     manageable,
@@ -36,6 +37,10 @@
   ] as const;
   let selection = $derived([...selected.values()]);
   let selectionLogical = $derived(selection.reduce((sum, item) => sum + item.logical, 0));
+  let pageSelected = $derived(page?.items.filter((item) => selected.has(item.id)).length ?? 0);
+  let allPageSelected = $derived(
+    Boolean(page?.items.length) && pageSelected === page?.items.length,
+  );
   function filename(path: string): string {
     return path.slice(Math.max(path.lastIndexOf('\\'), path.lastIndexOf('/')) + 1);
   }
@@ -72,16 +77,10 @@
       }
     }
   }
-  function check(item: CleanupRulePage['items'][number], value: boolean): void {
-    const next = new Map(selected);
-    if (value) {
-      if (next.size >= 500) {
-        onerror('Select up to 500 files.');
-        return;
-      }
-      next.set(item.id, item);
-    } else next.delete(item.id);
-    selected = next;
+  function checkItems(items: CleanupRulePage['items'], value: boolean): void {
+    const next = updateCleanupSelection(selected, items, value);
+    if (next) selected = next;
+    else onerror('Select up to 500 files.');
   }
   async function review(): Promise<void> {
     if (!manageable || busy || reviewing || selected.size === 0) return;
@@ -166,9 +165,22 @@
             <table>
               <thead
                 ><tr
-                  ><th><span class="sr-only">Selection</span></th><th>Name</th><th class="number"
-                    >Logical size</th
-                  ><th>Modified</th><th class="number">Potential</th></tr
+                  ><th
+                    ><input
+                      type="checkbox"
+                      aria-label="Select files on this page"
+                      checked={allPageSelected}
+                      indeterminate={pageSelected > 0 && !allPageSelected}
+                      disabled={!manageable || busy || loadState !== 'ready'}
+                      onchange={(event) => {
+                        if (page) checkItems(page.items, event.currentTarget.checked);
+                        event.currentTarget.checked = allPageSelected;
+                        event.currentTarget.indeterminate = pageSelected > 0 && !allPageSelected;
+                      }}
+                    /></th
+                  ><th>Name</th><th class="number">Logical size</th><th>Modified</th><th
+                    class="number">Potential</th
+                  ></tr
                 ></thead
               >
               <tbody
@@ -180,7 +192,7 @@
                         checked={selected.has(item.id)}
                         disabled={!manageable || busy}
                         onchange={(event) => {
-                          check(item, event.currentTarget.checked);
+                          checkItems([item], event.currentTarget.checked);
                           event.currentTarget.checked = selected.has(item.id);
                         }}
                       /></td
