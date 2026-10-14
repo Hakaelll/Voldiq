@@ -29,6 +29,8 @@ This record follows the original [specification](reference/requirements.md#28-cr
 
 ## Remaining implementation and performance work
 
+The complete source gate passed on 2026-10-14 at checkout `a2dbace`, including all workspace Rust tests and 30 frontend tests. The [verification summary](../benchmarks/project-verification-2026-10-14.json) records all six successful stages. A separate [failure-path check](../benchmarks/project-verification-failure-2026-10-14.json) injected exit code 7 into the first command and proved that no success summary was emitted and the working directory was restored. These records establish the automated source gate, not the remaining native or installer outcomes.
+
 Default recycling requires a proven namespace handoff, durable per-item results and original-path restoration before Undo can be implemented. The rejected handle/path and staging experiments are recorded in the cleanup document. Advanced permanent removal does not fulfill that default behavior.
 
 Developer analysis recognizes measured projects and supported current-user tool configurations. Additional configuration discovery and persisted cache-location evidence remain open. Browser/application caches and developer management need explicit supported rules and verification before becoming cleanup actions. Docker volumes remain persistent data and are not direct-delete candidates.
