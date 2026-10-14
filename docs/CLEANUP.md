@@ -2,6 +2,21 @@
 
 The current delivery supports manual, duplicate, indexed user/project temporary-file and old-file selections with previews and an explicitly confirmed advanced permanent-removal action. Duplicate execution preserves a verified copy per group throughout removal. Recycling is not exposed, and no destructive operation runs automatically. Preview alone never approves execution.
 
+## Browser cache format investigation
+
+`scripts/probe_chrome_cache.ps1` observes the default Windows Chrome user-data location documented by [Chromium](https://chromium.googlesource.com/chromium/src/+/HEAD/docs/user_data_dir.md). It considers Default and numbered Profile directories, then only dense Simple Cache filenames inside `Cache/Cache_Data`. The filename shape comes from Chromium's [simple_util.cc](https://raw.githubusercontent.com/chromium/chromium/main/net/disk_cache/simple/simple_util.cc).
+
+Each observation reads a 24-byte header and 24-byte trailing record. Initial/final magic and a bounded key length identify an envelope, using the [Simple Cache layout](https://raw.githubusercontent.com/chromium/chromium/main/net/disk_cache/simple/simple_entry_format.h). This does not validate CRCs, the full stream layout or supported versions. Attribute checks precede the read but are not atomic with file opening. The probe grants no cleanup authority.
+
+```powershell
+./scripts/probe_chrome_cache.ps1 -SelfTest
+./scripts/probe_chrome_cache.ps1 -OutputPath benchmarks/chrome-cache-envelope.json
+```
+
+The self-check uses owned disposable files to test a recognized envelope, a rejected envelope, ignored filenames/locations, private-content omission and the 100-entry observation limit. It removes only its exact created files and empty directories. The report contains counters and format versions, with no cache paths, keys, URLs or bodies.
+
+The [2026-10-14 observation](../benchmarks/chrome-cache-envelope-2026-10-14.json) examined zero profiles and zero entries at the default location. It provides no real-browser format evidence on this host. Custom data/cache locations, other browsers, complete format validation and integration with retained native file authority remain pending. No browser-cache cleanup action is exposed.
+
 ## Project temporary files
 
 The `old-project-temporary-files` rule lists complete regular `.tmp` and `.temp` files at least seven days old under indexed Cargo, Node.js, CMake and .NET build scopes. Build classification requires a complete project-manifest entry. It shares the Developer view's classifier without its page limit. Age and classification do not establish that a file is unused, so nothing is preselected or removed automatically. Risk is `review`, and intended default recycling remains pending; the existing typed advanced permanent confirmation is separate.

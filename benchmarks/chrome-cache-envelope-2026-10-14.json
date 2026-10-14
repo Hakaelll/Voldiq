@@ -1,0 +1,21 @@
+{
+  "checkedUtc": "2026-10-14T19:50:21.7076004Z",
+  "sourceCommit": "3a6dca666c15743bcca839078c57e1f11063e1e2",
+  "probeSha256": "E751BCF826FD0D214694CD5AABC421727552012BB716DE13F46B7E631273160D",
+  "browser": "Chrome, default Windows user-data location",
+  "scope": "Read-only envelope observation; no keys, URLs, bodies or file paths recorded",
+  "limits": {
+    "profiles": 10,
+    "bytesReadPerEntry": 48,
+    "entries": 100
+  },
+  "profilesExamined": 0,
+  "entriesExamined": 0,
+  "recognizedEnvelopes": 0,
+  "unrecognizedEnvelopes": 0,
+  "readFailures": 0,
+  "skippedPaths": 0,
+  "versions": {},
+  "cleanupAuthorized": false,
+  "raceFreeVerification": false
+}
