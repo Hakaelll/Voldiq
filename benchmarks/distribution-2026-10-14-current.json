@@ -1,0 +1,44 @@
+{
+  "checkedUtc": "2026-10-14T19:14:30.2718279Z",
+  "checkoutCommit": "bf54c5bb0995ab92d66a73bd63a15094051c8568",
+  "buildCommitVerified": false,
+  "scope": "Static artifact and generated-source checks; installation and embedded payload extraction are not verified.",
+  "native": {
+    "name": "voldiq.exe",
+    "bytes": 12776960,
+    "sha256": "F269FF73FF721945E8B32CECA16233E4751AE1ECE3A62F72CE4A63F7B439F632",
+    "peMachine": "0x8664",
+    "productVersion": "0.1.0",
+    "signature": "NotSigned",
+    "signer": null
+  },
+  "installer": {
+    "name": "Voldiq_0.1.0_x64-setup.exe",
+    "bytes": 220575946,
+    "sha256": "0CA30F43062481FC30981A94315C26A3B716B39EE033F9D6C10F24B8CB105C7E",
+    "peMachine": "0x014C",
+    "productVersion": "0.1.0",
+    "signature": "NotSigned",
+    "signer": null
+  },
+  "runtime": {
+    "name": "MicrosoftEdgeWebView2RuntimeInstallerX64.exe",
+    "bytes": 214090448,
+    "sha256": "2A6ADD76C37BFA872EB8C2B22D45B3216B8E2A1F193E0774006340FF62AC5FA0",
+    "peMachine": "0x014C",
+    "productVersion": "1.3.275.13",
+    "signature": "Valid",
+    "signer": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US"
+  },
+  "installMode": "currentUser",
+  "webviewMode": "offlineInstaller",
+  "iconSizes": [
+    16,
+    24,
+    32,
+    48,
+    64,
+    128,
+    256
+  ]
+}

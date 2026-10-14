@@ -30,7 +30,18 @@ Check the produced installer on a clean Windows machine with networking disabled
 
 Release signing and a public download are not configured. Packaging does not close the remaining product acceptance checks listed in `NEXT_TODOS.md` and `docs/TESTING.md`.
 
-## Latest build evidence, 2026-10-13
+## Latest build evidence, 2026-10-14
+
+`pnpm tauri build` completed with application sources at `bf54c5b`. This installer includes navigation that expands on hover, bounded nested storage maps and the native query changes. It predates the subsequent Overview welcome redesign. The [static verification record](../benchmarks/distribution-2026-10-14-current.json) passed architecture/version, offline WebView2 configuration, Microsoft runtime signature and icon checks. The checkout reference records the build session; the executable does not embed a verified Git commit.
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| Native x64 executable, version 0.1.0, unsigned | 12,776,960 | `F269FF73FF721945E8B32CECA16233E4751AE1ECE3A62F72CE4A63F7B439F632` |
+| NSIS installer, version 0.1.0, unsigned | 220,575,946 | `0CA30F43062481FC30981A94315C26A3B716B39EE033F9D6C10F24B8CB105C7E` |
+
+The verifier did not execute the installer or extract its embedded payload. Clean-machine offline installation, uninstall and signing remain pending.
+
+## Earlier build evidence, 2026-10-13
 
 `pnpm tauri build` completed with application sources at `87aa6cb`. This build includes query cancellation, bounded keyboard navigation, extensionless filtering and native analysis dates. The [static verification record](../benchmarks/distribution-2026-10-13-current.json) passed architecture/version, offline WebView2 configuration, runtime signature and supplied icon checks. Its checkout reference records the build session; the executable does not embed a verified Git commit.
 
