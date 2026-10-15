@@ -1,6 +1,16 @@
 # Cleanup previews
 
-The current delivery supports manual, duplicate, indexed user/project temporary-file and old-file selections with previews and an explicitly confirmed advanced permanent-removal action. Duplicate execution preserves a verified copy per group throughout removal. Recycling is not exposed, and no destructive operation runs automatically. Preview alone never approves execution.
+The current delivery supports manual, duplicate, indexed user/project temporary-file, old-file and supported browser HTTP cache selections with previews and an explicitly confirmed advanced permanent-removal action. Duplicate execution preserves a verified copy per group throughout removal. Recycling is not exposed, and no destructive operation runs automatically. Preview alone never approves execution.
+
+## Browser HTTP cache rule
+
+`old-browser-http-cache-files` lists complete regular external Blockfile cache files unchanged for at least seven days. The native command obtains the current user's Local AppData through Windows Known Folders. Candidate files must be directly inside `Google/Chrome/User Data/Default/Cache/Cache_Data`, `Microsoft/Edge/User Data/Default/Cache/Cache_Data`, or their numbered `Profile N` equivalents. The frontend cannot supply alternative roots.
+
+The rule excludes shared `data_` blocks, indexes, cookies, sessions, preferences, service workers, Simple Cache streams, nested directories, custom profiles and unsupported filenames. Classification uses the exact indexed location and external-file naming convention, not an assertion that cached contents have been parsed or are unused. The browser must be closed before review; missing cache data can cause read failures and new downloads. Chromium's [external-file naming implementation](https://raw.githubusercontent.com/chromium/chromium/main/net/disk_cache/blockfile/backend_impl.cc) documents the filename convention.
+
+Discovery and preview share the same scope and age predicates. Preview then validates the scanned identity/change time, fresh metadata, exclusions, protected locations and all ancestors through `Plan::manual`. The existing advanced permanent action retains verified handles, rejects writable open files and journals each result. Intended default recycling remains pending. Nothing is preselected or removed automatically.
+
+Disposable filesystem fixtures cover Chrome and Edge profiles, age boundaries, complete paging totals, nested/outside names, protected-data exclusions, historical captures, changed files and invalid selections. A Windows fixture scans the cache subdirectory itself, proves that an open writer blocks verification, and permanently removes only the selected test payload through the durable executor while preserving its fake cache index and shared block file. These fixtures do not prove recovery by a running real browser, custom-profile support or native visual acceptance.
 
 ## Browser cache format investigation
 
@@ -16,7 +26,7 @@ For dense Simple Cache entries it reads a 24-byte header and 24-byte trailing re
 
 Both browser self-checks use owned disposable files to test recognized/rejected envelopes and Blockfile prefixes, ignored locations, private-content omission and the global 100-filename observation limit. They remove only their exact created files and empty directories. The report contains counters and format versions, with no cache paths, keys, URLs or bodies.
 
-The earlier [Chrome observation](../benchmarks/chrome-cache-envelope-2026-10-14.json) examined zero profiles and zero entries at the default location. The [Edge observation](../benchmarks/edge-cache-envelope-2026-10-14.json) sampled 100 filenames in one profile: four Blockfile data names and 96 external names. All four data files had the expected Blockfile prefix. No dense Simple Cache names occurred in that sample. This evidence requires the implementation to account for Blockfile storage; a Simple Cache-only rule would miss the observed cache. The sample does not establish the complete directory's contents or approve removing it. Custom locations, other browsers, complete validation and integration with retained native file authority remain pending. No browser-cache cleanup action is exposed.
+The earlier [Chrome observation](../benchmarks/chrome-cache-envelope-2026-10-14.json) examined zero profiles and zero entries at the default location. The [Edge observation](../benchmarks/edge-cache-envelope-2026-10-14.json) sampled 100 filenames in one profile: four Blockfile data names and 96 external names. All four data files had the expected Blockfile prefix. No dense Simple Cache names occurred in that sample. This evidence requires the implementation to account for Blockfile storage; a Simple Cache-only rule would miss the observed cache. The sample does not establish the complete directory's contents or approve removing it. The current rule supports only the scoped external files described above; custom locations, other browsers and full format validation remain pending.
 
 ## Project temporary files
 

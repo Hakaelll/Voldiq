@@ -90,6 +90,9 @@
     ><span>{bytes(plan.preview.reclaimable)} potential</span>
   </div>
   <div class="preview-scroll">
+    {#if plan.preview.rule === 'old-browser-http-cache-files'}<p>
+        Close the browser. Cached pages may need downloading again.
+      </p>{/if}
     {#if plan.preview.retained.length}<div class="retained-files">
         <strong>Keep</strong>{#each plan.preview.retained as path}<div>{path}</div>{/each}
       </div>{/if}

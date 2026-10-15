@@ -2,6 +2,7 @@ use super::{Plan, PreviewItem};
 use crate::{Error, Kind, NodeId, Result, index::Index, windows};
 use serde::Serialize;
 use std::{
+    collections::HashSet,
     path::{Component, Path},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -15,6 +16,37 @@ pub enum RuleKind {
     UserTemp,
     OldFiles,
     ProjectTemp,
+    BrowserCache,
+}
+
+#[derive(Clone, Copy)]
+enum RuleSource<'a> {
+    UserTemp,
+    OldFiles,
+    ProjectTemp(&'a [crate::developer::CacheLocation]),
+    BrowserCache(&'a Path),
+}
+
+impl RuleSource<'_> {
+    fn kind(self) -> RuleKind {
+        match self {
+            Self::UserTemp => RuleKind::UserTemp,
+            Self::OldFiles => RuleKind::OldFiles,
+            Self::ProjectTemp(_) => RuleKind::ProjectTemp,
+            Self::BrowserCache(_) => RuleKind::BrowserCache,
+        }
+    }
+}
+
+impl RuleKind {
+    fn metadata(self) -> Rule {
+        match self {
+            Self::UserTemp => USER_TEMP,
+            Self::OldFiles => OLD_FILES,
+            Self::ProjectTemp => PROJECT_TEMP,
+            Self::BrowserCache => BROWSER_CACHE,
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -70,6 +102,19 @@ pub const OLD_FILES: Rule = Rule {
     verification: "Live scope and age, followed by scanned identity, current metadata, exclusions, protected locations and ancestor validation.",
 };
 
+pub const BROWSER_CACHE: Rule = Rule {
+    id: "old-browser-http-cache-files",
+    name: "Browser HTTP cache",
+    description: "External Blockfile cache files unchanged for seven days. Close the browser before reviewing; cached pages may need downloading again.",
+    discovery: "Default Chrome and Edge profiles under the current user's Windows Local AppData, within the live index.",
+    selection: "Explicit selection of complete regular f_ hexadecimal payload files directly inside Profile/Cache/Cache_Data.",
+    exclusions: "Cookies, sessions, credentials, preferences, service workers, shared data_ blocks, indexes, Simple Cache streams, nested paths, custom profiles, incomplete files, reparses, recalled content and historical snapshots.",
+    risk: "review",
+    permissions: "Current user's metadata access; delete access and rejection of writable open files through verified handles.",
+    policy: "recycle",
+    verification: "Known-folder root, exact browser/profile/cache hierarchy, file shape and age, then scanned identity, current metadata and ancestor verification.",
+};
+
 #[derive(Serialize)]
 pub struct Page {
     pub rule: Rule,
@@ -96,19 +141,11 @@ pub fn query(
     offset: usize,
     limit: usize,
 ) -> Result<Page> {
-    query_scoped(
-        index,
-        temporary,
-        now,
-        offset,
-        limit,
-        RuleKind::UserTemp,
-        &[],
-    )
+    query_scoped(index, temporary, now, offset, limit, RuleSource::UserTemp)
 }
 
 pub fn query_old(index: Option<&Index>, now: u64, offset: usize, limit: usize) -> Result<Page> {
-    query_current(index, now, offset, limit, RuleKind::OldFiles, &[])
+    query_current(index, now, offset, limit, RuleSource::OldFiles)
 }
 
 pub fn query_project(
@@ -118,7 +155,24 @@ pub fn query_project(
     limit: usize,
     caches: &[crate::developer::CacheLocation],
 ) -> Result<Page> {
-    query_current(index, now, offset, limit, RuleKind::ProjectTemp, caches)
+    query_current(index, now, offset, limit, RuleSource::ProjectTemp(caches))
+}
+
+pub fn query_browser_cache(
+    index: Option<&Index>,
+    local_data: &Path,
+    now: u64,
+    offset: usize,
+    limit: usize,
+) -> Result<Page> {
+    query_scoped(
+        index,
+        local_data,
+        now,
+        offset,
+        limit,
+        RuleSource::BrowserCache(local_data),
+    )
 }
 
 fn query_current(
@@ -126,17 +180,12 @@ fn query_current(
     now: u64,
     offset: usize,
     limit: usize,
-    kind: RuleKind,
-    caches: &[crate::developer::CacheLocation],
+    source: RuleSource<'_>,
 ) -> Result<Page> {
     match index.filter(|index| index.snapshot_id.is_none()) {
-        Some(index) => query_scoped(Some(index), &index.root, now, offset, limit, kind, caches),
+        Some(index) => query_scoped(Some(index), &index.root, now, offset, limit, source),
         None => Ok(Page {
-            rule: match kind {
-                RuleKind::ProjectTemp => PROJECT_TEMP,
-                RuleKind::OldFiles => OLD_FILES,
-                RuleKind::UserTemp => USER_TEMP,
-            },
+            rule: source.kind().metadata(),
             root: String::new(),
             indexed: false,
             complete: false,
@@ -154,16 +203,12 @@ fn query_scoped(
     now: u64,
     offset: usize,
     limit: usize,
-    kind: RuleKind,
-    caches: &[crate::developer::CacheLocation],
+    source: RuleSource<'_>,
 ) -> Result<Page> {
+    let kind = source.kind();
     let temporary = verified_root(temporary)?;
     let mut page = Page {
-        rule: match kind {
-            RuleKind::UserTemp => USER_TEMP,
-            RuleKind::OldFiles => OLD_FILES,
-            RuleKind::ProjectTemp => PROJECT_TEMP,
-        },
+        rule: kind.metadata(),
         root: temporary.to_string_lossy().into_owned(),
         indexed: false,
         complete: false,
@@ -187,7 +232,10 @@ fn query_scoped(
         && temporary.starts_with(&index.root);
     let mut protected_scopes = Vec::new();
     #[cfg(windows)]
-    if matches!(kind, RuleKind::OldFiles | RuleKind::ProjectTemp) {
+    if matches!(
+        kind,
+        RuleKind::OldFiles | RuleKind::ProjectTemp | RuleKind::BrowserCache
+    ) {
         for path in windows::protected_directories()? {
             let path = std::fs::canonicalize(path)?;
             if let Some(id) = scope(index, &path)? {
@@ -195,10 +243,15 @@ fn query_scoped(
             }
         }
     }
-    let builds = if matches!(kind, RuleKind::ProjectTemp) {
+    let builds = if let RuleSource::ProjectTemp(caches) = source {
         crate::developer::project_build_scopes(index, caches)?
     } else {
         Default::default()
+    };
+    let browser_scopes = if let RuleSource::BrowserCache(local_data) = source {
+        browser_cache_scopes(index, local_data)?
+    } else {
+        HashSet::new()
     };
     let mut candidates: Vec<_> = index
         .entries
@@ -207,6 +260,8 @@ fn query_scoped(
             eligible(entry, now, kind)
                 && index.in_scope(entry.id, scope_id)
                 && (!matches!(kind, RuleKind::ProjectTemp) || builds.contains(index, entry.id))
+                && (!matches!(kind, RuleKind::BrowserCache)
+                    || entry.parent.is_some_and(|id| browser_scopes.contains(&id)))
                 && !protected_scopes
                     .iter()
                     .any(|&protected| index.in_scope(entry.id, protected))
@@ -275,6 +330,69 @@ pub fn preview_project(
     preview_scoped(index, &index.root, now, selection, RuleKind::ProjectTemp)
 }
 
+pub fn preview_browser_cache(
+    index: &Index,
+    local_data: &Path,
+    now: u64,
+    selection: &[NodeId],
+) -> Result<Plan> {
+    let scopes = browser_cache_scopes(index, local_data)?;
+    for &id in selection {
+        let entry = index.entry(id)?;
+        if !entry.parent.is_some_and(|parent| scopes.contains(&parent)) {
+            return Err(Error::Invalid(
+                "Selection is outside recognized browser HTTP caches.".into(),
+            ));
+        }
+    }
+    preview_scoped(index, local_data, now, selection, RuleKind::BrowserCache)
+}
+
+fn browser_cache_scopes(index: &Index, local_data: &Path) -> Result<HashSet<NodeId>> {
+    let root = verified_root(local_data)?;
+    let mut scopes = HashSet::new();
+    for entry in index.entries.iter().filter(|entry| {
+        entry.kind == Kind::Directory
+            && !entry.incomplete
+            && entry.name.eq_ignore_ascii_case("Cache_Data")
+    }) {
+        let path = index.path(entry.id)?;
+        let Ok(relative) = path.strip_prefix(&root) else {
+            continue;
+        };
+        let parts: Vec<_> = relative
+            .components()
+            .map(|part| part.as_os_str().to_str())
+            .collect();
+        let [
+            Some(vendor),
+            Some(browser),
+            Some(data),
+            Some(profile),
+            Some(cache),
+            Some(contents),
+        ] = parts.as_slice()
+        else {
+            continue;
+        };
+        let supported_browser = (vendor.eq_ignore_ascii_case("Google")
+            && browser.eq_ignore_ascii_case("Chrome"))
+            || (vendor.eq_ignore_ascii_case("Microsoft") && browser.eq_ignore_ascii_case("Edge"));
+        let numbered_profile = profile.strip_prefix("Profile ").is_some_and(|number| {
+            !number.is_empty() && number.bytes().all(|byte| byte.is_ascii_digit())
+        });
+        if supported_browser
+            && data.eq_ignore_ascii_case("User Data")
+            && (profile.eq_ignore_ascii_case("Default") || numbered_profile)
+            && cache.eq_ignore_ascii_case("Cache")
+            && contents.eq_ignore_ascii_case("Cache_Data")
+        {
+            scopes.insert(entry.id);
+        }
+    }
+    Ok(scopes)
+}
+
 fn preview_scoped(
     index: &Index,
     temporary: &Path,
@@ -296,11 +414,7 @@ fn preview_scoped(
         }
     }
     let mut plan = Plan::manual(index, selection)?;
-    plan.preview.rule = match kind {
-        RuleKind::UserTemp => USER_TEMP.id,
-        RuleKind::OldFiles => OLD_FILES.id,
-        RuleKind::ProjectTemp => PROJECT_TEMP.id,
-    };
+    plan.preview.rule = kind.metadata().id;
     Ok(plan)
 }
 
@@ -352,13 +466,21 @@ fn scope(index: &Index, temporary: &Path) -> Result<Option<NodeId>> {
 fn eligible(entry: &crate::Entry, now: u64, kind: RuleKind) -> bool {
     entry.kind == Kind::File
         && !entry.incomplete
-        && (matches!(kind, RuleKind::OldFiles)
-            || entry.name.rsplit_once('.').is_some_and(|(_, extension)| {
+        && match kind {
+            RuleKind::OldFiles => true,
+            RuleKind::BrowserCache => entry.name.strip_prefix("f_").is_some_and(|hash| {
+                let Ok(number) = u32::from_str_radix(hash, 16) else {
+                    return false;
+                };
+                (1..=0x0fff_ffff).contains(&number) && hash == format!("{number:06x}")
+            }),
+            _ => entry.name.rsplit_once('.').is_some_and(|(_, extension)| {
                 extension.eq_ignore_ascii_case("tmp") || extension.eq_ignore_ascii_case("temp")
-            }))
+            }),
+        }
         && now
             .checked_sub(match kind {
-                RuleKind::UserTemp | RuleKind::ProjectTemp => MINIMUM_AGE,
+                RuleKind::UserTemp | RuleKind::ProjectTemp | RuleKind::BrowserCache => MINIMUM_AGE,
                 RuleKind::OldFiles => OLD_FILE_AGE,
             })
             .is_some_and(|cutoff| entry.modified.is_some_and(|modified| modified <= cutoff))

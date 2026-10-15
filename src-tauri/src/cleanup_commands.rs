@@ -364,6 +364,17 @@ pub async fn query_cleanup_rule(
             voldiq_core::cleanup::rules::RuleKind::OldFiles => {
                 voldiq_core::cleanup::rules::query_old(guard.as_deref(), now, offset, limit)
             }
+            voldiq_core::cleanup::rules::RuleKind::BrowserCache => {
+                let local_data =
+                    voldiq_core::windows::local_app_data().map_err(|e| e.to_string())?;
+                voldiq_core::cleanup::rules::query_browser_cache(
+                    guard.as_deref(),
+                    &local_data,
+                    now,
+                    offset,
+                    limit,
+                )
+            }
             voldiq_core::cleanup::rules::RuleKind::ProjectTemp => {
                 voldiq_core::cleanup::rules::query_project(
                     guard.as_deref(),
@@ -407,6 +418,16 @@ pub async fn preview_cleanup_rule(
             }
             voldiq_core::cleanup::rules::RuleKind::OldFiles => {
                 voldiq_core::cleanup::rules::preview_old(&guard, now, &selection)
+            }
+            voldiq_core::cleanup::rules::RuleKind::BrowserCache => {
+                let local_data =
+                    voldiq_core::windows::local_app_data().map_err(|e| e.to_string())?;
+                voldiq_core::cleanup::rules::preview_browser_cache(
+                    &guard,
+                    &local_data,
+                    now,
+                    &selection,
+                )
             }
             voldiq_core::cleanup::rules::RuleKind::ProjectTemp => {
                 voldiq_core::cleanup::rules::preview_project(&guard, now, &selection, &caches)

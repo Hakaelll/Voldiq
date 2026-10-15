@@ -97,6 +97,8 @@ Choose **Project temporary files** to review the same age and extension criteria
 
 Choose **Old files** to review regular files unchanged for at least 90 days within the current live scan. Selection is manual; age alone does not establish that a file is unused. Protected Windows locations and configured exclusions are omitted, and preview checks current identities and metadata. Historical captures cannot produce management plans.
 
+Choose **Browser HTTP cache** to review external Blockfile files unchanged for at least seven days in standard Chrome and Edge profiles. Close the browser before review; cached pages may need downloading again. Cookies, sessions, shared blocks, cache indexes, Simple Cache streams and custom profiles are excluded. Selection and the advanced permanent confirmation remain explicit.
+
 The Recycle Bin panel queries Windows for the selected accessible local drive's current item count and size, independently of the scan. Refresh updates the read-only summary. Unavailable results remain distinct from an empty bin; size is not an estimate of physical space recovered.
 
 Duplicate selections retain a copy from each group and reread full BLAKE3 content before showing selected and retained paths. The review is cancellable. Recycling remains under development.
@@ -111,7 +113,7 @@ Cleanup activity lists saved per-file results and operation start times, includi
 
 ## Preferences
 
-Settings persist the default drive, excluded paths, theme, size metric, reduced motion and navigation width locally. The default drive applies at startup and stays independent of the current drive selection. **Recent** offers the ten most recently completed scan paths for an explicit new analysis; failed and cancelled scans are omitted. Clear recent paths in Settings to remove that list. Stored paths never start a scan automatically or carry cleanup authority.
+Settings persist the default drive, excluded paths, theme, size metric and reduced motion locally. The default drive applies at startup and stays independent of the current drive selection. **Recent** offers the ten most recently completed scan paths for an explicit new analysis; failed and cancelled scans are omitted. Clear recent paths in Settings to remove that list. Stored paths never start a scan automatically or carry cleanup authority.
 
 **Clear current analysis** releases the loaded index, duplicate results, cached hashes and pending cleanup previews. Files, saved snapshots, cleanup activity and preferences remain available. Active operations must finish or be cancelled first. A new scan or explicitly loaded snapshot is required to explore an index again.
 

@@ -24,7 +24,7 @@
     onerror: (problem: unknown) => void;
   } = $props();
   const limit = 50;
-  let rule = $state<'user_temp' | 'old_files' | 'project_temp'>('user_temp');
+  let rule = $state<'user_temp' | 'old_files' | 'project_temp' | 'browser_cache'>('user_temp');
   let page = $state<CleanupRulePage | null>(null),
     offset = $state(0);
   let loadState = $state<'loading' | 'ready' | 'unavailable'>('loading');
@@ -34,6 +34,7 @@
     { id: 'user_temp', name: 'User temporary files' },
     { id: 'old_files', name: 'Old files' },
     { id: 'project_temp', name: 'Project temporary files' },
+    { id: 'browser_cache', name: 'Browser HTTP cache' },
   ] as const;
   let selection = $derived([...selected.values()]);
   let selectionLogical = $derived(selection.reduce((sum, item) => sum + item.logical, 0));
@@ -144,7 +145,13 @@
       >{/if}
   </div>
   {#if page && loadState === 'ready'}<div class="rule-summary">
-      <span>{rule === 'old_files' ? '90+ days · Manual selection' : '7+ days · .tmp / .temp'}</span>
+      <span
+        >{rule === 'old_files'
+          ? '90+ days · Manual selection'
+          : rule === 'browser_cache'
+            ? '7+ days · Close browser before review'
+            : '7+ days · .tmp / .temp'}</span
+      >
       {#if page.indexed}<span
           >{page.total.toLocaleString()} files · {bytes(page.logical)} logical · {bytes(
             page.reclaimable,
