@@ -44,7 +44,7 @@ pub(super) fn cache_location(
 }
 
 fn read_cache(path: &Path) -> Result<Option<String>, ()> {
-    match super::config_file::read(path)? {
+    match crate::config_file::read(path)? {
         Some(text) => parse_cache(text.trim_start_matches('\u{feff}')),
         None => Ok(None),
     }

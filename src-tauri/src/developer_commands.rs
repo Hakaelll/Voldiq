@@ -1,7 +1,6 @@
 use std::{ffi::OsString, path::PathBuf};
 use tauri::Manager;
 use voldiq_core::developer::{CacheLocation, Category};
-mod config_file;
 mod npm_config;
 mod pip_config;
 

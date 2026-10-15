@@ -2,7 +2,7 @@ use std::{fs::OpenOptions, io::Read, path::Path};
 
 const MAX_CONFIG_BYTES: u64 = 65_536;
 
-pub(super) fn read(path: &Path) -> Result<Option<String>, ()> {
+pub(crate) fn read(path: &Path) -> Result<Option<String>, ()> {
     let mut options = OpenOptions::new();
     options.read(true);
     #[cfg(windows)]

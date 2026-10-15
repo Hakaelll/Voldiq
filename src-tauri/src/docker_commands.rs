@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+mod context;
 
 const BODY_LIMIT: usize = 8 * 1024 * 1024;
 const HEADER_LIMIT: usize = 16 * 1024;
@@ -341,11 +342,17 @@ async fn get(pipe: &str, path: &str) -> Result<Vec<u8>, String> {
 }
 
 #[tauri::command]
-pub async fn query_docker_storage() -> Result<DockerStorage, String> {
+pub async fn query_docker_storage(app: tauri::AppHandle) -> Result<DockerStorage, String> {
     #[cfg(windows)]
     {
-        let pipe = endpoint(std::env::var("DOCKER_HOST").ok().as_deref())?;
+        use tauri::Manager;
+        let home = app.path().home_dir().ok();
         tokio::time::timeout(Duration::from_secs(15), async {
+            let pipe = tauri::async_runtime::spawn_blocking(move || {
+                context::resolve(home, |name| std::env::var_os(name))
+            })
+            .await
+            .map_err(|_| "Docker configuration task failed.".to_string())??;
             let version = api_version(&get(&pipe, "/version").await?)?;
             let categories = parse_usage(&get(&pipe, &format!("/v{version}/system/df")).await?)?;
             Ok(DockerStorage {
@@ -378,6 +385,17 @@ mod tests {
                     .first_pipe_instance(true)
                     .create(&pipe)
                     .unwrap();
+                let fixture = tempfile::tempdir().unwrap();
+                let metadata = fixture.path().join("contexts/meta/fe9c6bd7a66301f49ca9b6a70b217107cd1284598bfc254700c989b916da791e");
+                std::fs::create_dir_all(&metadata).unwrap();
+                std::fs::write(fixture.path().join("config.json"), br#"{"currentContext":"desktop-linux"}"#).unwrap();
+                std::fs::write(metadata.join("meta.json"), serde_json::to_vec(&serde_json::json!({
+                    "Name": "desktop-linux", "Endpoints": {"docker": {"Host": format!("npipe://./pipe/voldiq-docker-test-{}", std::process::id())}}
+                })).unwrap()).unwrap();
+                let selected_pipe = context::resolve(None, |name| {
+                    (name == "DOCKER_CONFIG").then(|| fixture.path().as_os_str().to_owned())
+                }).unwrap();
+                assert_eq!(selected_pipe, pipe);
                 let task = tokio::spawn(async move {
                     server.connect().await.unwrap();
                     let mut request = Vec::new();
@@ -397,7 +415,7 @@ mod tests {
                     tokio::time::sleep(Duration::from_millis(20)).await;
                 });
                 assert_eq!(
-                    tokio::time::timeout(Duration::from_secs(2), get(&pipe, "/v1.56/system/df"))
+                    tokio::time::timeout(Duration::from_secs(2), get(&selected_pipe, "/v1.56/system/df"))
                         .await
                         .unwrap()
                         .unwrap(),

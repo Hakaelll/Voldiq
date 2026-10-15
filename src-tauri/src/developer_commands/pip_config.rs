@@ -37,7 +37,7 @@ fn resolve(
         return Err(());
     }
     let explicit_text = match &explicit {
-        Some(path) => super::config_file::read(path)?,
+        Some(path) => crate::config_file::read(path)?,
         None => None,
     };
     let environment_path = |key: &str| -> Result<Option<PathBuf>, ()> {
@@ -56,7 +56,7 @@ fn resolve(
     files.push(environment_path("VIRTUAL_ENV")?.map(|path| path.join("pip.ini")));
     let mut settings = BTreeMap::new();
     for file in files.into_iter().flatten() {
-        if let Some(text) = super::config_file::read(&file)? {
+        if let Some(text) = crate::config_file::read(&file)? {
             settings.extend(parse(&text)?);
         }
     }

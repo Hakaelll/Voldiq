@@ -12,6 +12,7 @@ use tauri::Manager;
 use tauri::{State, ipc::Channel};
 mod analysis_status;
 mod cleanup_commands;
+mod config_file;
 mod developer_commands;
 mod docker_commands;
 #[cfg(test)]
