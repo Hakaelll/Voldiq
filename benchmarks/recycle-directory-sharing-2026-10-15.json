@@ -1,0 +1,43 @@
+{
+  "checkedUtc": "2026-10-15T10:41:56.2748385Z",
+  "sourceCommit": "e43b0ee3dbadcbeaa29ad9f93bcfb1d55c6fc85d",
+  "probeSha256": "EE61603232B5DD9CE8E1E18AF891330809E5F83B5EFBD41A1BB7819DE4F86DF1",
+  "scope": "Owned disposable files only. No Shell or recycling call.",
+  "observations": [
+    {
+      "Mode": "attributes-read-share",
+      "RequestedAccess": 1048704,
+      "Share": 1,
+      "RenameStatus": 0,
+      "DirectoryOpenError": 0,
+      "ChildCreateError": 0,
+      "FreshAddHandleOpened": true,
+      "NewChildCreated": true,
+      "OriginalAtDestination": true
+    },
+    {
+      "Mode": "add-file-read-share",
+      "RequestedAccess": 1179810,
+      "Share": 1,
+      "RenameStatus": -1073741757,
+      "DirectoryOpenError": 32,
+      "ChildCreateError": 0,
+      "FreshAddHandleOpened": false,
+      "NewChildCreated": true,
+      "OriginalAtDestination": false
+    },
+    {
+      "Mode": "add-file-no-sharing",
+      "RequestedAccess": 1179810,
+      "Share": 0,
+      "RenameStatus": -1073741757,
+      "DirectoryOpenError": 32,
+      "ChildCreateError": 0,
+      "FreshAddHandleOpened": false,
+      "NewChildCreated": true,
+      "OriginalAtDestination": false
+    }
+  ],
+  "fixtureCleanupCompleted": true,
+  "recyclingVerified": false
+}

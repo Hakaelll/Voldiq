@@ -60,6 +60,8 @@ Identity-only lookups open one metadata handle without following reparses or rec
 
 `Plan::verify` opens and pins ancestors from the volume root inward, validates their recorded identities and rejects redirected or recalled directories. Only the filesystem root is opened by an absolute native name. Every subsequent component, including the selected file, is opened by a single child name relative to the previously verified native directory handle. This follows the [NtCreateFile root-directory contract](https://learn.microsoft.com/en-us/windows/win32/api/winternl/nf-winternl-ntcreatefile), avoiding another lookup of the full directory path at each step. Parent handles deny delete sharing; the leaf denies write and delete sharing and compares exact preview identity, size, modification time and change time.
 
+A 2026-10-15 regression reproduced an ancestor rename while its attribute-only handle was retained, before acquiring the leaf. Directory components now request `FILE_LIST_DIRECTORY` alongside `FILE_READ_ATTRIBUTES`, sharing read/write access but excluding delete sharing. The filesystem volume root remains an attribute-only lookup. This requires listing permission on each directory component; failure aborts verification. No directory enumeration is performed by this acquisition. The regression proves that the name stays fixed until handle release while sibling-file creation remains possible. The [complete source verification](../benchmarks/parent-pinning-verification-2026-10-15.json) records the accompanying checks. This correction does not seal a staging directory against child creation or implement recycling.
+
 The open-only native call uses `FILE_OPEN`, `FILE_OPEN_REPARSE_POINT`, `FILE_OPEN_NO_RECALL` and synchronous I/O. Reparse and recall attributes are checked on each returned object before traversing it. Relative names reject absolute paths, parent traversal, separators, embedded nulls and alternate data-stream syntax. Native failures propagate as I/O errors. Owned Rust file handles close on every exit; no content read, rename or deletion occurs during verification.
 
 On 2026-10-12, two native helper tests and eight related integration tests passed, with strict workspace Clippy. A controlled directory-substitution test deliberately allows its fixture directory to be renamed, then proves that child acquisition still returns the retained original's identity through the existing parent handle. A separate planned-selection test replaces a parent with a junction and rejects it before opening its child, preserving both original and substitute contents. Existing tests still cover replacement before preview, changes after preview, write/rename sharing restrictions, protected locations, temporary rules and duplicate selections. Disk/UNC name conversion is tested; actual network-share acceptance remains pending.
@@ -137,6 +139,22 @@ The documented [Shell deletion interface](https://learn.microsoft.com/en-us/wind
 On this host, atomic directory creation succeeded and new children were denied. The requested access was `0x001600a2`, but the returned handle had `0x001200a2`, without the requested DACL modification right. Native relative rename returned `STATUS_ACCESS_DENIED` (`0xc0000022`); the Win32 attempt returned error 87. Native ACL restoration through the created handle also returned access denied. The fixture was removed using its parent permissions. This disproves that enrollment approach on this host; it does not prove that every possible Windows design is unavailable.
 
 Creating an initially writable staging directory and sealing it afterward is also insufficient: previously granted mutation handles remain authorized. A future implementation needs a proven namespace handoff and durable recovery before any source relocation. A staged item also needs an original-path restoration mechanism because Shell would record the staging path. Per-item [PostDeleteItem](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-ifileoperationprogresssink-postdeleteitem) results must contain an actual Recycle Bin item before reporting recycling, and aborted operations and partial failures must remain distinct. This investigation has not authorized a destructive executor.
+
+## Directory sharing experiment
+
+The [directory sharing probe](../benchmarks/recycle-directory-sharing-probe.ps1) uses disposable temporary files to test three directory handle configurations. The [2026-10-15 record](../benchmarks/recycle-directory-sharing-2026-10-15.json) records the source hash and confirms fixture cleanup. It never calls Shell or recycling APIs.
+
+| Directory access and sharing | Relative rename into directory | New child creation |
+|---|---|---|
+| Attributes, read sharing | Succeeded | Allowed |
+| Add-file access, read sharing | Sharing violation | Allowed |
+| Add-file access, no sharing | Sharing violation | Allowed |
+
+The source content reached the destination only in the first configuration. Directory sharing therefore did not provide a sealed staging namespace in this experiment. Preventing directory renames and preventing creation of children are separate requirements. This result does not establish successful recycling or rule out every other Windows handoff design.
+
+```powershell
+./benchmarks/recycle-directory-sharing-probe.ps1 -OutputPath benchmarks/recycle-directory-sharing.json
+```
 
 ## Shell file-ID binding experiment
 

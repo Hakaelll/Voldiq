@@ -19,8 +19,8 @@ use windows_sys::{
     Win32::{
         Foundation::{OBJ_CASE_INSENSITIVE, RtlNtStatusToDosError, UNICODE_STRING},
         Storage::FileSystem::{
-            DELETE, FILE_READ_ATTRIBUTES, FILE_READ_DATA, FILE_SHARE_READ, FILE_SHARE_WRITE,
-            SYNCHRONIZE,
+            DELETE, FILE_LIST_DIRECTORY, FILE_READ_ATTRIBUTES, FILE_READ_DATA, FILE_SHARE_READ,
+            FILE_SHARE_WRITE, SYNCHRONIZE,
         },
         System::IO::IO_STATUS_BLOCK,
     },
@@ -46,7 +46,10 @@ pub(crate) fn open_root(path: &Path) -> Result<File> {
 
 pub(crate) fn open_child(parent: &File, name: &OsStr, directory: bool) -> Result<File> {
     let (access, share) = if directory {
-        (FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE)
+        (
+            FILE_READ_ATTRIBUTES | FILE_LIST_DIRECTORY,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+        )
     } else {
         (FILE_READ_ATTRIBUTES | DELETE, FILE_SHARE_READ)
     };
