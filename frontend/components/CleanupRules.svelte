@@ -31,10 +31,10 @@
   let selected = $state(new Map<number, CleanupRulePage['items'][number]>()),
     reviewing = $state(false);
   const rules = [
-    { id: 'user_temp', name: 'User temporary files' },
-    { id: 'old_files', name: 'Old files' },
-    { id: 'project_temp', name: 'Project temporary files' },
-    { id: 'browser_cache', name: 'Browser HTTP cache' },
+    { id: 'user_temp', name: 'User temporary files', icon: 'folder' },
+    { id: 'old_files', name: 'Old files', icon: 'history' },
+    { id: 'project_temp', name: 'Project temporary files', icon: 'code' },
+    { id: 'browser_cache', name: 'Browser HTTP cache', icon: 'browser' },
   ] as const;
   let selection = $derived([...selected.values()]);
   let selectionLogical = $derived(selection.reduce((sum, item) => sum + item.logical, 0));
@@ -132,7 +132,7 @@
           disabled={busy || reviewing || loadState === 'loading'}
           onclick={() => {
             rule = choice.id;
-          }}>{choice.name}</button
+          }}><Icon name={choice.icon} size={17} />{choice.name}</button
         >{/each}
     </div>
     {#if page && loadState === 'ready'}<button
@@ -245,6 +245,11 @@
                 <div><strong>{filename(item.path)}</strong><small>{item.path}</small></div>
               </div>
               <span>{bytes(item.logical)}</span>
+              <span class="selection-size-track" aria-hidden="true"
+                ><span
+                  style:width={`${selectionLogical > 0 ? (item.logical / selectionLogical) * 100 : 0}%`}
+                ></span></span
+              >
             </li>{/each}
         </ul>
       {:else}<div class="selection-empty">No files selected</div>{/if}
@@ -283,24 +288,26 @@
   }
   .rule-heading {
     justify-content: space-between;
-    border-bottom: 1px solid var(--border);
+    padding: 4px 0;
   }
   .rule-choices {
     display: flex;
     flex-wrap: wrap;
-    gap: 24px;
+    gap: 4px;
   }
   .rule-choices button {
     border: 0;
-    border-radius: 0;
-    padding: 12px 0;
+    border-radius: var(--radius);
+    padding: 10px 12px;
     background: transparent;
     color: var(--secondary);
-    border-bottom: 2px solid transparent;
+  }
+  .rule-choices button:hover:not(:disabled) {
+    background: var(--paper);
   }
   .rule-choices button.active {
-    color: var(--text);
-    border-bottom-color: var(--accent);
+    color: var(--accent);
+    background: var(--selected);
     font-weight: 600;
   }
   .rule-summary {
@@ -396,8 +403,9 @@
     margin-right: auto;
   }
   aside {
-    border-top: 1px solid var(--border);
-    padding-top: 20px;
+    align-self: start;
+    background: var(--surface);
+    padding: 20px;
   }
   header {
     display: flex;
@@ -422,15 +430,26 @@
     overscroll-behavior: contain;
   }
   li {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 8px 12px;
     padding: 12px 0;
   }
   li > span {
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
+  }
+  .selection-size-track {
+    grid-column: 1 / -1;
+    height: 4px;
+    background: var(--paper);
+    overflow: hidden;
+  }
+  .selection-size-track > span {
+    display: block;
+    height: 100%;
+    background: var(--accent-fill);
   }
   .selection-empty {
     padding: 40px 0;
@@ -439,7 +458,6 @@
   .selection-total {
     display: flex;
     justify-content: space-between;
-    border-top: 1px solid var(--border);
     padding: 20px 0;
     gap: 12px;
   }
@@ -460,11 +478,6 @@
   @media (min-width: 1200px) {
     .rule-layout {
       grid-template-columns: minmax(0, 1fr) 340px;
-    }
-    aside {
-      border-top: 0;
-      border-left: 1px solid var(--border);
-      padding: 0 0 0 24px;
     }
   }
 </style>
