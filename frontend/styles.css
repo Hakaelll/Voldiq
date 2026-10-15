@@ -606,7 +606,7 @@ main {
 .ranking-row {
   display: grid;
   grid-template-columns: 16px minmax(0, 1fr) auto;
-  gap: 8px;
+  gap: 5px 8px;
   width: 100%;
   margin: 0;
   justify-content: initial;
@@ -614,8 +614,22 @@ main {
   border-bottom: 1px solid var(--border);
   border-radius: 0;
   font-size: 12px;
-  height: 36px;
-  padding: 4px;
+  min-height: 48px;
+  padding: 8px 4px;
+}
+.ranking-row .item-swatch {
+  background: var(--item-color);
+}
+.ranking-track {
+  grid-column: 2 / -1;
+  height: 4px;
+  background: var(--paper);
+  overflow: hidden;
+}
+.ranking-track > span {
+  display: block;
+  height: 100%;
+  background: var(--item-color);
 }
 .ranking-row.active {
   background: var(--selected);
@@ -626,7 +640,7 @@ main {
   border-radius: 2px;
   flex-shrink: 0;
 }
-.ranking-row > span:nth-child(2) {
+.ranking-name {
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: left;
@@ -642,15 +656,46 @@ main {
 }
 .type-bar {
   display: flex;
-  height: 20px;
+  height: 44px;
   margin: 0;
   border-radius: 3px;
   overflow: hidden;
   gap: 1px;
   background: var(--paper);
 }
-.type-bar > span {
+.type-bar > button,
+.type-bar > .type-remainder {
   flex-basis: 0;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+}
+.type-bar > button:hover {
+  box-shadow: inset 0 0 0 2px currentColor;
+}
+.type-bar > button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -3px;
+  position: relative;
+  z-index: 1;
+}
+.type-bar > .type-remainder {
+  background: var(--paper);
+  color: var(--secondary);
+}
+.type-bar > button > span,
+.type-remainder > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 6px;
 }
 .type-legend {
   display: grid;
@@ -675,6 +720,9 @@ main {
 }
 .type-legend .item-swatch {
   grid-row: 1;
+}
+.type-other .item-swatch {
+  border: 1px solid var(--strong);
 }
 .type-legend button > span:not(.item-swatch),
 .type-legend .type-other > span:not(.item-swatch),

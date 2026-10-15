@@ -8,7 +8,7 @@
     type Page,
     type Volume,
   } from '../lib/types';
-  import { color, type WeightedNode } from '../lib/treemap';
+  import { color, mapColor, type WeightedNode } from '../lib/treemap';
   import { visibleFileTypes } from '../lib/file-types';
 
   let {
@@ -108,14 +108,20 @@
         <button
           class="ranking-row"
           class:active={selected?.entry.id === entry.id}
+          aria-pressed={selected?.entry.id === entry.id}
+          style:--item-color={nodes[position]?.paint?.fill ?? color(entry.name)}
           onclick={() => onselect(entry.id)}
           ondblclick={() => onopen(entry.id)}
         >
-          <span
-            class="item-swatch"
-            style:background={nodes[position]?.paint?.fill ?? color(entry.name)}
-          ></span>
-          <span title={entry.name}>{entry.name}</span><strong>{bytes(entry.logical)}</strong>
+          <span class="item-swatch"></span>
+          <span class="ranking-name" title={entry.name}>{entry.name}</span><strong
+            >{bytes(entry.logical)}</strong
+          >
+          <span class="ranking-track" aria-hidden="true"
+            ><span
+              style:width={`${directory && directory.entry.logical > 0 ? Math.min(100, (entry.logical / directory.entry.logical) * 100) : 0}%`}
+            ></span></span
+          >
         </button>
       {/each}
     </section>
@@ -161,17 +167,24 @@
     </section>
     <section class="type-panel">
       <div class="panel-heading"><h2>File types</h2></div>
-      <div class="type-bar">
-        {#each distribution.items as item}<span
-            style:flex-grow={item.bytes}
-            style:background={color(item.extension ?? '<no-extension>')}
-            title={`${item.extension === null ? 'No extension' : `.${item.extension}`}: ${bytes(item.bytes)}`}
-          ></span>{/each}
+      <div class="type-bar" role="group" aria-label="Filter by file type">
+        {#each distribution.items as item}{#if item.bytes > 0}<button
+              onclick={() => ontype(item)}
+              style:flex-grow={item.bytes}
+              style:background={color(item.extension ?? '<no-extension>')}
+              style:color={mapColor(item.extension ?? '<no-extension>').ink}
+              aria-label={`${item.extension === null ? 'No extension' : `.${item.extension}`}: ${bytes(item.bytes)}, ${((item.bytes / types.total_bytes) * 100).toFixed(1)}%. Show files`}
+              title={`${item.extension === null ? 'No extension' : `.${item.extension}`}: ${bytes(item.bytes)}`}
+              >{#if item.bytes / types.total_bytes >= 0.12}<span
+                  >{item.extension === null ? 'No extension' : `.${item.extension}`}</span
+                >{/if}</button
+            >{/if}{/each}
         {#if distribution.otherBytes > 0}<span
+            class="type-remainder"
             style:flex-grow={distribution.otherBytes}
-            style:background="var(--muted)"
             title={`Other: ${bytes(distribution.otherBytes)}`}
-          ></span>{/if}
+            >{#if distribution.otherBytes / types.total_bytes >= 0.12}<span>Other</span>{/if}</span
+          >{/if}
       </div>
       <div class="type-legend">
         {#each distribution.items as item}<button onclick={() => ontype(item)}>
@@ -183,7 +196,7 @@
             <span>{bytes(item.bytes)}</span><small>{item.count.toLocaleString()} files</small>
           </button>{/each}
         {#if distribution.otherFiles > 0}<div class="type-other">
-            <span class="item-swatch" style:background="var(--muted)"></span>
+            <span class="item-swatch" style:background="var(--paper)"></span>
             <strong>Other</strong><span>{bytes(distribution.otherBytes)}</span><small
               >{distribution.otherFiles.toLocaleString()} files</small
             >
