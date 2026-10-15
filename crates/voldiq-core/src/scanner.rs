@@ -156,6 +156,7 @@ pub fn scan_live(
         root_identity: windows::identity(&root).ok().map(|identity| identity.key),
         exclusions: exclusions.clone(),
         snapshot_id: None,
+        captured_caches: Vec::new(),
         ntfs_checkpoint: None,
     }));
     publish(shared.clone());

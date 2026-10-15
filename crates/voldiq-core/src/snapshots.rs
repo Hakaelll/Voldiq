@@ -1,3 +1,4 @@
+mod cache_evidence;
 #[cfg(windows)]
 mod resume;
 
@@ -182,7 +183,7 @@ impl Store {
             "PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;",
         )?;
         let version: u32 = connection.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version <= 2 {
+        if version <= 3 {
             let transaction = connection.transaction()?;
             if version == 0 {
                 transaction.execute_batch(SCHEMA)?;
@@ -190,9 +191,12 @@ impl Store {
             if version <= 1 {
                 transaction.execute_batch(JOURNAL_SCHEMA)?;
             }
-            transaction.execute_batch(NATIVE_STATE_SCHEMA)?;
+            if version <= 2 {
+                transaction.execute_batch(NATIVE_STATE_SCHEMA)?;
+            }
+            transaction.execute_batch(cache_evidence::SCHEMA)?;
             transaction.commit()?;
-        } else if version != 3 {
+        } else if version != 4 {
             return Err(Error::Invalid(
                 "Unsupported snapshot database version.".into(),
             ));
@@ -203,7 +207,18 @@ impl Store {
         })
     }
 
-    pub fn save(&mut self, index: &Index, cancel: &AtomicBool) -> Result<i64> {
+    pub fn save(
+        &mut self,
+        index: &Index,
+        cancel: &AtomicBool,
+        caches: &[crate::developer::CacheLocation],
+    ) -> Result<i64> {
+        if index.snapshot_id.is_some() {
+            return Err(Error::Invalid(
+                "Rescan before saving a new snapshot.".into(),
+            ));
+        }
+        let cache_evidence = crate::developer::capture_caches(index, caches, cancel)?;
         let root = index.entry(NodeId(0))?;
         let identity = index
             .root_identity
@@ -336,6 +351,7 @@ impl Store {
                     checkpoint.journal.to_le_bytes().as_slice(), checkpoint.next],
             )?;
         }
+        cache_evidence::write(&transaction, snapshot_id, &paths, &cache_evidence)?;
         if cancel.load(Ordering::Relaxed) {
             return Err(Error::Invalid("Snapshot capture cancelled.".into()));
         }
@@ -426,6 +442,7 @@ impl Store {
         cancel: Option<&AtomicBool>,
         limit: Option<usize>,
     ) -> Result<Index> {
+        let _read_transaction = self.connection.unchecked_transaction()?;
         let (root_id, path, identity, coverage, errors) = self.connection.query_row(
             "SELECT s.root_id,r.path,r.identity,r.coverage,s.errors FROM snapshots s JOIN snapshot_roots r ON r.id=s.root_id WHERE s.id=?1",
             [id], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Vec<u8>>(1)?, r.get::<_, Vec<u8>>(2)?, r.get::<_, Vec<u8>>(3)?, unsigned(r, 4)?)))?;
@@ -446,6 +463,7 @@ impl Store {
             root_identity: Some((number(&identity[..8])?, number(&identity[8..])?)),
             exclusions: decode_paths(&coverage)?,
             snapshot_id: Some(id),
+            captured_caches: Vec::new(),
             ntfs_checkpoint: None,
         };
         if !index.root.is_absolute() {
@@ -527,6 +545,7 @@ impl Store {
             paths.insert(path_id, node);
         }
         index.entry(NodeId(0))?;
+        index.captured_caches = self.load_caches(id, &paths, &index)?;
         let mut issues = self
             .connection
             .prepare("SELECT path,message FROM snapshot_issues WHERE snapshot_id=?1 LIMIT 1000")?;

@@ -44,7 +44,7 @@ mod execution_tests {
             .id;
         let plan = Plan::manual(&index, &[id]).unwrap();
         let mut store = Store::open(&fixture.path().join("snapshots.db")).unwrap();
-        let snapshot = store.save(&index, &AtomicBool::new(false)).unwrap();
+        let snapshot = store.save(&index, &AtomicBool::new(false), &[]).unwrap();
         let current = Arc::new(RwLock::new(index));
         let weak = Arc::downgrade(&current);
         let engine = Arc::new(Engine::default());

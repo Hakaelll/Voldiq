@@ -37,6 +37,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         root_identity: None,
         exclusions: Vec::new(),
         snapshot_id: None,
+        captured_caches: Vec::new(),
         ntfs_checkpoint: None,
     };
     index.entries.push(entry(0, None, Kind::Directory, 0));

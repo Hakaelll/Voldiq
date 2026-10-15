@@ -205,6 +205,7 @@ pub fn replay(
         root_identity: Some(root_key),
         exclusions: index.exclusions.clone(),
         snapshot_id: None,
+        captured_caches: Vec::new(),
         ntfs_checkpoint: None,
     };
     let mut children = HashMap::<u64, Vec<u64>>::new();

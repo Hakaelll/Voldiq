@@ -41,7 +41,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &first
         };
         let start = Instant::now();
-        let id = store.save(index, &cancel)?;
+        let id = store.save(index, &cancel, &[])?;
         let save_ms = start.elapsed().as_secs_f64() * 1000.0;
         if run == 1 {
             baseline = id;

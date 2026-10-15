@@ -12,6 +12,7 @@ pub struct Index {
     pub root_identity: Option<(u64, u64)>,
     pub exclusions: Vec<PathBuf>,
     pub snapshot_id: Option<i64>,
+    pub captured_caches: Vec<crate::developer::CacheEvidence>,
     pub ntfs_checkpoint: Option<crate::ntfs::Checkpoint>,
 }
 

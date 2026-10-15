@@ -9,6 +9,80 @@ pub struct CacheLocation {
     pub category: Category,
 }
 
+pub struct CacheEvidence {
+    pub id: NodeId,
+    pub tool: &'static str,
+    pub category: Category,
+}
+
+pub(crate) const CACHE_TOOLS: [&str; 6] = ["Cargo", "npm", "pnpm", "pip", "Gradle", "NuGet"];
+
+pub(crate) fn capture_caches(
+    index: &Index,
+    caches: &[CacheLocation],
+    cancel: &std::sync::atomic::AtomicBool,
+) -> Result<Vec<CacheEvidence>> {
+    if caches.len() > 1024
+        || caches
+            .iter()
+            .any(|cache| !CACHE_TOOLS.contains(&cache.tool))
+    {
+        return Err(crate::Error::Invalid(
+            "Unsupported cache capture metadata.".into(),
+        ));
+    }
+    if caches.is_empty() {
+        return Ok(Vec::new());
+    }
+    let names: HashSet<_> = caches
+        .iter()
+        .filter_map(|cache| cache.path.file_name())
+        .collect();
+    let mut evidence = Vec::new();
+    for entry in &index.entries {
+        if cancel.load(std::sync::atomic::Ordering::Relaxed) {
+            return Err(crate::Error::Invalid("Snapshot capture cancelled.".into()));
+        }
+        let name = index
+            .native_names
+            .get(&entry.id)
+            .map(|name| name.as_os_str())
+            .unwrap_or_else(|| std::ffi::OsStr::new(&entry.name));
+        if entry.kind == Kind::Directory && (entry.id == NodeId(0) || names.contains(name)) {
+            let path = index.path(entry.id)?;
+            if let Some(cache) = matching_cache(&path, entry.id == NodeId(0), caches) {
+                evidence.push(CacheEvidence {
+                    id: entry.id,
+                    tool: cache.tool,
+                    category: cache.category,
+                });
+                if evidence.len() > 1024 {
+                    return Err(crate::Error::Invalid(
+                        "Too many captured cache roots.".into(),
+                    ));
+                }
+            }
+        }
+    }
+    Ok(evidence)
+}
+
+fn matching_cache<'a>(
+    path: &std::path::Path,
+    scoped: bool,
+    caches: &'a [CacheLocation],
+) -> Option<&'a CacheLocation> {
+    caches
+        .iter()
+        .filter(|cache| path == cache.path || (scoped && path.starts_with(&cache.path)))
+        .max_by_key(|cache| {
+            (
+                cache.path.components().count(),
+                cache.category == Category::Dependencies,
+            )
+        })
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Category {
@@ -83,8 +157,20 @@ pub fn query(index: &Index, query: &Query) -> Result<Page> {
 
 fn classified(index: &Index, scope: NodeId, caches: &[CacheLocation]) -> Result<Vec<Item>> {
     index.entry(scope)?;
+    let captured;
     let caches = if index.snapshot_id.is_some() {
-        &[]
+        captured = index
+            .captured_caches
+            .iter()
+            .map(|cache| {
+                Ok(CacheLocation {
+                    path: index.path(cache.id)?,
+                    tool: cache.tool,
+                    category: cache.category,
+                })
+            })
+            .collect::<Result<Vec<_>>>()?;
+        captured.as_slice()
     } else {
         caches
     };
@@ -129,17 +215,7 @@ fn classified(index: &Index, scope: NodeId, caches: &[CacheLocation]) -> Result<
         let cache_classification =
             if !caches.is_empty() && (entry.id == scope || cache_names.contains(name)) {
                 let path = index.path(entry.id)?;
-                caches
-                    .iter()
-                    .filter(|cache| {
-                        path == cache.path || (entry.id == scope && path.starts_with(&cache.path))
-                    })
-                    .max_by_key(|cache| {
-                        (
-                            cache.path.components().count(),
-                            cache.category == Category::Dependencies,
-                        )
-                    })
+                matching_cache(&path, entry.id == scope, caches)
                     .map(|cache| (cache.tool, cache.category))
             } else {
                 None

@@ -16,6 +16,7 @@ impl SnapshotDatabase {
 
 #[tauri::command]
 pub async fn save_snapshot(
+    app: tauri::AppHandle,
     engine: State<'_, Arc<Engine>>,
     database: State<'_, SnapshotDatabase>,
 ) -> Result<i64, String> {
@@ -33,10 +34,11 @@ pub async fn save_snapshot(
         if index.snapshot_id.is_some() {
             return Err("Rescan before saving a new snapshot.".into());
         }
+        let caches = crate::developer_commands::cache_locations(&app);
         store
             .lock()
             .map_err(|e| e.to_string())?
-            .save(&index, &cancel)
+            .save(&index, &cancel, &caches)
             .map_err(|e| e.to_string())
     })
     .await

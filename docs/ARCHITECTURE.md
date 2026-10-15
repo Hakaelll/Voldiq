@@ -32,6 +32,8 @@ Duplicate results retain the exact shared scan index that produced their IDs. Gr
 
 The bundled SQLite database uses WAL, foreign keys and transactional schema initialization. A root key combines the native root path, filesystem identity and exact exclusion coverage. Stable paths store native name bytes and parent IDs. Entry versions use half-open snapshot intervals; unchanged captures do not copy every entry. Snapshot deletion retains versions required by surviving captures, and compaction checkpoints the WAL and vacuums the database.
 
+Schema version 4 adds per-capture developer-cache evidence referencing those stable paths. It stores tool/category labels only for indexed directories, including an indexed root beneath a known cache. Historical queries reconstruct cache scopes from saved node IDs and never resolve current tool settings. Index loading reads entries and cache evidence in one SQLite transaction. Live scan and NTFS replay indexes start without historical cache evidence.
+
 Loading reconstructs the Rust index and validates parent order, node limits, filename components and checked integer conversions. Snapshot comparisons page actual additions, omissions and changed directory totals. Incomplete coverage never confirms missing entries as deleted. Database work runs in blocking tasks. The active-operation gate prevents capture and loading from racing a scan or duplicate analysis.
 
 ## Pending architecture work

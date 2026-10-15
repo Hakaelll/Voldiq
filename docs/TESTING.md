@@ -47,7 +47,9 @@ Five duplicate tests verify full BLAKE3 content, matching samples with different
 
 Four NTFS unit tests validate packed binary records, native UTF-16 preservation, truncation, malformed headers, dynamic filename offsets and journal continuity. `cargo run -p voldiq-core --example ntfs_probe` uses a disposable two-hard-link fixture and probes the existing volume read-only. On this host raw-volume access is denied; the conventional fixture passes with two names and 256 logical bytes. The probe does not elevate or create a journal. Elevated NTFS enumeration and live index integration remain unverified.
 
-Five snapshot tests save actual fixtures, reopen the database, compare additions, removals and directory growth, verify unchanged-version reuse, check rollback and integer overflow, delete intermediate captures, compact storage, preserve native UTF-16 names and reject invalid path components. Incomplete captures report omissions without asserting deletion; captures with different exclusions cannot be compared.
+Seven snapshot tests save actual fixtures, reopen the database, compare additions, removals and directory growth, verify unchanged-version reuse, check rollback and integer overflow, delete intermediate captures, compact storage, preserve native UTF-16 names and reject invalid path components. Incomplete captures report omissions without asserting deletion; captures with different exclusions cannot be compared.
+
+Four `snapshot_caches` fixtures verify saved tool/category evidence after restart, changed current settings, namesake exclusion, scoped dependency precedence, deletion cascades, cancellation, corrupted tool/path records and version 3 migration. Existing journal fixtures exercise migration from versions 1 and 2. Run `cargo test -p voldiq-core --test snapshot_caches --test journal_persistence --test journal_replay` for these boundaries. The native save command resolves supported locations in its worker; populated save/load presentation remains manual.
 
 ```powershell
 pnpm tauri dev

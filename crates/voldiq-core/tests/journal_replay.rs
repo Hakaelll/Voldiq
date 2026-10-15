@@ -422,7 +422,7 @@ fn restart_replay_uses_persisted_directory_and_file_identities_without_promoting
     std::fs::write(root.join("growth"), [1; 10]).unwrap();
     let index = baseline(&root, Vec::new());
     let mut store = Store::open(&db).unwrap();
-    let id = store.save(&index, &AtomicBool::new(false)).unwrap();
+    let id = store.save(&index, &AtomicBool::new(false), &[]).unwrap();
     drop(store);
     std::fs::rename(root.join("left"), root.join("right/moved")).unwrap();
     std::fs::write(root.join("growth"), [2; 37]).unwrap();
@@ -567,12 +567,12 @@ fn version_two_checkpoint_migrates_but_missing_native_identities_require_resynch
     std::fs::write(root.join("file"), [1; 20]).unwrap();
     let index = baseline(&root, Vec::new());
     let mut store = Store::open(&db).unwrap();
-    let id = store.save(&index, &AtomicBool::new(false)).unwrap();
+    let id = store.save(&index, &AtomicBool::new(false), &[]).unwrap();
     drop(store);
     let connection = rusqlite::Connection::open(&db).unwrap();
     connection
         .execute_batch(
-            "ALTER TABLE snapshot_versions DROP COLUMN native_state; PRAGMA user_version=2;",
+            "ALTER TABLE snapshot_versions DROP COLUMN native_state; DROP TABLE snapshot_caches; PRAGMA user_version=2;",
         )
         .unwrap();
     drop(connection);
@@ -597,7 +597,7 @@ fn version_two_checkpoint_migrates_but_missing_native_identities_require_resynch
             .unwrap()
             .is_none()
     );
-    let current = store.save(&index, &AtomicBool::new(false)).unwrap();
+    let current = store.save(&index, &AtomicBool::new(false), &[]).unwrap();
     assert_eq!(store.compare(id, current, 0, 100).unwrap().total, 0);
     let connection = rusqlite::Connection::open(&db).unwrap();
     connection.execute("UPDATE snapshot_versions SET kind=2 WHERE path_id IN (SELECT id FROM snapshot_paths WHERE parent_id=0)", []).unwrap();

@@ -20,17 +20,17 @@ fn journal_checkpoint_survives_restart_and_is_bound_to_its_capture() {
         next: i64::MAX,
     };
     let mut store = Store::open(&db).unwrap();
-    let conventional = store.save(&index, &AtomicBool::new(false)).unwrap();
+    let conventional = store.save(&index, &AtomicBool::new(false), &[]).unwrap();
     assert_eq!(store.checkpoint(conventional).unwrap(), None);
     index.ntfs_checkpoint = Some(checkpoint);
-    let id = store.save(&index, &AtomicBool::new(false)).unwrap();
+    let id = store.save(&index, &AtomicBool::new(false), &[]).unwrap();
     drop(store);
     let mut store = Store::open(&db).unwrap();
     assert_eq!(store.checkpoint(id).unwrap(), Some(checkpoint));
     let historical = store.load(id).unwrap();
     assert_eq!(historical.snapshot_id, Some(id));
     assert_eq!(historical.ntfs_checkpoint, None);
-    assert!(store.save(&index, &AtomicBool::new(true)).is_err());
+    assert!(store.save(&index, &AtomicBool::new(true), &[]).is_err());
     assert_eq!(store.list(0, 100).unwrap().len(), 2);
     store.delete(id).unwrap();
     assert_eq!(store.checkpoint(id).unwrap(), None);
@@ -66,24 +66,24 @@ fn invalid_checkpoint_evidence_cannot_be_committed_or_loaded() {
         volume: checkpoint.volume ^ 1,
         ..checkpoint
     });
-    assert!(store.save(&index, &AtomicBool::new(false)).is_err());
+    assert!(store.save(&index, &AtomicBool::new(false), &[]).is_err());
     index.ntfs_checkpoint = Some(Checkpoint {
         next: -1,
         ..checkpoint
     });
-    assert!(store.save(&index, &AtomicBool::new(false)).is_err());
+    assert!(store.save(&index, &AtomicBool::new(false), &[]).is_err());
     index.ntfs_checkpoint = Some(checkpoint);
     index.entries[0].incomplete = true;
-    assert!(store.save(&index, &AtomicBool::new(false)).is_err());
+    assert!(store.save(&index, &AtomicBool::new(false), &[]).is_err());
     index.entries[0].incomplete = false;
     index.error_count = 1;
-    assert!(store.save(&index, &AtomicBool::new(false)).is_err());
+    assert!(store.save(&index, &AtomicBool::new(false), &[]).is_err());
     index.error_count = 0;
     index.snapshot_id = Some(1);
-    assert!(store.save(&index, &AtomicBool::new(false)).is_err());
+    assert!(store.save(&index, &AtomicBool::new(false), &[]).is_err());
     index.snapshot_id = None;
     assert!(store.list(0, 100).unwrap().is_empty());
-    let id = store.save(&index, &AtomicBool::new(false)).unwrap();
+    let id = store.save(&index, &AtomicBool::new(false), &[]).unwrap();
     let connection = rusqlite::Connection::open(&db).unwrap();
     connection
         .execute(
@@ -108,11 +108,11 @@ fn version_one_history_migrates_without_losing_captures() {
     )
     .unwrap();
     let mut store = Store::open(&db).unwrap();
-    let id = store.save(&index, &AtomicBool::new(false)).unwrap();
+    let id = store.save(&index, &AtomicBool::new(false), &[]).unwrap();
     drop(store);
     let connection = rusqlite::Connection::open(&db).unwrap();
     connection
-        .execute_batch("ALTER TABLE snapshot_versions DROP COLUMN native_state; DROP TABLE snapshot_journals; PRAGMA user_version=1;")
+        .execute_batch("ALTER TABLE snapshot_versions DROP COLUMN native_state; DROP TABLE snapshot_journals; DROP TABLE snapshot_caches; PRAGMA user_version=1;")
         .unwrap();
     drop(connection);
     let store = Store::open(&db).unwrap();
@@ -125,7 +125,7 @@ fn version_one_history_migrates_without_losing_captures() {
         connection
             .query_row("PRAGMA user_version", [], |r| r.get::<_, i64>(0))
             .unwrap(),
-        3
+        4
     );
 }
 
@@ -145,7 +145,7 @@ fn native_identity_replacement_creates_a_new_version_even_with_matching_size_and
     )
     .unwrap();
     let mut store = Store::open(&db).unwrap();
-    let first = store.save(&before, &AtomicBool::new(false)).unwrap();
+    let first = store.save(&before, &AtomicBool::new(false), &[]).unwrap();
     let replacement = fixture.path().join("replacement");
     std::fs::write(&replacement, [2; 20]).unwrap();
     std::fs::File::options()
@@ -167,7 +167,7 @@ fn native_identity_replacement_creates_a_new_version_even_with_matching_size_and
         before.entries[1].file_state.unwrap().identity,
         after.entries[1].file_state.unwrap().identity
     );
-    let second = store.save(&after, &AtomicBool::new(false)).unwrap();
+    let second = store.save(&after, &AtomicBool::new(false), &[]).unwrap();
     let comparison = store.compare(first, second, 0, 100).unwrap();
     assert_eq!(comparison.delta, 0);
     assert!(

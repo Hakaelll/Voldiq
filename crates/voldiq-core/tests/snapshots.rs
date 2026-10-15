@@ -23,14 +23,14 @@ fn file_change_totals_cover_all_pages_without_counting_parent_sizes() {
     std::fs::create_dir(fixture.path().join("nested")).unwrap();
     let mut store = Store::open(&database.path().join("history.db")).unwrap();
     let before = store
-        .save(&capture(fixture.path()), &AtomicBool::new(false))
+        .save(&capture(fixture.path()), &AtomicBool::new(false), &[])
         .unwrap();
     for i in 1..=60 {
         std::fs::write(fixture.path().join(format!("nested/file-{i}")), vec![42; i]).unwrap();
     }
     std::fs::write(fixture.path().join("nested/empty"), []).unwrap();
     let after = store
-        .save(&capture(fixture.path()), &AtomicBool::new(false))
+        .save(&capture(fixture.path()), &AtomicBool::new(false), &[])
         .unwrap();
     let first = store.compare(before, after, 0, 1).unwrap();
     let last = store.compare(before, after, 60, 1).unwrap();
@@ -56,7 +56,7 @@ fn file_directory_transitions_count_only_regular_file_bytes() {
     std::fs::write(fixture.path().join("to-file/old-child"), [1; 5]).unwrap();
     let mut store = Store::open(&database.path().join("history.db")).unwrap();
     let before = store
-        .save(&capture(fixture.path()), &AtomicBool::new(false))
+        .save(&capture(fixture.path()), &AtomicBool::new(false), &[])
         .unwrap();
     std::fs::remove_file(fixture.path().join("to-folder")).unwrap();
     std::fs::create_dir(fixture.path().join("to-folder")).unwrap();
@@ -65,7 +65,7 @@ fn file_directory_transitions_count_only_regular_file_bytes() {
     std::fs::remove_dir(fixture.path().join("to-file")).unwrap();
     std::fs::write(fixture.path().join("to-file"), [1; 9]).unwrap();
     let after = store
-        .save(&capture(fixture.path()), &AtomicBool::new(false))
+        .save(&capture(fixture.path()), &AtomicBool::new(false), &[])
         .unwrap();
     let comparison = store.compare(before, after, 0, 1).unwrap();
     assert_eq!(comparison.file_changes.added.logical, 7);
@@ -87,12 +87,12 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     std::fs::write(fixture.path().join("removed"), [2; 7]).unwrap();
     let first = capture(fixture.path());
     let mut store = Store::open(&db).unwrap();
-    let before = store.save(&first, &AtomicBool::new(false)).unwrap();
+    let before = store.save(&first, &AtomicBool::new(false), &[]).unwrap();
     std::fs::write(fixture.path().join("nested/growth"), [3; 33]).unwrap();
     std::fs::remove_file(fixture.path().join("removed")).unwrap();
     std::fs::write(fixture.path().join("added"), [4; 14]).unwrap();
     let second = capture(fixture.path());
-    let after = store.save(&second, &AtomicBool::new(false)).unwrap();
+    let after = store.save(&second, &AtomicBool::new(false), &[]).unwrap();
     drop(store);
     let store = Store::open(&db).unwrap();
     let history = store.list(0, 10).unwrap();
@@ -152,8 +152,8 @@ fn unchanged_captures_share_versions_and_cancelled_capture_rolls_back() {
     std::fs::write(fixture.path().join("file"), [1; 20]).unwrap();
     let mut index = capture(fixture.path());
     let mut store = Store::open(&db).unwrap();
-    let first = store.save(&index, &AtomicBool::new(false)).unwrap();
-    let second = store.save(&index, &AtomicBool::new(false)).unwrap();
+    let first = store.save(&index, &AtomicBool::new(false), &[]).unwrap();
+    let second = store.save(&index, &AtomicBool::new(false), &[]).unwrap();
     let connection = rusqlite::Connection::open(&db).unwrap();
     let versions: i64 = connection
         .query_row("SELECT COUNT(*) FROM snapshot_versions", [], |r| r.get(0))
@@ -161,11 +161,11 @@ fn unchanged_captures_share_versions_and_cancelled_capture_rolls_back() {
     assert_eq!(versions, index.entries.len() as i64);
     assert_eq!(store.compare(first, second, 0, 20).unwrap().total, 0);
     index.entries[0].logical += 30;
-    assert!(store.save(&index, &AtomicBool::new(true)).is_err());
+    assert!(store.save(&index, &AtomicBool::new(true), &[]).is_err());
     assert_eq!(store.list(0, 10).unwrap().len(), 2);
     assert_eq!(store.load(second).unwrap().entries[0].logical, 20);
     index.entries[0].logical = u64::MAX;
-    assert!(store.save(&index, &AtomicBool::new(false)).is_err());
+    assert!(store.save(&index, &AtomicBool::new(false), &[]).is_err());
     assert_eq!(store.list(0, 10).unwrap().len(), 2);
 }
 
@@ -180,7 +180,7 @@ fn deleting_captures_preserves_remaining_history_and_future_capture() {
         std::fs::write(fixture.path().join("file"), vec![1; size]).unwrap();
         ids.push(
             store
-                .save(&capture(fixture.path()), &AtomicBool::new(false))
+                .save(&capture(fixture.path()), &AtomicBool::new(false), &[])
                 .unwrap(),
         );
     }
@@ -189,7 +189,7 @@ fn deleting_captures_preserves_remaining_history_and_future_capture() {
     store.delete(ids[2]).unwrap();
     assert_eq!(store.load(ids[0]).unwrap().entries[0].logical, 10);
     let fourth = store
-        .save(&capture(fixture.path()), &AtomicBool::new(false))
+        .save(&capture(fixture.path()), &AtomicBool::new(false), &[])
         .unwrap();
     assert!(fourth > ids[2]);
     assert_eq!(store.load(fourth).unwrap().entries[0].logical, 30);
@@ -210,7 +210,7 @@ fn incomplete_capture_does_not_assert_deletions_and_coverage_must_match() {
     std::fs::write(fixture.path().join("file"), [1; 10]).unwrap();
     let full = capture(fixture.path());
     let mut store = Store::open(&database.path().join("history.db")).unwrap();
-    let first = store.save(&full, &AtomicBool::new(false)).unwrap();
+    let first = store.save(&full, &AtomicBool::new(false), &[]).unwrap();
     let partial = scan(
         fixture.path(),
         &ScanOptions::default(),
@@ -218,7 +218,7 @@ fn incomplete_capture_does_not_assert_deletions_and_coverage_must_match() {
         |_| {},
     )
     .unwrap();
-    let second = store.save(&partial, &AtomicBool::new(false)).unwrap();
+    let second = store.save(&partial, &AtomicBool::new(false), &[]).unwrap();
     let comparison = store.compare(first, second, 0, 20).unwrap();
     assert!(!comparison.reliable);
     assert_eq!(comparison.file_changes.removed.files, 0);
@@ -254,7 +254,7 @@ fn incomplete_capture_does_not_assert_deletions_and_coverage_must_match() {
         |_| {},
     )
     .unwrap();
-    let third = store.save(&excluded, &AtomicBool::new(false)).unwrap();
+    let third = store.save(&excluded, &AtomicBool::new(false), &[]).unwrap();
     assert!(store.compare(first, third, 0, 20).is_err());
     assert_eq!(store.load(third).unwrap().exclusions, excluded.exclusions);
 }
@@ -271,7 +271,7 @@ fn native_utf16_names_survive_persistence_and_invalid_components_are_rejected() 
     let index = capture(fixture.path());
     let db = database.path().join("history.db");
     let mut store = Store::open(&db).unwrap();
-    let id = store.save(&index, &AtomicBool::new(false)).unwrap();
+    let id = store.save(&index, &AtomicBool::new(false), &[]).unwrap();
     drop(store);
     let store = Store::open(&db).unwrap();
     let loaded = store.load(id).unwrap();
