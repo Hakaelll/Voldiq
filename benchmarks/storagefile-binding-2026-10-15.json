@@ -1,0 +1,19 @@
+{
+    "checkedUtc":  "2026-10-15T16:07:17.1278226Z",
+    "sourceCommit":  "5400c8445104f918cc986314bd2eff6d5b070f39",
+    "probeSha256":  "D674CA805902B73197691091B3A35B7D37271E91652E99D02132B2492582BDFC",
+    "windowsVersion":  "10.0.26200.0",
+    "apartment":  "MTA",
+    "scope":  "Owned temporary files only. WinRT object and text reads; no recycling API.",
+    "observations":  {
+                         "baseline":  "original",
+                         "originalIdentity":  "527730ce:0069000000017f61",
+                         "replacementIdentity":  "527730ce:0047000000028241",
+                         "existingItemAfterReplacement":  "replacement",
+                         "freshItemAfterReplacement":  "replacement",
+                         "existingItemAfterReplacementRemoved":  "HRESULT_0x80070002",
+                         "retainedOriginalUnchanged":  true
+                     },
+    "fixtureCleanupCompleted":  true,
+    "recyclingVerified":  false
+}

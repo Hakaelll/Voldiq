@@ -198,6 +198,28 @@ pwsh -NoProfile -File benchmarks/shell-file-id-probe.ps1
 
 The next handoff design must establish binding at the actual filesystem operation, retain approved file and ancestor authority, and separately prove per-item recycling and recovery. Identity metadata supplied to Shell parsing is insufficient evidence for enabling the executor.
 
+## WinRT StorageFile binding experiment
+
+Microsoft describes [GetFileFromPathAsync](https://learn.microsoft.com/en-us/uwp/api/windows.storage.storagefile.getfilefrompathasync) as obtaining a `StorageFile` for a path. That description does not establish immutable filesystem authority. The [StorageFile probe](../benchmarks/storagefile-binding-probe.ps1) tests text reads through a retained WinRT object after controlled namespace substitution. It creates only two named files beneath a unique temporary fixture, checks native volume/file identities, requires successful original and replacement baselines, and retains the original unchanged at a second path.
+
+The [2026-10-15 result](../benchmarks/storagefile-binding-2026-10-15.json), on Windows `10.0.26200.0` in an MTA apartment, records:
+
+| Operation | Observed content/result |
+|---|---|
+| Initial object before replacement | Original |
+| Same object after replacement at its initial path | Replacement |
+| Fresh object at the replaced path | Replacement |
+| Initial object after replacement removal | File not found, `0x80070002` |
+| Retained original | Unchanged, with its original native identity |
+
+This is a counterexample to treating the `StorageFile` object as immutable authority for these text reads. It does not test `DeleteAsync`, per-item recycling, handle-access interop or Undo, and does not prove every WinRT design impossible. No recycling API runs. Each async operation has a ten-second wait limit; a timeout requests cancellation and fails the experiment. Cancellation does not establish immediate completion of the underlying operation. Cleanup checks the exact temporary parent, fixture prefix and reparse attributes, then removes only its two known fixture files and the empty directory nonrecursively. The recorded script hash identifies the executed source.
+
+```powershell
+powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -MTA -File benchmarks/storagefile-binding-probe.ps1 -OutputPath benchmarks/storagefile-binding.json
+```
+
+The execution policy applies only to this PowerShell process; the script does not modify the machine or user policy.
+
 ## Manually selected old files
 
 The `manually-selected-old-files` rule lists complete regular files whose captured modification time is at least 90 days old, within the current live scan. It never selects them automatically or interprets age as proof of disuse. Native protected Windows directory scopes are omitted from discovery; configured scan exclusions remain excluded. Missing timestamps, future timestamps, incomplete entries and historical captures do not produce candidates. Reparse and cloud-recall safety remains enforced by the scanner and fresh preview validation.
