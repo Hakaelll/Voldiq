@@ -165,7 +165,7 @@ Baseline and final runs use the same deterministic index, in release builds on t
 
 ### Bounded descendant query, debug diagnostic
 
-`cargo test -p voldiq benchmark_million_entry_overview -- --ignored --nocapture` creates a synthetic in-memory index with 16 folders and 1,000,000 one-byte file entries. Construction is outside the timed region. Five runs alternate the complete synchronous overview and its descendant helper. Each result is consumed and checked for exact totals, 12 branches, 96 children and stable retained IDs. No disk scan, IPC, Canvas or whole-app memory is measured.
+The diagnostic test formerly run with `cargo test -p voldiq benchmark_million_entry_overview -- --ignored --nocapture` was removed on 2026-10-21. The historical measurements below used a synthetic in-memory index with 16 folders and 1,000,000 one-byte file entries. Construction was outside the timed region. Five runs alternated the complete synchronous overview and its descendant helper. Each result was consumed and checked for exact totals, 12 branches, 96 children and stable retained IDs. No disk scan, IPC, Canvas or whole-app memory is measured.
 
 | Current path | Median of five runs | Range | Median thread CPU |
 |---|---:|---:|---:|

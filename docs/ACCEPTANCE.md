@@ -2,6 +2,8 @@
 
 This record follows the original [specification](reference/requirements.md#28-criterios-de-aceptación). It distinguishes implemented behavior and automated fixtures from acceptance of the packaged Windows application. The project remains under development.
 
+Automated fixture references below include historical verification. On 2026-10-21, the suite was reduced from 178 to 8 tests. See [Testing](TESTING.md) for the cases still maintained; earlier fixture results do not imply current automated coverage.
+
 ## Required outcomes
 
 | # | Requirement | Current evidence and remaining gate |

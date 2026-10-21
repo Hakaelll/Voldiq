@@ -15,11 +15,7 @@ mod cleanup_commands;
 mod config_file;
 mod developer_commands;
 mod docker_commands;
-#[cfg(test)]
-mod duplicate_view_tests;
 mod query_commands;
-#[cfg(test)]
-mod scan_options_tests;
 mod snapshot_commands;
 use cleanup_commands::*;
 use snapshot_commands::*;

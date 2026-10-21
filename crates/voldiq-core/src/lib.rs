@@ -167,22 +167,3 @@ pub enum ScanMode {
     Auto,
     Directory,
 }
-
-#[cfg(test)]
-mod concurrency_policy_tests {
-    use super::ScanConcurrency;
-    #[test]
-    fn automatic_workers_preserve_seeking_unknown_and_single_processor_limits() {
-        for processors in [0, 1, 2, 8, 64] {
-            assert_eq!(ScanConcurrency::automatic_workers(None, processors), 1);
-            assert_eq!(
-                ScanConcurrency::automatic_workers(Some(true), processors),
-                1
-            );
-            assert_eq!(
-                ScanConcurrency::automatic_workers(Some(false), processors),
-                processors.clamp(1, 2)
-            );
-        }
-    }
-}

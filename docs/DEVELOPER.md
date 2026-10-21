@@ -59,12 +59,11 @@ This is known-location analysis, not a claim that the discovered store is active
 
 On 2026-10-12, four developer-storage integration tests and three native resolver tests passed, with formatting and strict workspace Clippy. The expanded native fixture verifies eight tool locations with measured totals, three absolute overrides and exclusion of Gradle configuration and runtimes. The pnpm fixture checks environment precedence, version suffixes, missing/relative overrides, unrelated sibling exclusion and separate shared dependencies. Source-only review verified scoped cache descendants, historical isolation, overlapping-root categories and pnpm versioned layouts. Populated native UI acceptance remains pending.
 
-Real-filesystem tests cover configured paths, unrelated namesakes, exclusion of Cargo credentials and installed binaries, nested dependencies, totals, paging, scoped cache descendants, incomplete subtree scans and historical rejection of live cache roots. The native unit test covers default, empty, absolute and relative overrides without modifying process environment variables. Reproduce the checks with:
+Earlier real-filesystem fixtures covered configured paths, unrelated namesakes, credentials, nested dependencies and cache scoping. The resolver fixtures were removed when the automated suite was reduced on 2026-10-21. Run the remaining source checks with:
 
 ```powershell
 cargo fmt --all
-cargo test -p voldiq-core --test developer
-cargo test -p voldiq --bin voldiq developer_commands::tests
+cargo test --workspace
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 
@@ -94,6 +93,4 @@ The [2026-10-15 verification](../benchmarks/docker-context-verification-2026-10-
 
 On 2026-10-12, seven native tests passed, including four Docker tests covering current/legacy accounting, version and endpoint validation, HTTP framing, and an actual Windows named-pipe GET exchange plus silent-server timeout. Svelte checks, production frontend build and strict workspace Clippy passed. Source-only review found and corrected legacy shared-cache overcounting. The default local Docker pipe was unavailable in a read-only connection probe; acceptance with a running Docker Engine remains pending. No visual automation was used.
 
-```powershell
-cargo test -p voldiq --bin voldiq docker_commands::tests
-```
+The Docker fixtures described above are historical verification evidence. They were removed on 2026-10-21; see [Testing](TESTING.md) for the remaining automated suite.

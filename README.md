@@ -38,6 +38,8 @@ cargo clippy --workspace --all-targets -- -D warnings
 pnpm tauri build
 ```
 
+The automated suite retains 8 focused tests, reduced from 178 on 2026-10-21. See [Testing](docs/TESTING.md) for coverage and manual checks.
+
 The release configuration targets an NSIS installer and includes the offline WebView2 installer. Build output is in `target/release/bundle/nsis`; run `./scripts/verify_distribution.ps1` on Windows after building to check artifact metadata and generated packaging configuration. A distributable download is not published yet. See [Windows distribution](docs/DISTRIBUTION.md) for build evidence and remaining installer acceptance checks.
 
 ## Source map
