@@ -30,7 +30,20 @@ Check the produced installer on a clean Windows machine with networking disabled
 
 Release signing and a public download are not configured. Packaging does not close the remaining product acceptance checks listed in `NEXT_TODOS.md` and `docs/TESTING.md`.
 
-## Latest build evidence, 2026-10-14
+## Latest build evidence, 2026-10-15
+
+`pnpm tauri bundle --bundles nsis` regenerated the existing installer from the updated release executable. Application sources include the snapshot-cache persistence committed as `5400c84`; the bundle session ran at `d4934ef`, whose subsequent changes contain only the WinRT probe and cleanup documentation. This package includes the graphical interface changes, cleanup ancestor pinning, local Docker context discovery and snapshot schema version 4. The older installer was replaced rather than archived.
+
+The [static verification record](../benchmarks/distribution-2026-10-15-current.json) passed architecture/version, generated offline/current-user configuration, vendor runtime signature and icon checks. The native executable does not embed a verified Git commit, and the verifier does not extract the installer's payload or execute installation.
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| Native x64 executable, version 0.1.0, unsigned | 12,858,368 | `8DC9EDD25F8CA27AE28CB2E0836E6FF0368A7F855679790EB281B0A01AC12A9E` |
+| NSIS installer, version 0.1.0, unsigned | 220,613,604 | `1F0712E1978A0A7D8CB8040E2459F8AB0162BDF36CDED087BDB93232E44211E3` |
+
+The embedded-runtime source installer retains its valid Microsoft signature and the recorded 214,090,448-byte hash. The current Windows 11 Home host has no available Windows Sandbox or configured VM command-line tool, so no isolated installation was attempted. Clean Windows installation without networking/WebView2, installed operation, uninstall and signing remain pending. Opening the new application migrates history to schema version 4, which older application binaries cannot reopen.
+
+## Earlier build evidence, 2026-10-14
 
 `pnpm tauri build` completed with application sources at `bf54c5b`. This installer includes navigation that expands on hover, bounded nested storage maps and the native query changes. It predates the subsequent Overview welcome redesign. The [static verification record](../benchmarks/distribution-2026-10-14-current.json) passed architecture/version, offline WebView2 configuration, Microsoft runtime signature and icon checks. The checkout reference records the build session; the executable does not embed a verified Git commit.
 

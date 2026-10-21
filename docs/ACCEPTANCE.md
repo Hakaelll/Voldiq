@@ -24,7 +24,7 @@ This record follows the original [specification](reference/requirements.md#28-cr
 | 16 | Work offline | Application services are local and WebView2 is embedded in the installer. Clean-machine installation and native operation with networking disabled remain pending. |
 | 17 | Use Voldiq artwork | Supplied icons/wordmark are integrated; static ICO and packaging checks exist. Installed icon presentation remains manual. |
 | 18 | Main tests pass | Run [verify_project.ps1](../scripts/verify_project.ps1) for formatting, frontend diagnostics/tests, workspace tests, strict Clippy and frontend build. This gate does not substitute for the other rows. |
-| 19 | Produce a distribution build | The offline installer at source `bf54c5b` built and passed static checks on 2026-10-14. Subsequent Overview changes are in the development preview. The installer must be rebuilt and verified for the final source, then installed on clean Windows. |
+| 19 | Produce a distribution build | The installer was regenerated on 2026-10-15 from the updated release executable, including snapshot-cache persistence, Docker contexts and the graphical interface changes. Static checks pass; clean offline Windows installation and the final completed-product build remain pending. See [distribution evidence](DISTRIBUTION.md). |
 | 20 | Reproducible documentation and benchmarks | [Architecture](ARCHITECTURE.md), [design](../DESIGN.md), [security](SECURITY.md), [performance](PERFORMANCE.md) and [testing](TESTING.md) document scope and reproduction. New map overhead and remaining whole-app targets still need measurements. |
 
 ## Remaining implementation and performance work
