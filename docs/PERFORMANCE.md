@@ -1,5 +1,28 @@
 # Performance measurements
 
+## Current million-entry query baseline
+
+The 2026-10-25 release run at `e3d8bb2` completed all 50 queries in the existing `query_benchmark` example. It constructs 1,000,000 generated file entries and 1,001 directories in memory. Each query/method runs five times, alternating the standard and cancellable method order. Both methods finish normally; no cancellation is requested.
+
+```powershell
+cargo build --release -p voldiq-core --example query_benchmark
+./target/release/examples/query_benchmark.exe
+```
+
+| Query | Standard median, range (ms) | Cancellable median, range (ms) |
+|---|---:|---:|
+| Root children by size | 5.851, 5.472–9.909 | 5.513, 5.097–6.660 |
+| All files by size | 36.777, 33.054–61.677 | 22.988, 19.641–34.848 |
+| Name, offset 500,000 | 231.921, 223.603–368.587 | 236.482, 227.918–296.466 |
+| All files by modification time | 40.009, 33.455–46.024 | 32.220, 31.388–40.174 |
+| Name search, no matches | 82.867, 72.978–101.349 | 86.322, 71.660–109.832 |
+
+The [raw CSV](../benchmarks/query-release-2026-10-25.csv) contains all repetitions. The example checks exact result counts, the 100-row page bound and matching returned IDs between the two methods. Root queries match 1,000 folders; global queries match 1,000,000 files; the chosen search matches zero files. These assertions run after each query timer. They do not independently establish that every returned page has the correct ordering.
+
+The [provenance record](../benchmarks/query-release-2026-10-25.provenance.json) identifies the source and executable hashes, host, successful exit and process counters. The Intel i7-1165G7 host reported 34% CPU load before and 43% after the run. Compilation had finished, but other host work was uncontrolled. The process consumed 4,296.875 ms of CPU during 5,278.282 ms elapsed, including index construction and teardown; the individual query timers sum to 4,173.109 ms. These aggregate counters are consistent with substantial CPU work in this single-threaded executable, but do not identify a per-query bottleneck. No speedup, regression or method preference follows from this run.
+
+This updates the query baseline for the current core. It measures neither filesystem scanning nor loaded native interaction, IPC latency, requested cancellation, whole-app memory or frame times. The generated shape is shallow and names are ASCII. The older full-sort comparison below remains historical evidence; it is not a controlled comparison with this host session.
+
 ## Native application process observation
 
 The release executable built from application sources at `87aa6cb` was opened on 2026-10-13. A read-only observer collected Voldiq and associated WebView2 descendants over one baseline and five intervals of 5.162–5.192 seconds. Seven process identities remained measurable in every sample, with zero counter-read errors. No compilation, scan benchmark or automated UI input ran during capture. User interaction, current UI state and host background load were not inspected, so this is an observed release-process baseline rather than a controlled idle or populated-analysis acceptance test.

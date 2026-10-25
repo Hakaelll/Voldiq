@@ -1,0 +1,1 @@
+Synthetic in-memory index; no filesystem scan or native UI is measured.

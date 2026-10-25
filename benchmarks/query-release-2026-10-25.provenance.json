@@ -1,0 +1,33 @@
+{
+  "startedUtc": "2026-10-25T21:01:59.4637695Z",
+  "completedUtc": "2026-10-25T21:02:05.8520435Z",
+  "checkoutCommit": "e3d8bb247ae4329bdfba8f4f9ca579e93e8dcde1",
+  "sourceSha256": "8479FBDA6FD5FDF975606D75CA810A402EABB6BB7500215303A685505BCF84F4",
+  "executableSha256": "9C58F7AD993C8818A897BAB95D77334293DA7AC2E2FC12ECCAD0CD2415EA722F",
+  "command": "cargo build --release -p voldiq-core --example query_benchmark; target/release/examples/query_benchmark.exe",
+  "profile": "release",
+  "exitCode": 0,
+  "measuredRows": 50,
+  "processElapsedMilliseconds": 5278.2824,
+  "processCpuMilliseconds": 4296.875,
+  "cpuBefore": [
+    {
+      "Name": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
+      "NumberOfCores": 4,
+      "NumberOfLogicalProcessors": 8,
+      "LoadPercentage": 34
+    }
+  ],
+  "cpuAfter": [
+    {
+      "LoadPercentage": 43
+    }
+  ],
+  "operatingSystem": {
+    "Caption": "Microsoft Windows 11 Home",
+    "Version": "10.0.26200",
+    "TotalVisibleMemorySize": 16535812,
+    "FreePhysicalMemory": 8345528
+  },
+  "scope": "Synthetic in-memory index: 1000000 files plus 1001 directories. Five repetitions per query/method, alternating method order. Index construction and assertions are outside individual query timers. No filesystem scan, native IPC, cancellation request, concurrent scan or UI is measured. Host background load is not controlled."
+}
