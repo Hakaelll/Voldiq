@@ -1,0 +1,17 @@
+{
+  "checkedUtc": "2026-10-30T21:41:22.5718048Z",
+  "sourceCommit": "bae74e37a51a2d786fa433f968335f88284400ad",
+  "channelSha256": "80DE9EBEC0C10E9BF1AA28D19E79C3C7AED5D7A58E0BF3454589CCFDA3F71C9D",
+  "probeSha256": "6EFF35487FD6D3B4FB96723EF298F394629DC8FAED3834DE9E068D290C7E2D9C",
+  "executableSha256": "209B225EF54D0A1A08B0E8343E87A4A41302EA6299C8F856C579EE888733A3D7",
+  "callerIsAdministrator": false,
+  "processExitCode": 0,
+  "observation": {
+    "maximumMessageExchanged": true,
+    "invalidOutboundSizesRejected": true,
+    "wrongClientRejected": true,
+    "wrongServerRejected": true,
+    "idleReadCancelledAndClosed": true
+  },
+  "scope": "Real normal-token parent and child processes. Local IPC only; no source file handles, elevation, relocation, Shell operation or journal migration. Does not prove the combined privileged transaction."
+}

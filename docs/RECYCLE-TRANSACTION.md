@@ -2,6 +2,16 @@
 
 Status: implementation design, not an enabled executor. The separate admission and Shell fixtures have passed; the combined two-process transaction has not been verified.
 
+## Implemented transport
+
+[`windows::cleanup_channel`](../crates/voldiq-core/src/windows/cleanup_channel.rs) provides a one-connection local message pipe. Its protected DACL admits the current process user and SYSTEM, and the pipe rejects remote clients. Both endpoints compare Windows-reported pipe peer IDs with a live, retained process handle supplied by the caller. An unexpected peer closes the connection. The client requests identification-only security quality of service rather than the default impersonation level; see [Microsoft's named-pipe impersonation contract](https://learn.microsoft.com/en-us/windows/win32/ipc/impersonating-a-named-pipe-client).
+
+Messages are bounded to 4 KiB. Empty/oversized outbound messages are rejected before I/O. Read/write/connect operations use overlapped I/O with a five-second wait. A timeout cancels and drains that specific operation before releasing its stack/buffer, then closes the channel. Cancellation completion itself is not promised to finish within five seconds. A failed receive cannot be resumed as a fresh protocol message.
+
+The [normal-process observation](../benchmarks/cleanup-channel-2026-10-30.json) runs the actual module through [this executable fixture](../crates/voldiq-core/examples/cleanup_channel_probe.rs). It verifies a maximum-size message and reply, rejected outbound sizes, a rejected client process, a rejected server process, and cancellation/closure of an idle read. The fixture starts and reaps only its own child processes; it never elevates, relocates files or calls Shell. Reproduce with `cargo run --release -p voldiq-core --example cleanup_channel_probe` on Windows. The retained eight-test suite is unchanged.
+
+This is the transport portion of the first implementation gate below. The launcher still has to establish executable, user, role and elevation expectations before giving the channel its trusted process handles. Cross-integrity handle transfer, malicious inbound frames, the staging protocol and the combined privileged transaction remain unverified. No desktop command exposes this channel.
+
 ## Existing execution path
 
 `Plan` owns the reviewed selection, source stamps, ancestor identities and retained duplicate copies. `consume_plan` in the desktop adapter checks the live index and consumes confirmation once. The permanent executor retains verified handles, calls `Journal::prepare_permanent`, commits `start_item` before disposition, and records the result afterward. The current journal accepts only permanent operations. Reopening it marks interrupted in-flight results unknown. Recycling must extend this path without weakening its confirmations or treating an unknown result as success.

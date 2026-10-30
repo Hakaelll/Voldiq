@@ -3,6 +3,8 @@ use serde::Serialize;
 use std::path::Path;
 
 #[cfg(windows)]
+pub mod cleanup_channel;
+#[cfg(windows)]
 pub(crate) mod cleanup_io;
 pub mod recycle_bin;
 mod storage;
