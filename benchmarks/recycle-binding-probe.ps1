@@ -45,6 +45,10 @@ public static class RecycleBindingProbe {
         string path, uint access, uint share, IntPtr security, uint disposition, uint flags, IntPtr template);
     [DllImport("kernel32.dll", SetLastError=true)] static extern bool SetFileInformationByHandle(
         IntPtr file, int informationClass, IntPtr information, uint size);
+    [DllImport("kernel32.dll", SetLastError=true)] static extern IntPtr ReOpenFile(
+        IntPtr original, uint access, uint share, uint flags);
+    [DllImport("kernel32.dll", SetLastError=true)] static extern bool GetFileInformationByHandleEx(
+        IntPtr file, int informationClass, byte[] information, uint size);
     [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr file);
     [DllImport("kernel32.dll")] static extern IntPtr LocalFree(IntPtr memory);
     [DllImport("advapi32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool
@@ -68,6 +72,21 @@ public static class RecycleBindingProbe {
             return (uint)Marshal.ReadInt32(basic, 4);
         } finally { Marshal.FreeHGlobal(basic); }
     }
+    static string Identity(IntPtr file) {
+        byte[] information = new byte[24];
+        if (!GetFileInformationByHandleEx(file, 18, information, 24))
+            throw new IOException("File identity failed: " + Marshal.GetLastWin32Error());
+        return BitConverter.ToString(information);
+    }
+    static void ReadOriginal(IntPtr file) {
+        using (var safe = new Microsoft.Win32.SafeHandles.SafeFileHandle(file, false))
+        using (var reader = new FileStream(safe, FileAccess.Read)) {
+            reader.Position = 0;
+            if (reader.Length != 4 || reader.ReadByte() != 1 || reader.ReadByte() != 2 ||
+                reader.ReadByte() != 3 || reader.ReadByte() != 4)
+                throw new IOException("Retained content guard no longer reads the original payload.");
+        }
+    }
     public static string Run(bool administratorBoundary, string userSid, bool callerIsAdministrator) {
         if (IntPtr.Size != 8) throw new PlatformNotSupportedException("This probe requires x64 Windows.");
         var temporaryRoot = Path.GetFullPath(Path.GetTempPath());
@@ -77,7 +96,7 @@ public static class RecycleBindingProbe {
         using (var source = new FileStream(original, FileMode.CreateNew, FileAccess.Write)) {
             source.Write(new byte[] { 1, 2, 3, 4 }, 0, 4);
         }
-        IntPtr parent = IntPtr.Zero, leaf = IntPtr.Zero, sealedDirectory = IntPtr.Zero;
+        IntPtr parent = IntPtr.Zero, leaf = IntPtr.Zero, sealedDirectory = IntPtr.Zero, contentGuard = IntPtr.Zero;
         IntPtr security = IntPtr.Zero, parentDescriptor = IntPtr.Zero, dacl = IntPtr.Zero;
         IntPtr nameBuffer = IntPtr.Zero, unicodeBuffer = IntPtr.Zero, renameBuffer = IntPtr.Zero;
         bool sealedCreated = false;
@@ -136,12 +155,39 @@ public static class RecycleBindingProbe {
                 if (observed.Length != 4 || observed.ReadByte() != 1 || observed.ReadByte() != 2 || observed.ReadByte() != 3 || observed.ReadByte() != 4)
                     throw new IOException("Owned source content changed unexpectedly.");
             }
+
+            // Reopen by retained object before releasing the stricter namespace guard.
+            string originalIdentity = Identity(leaf);
+            contentGuard = ReOpenFile(leaf, 0x80000000, 5, 0x00200000);
+            if (contentGuard == new IntPtr(-1))
+                throw new IOException("Content guard reopen failed: " + Marshal.GetLastWin32Error());
+            if (Identity(contentGuard) != originalIdentity) throw new IOException("Reopen changed file identity.");
+            ReadOriginal(contentGuard);
+            var beforeRelease = CreateFileW(observedPath, 0x00010000, 7, IntPtr.Zero, 3, 0x00200000, IntPtr.Zero);
+            int beforeReleaseError = beforeRelease == new IntPtr(-1) ? Marshal.GetLastWin32Error() : 0;
+            if (beforeRelease != new IntPtr(-1)) CloseHandle(beforeRelease);
+            if (beforeReleaseError != 32) throw new IOException("Strict guard did not deny delete access with sharing violation.");
+            CloseHandle(leaf);
+            leaf = IntPtr.Zero;
+            var writer = CreateFileW(observedPath, 0x40000000, 7, IntPtr.Zero, 3, 0x00200000, IntPtr.Zero);
+            int writeError = writer == new IntPtr(-1) ? Marshal.GetLastWin32Error() : 0;
+            if (writer != new IntPtr(-1)) CloseHandle(writer);
+            if (writeError != 32) throw new IOException("Content guard did not deny writes with sharing violation.");
+            var deleteAccess = Open(observedPath, 0x00010000, 7, 0x00200000);
+            CloseHandle(deleteAccess);
+            string relocated = Path.Combine(fixture, "guard-relocated.bin");
+            File.Move(observedPath, relocated);
+            if (Identity(contentGuard) != originalIdentity) throw new IOException("Move changed retained file identity.");
+            ReadOriginal(contentGuard);
+            if (File.Exists(observedPath)) throw new IOException("Source name remains after guard-compatible move.");
             return "administrator_boundary=" + administratorBoundary + "; caller_is_administrator=" + callerIsAdministrator +
                 "; sealed_create_status=0x00000000; granted_access=0x" + granted.ToString("x8") +
                 "; staging_requested_access=0x" + stagingAccess.ToString("x8") + "; source_requested_access=0x00010080; source_granted_access=0x" + sourceGranted.ToString("x8") +
                 "; parent_requested_access=0x00020080; parent_granted_access=0x" + parentGranted.ToString("x8") +
                 "; rename=" + renamed + "; rename_error=" + renameError + "; native_rename_status=0x" +
-                ((uint)nativeRename).ToString("x8") + "; source_moved=" + moved + "; source_content_preserved=True; new_child_denied=" + replacementDenied;
+                ((uint)nativeRename).ToString("x8") + "; source_moved=" + moved + "; source_content_preserved=True; new_child_denied=" + replacementDenied +
+                "; content_guard_same_identity=True; strict_guard_delete_error=" + beforeReleaseError +
+                "; content_guard_write_error=" + writeError + "; delete_access_after_handoff=True; guard_compatible_move=True; retained_content_after_move=True";
         } finally {
             if (sealedCreated) {
                 uint restore = SetSecurityInfo(sealedDirectory, 1, 0x80000004, IntPtr.Zero, IntPtr.Zero, dacl, IntPtr.Zero);
@@ -150,6 +196,7 @@ public static class RecycleBindingProbe {
                 Console.WriteLine(CleanupStatus);
             }
             if (leaf != IntPtr.Zero && leaf != new IntPtr(-1)) CloseHandle(leaf);
+            if (contentGuard != IntPtr.Zero && contentGuard != new IntPtr(-1)) CloseHandle(contentGuard);
             if (sealedDirectory != IntPtr.Zero && sealedDirectory != new IntPtr(-1)) CloseHandle(sealedDirectory);
             if (parent != IntPtr.Zero) CloseHandle(parent);
             if (security != IntPtr.Zero) LocalFree(security);
@@ -169,6 +216,7 @@ public static class RecycleBindingProbe {
                 Directory.Delete(sealedPath, false);
             }
             File.Delete(Path.Combine(resolvedFixture, "original.bin"));
+            File.Delete(Path.Combine(resolvedFixture, "guard-relocated.bin"));
             Directory.Delete(resolvedFixture, false);
         }
     }

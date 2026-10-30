@@ -261,3 +261,9 @@ From the repository, each run can write a new report without overwriting an exis
 ```
 
 The output must be a new JSON file directly in `benchmarks`. Use the same account for any separately authorized elevated comparison; compare `actorSidSha256` before interpreting the two permission results together.
+
+### Retained content during handoff
+
+The probe now also calls [`ReOpenFile`](https://learn.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-reopenfile) on the retained source handle, requesting `GENERIC_READ` and `FILE_SHARE_READ | FILE_SHARE_DELETE`. It acquires this content guard before releasing the original handle. The [normal-token observation](../benchmarks/recycle-content-guard-normal-2026-10-30.json) records matching volume/file IDs, a sharing violation for delete access while the original guard is open, and a sharing violation for write access after only the content guard remains. A separate delete-access open then succeeds. A fixture-only rename succeeds while the content guard still reads the original four bytes with the same identity. Fixture cleanup completes.
+
+This establishes a tested transition between the two sharing policies without reopening the source pathname to acquire the content guard. It does not secure the destination namespace: this normal-token run fails admission to the sealed directory, so its guard-compatible move uses the owned fixture's writable parent. It does not run Shell, recycle anything, test preexisting writable mappings, or establish recovery. The earlier normal/elevated admission records identify the probe source before this extension; the new observation has its own source hash. An elevated combined handoff has not been run.

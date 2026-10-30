@@ -1,0 +1,14 @@
+{
+  "checkedUtc": "2026-10-30T21:20:04.3715510Z",
+  "sourceCommit": "2db6256e3083a70b5f8b83c8bbf7ff063bfbf15c",
+  "probeSha256": "8CDBDA4F6821F1E747FFCDA00A712F3E3C6ABC9F52E04FA176A1F7DF87BA9F17",
+  "administratorBoundary": true,
+  "callerIsAdministrator": false,
+  "actorSidSha256": "0C058BB9FFAA1C2AB85A03A3B471A101BCCC230F0F579F4361039607E60CAA8B",
+  "result": "administrator_boundary=True; caller_is_administrator=False; sealed_create_status=0x00000000; granted_access=0x001200a3; staging_requested_access=0x001600a3; source_requested_access=0x00010080; source_granted_access=0x00110080; parent_requested_access=0x00020080; parent_granted_access=0x00120080; rename=False; rename_error=87; native_rename_status=0xc0000022; source_moved=False; source_content_preserved=True; new_child_denied=True; content_guard_same_identity=True; strict_guard_delete_error=32; content_guard_write_error=32; delete_access_after_handoff=True; guard_compatible_move=True; retained_content_after_move=True",
+  "failure": null,
+  "cleanupStatus": "acl_restore_error=5; native_acl_restore_status=0xc0000022",
+  "fixtureCleanupCompleted": true,
+  "recyclingVerified": false,
+  "scope": "Only owned disposable files and the explicitly requested new report are written. No Shell/recycling API, service installation or personal-file operations."
+}
