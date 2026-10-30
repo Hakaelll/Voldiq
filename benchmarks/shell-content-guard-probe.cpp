@@ -1,11 +1,15 @@
-// Owned disposable fixtures only. No arguments, elevation, bin enumeration or empty-bin action.
+// Owned disposable fixtures only. Optional --direct; no elevation, bin enumeration or empty-bin action.
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <shobjidl.h>
+#include <shlobj.h>
 #include <shellapi.h>
+#include <shlguid.h>
+#include <knownfolders.h>
 #include <wrl.h>
 #include <cstdio>
 #include <cstring>
+#include <cwchar>
 #include <memory>
 #include <string>
 
@@ -104,7 +108,7 @@ struct Observation {
     HRESULT perform = E_PENDING, postDelete = E_PENDING, restorePerform = E_PENDING, postRestore = E_PENDING, error = S_OK;
 };
 
-static Observation Experiment(const std::wstring& directory, bool guarded) {
+static Observation Experiment(const std::wstring& directory, bool guarded, bool direct) {
     Observation result{};
     result.guarded = guarded;
     const auto path = directory + (guarded ? L"\\guarded.bin" : L"\\baseline.bin");
@@ -136,20 +140,31 @@ static Observation Experiment(const std::wstring& directory, bool guarded) {
         }
         auto sink = Microsoft::WRL::Make<Sink>();
         Require(sink != nullptr);
-        auto operation = Operation(FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI |
-            FOF_NO_CONNECTED_ELEMENTS | FOF_NORECURSION | FOFX_RECYCLEONDELETE | FOFX_EARLYFAILURE);
         auto source = Item(path);
-        Check(operation->DeleteItem(source.Get(), sink.Get()));
-        result.perform = operation->PerformOperations();
-        BOOL aborted = TRUE;
-        Check(operation->GetAnyOperationsAborted(&aborted));
-        result.aborted = aborted != FALSE;
-        result.postDelete = sink->deleteResult;
-        result.deleteCalls = sink->deleteCalls;
-        result.deleteFlags = sink->deleteFlags;
+        if (direct) {
+            auto parent = Item(directory);
+            ComPtr<ITransferSource> transfer;
+            Check(parent->BindToHandler(nullptr, BHID_Transfer, IID_PPV_ARGS(&transfer)));
+            ComPtr<IShellItem> bin;
+            Check(SHGetKnownFolderItem(FOLDERID_RecycleBinFolder, KF_FLAG_DEFAULT, nullptr, IID_PPV_ARGS(&bin)));
+            result.perform = transfer->RecycleItem(source.Get(), bin.Get(), TSF_NORMAL, &sink->recycled);
+            result.postDelete = result.perform;
+            result.aborted = FAILED(result.perform);
+        } else {
+            auto operation = Operation(FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI |
+                FOF_NO_CONNECTED_ELEMENTS | FOF_NORECURSION | FOFX_RECYCLEONDELETE | FOFX_EARLYFAILURE);
+            Check(operation->DeleteItem(source.Get(), sink.Get()));
+            result.perform = operation->PerformOperations();
+            BOOL aborted = TRUE;
+            Check(operation->GetAnyOperationsAborted(&aborted));
+            result.aborted = aborted != FALSE;
+            result.postDelete = sink->deleteResult;
+            result.deleteCalls = sink->deleteCalls;
+            result.deleteFlags = sink->deleteFlags;
+        }
         result.sourceAfter = Exists(path);
-        result.recycled = SUCCEEDED(result.perform) && !result.aborted && sink->deleteCalls == 1 &&
-            SUCCEEDED(sink->deleteResult) && sink->recycled != nullptr && !result.sourceAfter;
+        result.recycled = SUCCEEDED(result.perform) && !result.aborted && (direct || sink->deleteCalls == 1) &&
+            SUCCEEDED(result.postDelete) && sink->recycled != nullptr && !result.sourceAfter;
         if (guarded) {
             Require(Same(original, Identity(guard.get())));
             ReadOriginal(guard.get());
@@ -214,8 +229,9 @@ static void Print(const Observation& item) {
         item.restored ? "true" : "false", item.contentPreserved ? "true" : "false", item.cleanup ? "true" : "false", static_cast<unsigned long>(item.error));
 }
 
-int wmain(int argc, wchar_t**) {
-    if (argc != 1) return 2;
+int wmain(int argc, wchar_t** argv) {
+    const bool direct = argc == 2 && std::wcscmp(argv[1], L"--direct") == 0;
+    if (argc != 1 && !direct) return 2;
     HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     if (FAILED(initialized)) return 3;
     int exit = 1;
@@ -229,19 +245,21 @@ int wmain(int argc, wchar_t**) {
         const std::wstring name = std::wstring(L"voldiq-shell-guard-") + suffix;
         const std::wstring fixture = std::wstring(temporary) + name;
         WinCheck(CreateDirectoryW(fixture.c_str(), nullptr) != FALSE);
-        Observation baseline = Experiment(fixture, false);
+        Observation baseline = Experiment(fixture, false, direct);
         Observation guarded{};
         if (baseline.recycled && baseline.restored && baseline.cleanup && SUCCEEDED(baseline.error))
-            guarded = Experiment(fixture, true);
+            guarded = Experiment(fixture, true, direct);
         DWORD attributes = GetFileAttributesW(fixture.c_str());
         bool cleanup = attributes != INVALID_FILE_ATTRIBUTES && !(attributes & FILE_ATTRIBUTE_REPARSE_POINT) &&
             RemoveDirectoryW(fixture.c_str()) != FALSE;
-        std::printf("{\"fixtureName\":\"");
+        std::printf("{\"directRecycleItem\":%s,\"fixtureName\":\"", direct ? "true" : "false");
         for (wchar_t character : name) std::putchar(static_cast<char>(character));
         std::printf("\",\"baseline\":"); Print(baseline);
         std::printf(",\"guarded\":"); Print(guarded);
         std::printf(",\"fixtureDirectoryCleaned\":%s}\n", cleanup ? "true" : "false");
-        exit = cleanup && baseline.cleanup && guarded.cleanup && SUCCEEDED(baseline.error) && SUCCEEDED(guarded.error) ? 0 : 1;
+        exit = cleanup && baseline.recycled && baseline.restored && baseline.cleanup &&
+            guarded.recycled && guarded.restored && guarded.cleanup &&
+            SUCCEEDED(baseline.error) && SUCCEEDED(guarded.error) ? 0 : 1;
     } catch (HRESULT error) { std::printf("{\"fatalError\":\"0x%08lx\"}\n", static_cast<unsigned long>(error)); }
     CoUninitialize();
     return exit;
