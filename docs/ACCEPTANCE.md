@@ -26,7 +26,7 @@ Automated fixture references below include historical verification. On 2026-10-2
 | 16 | Work offline | Application services are local and WebView2 is embedded in the installer. Clean-machine installation and native operation with networking disabled remain pending. |
 | 17 | Use Voldiq artwork | Supplied icons/wordmark are integrated; static ICO and packaging checks exist. Installed icon presentation remains manual. |
 | 18 | Main tests pass | Run [verify_project.ps1](../scripts/verify_project.ps1) for formatting, frontend diagnostics/tests, workspace tests, strict Clippy and frontend build. This gate does not substitute for the other rows. |
-| 19 | Produce a distribution build | The installer was regenerated on 2026-10-15 from the updated release executable, including snapshot-cache persistence, Docker contexts and the graphical interface changes. Static checks pass; clean offline Windows installation and the final completed-product build remain pending. See [distribution evidence](DISTRIBUTION.md). |
+| 19 | Produce a distribution build | The installer was regenerated on 2026-10-30 from the current executable, including the filename-search change and Windows Recycle Bin access. Static checks pass; the user will check clean offline Windows installation. The final completed-product build remains pending. See [distribution evidence](DISTRIBUTION.md). |
 | 20 | Reproducible documentation and benchmarks | [Architecture](ARCHITECTURE.md), [design](../DESIGN.md), [security](SECURITY.md), [performance](PERFORMANCE.md) and [testing](TESTING.md) document scope and reproduction. New map overhead and remaining whole-app targets still need measurements. |
 
 ## Remaining implementation and performance work

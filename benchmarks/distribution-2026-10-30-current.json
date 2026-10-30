@@ -1,0 +1,47 @@
+{
+  "checkedUtc": "2026-10-30T20:31:22.2630669Z",
+  "checkoutCommit": "6c3fc8af9cc3c48f5df70d05b62c607ba546634a",
+  "buildCommitVerified": false,
+  "scope": "Static artifact and generated-source checks; installation and embedded payload extraction are not verified.",
+  "native": {
+    "name": "voldiq.exe",
+    "bytes": 12440064,
+    "sha256": "21962F69D95DCA07407344BFB938FA9CC9B8DE55E30845C0B7E0992C88816783",
+    "peMachine": "0x8664",
+    "productVersion": "0.1.0",
+    "signature": "NotSigned",
+    "signer": null
+  },
+  "installer": {
+    "name": "Voldiq_0.1.0_x64-setup.exe",
+    "bytes": 221087507,
+    "sha256": "8D89E2E31A2873F04F3956CB93A5F012FA166531A716CAD7946E955766A43A4C",
+    "peMachine": "0x014C",
+    "productVersion": "0.1.0",
+    "signature": "NotSigned",
+    "signer": null
+  },
+  "runtime": {
+    "name": "MicrosoftEdgeWebView2RuntimeInstallerX64.exe",
+    "bytes": 214999248,
+    "sha256": "F9D45CF7BEF9576D6DF50C7A7525E0BC8C26B6C3BC2C667B494AAFB062A35B6F",
+    "peMachine": "0x014C",
+    "productVersion": "1.3.307.15",
+    "signature": "Valid",
+    "signer": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US"
+  },
+  "installMode": "currentUser",
+  "webviewMode": "offlineInstaller",
+  "iconSizes": [
+    16,
+    24,
+    32,
+    48,
+    64,
+    128,
+    256
+  ],
+  "packagingCommand": "pnpm tauri bundle --bundles nsis",
+  "cleanMachineAcceptance": "Pending. The user will test on a clean Windows machine.",
+  "runningImageRetained": "target/release/voldiq.running-6c3fc8a.exe"
+}

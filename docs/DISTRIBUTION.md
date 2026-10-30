@@ -2,7 +2,7 @@
 
 Voldiq builds an x64 Windows NSIS installer from the supplied artwork. Build artifacts stay in the ignored `target` directory; no download has been published.
 
-The native executable was rebuilt and opened on 2026-10-30 with the filename-search change and Windows Recycle Bin access. Its [launch record](../benchmarks/recycle-bin-launch-2026-10-30.json) identifies the current executable hash and window metadata. The retained NSIS installer is still the 2026-10-15 package below; it does not contain these later changes and must be regenerated for the completed product.
+The executable and offline NSIS installer were refreshed on 2026-10-30 with the filename-search change and Windows Recycle Bin access. The [launch record](../benchmarks/recycle-bin-launch-2026-10-30.json) identifies the opened executable, and the [distribution record](../benchmarks/distribution-2026-10-30-current.json) identifies the current package. Clean-machine installation remains pending and will be checked by the user.
 
 ## Build
 
@@ -32,7 +32,27 @@ Check the produced installer on a clean Windows machine with networking disabled
 
 Release signing and a public download are not configured. Packaging does not close the remaining product acceptance checks listed in `NEXT_TODOS.md` and `docs/TESTING.md`.
 
-## Latest build evidence, 2026-10-15
+## Latest build evidence, 2026-10-30
+
+`pnpm tauri bundle --bundles nsis` completed at checkout `6c3fc8a`, reusing the already verified native executable without recompilation. The [static verification record](../benchmarks/distribution-2026-10-30-current.json) passes the architecture/version, current-user/offline configuration, vendor runtime signature and seven icon-size checks. The Voldiq executable and installer remain unsigned. The verifier does not extract the embedded payload or prove installation, and the executable contains no verified Git commit.
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| Native x64 executable, version 0.1.0 | 12,440,064 | `21962F69D95DCA07407344BFB938FA9CC9B8DE55E30845C0B7E0992C88816783` |
+| NSIS installer, version 0.1.0 | 221,087,507 | `8D89E2E31A2873F04F3956CB93A5F012FA166531A716CAD7946E955766A43A4C` |
+| Microsoft offline runtime source, version 1.3.307.15 | 214,999,248 | `F9D45CF7BEF9576D6DF50C7A7525E0BC8C26B6C3BC2C667B494AAFB062A35B6F` |
+
+The application stayed open. Its in-use image was retained at `target/release/voldiq.running-6c3fc8a.exe`, while an identical writable copy at the ordinary release path let the bundler apply its package metadata and restore the original file afterward. The holding image is still in use and must remain until that application closes. The previous installer was replaced, rather than archived.
+
+### User-owned clean-machine check
+
+1. Copy the installer to a clean x64 Windows environment and verify its SHA-256 above. Record the Windows version and whether WebView2 is initially present. Test the absent-runtime case to verify the embedded runtime installer.
+2. Disconnect networking, install for the current user and launch from the installed shortcut without development tools.
+3. Scan a disposable folder with known contents. Check totals, search, folder navigation, Explorer reveal and the installed icons. Windows Recycle Bin access should open the system bin; this does not test recycling from Voldiq.
+4. Close the application and uninstall it. Check shortcut/executable removal and the chosen user-data retention behavior.
+5. Report the initial environment and the install, offline launch, native scan and uninstall results. These checks remain pending until that report is available.
+
+## Earlier build evidence, 2026-10-15
 
 `pnpm tauri bundle --bundles nsis` regenerated the existing installer from the updated release executable. Application sources include the snapshot-cache persistence committed as `5400c84`; the bundle session ran at `d4934ef`, whose subsequent changes contain only the WinRT probe and cleanup documentation. This package includes the graphical interface changes, cleanup ancestor pinning, local Docker context discovery and snapshot schema version 4. The older installer was replaced rather than archived.
 
