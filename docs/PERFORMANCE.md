@@ -1,5 +1,13 @@
 # Performance measurements
 
+## Filename search normalization
+
+Filename filtering now searches the original string when its name is already lowercase ASCII. It retains the existing Unicode lowercase conversion for uppercase or non-ASCII names. Query normalization, matching semantics, ranking, page bounds and cancellation checkpoints are unchanged. This avoids constructing a temporary lowercase string for the common lowercase ASCII case without caching a second filename for every indexed entry.
+
+The retained snapshot integration case checks literal expected results for uppercase queries, uppercase filenames, Unicode names and missing results. It exercises both query methods against a real scan and the reopened snapshot. The core's six retained tests pass in release, as does strict all-target core Clippy. The total automated inventory remains eight cases.
+
+The [2026-10-30 raw queries](../benchmarks/search-copy-2026-10-30.csv) and [provenance](../benchmarks/search-copy-2026-10-30.json) record 50 completed queries through the changed release core. The existing benchmark checks counts, page sizes and returned-ID parity. No controlled before/after comparison completed, so these results do not establish a speedup. Allocator counts, varied filename distributions and native search latency remain unmeasured.
+
 ## Current million-entry query baseline
 
 The 2026-10-25 release run at `e3d8bb2` completed all 50 queries in the existing `query_benchmark` example. It constructs 1,000,000 generated file entries and 1,001 directories in memory. Each query/method runs five times, alternating the standard and cancellable method order. Both methods finish normally; no cancellation is requested.

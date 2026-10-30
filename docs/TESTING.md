@@ -31,7 +31,7 @@ pnpm build
 | 1 cleanup journal test | Recovery after an interrupted deletion does not retry a replacement file or claim unrecorded success. |
 | 1 file disposition test | Replaced files and read-only targets are not removed. |
 | 1 Windows handle test | An acquired parent directory cannot be renamed until its handle is released. |
-| 1 snapshot integration test | Saved history survives reopening and compares actual file additions, removals and growth. |
+| 1 snapshot integration test | Saved history survives reopening, compares actual file changes and preserves case-insensitive ASCII/Unicode search results through both query methods. |
 | 1 frontend selection test | The cleanup selection limit rejects a whole page without partial changes. |
 
 Rust fixtures use disposable temporary folders. The Windows cleanup tests remove only files they create. The frontend test runs directly with Node's test runner and requires no browser automation.

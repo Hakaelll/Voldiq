@@ -245,7 +245,7 @@ impl Index {
             if (!query.files_only || entry.kind == Kind::File)
                 && query.kind.is_none_or(|kind| entry.kind == kind)
                 && entry.logical >= query.min_size
-                && (text.is_empty() || entry.name.to_lowercase().contains(&text))
+                && (text.is_empty() || contains_name(&entry.name, &text))
                 && (!query.without_extension
                     || (entry.kind == Kind::File
                         && std::path::Path::new(&entry.name).extension().is_none()))
@@ -429,6 +429,14 @@ impl Index {
             entry.incomplete |= child.incomplete;
             parent = entry.parent;
         }
+    }
+}
+
+fn contains_name(name: &str, lowercase_text: &str) -> bool {
+    if name.is_ascii() && !name.bytes().any(|byte| byte.is_ascii_uppercase()) {
+        name.contains(lowercase_text)
+    } else {
+        name.to_lowercase().contains(lowercase_text)
     }
 }
 

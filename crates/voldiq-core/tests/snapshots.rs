@@ -24,6 +24,8 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     std::fs::create_dir(fixture.path().join("nested")).unwrap();
     std::fs::write(fixture.path().join("nested/growth"), [1; 12]).unwrap();
     std::fs::write(fixture.path().join("removed"), [2; 7]).unwrap();
+    std::fs::write(fixture.path().join("UPPER.txt"), [5; 7]).unwrap();
+    std::fs::write(fixture.path().join("Résumé.txt"), [6; 7]).unwrap();
     let first = capture(fixture.path());
     let mut store = Store::open(&db).unwrap();
     let before = store.save(&first, &AtomicBool::new(false), &[]).unwrap();
@@ -38,7 +40,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     assert_eq!(history.len(), 2);
     assert_eq!(history[0].id, after);
     let loaded = store.load(before).unwrap();
-    assert_eq!(loaded.entries[0].logical, 19);
+    assert_eq!(loaded.entries[0].logical, 33);
     assert_eq!(
         loaded
             .query(&Query {
@@ -47,8 +49,36 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             })
             .unwrap()
             .total,
-        2
+        4
     );
+    for (text, expected) in [
+        ("GROWTH", vec!["growth"]),
+        ("upper", vec!["UPPER.txt"]),
+        ("RÉSUMÉ", vec!["Résumé.txt"]),
+        ("absent", vec![]),
+    ] {
+        let query = Query {
+            text: text.into(),
+            files_only: true,
+            ..Query::default()
+        };
+        for index in [&first, &loaded] {
+            let page = index.query(&query).unwrap();
+            let cancellable = index.query_cancellable(&query, || false).unwrap().unwrap();
+            assert_eq!(page.total, expected.len());
+            assert_eq!(cancellable.total, expected.len());
+            for result in [page, cancellable] {
+                assert_eq!(
+                    result
+                        .items
+                        .iter()
+                        .map(|entry| entry.name.as_str())
+                        .collect::<Vec<_>>(),
+                    expected
+                );
+            }
+        }
+    }
     let comparison = store.compare(before, after, 0, 200).unwrap();
     assert!(comparison.reliable);
     assert_eq!(comparison.delta, 28);
@@ -80,5 +110,5 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     assert_eq!(page.total, comparison.total);
     assert_eq!(page.changes.len(), 1);
     assert_eq!(page.file_changes, comparison.file_changes);
-    assert_eq!(store.load(after).unwrap().entries[0].logical, 47);
+    assert_eq!(store.load(after).unwrap().entries[0].logical, 61);
 }

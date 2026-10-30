@@ -1,0 +1,10 @@
+{
+  "checkedUtc": "2026-10-30T20:03:33.9724131Z",
+  "baseCommit": "899b8ac96614169ac6ff024984ff48c341dece43",
+  "changedSourceSha256": "041593F52D085343B88B8B0BA5F10B58ED756A6F00CCFC4EF91CE10C7F139D28",
+  "benchmarkSourceSha256": "8479FBDA6FD5FDF975606D75CA810A402EABB6BB7500215303A685505BCF84F4",
+  "executableSha256": "A3E8C0230C51723524142A79C81D7CCB170299996A617795E9E01A4A98A9C3C2",
+  "exitCode": 0,
+  "queryRows": 50,
+  "scope": "Changed query implementation, release build; five repetitions of five queries with standard and cancellable methods. Exact count/page-size and method-ID parity assertions completed. No cancellation requested, no allocation profiler, and no controlled before/after timing comparison. Does not measure filesystem scanning, native UI or IPC."
+}
