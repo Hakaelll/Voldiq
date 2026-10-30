@@ -1,19 +1,30 @@
 #[cfg(windows)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::{
-        io::{self, Read},
-        os::windows::io::{AsHandle, FromRawHandle, OwnedHandle},
+        fs::File,
+        io::{self, Read, Write},
+        os::windows::io::{AsHandle, AsRawHandle, FromRawHandle, OwnedHandle},
         process::{Child, Command, Stdio},
         time::{Duration, Instant},
     };
     use voldiq_core::windows::cleanup_channel::{Channel, MAX_MESSAGE, Server};
     use windows_sys::Win32::{
-        Storage::FileSystem::SYNCHRONIZE,
-        System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION},
+        Foundation::INVALID_HANDLE_VALUE,
+        Storage::FileSystem::{
+            CreateFileW, DELETE, FILE_FLAG_OPEN_NO_RECALL, FILE_FLAG_OPEN_REPARSE_POINT,
+            FILE_READ_ATTRIBUTES, FILE_READ_DATA, FILE_SHARE_READ, OPEN_EXISTING, SYNCHRONIZE,
+        },
+        System::Threading::{OpenProcess, PROCESS_DUP_HANDLE, PROCESS_QUERY_LIMITED_INFORMATION},
     };
 
     fn process(id: u32) -> io::Result<OwnedHandle> {
-        let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE, 0, id) };
+        let handle = unsafe {
+            OpenProcess(
+                PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_DUP_HANDLE | SYNCHRONIZE,
+                0,
+                id,
+            )
+        };
         if handle.is_null() {
             return Err(io::Error::last_os_error());
         }
@@ -80,6 +91,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "silent" => {
                 io::stdin().read_to_end(&mut Vec::new())?;
             }
+            "source" => {
+                let mut file = channel.receive_source()?;
+                assert_eq!(
+                    file.write_all(b"x").unwrap_err().kind(),
+                    io::ErrorKind::PermissionDenied
+                );
+                channel.send(b"held")?;
+                assert_eq!(channel.receive()?, b"release");
+                let mut bytes = Vec::new();
+                file.read_to_end(&mut bytes)?;
+                assert_eq!(bytes, b"owned source transfer");
+                drop(file);
+                channel.send(b"released")?;
+            }
+            "reject-source" => {
+                assert_eq!(
+                    channel
+                        .receive_source()
+                        .err()
+                        .ok_or("Invalid source accepted.")?
+                        .kind(),
+                    io::ErrorKind::PermissionDenied
+                );
+                assert_eq!(
+                    channel.receive().unwrap_err().kind(),
+                    io::ErrorKind::NotConnected
+                );
+                println!("readonly_source_rejected");
+            }
             _ => return Err("Unknown probe role.".into()),
         }
         return Ok(());
@@ -141,8 +181,67 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
     silent.stdin.take();
     finish(silent)?;
+
+    let fixture = tempfile::tempdir()?;
+    let source = fixture.path().join("owned.bin");
+    let moved = fixture.path().join("moved.bin");
+    std::fs::write(&source, b"owned source transfer")?;
+    let server = Server::create()?;
+    let child = spawn("source", server.name(), std::process::id())?;
+    let mut channel = server.accept(child.as_handle())?;
+    let readonly = File::open(&source)?;
+    assert_eq!(
+        channel.offer_source(&readonly).unwrap_err().kind(),
+        io::ErrorKind::PermissionDenied
+    );
+    drop(readonly);
+    let wide = voldiq_core::windows::wide(&source);
+    let raw = unsafe {
+        CreateFileW(
+            wide.as_ptr(),
+            DELETE | FILE_READ_DATA | FILE_READ_ATTRIBUTES,
+            FILE_SHARE_READ,
+            std::ptr::null(),
+            OPEN_EXISTING,
+            FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_OPEN_NO_RECALL,
+            std::ptr::null_mut(),
+        )
+    };
+    if raw == INVALID_HANDLE_VALUE {
+        return Err(io::Error::last_os_error().into());
+    }
+    let file = unsafe { File::from_raw_handle(raw) };
+    channel.offer_source(&file)?;
+    assert_eq!(channel.receive()?, b"held");
+    drop(file);
+    let rename_error = std::fs::rename(&source, &moved)
+        .unwrap_err()
+        .raw_os_error()
+        .ok_or("Missing native rename error.")?;
+    assert!([5, 32].contains(&rename_error));
+    channel.send(b"release")?;
+    assert_eq!(channel.receive()?, b"released");
+    finish(child)?;
+    std::fs::rename(&source, &moved)?;
+    assert_eq!(std::fs::read(&moved)?, b"owned source transfer");
+
+    let server = Server::create()?;
+    let child = spawn("reject-source", server.name(), std::process::id())?;
+    let mut channel = server.accept(child.as_handle())?;
+    let mut readonly = File::open(&moved)?;
+    let mut forged = vec![0u8; 44];
+    forged[..8].copy_from_slice(b"VDQSRC01");
+    forged[8..16].copy_from_slice(&(readonly.as_raw_handle() as usize as u64).to_le_bytes());
+    channel.send(&forged)?;
+    assert!(channel.receive().is_err());
+    assert_eq!(finish(child)?.trim(), "readonly_source_rejected");
+    let mut bytes = Vec::new();
+    readonly.read_to_end(&mut bytes)?;
+    assert_eq!(bytes, b"owned source transfer");
+    drop(readonly);
+    fixture.close()?;
     println!(
-        "{{\"maximumMessageExchanged\":true,\"invalidOutboundSizesRejected\":true,\"wrongClientRejected\":true,\"wrongServerRejected\":true,\"idleReadCancelledAndClosed\":true}}"
+        "{{\"maximumMessageExchanged\":true,\"invalidOutboundSizesRejected\":true,\"wrongClientRejected\":true,\"wrongServerRejected\":true,\"idleReadCancelledAndClosed\":true,\"sourceHandleTransferred\":true,\"receiverWritesDenied\":true,\"senderClosePreservedReceiverGuard\":true,\"guardedRenameError\":{rename_error},\"receiverReleaseAllowedRename\":true,\"forgedReadonlyOfferRejected\":true,\"senderHandleSurvivedRejection\":true,\"ownedFixtureCleaned\":true}}"
     );
     Ok(())
 }

@@ -1,0 +1,25 @@
+{
+  "checkedUtc": "2026-10-30T21:51:39.1762947Z",
+  "sourceCommit": "0ff4160fa90aecc0d84484940b7ecce95ae4eca7",
+  "channelSha256": "94C67B88CF6599726663A183BDDB846631CD30A26C94A50A61B32CE30ADBA30C",
+  "probeSha256": "8AA9C3CBB89728698A65B0319B7EAA7ABF02E97B8D7D27623D3AA59E6F2977B3",
+  "executableSha256": "E5BFB0B2F6982BD480B8959F9795916362BEC97D267A52745467CB692E15323D",
+  "callerIsAdministrator": false,
+  "processExitCode": 0,
+  "observation": {
+    "maximumMessageExchanged": true,
+    "invalidOutboundSizesRejected": true,
+    "wrongClientRejected": true,
+    "wrongServerRejected": true,
+    "idleReadCancelledAndClosed": true,
+    "sourceHandleTransferred": true,
+    "receiverWritesDenied": true,
+    "senderClosePreservedReceiverGuard": true,
+    "guardedRenameError": 32,
+    "receiverReleaseAllowedRename": true,
+    "forgedReadonlyOfferRejected": true,
+    "senderHandleSurvivedRejection": true,
+    "ownedFixtureCleaned": true
+  },
+  "scope": "Real normal-token processes and one owned disposable source. Source authority is pulled with DUPLICATE_SAME_ACCESS and checked against native identity/access. No elevation, protected staging, Shell call or journal migration."
+}

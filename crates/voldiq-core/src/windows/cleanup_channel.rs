@@ -1,15 +1,20 @@
 //! Local, process-bound transport for the one-use cleanup helper. No filesystem commands.
 use std::{
+    fs::File,
     io,
     os::windows::io::{AsRawHandle, BorrowedHandle, FromRawHandle, OwnedHandle},
     ptr,
     time::{Duration, Instant},
 };
+use windows_sys::Wdk::Foundation::{NtQueryObject, ObjectBasicInformation};
 use windows_sys::Win32::{
     Foundation::*,
     Security::{Authorization::*, *},
     Storage::FileSystem::*,
-    System::{Com::CoCreateGuid, IO::*, Pipes::*, Threading::*},
+    System::{
+        Com::CoCreateGuid, IO::*, Pipes::*, Threading::*,
+        WindowsProgramming::PUBLIC_OBJECT_BASIC_INFORMATION,
+    },
 };
 
 pub const MAX_MESSAGE: usize = 4096;
@@ -23,6 +28,86 @@ pub struct Server {
 
 pub struct Channel {
     handle: Option<OwnedHandle>,
+    peer: OwnedHandle,
+}
+
+const SOURCE_HEADER: &[u8; 8] = b"VDQSRC01";
+const SOURCE_ACK: &[u8; 8] = b"VDQACK01";
+const SOURCE_FRAME_SIZE: usize = 44;
+
+fn invalid_source() -> io::Error {
+    io::Error::new(
+        io::ErrorKind::InvalidData,
+        "Invalid cleanup source transfer.",
+    )
+}
+
+fn source_frame(file: &File) -> io::Result<Vec<u8>> {
+    let handle = file.as_raw_handle();
+    if unsafe { GetFileType(handle) } != FILE_TYPE_DISK {
+        return Err(invalid_source());
+    }
+    let mut information: PUBLIC_OBJECT_BASIC_INFORMATION = unsafe { std::mem::zeroed() };
+    let mut returned = 0;
+    let status = unsafe {
+        NtQueryObject(
+            handle,
+            ObjectBasicInformation,
+            (&mut information as *mut PUBLIC_OBJECT_BASIC_INFORMATION).cast(),
+            size_of::<PUBLIC_OBJECT_BASIC_INFORMATION>() as u32,
+            &mut returned,
+        )
+    };
+    if status < 0 || returned < 8 {
+        return Err(invalid_source());
+    }
+    let granted = information.GrantedAccess;
+    let required = DELETE | FILE_READ_ATTRIBUTES;
+    let allowed = required | FILE_READ_DATA | SYNCHRONIZE;
+    if granted & required != required || granted & !allowed != 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "Cleanup source has unexpected access rights.",
+        ));
+    }
+    let mut attributes: FILE_ATTRIBUTE_TAG_INFO = unsafe { std::mem::zeroed() };
+    let mut identity: FILE_ID_INFO = unsafe { std::mem::zeroed() };
+    if unsafe {
+        GetFileInformationByHandleEx(
+            handle,
+            FileAttributeTagInfo,
+            (&mut attributes as *mut FILE_ATTRIBUTE_TAG_INFO).cast(),
+            size_of::<FILE_ATTRIBUTE_TAG_INFO>() as u32,
+        )
+    } == 0
+        || unsafe {
+            GetFileInformationByHandleEx(
+                handle,
+                FileIdInfo,
+                (&mut identity as *mut FILE_ID_INFO).cast(),
+                size_of::<FILE_ID_INFO>() as u32,
+            )
+        } == 0
+    {
+        return Err(io::Error::last_os_error());
+    }
+    if attributes.FileAttributes
+        & (FILE_ATTRIBUTE_DIRECTORY
+            | FILE_ATTRIBUTE_REPARSE_POINT
+            | FILE_ATTRIBUTE_OFFLINE
+            | FILE_ATTRIBUTE_RECALL_ON_OPEN
+            | FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS)
+        != 0
+    {
+        return Err(invalid_source());
+    }
+    let mut frame = Vec::with_capacity(SOURCE_FRAME_SIZE);
+    frame.extend_from_slice(SOURCE_HEADER);
+    frame.extend_from_slice(&(handle as usize as u64).to_le_bytes());
+    frame.extend_from_slice(&identity.VolumeSerialNumber.to_le_bytes());
+    frame.extend_from_slice(&identity.FileId.Identifier);
+    frame.extend_from_slice(&granted.to_le_bytes());
+    Ok(frame)
 }
 
 fn owned(handle: HANDLE) -> io::Result<OwnedHandle> {
@@ -237,6 +322,7 @@ impl Server {
         authenticate(self.handle.as_raw_handle(), expected_peer, true)?;
         Ok(Channel {
             handle: Some(self.handle),
+            peer: expected_peer.try_clone_to_owned()?,
         })
     }
 }
@@ -294,7 +380,67 @@ impl Channel {
         }
         Ok(Self {
             handle: Some(handle),
+            peer: expected_server.try_clone_to_owned()?,
         })
+    }
+
+    /// Keeps the sender's handle borrowed until the peer confirms an identical, independently owned duplicate.
+    pub fn offer_source(&mut self, file: &File) -> io::Result<()> {
+        let frame = source_frame(file)?;
+        let result = (|| {
+            self.send(&frame)?;
+            let acknowledgement = self.receive()?;
+            if acknowledgement.len() != 36
+                || &acknowledgement[..8] != SOURCE_ACK
+                || acknowledgement[8..] != frame[16..]
+            {
+                return Err(invalid_source());
+            }
+            Ok(())
+        })();
+        self.close_on_error(result)
+    }
+
+    /// Pulls only from the authenticated peer; never adopts a handle number as local authority.
+    /// The peer process handle supplied at connection must include PROCESS_DUP_HANDLE.
+    pub fn receive_source(&mut self) -> io::Result<File> {
+        let result = (|| {
+            let frame = self.receive()?;
+            if frame.len() != SOURCE_FRAME_SIZE || &frame[..8] != SOURCE_HEADER {
+                return Err(invalid_source());
+            }
+            let number = u64::from_le_bytes(frame[8..16].try_into().map_err(|_| invalid_source())?);
+            let number = usize::try_from(number).map_err(|_| invalid_source())?;
+            if number == 0 || number >= isize::MAX as usize {
+                return Err(invalid_source());
+            }
+            let mut duplicate = ptr::null_mut();
+            if unsafe {
+                DuplicateHandle(
+                    self.peer.as_raw_handle(),
+                    number as HANDLE,
+                    GetCurrentProcess(),
+                    &mut duplicate,
+                    0,
+                    0,
+                    DUPLICATE_SAME_ACCESS,
+                )
+            } == 0
+            {
+                return Err(io::Error::last_os_error());
+            }
+            let file = File::from(owned(duplicate)?);
+            let actual = source_frame(&file)?;
+            if actual[16..] != frame[16..] {
+                return Err(invalid_source());
+            }
+            let mut acknowledgement = Vec::with_capacity(36);
+            acknowledgement.extend_from_slice(SOURCE_ACK);
+            acknowledgement.extend_from_slice(&actual[16..]);
+            self.send(&acknowledgement)?;
+            Ok(file)
+        })();
+        self.close_on_error(result)
     }
 
     pub fn send(&mut self, message: &[u8]) -> io::Result<()> {
