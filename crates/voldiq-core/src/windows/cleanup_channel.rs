@@ -1,4 +1,5 @@
 //! Local, process-bound transport for the one-use cleanup helper. No filesystem commands.
+use super::security::{SecurityDescriptor, current_user_sid};
 use std::{
     fs::File,
     io,
@@ -9,7 +10,7 @@ use std::{
 use windows_sys::Wdk::Foundation::{NtQueryObject, ObjectBasicInformation};
 use windows_sys::Win32::{
     Foundation::*,
-    Security::{Authorization::*, *},
+    Security::SECURITY_ATTRIBUTES,
     Storage::FileSystem::*,
     System::{
         Com::CoCreateGuid, IO::*, Pipes::*, Threading::*,
@@ -118,75 +119,6 @@ fn owned(handle: HANDLE) -> io::Result<OwnedHandle> {
     }
 }
 
-struct LocalMemory(*mut std::ffi::c_void);
-impl Drop for LocalMemory {
-    fn drop(&mut self) {
-        unsafe { LocalFree(self.0) };
-    }
-}
-
-fn descriptor() -> io::Result<LocalMemory> {
-    unsafe {
-        let mut token = ptr::null_mut();
-        if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) == 0 {
-            return Err(io::Error::last_os_error());
-        }
-        let token = owned(token)?;
-        let mut bytes = 0;
-        GetTokenInformation(
-            token.as_raw_handle(),
-            TokenUser,
-            ptr::null_mut(),
-            0,
-            &mut bytes,
-        );
-        if io::Error::last_os_error().raw_os_error() != Some(ERROR_INSUFFICIENT_BUFFER as i32)
-            || !(size_of::<TOKEN_USER>() as u32..=65536).contains(&bytes)
-        {
-            return Err(io::Error::other("Invalid process token information size."));
-        }
-        let mut buffer = vec![0usize; (bytes as usize).div_ceil(size_of::<usize>())];
-        if GetTokenInformation(
-            token.as_raw_handle(),
-            TokenUser,
-            buffer.as_mut_ptr().cast(),
-            bytes,
-            &mut bytes,
-        ) == 0
-        {
-            return Err(io::Error::last_os_error());
-        }
-        let user = &*buffer.as_ptr().cast::<TOKEN_USER>();
-        let mut sid = ptr::null_mut();
-        if ConvertSidToStringSidW(user.User.Sid, &mut sid) == 0 {
-            return Err(io::Error::last_os_error());
-        }
-        let sid_memory = LocalMemory(sid.cast());
-        let mut length = 0;
-        while *sid.add(length) != 0 {
-            length += 1;
-        }
-        let sid = String::from_utf16(std::slice::from_raw_parts(sid, length))
-            .map_err(|_| io::Error::other("Invalid process SID."))?;
-        drop(sid_memory);
-        let policy: Vec<u16> = format!("D:P(A;;GA;;;SY)(A;;GA;;;{sid})")
-            .encode_utf16()
-            .chain(Some(0))
-            .collect();
-        let mut descriptor = ptr::null_mut();
-        if ConvertStringSecurityDescriptorToSecurityDescriptorW(
-            policy.as_ptr(),
-            SDDL_REVISION_1,
-            &mut descriptor,
-            ptr::null_mut(),
-        ) == 0
-        {
-            return Err(io::Error::last_os_error());
-        }
-        Ok(LocalMemory(descriptor))
-    }
-}
-
 fn process_id(process: BorrowedHandle<'_>) -> io::Result<u32> {
     let id = unsafe { GetProcessId(process.as_raw_handle()) };
     if id == 0 {
@@ -289,10 +221,11 @@ impl Server {
             ])
         );
         let wide: Vec<u16> = name.encode_utf16().chain(Some(0)).collect();
-        let descriptor = descriptor()?;
+        let sid = current_user_sid()?;
+        let descriptor = SecurityDescriptor::from_sddl(&format!("D:P(A;;GA;;;SY)(A;;GA;;;{sid})"))?;
         let security = SECURITY_ATTRIBUTES {
             nLength: size_of::<SECURITY_ATTRIBUTES>() as u32,
-            lpSecurityDescriptor: descriptor.0,
+            lpSecurityDescriptor: descriptor.as_ptr(),
             bInheritHandle: 0,
         };
         let handle = owned(unsafe {

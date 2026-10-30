@@ -6,7 +6,11 @@ use std::path::Path;
 pub mod cleanup_channel;
 #[cfg(windows)]
 pub(crate) mod cleanup_io;
+#[cfg(windows)]
+pub mod cleanup_stage;
 pub mod recycle_bin;
+#[cfg(windows)]
+mod security;
 mod storage;
 pub use storage::storage_seek_penalty;
 mod settings;

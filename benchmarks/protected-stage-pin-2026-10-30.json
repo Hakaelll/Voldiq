@@ -1,0 +1,41 @@
+{
+  "checkedUtc": "2026-10-30T22:13:15.0313628Z",
+  "sourceCommit": "3338dd7927bd8f4e523fe68ec1fcf7086179df02",
+  "stageSha256": "6ED8D6524AA843A2682D301D4EA783694EAEB178948C0D6B239B6420A952E5BB",
+  "securitySha256": "D3BFD56DA9332C8690A12240A4B4B386DFD7B78D697098E58FFA72D2344393D6",
+  "channelSha256": "7D6A188E68ABC4DA02123EDF97787E22C7A6EBA5A4C0905B9CF4EAAB1FB6BB72",
+  "stageProbeSha256": "92D7B12D610D49DD757BD02677C589AD79750CD0B841FA2B9851E22AAE69D769",
+  "channelProbeSha256": "8AA9C3CBB89728698A65B0319B7EAA7ABF02E97B8D7D27623D3AA59E6F2977B3",
+  "stageExecutableSha256": "B7DF58F2B73B79B4D429BF0373A9CD000A2FFF49ED6FC02BF8FAAB8A63BF5FF0",
+  "channelExecutableSha256": "D359B5C48740A6D91D58B7175DF2E8B33CD64106DB7ACA05347C9D69379A689F",
+  "callerIsAdministrator": false,
+  "stageObservation": {
+    "createdWithSealedPermissions": true,
+    "independentReadPinAcquired": true,
+    "collisionRejected": true,
+    "wrongIdentityRejected": true,
+    "unsealedDirectoryRejected": true,
+    "childCreateError": 5,
+    "securityChangeError": 5,
+    "renameWhileConsumerPinnedError": 32,
+    "renameAfterReleaseSucceeded": true,
+    "renamedIdentityPreserved": true,
+    "ownedFixtureCleaned": true
+  },
+  "channelObservation": {
+    "maximumMessageExchanged": true,
+    "invalidOutboundSizesRejected": true,
+    "wrongClientRejected": true,
+    "wrongServerRejected": true,
+    "idleReadCancelledAndClosed": true,
+    "sourceHandleTransferred": true,
+    "receiverWritesDenied": true,
+    "senderClosePreservedReceiverGuard": true,
+    "guardedRenameError": 32,
+    "receiverReleaseAllowedRename": true,
+    "forgedReadonlyOfferRejected": true,
+    "senderHandleSurvivedRejection": true,
+    "ownedFixtureCleaned": true
+  },
+  "scope": "Ordinary Windows token. Empty protected directories and a disposable source only. Independent stage-pin acquisition is in one process; source/channel checks use real child processes. No elevated helper, source admission, Shell call or journal migration."
+}
