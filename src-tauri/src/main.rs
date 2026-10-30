@@ -493,6 +493,15 @@ async fn open_windows_storage() -> Result<(), String> {
 }
 
 #[tauri::command]
+async fn open_windows_recycle_bin() -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        voldiq_core::windows::open_recycle_bin().map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
 async fn query_developer_storage(
     app: tauri::AppHandle,
     query: voldiq_core::developer::Query,
@@ -557,6 +566,7 @@ fn main() {
             get_issues,
             reveal_item,
             open_windows_storage,
+            open_windows_recycle_bin,
             save_snapshot,
             list_snapshots,
             load_snapshot,

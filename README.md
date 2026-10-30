@@ -101,7 +101,7 @@ Choose **Old files** to review regular files unchanged for at least 90 days with
 
 Choose **Browser HTTP cache** to review external Blockfile files unchanged for at least seven days in standard Chrome and Edge profiles. Close the browser before review; cached pages may need downloading again. Cookies, sessions, shared blocks, cache indexes, Simple Cache streams and custom profiles are excluded. Selection and the advanced permanent confirmation remain explicit.
 
-The Recycle Bin panel queries Windows for the selected accessible local drive's current item count and size, independently of the scan. Refresh updates the read-only summary. Unavailable results remain distinct from an empty bin; size is not an estimate of physical space recovered.
+The Recycle Bin panel queries Windows for the selected accessible local drive's current item count and size, independently of the scan. Refresh updates the read-only summary. **Open in Windows** opens the full Windows Recycle Bin, where Windows controls restore and empty-bin actions. Unavailable results remain distinct from an empty bin; size is not an estimate of physical space recovered.
 
 Duplicate selections retain a copy from each group and reread full BLAKE3 content before showing selected and retained paths. The review is cancellable. Recycling remains under development.
 

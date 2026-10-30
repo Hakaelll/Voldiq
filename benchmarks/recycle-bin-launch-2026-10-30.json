@@ -1,0 +1,51 @@
+{
+  "checkedUtc": "2026-10-30T20:16:09.6846281Z",
+  "baseCommit": "3ec0bc418cbfec2ec677f0ecacd4224d05e7f62f",
+  "sourceFiles": [
+    {
+      "path": "crates/voldiq-core/src/windows/settings.rs",
+      "sha256": "6A39B8E9650F2165AA8FDBA58EF8357433792F8F9099E345E00D956D944CFC58"
+    },
+    {
+      "path": "crates/voldiq-core/Cargo.toml",
+      "sha256": "0499E959306D9AE8A495C3620201155B7F583816A4446633D0D2794EBA7045C4"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "89961F8CFEFA24A0337C42394B09F2FF6234AE6DD61D9DB97727F3C92E0EDE09"
+    },
+    {
+      "path": "frontend/components/RecycleBin.svelte",
+      "sha256": "E33642923AA9330BAD3DAA52019912ADF38C1549C23AD74CEA749A4FBB7C44E2"
+    }
+  ],
+  "coreLibrary": "libvoldiq_core-5b3f970d578e8d38.rlib",
+  "coreLibrarySha256": "D15CA60A0C4CEF2C17684A11A9B00742CEB29F3C475FFAF4A4DC95AD2B56583F",
+  "probeSha256": "34D6DD76FE90F7022F399E94E09A3660A3547B524874E89EDD98B29919A8D41E",
+  "executableSha256": "DA69CD6EAB4687B51696655989BE1BEC0B506D30D5C32EECCD2F8C4B9007B963",
+  "method": "Temporary Rust executable linked to the current production core with thin LTO. Calls windows::open_recycle_bin and reads C drive Recycle Bin summaries before and after. No synthetic activation response.",
+  "activationSucceeded": true,
+  "exitCode": 0,
+  "before": {
+    "drive": "C:\\",
+    "items": 0,
+    "size": 0
+  },
+  "after": {
+    "drive": "C:\\",
+    "items": 0,
+    "size": 0
+  },
+  "scope": "Shell activation request succeeded. No window inspection or computer use. No bin item was created, deleted, restored or emptied by the probe. Frontend click path and populated-bin manual acceptance are separate.",
+  "probeSource": "fn main() { let before = voldiq_core::windows::recycle_bin::query(\"C:\\\\\").ok(); match voldiq_core::windows::open_recycle_bin() { Ok(()) => { let after = voldiq_core::windows::recycle_bin::query(\"C:\\\\\").ok(); println!(\"activation=success; before={before:?}; after={after:?}\"); }, Err(error) => { eprintln!(\"{error}\"); std::process::exit(1); } } }",
+  "nativeApplication": {
+    "binary": "target/release/voldiq.exe",
+    "sha256": "21962F69D95DCA07407344BFB938FA9CC9B8DE55E30845C0B7E0992C88816783",
+    "processId": 16232,
+    "startedUtc": "2026-10-30T20:17:43.3187480Z",
+    "title": "Voldiq",
+    "hasWindow": true,
+    "responding": true,
+    "visualInspectionPerformed": false
+  }
+}

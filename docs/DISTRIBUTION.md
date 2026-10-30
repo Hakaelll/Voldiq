@@ -2,6 +2,8 @@
 
 Voldiq builds an x64 Windows NSIS installer from the supplied artwork. Build artifacts stay in the ignored `target` directory; no download has been published.
 
+The native executable was rebuilt and opened on 2026-10-30 with the filename-search change and Windows Recycle Bin access. Its [launch record](../benchmarks/recycle-bin-launch-2026-10-30.json) identifies the current executable hash and window metadata. The retained NSIS installer is still the 2026-10-15 package below; it does not contain these later changes and must be regenerated for the completed product.
+
 ## Build
 
 Use Windows with the Rust MSVC toolchain, Visual Studio C++ Build Tools, Node.js 22 (version 22.12 or later) or Node.js 24+, and the pnpm version recorded in `package.json`.

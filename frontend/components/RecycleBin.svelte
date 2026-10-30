@@ -11,41 +11,65 @@
     | { kind: 'loading' }
     | { kind: 'ready'; data: Summary }
     | { kind: 'error'; message: string };
-  let state = $state<LoadState>({ kind: 'idle' });
+  let loadState = $state<LoadState>({ kind: 'idle' });
   let generation = 0;
+  let opening = $state(false);
+  let launchError = $state('');
   $effect(() => {
     drive;
     generation++;
-    state = { kind: 'idle' };
+    loadState = { kind: 'idle' };
   });
   async function load(): Promise<void> {
     const token = ++generation;
-    state = { kind: 'loading' };
+    loadState = { kind: 'loading' };
     try {
       const data = await invoke<Summary>('query_recycle_bin', { drive });
-      if (token === generation) state = { kind: 'ready', data };
+      if (token === generation) loadState = { kind: 'ready', data };
     } catch (problem) {
-      if (token === generation) state = { kind: 'error', message: String(problem) };
+      if (token === generation) loadState = { kind: 'error', message: String(problem) };
+    }
+  }
+  async function openInWindows(): Promise<void> {
+    if (opening) return;
+    opening = true;
+    launchError = '';
+    try {
+      await invoke('open_windows_recycle_bin');
+    } catch (problem) {
+      launchError = String(problem);
+    } finally {
+      opening = false;
     }
   }
   onDestroy(() => generation++);
 </script>
 
-<section aria-label="Recycle Bin" aria-busy={state.kind === 'loading'}>
+<section aria-label="Recycle Bin" aria-busy={loadState.kind === 'loading'}>
   <div class="summary">
     <div class="identity">
       <Icon name="trash" size={22} /><strong>Recycle Bin</strong>
-      {#if state.kind === 'ready'}<span
-          >{state.data.items.toLocaleString()} items · {bytes(state.data.size)}</span
+      {#if loadState.kind === 'ready'}<span
+          >{loadState.data.items.toLocaleString()} items · {bytes(loadState.data.size)}</span
         >{/if}
     </div>
-    <button onclick={load} disabled={!drive || state.kind === 'loading'}>
-      {state.kind === 'loading' ? 'Analyzing…' : state.kind === 'ready' ? 'Refresh' : 'Analyze'}
-    </button>
+    <div class="actions">
+      <button onclick={openInWindows} disabled={opening} aria-label="Open Windows Recycle Bin">
+        <Icon name="external" />Open in Windows
+      </button>
+      <button onclick={load} disabled={!drive || loadState.kind === 'loading'}>
+        {loadState.kind === 'loading'
+          ? 'Analyzing…'
+          : loadState.kind === 'ready'
+            ? 'Refresh'
+            : 'Analyze'}
+      </button>
+    </div>
   </div>
-  {#if state.kind === 'error'}
-    <p role="status">{state.message}</p>
+  {#if loadState.kind === 'error'}
+    <p role="status">{loadState.message}</p>
   {/if}
+  {#if launchError}<p role="alert">{launchError}</p>{/if}
 </section>
 
 <style>
@@ -55,6 +79,7 @@
     border-block: 1px solid var(--border);
   }
   .summary {
+    flex-wrap: wrap;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -67,6 +92,12 @@
     gap: 16px;
     min-width: 0;
     flex-wrap: wrap;
+  }
+  .actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
   span,
   p {

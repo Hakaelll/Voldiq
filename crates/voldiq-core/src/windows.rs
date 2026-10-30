@@ -8,7 +8,7 @@ pub mod recycle_bin;
 mod storage;
 pub use storage::storage_seek_penalty;
 mod settings;
-pub use settings::open_storage_settings;
+pub use settings::{open_recycle_bin, open_storage_settings};
 
 #[derive(Serialize)]
 pub struct Volume {
