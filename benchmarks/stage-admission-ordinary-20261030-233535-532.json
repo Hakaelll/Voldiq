@@ -1,0 +1,26 @@
+{
+  "utc": "2026-10-30T23:35:35.5242295Z",
+  "controllerElevated": false,
+  "executableSha256": "3B75D59A362D258F18B37A407642E2895EBB8019A187E83E3EBEEB76FB182F58",
+  "sources": {
+    "crates/voldiq-core/examples/stage_admission_probe.rs": "34A6D11605C80C841E3F529E512A961229421FE2D018C506FF335370A2161FBB",
+    "crates/voldiq-core/src/windows/cleanup_channel.rs": "E9DAB1FF2B8F037F6AF386540E420F6A50155C18E3124EBC6AECC17BB174830B",
+    "crates/voldiq-core/src/windows/security.rs": "A3259B436D1E91C1CD607A02EBC952551E49791842E924354DA46C983C780D10",
+    "crates/voldiq-core/src/windows/cleanup_stage.rs": "3C5740A465066995F60230A83569B36C979B5950EFDD091776A46956670016D6",
+    "crates/voldiq-core/src/windows/cleanup_stage/admission.rs": "AA8F22E4B2E8FA578647FE01A661BCFD6DBD5FE2D2637451626000065F0271D1",
+    "crates/voldiq-core/src/cleanup.rs": "EF1E73C68F9FA16C0CA1F091E39D06EE799685E02F72CB7E417BBD6162BA5DBB",
+    "benchmarks/run_stage_admission_probe.ps1": "AAA8FEF765040A2ADA1F2D9CEAF02CE6FBA069AC92EBEECC8BB3EDF86634D3A9"
+  },
+  "observation": {
+    "helperElevated": false,
+    "nativeAdmissionSucceeded": false,
+    "nativeError": 5,
+    "originalIdentityAndContentsVerified": true,
+    "ownedFixtureCleaned": true,
+    "populatedStageRejected": false,
+    "returnedByOrdinaryController": false,
+    "rollbackCollisionPreservedBothFiles": false,
+    "sameUserImageAndRoleVerified": true
+  },
+  "scope": "Owned temporary fixture only. No Shell recycling, application transaction, or journal recovery is claimed."
+}

@@ -334,6 +334,27 @@ impl VerifiedFile {
         Ok(())
     }
 
+    /// Explicit rollback after admission; the application's own rename changes native change time.
+    pub fn return_from_stage(
+        &self,
+        stage: &mut windows::cleanup_stage::StagePin,
+        staged: &windows::cleanup_stage::StageEntry,
+        original: &windows::cleanup_stage::StageEntry,
+    ) -> Result<()> {
+        let metadata = self.file.metadata()?;
+        validate_file(&metadata)?;
+        if windows::file_identity(&self.file)?.key != self.stamp.identity
+            || metadata.len() != self.stamp.size
+            || metadata.modified()? != self.stamp.modified
+        {
+            return Err(Error::Invalid(
+                "Staged source changed; rollback requires review.".into(),
+            ));
+        }
+        stage.return_to_parent(&self.file, staged, original)?;
+        Ok(())
+    }
+
     fn check_stamp(&self) -> Result<()> {
         let metadata = self.file.metadata()?;
         validate_file(&metadata)?;

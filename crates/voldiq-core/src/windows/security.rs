@@ -121,9 +121,15 @@ fn text(pointer: *mut u16) -> io::Result<String> {
 }
 
 pub(crate) fn current_user_sid() -> io::Result<String> {
+    process_user_sid(unsafe { GetCurrentProcess() })
+}
+
+pub(crate) fn process_user_sid(
+    process: windows_sys::Win32::Foundation::HANDLE,
+) -> io::Result<String> {
     unsafe {
         let mut token = ptr::null_mut();
-        if OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &mut token) == 0 {
+        if OpenProcessToken(process, TOKEN_QUERY, &mut token) == 0 {
             return Err(io::Error::last_os_error());
         }
         let token = OwnedHandle::from_raw_handle(token);
@@ -159,6 +165,37 @@ pub(crate) fn current_user_sid() -> io::Result<String> {
         }
         text(sid)
     }
+}
+
+pub(crate) fn process_is_elevated(
+    process: windows_sys::Win32::Foundation::HANDLE,
+) -> io::Result<bool> {
+    let mut token = ptr::null_mut();
+    if unsafe { OpenProcessToken(process, TOKEN_QUERY, &mut token) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let token = unsafe { OwnedHandle::from_raw_handle(token) };
+    let mut elevation = TOKEN_ELEVATION::default();
+    let mut bytes = 0;
+    if unsafe {
+        GetTokenInformation(
+            token.as_raw_handle(),
+            TokenElevation,
+            (&mut elevation as *mut TOKEN_ELEVATION).cast(),
+            size_of::<TOKEN_ELEVATION>() as u32,
+            &mut bytes,
+        )
+    } == 0
+    {
+        return Err(io::Error::last_os_error());
+    }
+    if bytes as usize != size_of::<TOKEN_ELEVATION>() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Invalid token elevation information.",
+        ));
+    }
+    Ok(elevation.TokenIsElevated != 0)
 }
 
 impl SecurityDescriptor {

@@ -1,9 +1,12 @@
 //! Local, process-bound transport for the one-use cleanup helper. No filesystem commands.
-use super::security::{SecurityDescriptor, current_user_sid, granted_access, source_access};
+use super::security::{
+    SecurityDescriptor, current_user_sid, granted_access, process_is_elevated, process_user_sid,
+    source_access,
+};
 use std::{
     fs::File,
     io,
-    os::windows::io::{AsRawHandle, BorrowedHandle, FromRawHandle, OwnedHandle},
+    os::windows::io::{AsHandle, AsRawHandle, BorrowedHandle, FromRawHandle, OwnedHandle},
     ptr,
     time::{Duration, Instant},
 };
@@ -17,6 +20,60 @@ use windows_sys::Win32::{
 pub const MAX_MESSAGE: usize = 4096;
 const TIMEOUT: Duration = Duration::from_secs(5);
 const PREFIX: &str = r"\\.\pipe\voldiq-cleanup-";
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PeerElevation {
+    Ordinary,
+    Elevated,
+}
+
+pub fn current_elevation() -> io::Result<PeerElevation> {
+    Ok(if process_is_elevated(unsafe { GetCurrentProcess() })? {
+        PeerElevation::Elevated
+    } else {
+        PeerElevation::Ordinary
+    })
+}
+
+fn image_identity(process: HANDLE) -> io::Result<FILE_ID_INFO> {
+    let mut path = vec![0u16; 32768];
+    let mut length = path.len() as u32;
+    if unsafe { QueryFullProcessImageNameW(process, 0, path.as_mut_ptr(), &mut length) } == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    if length as usize >= path.len() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Invalid process image path.",
+        ));
+    }
+    path.truncate(length as usize);
+    path.push(0);
+    let file = owned(unsafe {
+        CreateFileW(
+            path.as_ptr(),
+            FILE_READ_ATTRIBUTES,
+            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            ptr::null(),
+            OPEN_EXISTING,
+            FILE_FLAG_OPEN_REPARSE_POINT,
+            ptr::null_mut(),
+        )
+    })?;
+    let mut identity: FILE_ID_INFO = unsafe { std::mem::zeroed() };
+    if unsafe {
+        GetFileInformationByHandleEx(
+            file.as_raw_handle(),
+            FileIdInfo,
+            (&mut identity as *mut FILE_ID_INFO).cast(),
+            size_of::<FILE_ID_INFO>() as u32,
+        )
+    } == 0
+    {
+        return Err(io::Error::last_os_error());
+    }
+    Ok(identity)
+}
 
 pub struct Server {
     name: String,
@@ -276,6 +333,35 @@ impl Server {
 }
 
 impl Channel {
+    /// Verifies same-user, same-image peers at the expected privilege level before any capability exchange.
+    pub fn require_peer(&mut self, expected: PeerElevation) -> io::Result<()> {
+        let result = (|| {
+            self.raw()?;
+            process_id(self.peer.as_handle())?;
+            let elevated = process_is_elevated(self.peer.as_raw_handle())?;
+            if elevated != (expected == PeerElevation::Elevated)
+                || process_user_sid(self.peer.as_raw_handle())? != current_user_sid()?
+            {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "Unexpected cleanup peer identity or elevation.",
+                ));
+            }
+            let actual = image_identity(self.peer.as_raw_handle())?;
+            let own = image_identity(unsafe { GetCurrentProcess() })?;
+            if actual.VolumeSerialNumber != own.VolumeSerialNumber
+                || actual.FileId.Identifier != own.FileId.Identifier
+            {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "Cleanup peer runs a different executable.",
+                ));
+            }
+            Ok(())
+        })();
+        self.close_on_error(result)
+    }
+
     pub fn connect(name: &str, expected_server: BorrowedHandle<'_>) -> io::Result<Self> {
         let suffix = name.strip_prefix(PREFIX).unwrap_or("");
         if suffix.len() != 36
