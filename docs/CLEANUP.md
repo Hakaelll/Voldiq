@@ -267,3 +267,35 @@ The output must be a new JSON file directly in `benchmarks`. Use the same accoun
 The probe now also calls [`ReOpenFile`](https://learn.microsoft.com/en-us/windows/desktop/api/winbase/nf-winbase-reopenfile) on the retained source handle, requesting `GENERIC_READ` and `FILE_SHARE_READ | FILE_SHARE_DELETE`. It acquires this content guard before releasing the original handle. The [normal-token observation](../benchmarks/recycle-content-guard-normal-2026-10-30.json) records matching volume/file IDs, a sharing violation for delete access while the original guard is open, and a sharing violation for write access after only the content guard remains. A separate delete-access open then succeeds. A fixture-only rename succeeds while the content guard still reads the original four bytes with the same identity. Fixture cleanup completes.
 
 This establishes a tested transition between the two sharing policies without reopening the source pathname to acquire the content guard. It does not secure the destination namespace: this normal-token run fails admission to the sealed directory, so its guard-compatible move uses the owned fixture's writable parent. It does not run Shell, recycle anything, test preexisting writable mappings, or establish recovery. The earlier normal/elevated admission records identify the probe source before this extension; the new observation has its own source hash. An elevated combined handoff has not been run.
+
+### Shell recycling with the content guard
+
+The [SDK-based Shell probe](../benchmarks/shell-content-guard-probe.cpp) creates two four-byte files in its own GUID-named temporary directory. It compares an unguarded control with the retained read handle described above. A single-threaded COM apartment runs `IFileOperation` with `FOFX_RECYCLEONDELETE`, no error/progress UI and early failure. Its sink rejects delete operations without the recycle flag and records the actual `PostDeleteItem` result and returned bin item. A queued request or successful `PerformOperations` alone does not establish recycling. Microsoft's [callback contract](https://learn.microsoft.com/en-us/windows/win32/api/shobjidl_core/nf-shobjidl_core-ifileoperationprogresssink-postdeleteitem) distinguishes an actual bin item from a null result after permanent deletion.
+
+The [completed normal-token run](../benchmarks/shell-content-guard-completed-2026-10-30.json) records:
+
+| Observation | Control | Retained content guard |
+|---|---|---|
+| Actual recycled item returned | Yes | Yes |
+| Bin volume/file identity matches source | Yes | Yes |
+| Write-access open rejected | Not requested | Sharing violation, 32 |
+| Read original bytes while recycled | Not requested | Passed |
+| Explicit move back from returned bin item | Passed | Passed with guard retained |
+| Restored identity and four-byte contents | Passed | Passed |
+| Owned file and directory cleanup | Completed | Completed |
+
+Both cases report one delete callback and one restore callback, `PerformOperations = S_OK`, per-item success `0x00270008`, and no aborted recycling. The restored source is then removed only through a handle whose identity matches the fixture's original. No bin enumeration, global Undo, empty-bin action or elevation occurs in this completed run. This proves sharing compatibility and explicit restoration for these fixtures on this host. It does not prove namespace protection, sealed-stage handoff, durable recovery, cancellation, other filesystems or a production cleanup transaction.
+
+The [first execution](../benchmarks/shell-content-guard-2026-10-30.json) recycled the control but canceled restoration because the sink rejected overwrite-mode moves. It did not reach the guarded case. Restoration now requests rename-on-collision rather than overwrite mode. The [separate recovery record](../benchmarks/shell-content-guard-recovery-2026-10-30.json) documents locating exactly that owned item by its GUID original directory and filename, moving it back, verifying identity/content and cleaning it up. That recovery read Shell metadata to select the one owned item; it did not modify other bin items. The failed observation is retained rather than presented as successful cleanup.
+
+Build and run from an x64 Visual Studio Developer PowerShell, at the repository root:
+
+```powershell
+New-Item -ItemType Directory -Force target/probes | Out-Null
+cl.exe /nologo /std:c++17 /EHsc /W4 /WX /O2 /DUNICODE /D_UNICODE benchmarks/shell-content-guard-probe.cpp /Fotarget/probes/shell-content-guard-probe.obj /Fetarget/probes/shell-content-guard-probe.exe /link ole32.lib shell32.lib
+if ($LASTEXITCODE -ne 0) { throw 'Probe compilation failed.' }
+& ./target/probes/shell-content-guard-probe.exe
+if ($LASTEXITCODE -ne 0) { throw 'Inspect the failed observation before running again.' }
+```
+
+The executable accepts no arguments. It emits the fixture GUID and per-case JSON results. A nonzero exit or `fixtureFileCleaned = false` requires checking the owned fixture before another run. The recorded successful run hashes both source and executable; temporary compiler products were removed afterward. This probe is separate from the retained eight-test suite and does not enable the application executor.

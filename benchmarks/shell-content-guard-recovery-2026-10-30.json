@@ -1,0 +1,14 @@
+{
+  "checkedUtc": "2026-10-30T21:26:43.9564360Z",
+  "fixtureName": "voldiq-shell-guard-{9D2E38F5-34AB-4E57-8E13-78CACB84A322}",
+  "selection": "Exactly one Shell item matched System.Recycle.DeletedFrom for this GUID fixture and System.ItemNameDisplay baseline.bin. Other items were not modified.",
+  "includedProbeSha256": "583C7FC0A4A1DAB8E3CA3E1E445B686A61413D58FC3A4B44D6FA1E63B28A962C",
+  "recoverySource": "#define wmain ProbeMain\n#include \"../../benchmarks/shell-content-guard-probe.cpp\"\n#undef wmain\n\nint wmain(int argc, wchar_t** argv) {\n    if (argc != 3) return 2;\n    HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);\n    if (FAILED(initialized)) return 3;\n    int result = 1;\n    try {\n        wchar_t temporary[32768]{};\n        DWORD length = GetTempPathW(32768, temporary);\n        Require(length > 0 && length < 32768);\n        const auto expected = std::wstring(temporary) + L\"voldiq-shell-guard-{9D2E38F5-34AB-4E57-8E13-78CACB84A322}\";\n        Require(expected == argv[2]);\n        auto retained = Open(argv[1], GENERIC_READ, 7);\n        auto original = Identity(retained.get());\n        ReadOriginal(retained.get());\n        retained.reset();\n        WinCheck(CreateDirectoryW(expected.c_str(), nullptr) != FALSE);\n        auto sink = Microsoft::WRL::Make<Sink>();\n        Require(sink != nullptr);\n        auto operation = Operation(FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_RENAMEONCOLLISION | FOFX_EARLYFAILURE);\n        auto source = Item(argv[1]);\n        auto parent = Item(expected);\n        Check(operation->MoveItem(source.Get(), parent.Get(), L\"baseline.bin\", sink.Get()));\n        HRESULT performed = operation->PerformOperations();\n        BOOL aborted = TRUE;\n        Check(operation->GetAnyOperationsAborted(&aborted));\n        Require(SUCCEEDED(performed) && !aborted && sink->moveCalls == 1 && SUCCEEDED(sink->moveResult));\n        {\n            auto restored = Open(expected + L\"\\\\baseline.bin\", GENERIC_READ | DELETE, FILE_SHARE_READ);\n            Require(Same(original, Identity(restored.get())));\n            ReadOriginal(restored.get());\n            FILE_DISPOSITION_INFO disposition{TRUE};\n            WinCheck(SetFileInformationByHandle(restored.get(), FileDispositionInfo, &disposition, sizeof(disposition)) != FALSE);\n        }\n        Require(!Exists(expected + L\"\\\\baseline.bin\"));\n        WinCheck(RemoveDirectoryW(expected.c_str()) != FALSE);\n        std::printf(\"{\\\"recovered\\\":true,\\\"sameIdentity\\\":true,\\\"contentPreserved\\\":true,\\\"fixtureCleaned\\\":true}\\n\");\n        result = 0;\n    } catch (HRESULT error) { std::printf(\"{\\\"error\\\":\\\"0x%08lx\\\"}\\n\", static_cast<unsigned long>(error)); }\n    CoUninitialize();\n    return result;\n}\n",
+  "processExitCode": 0,
+  "observation": {
+    "recovered": true,
+    "sameIdentity": true,
+    "contentPreserved": true,
+    "fixtureCleaned": true
+  }
+}

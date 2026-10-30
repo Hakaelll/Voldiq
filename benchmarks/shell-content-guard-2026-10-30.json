@@ -1,0 +1,52 @@
+{
+  "checkedUtc": "2026-10-30T21:24:48.0325405Z",
+  "sourceCommit": "860e3c7122c1967ece52806bb17dbec49fb6cb90",
+  "sourceSha256": "00A920214E344777B031C8937919007FD5947EADD98DCE5EAFA751B7E01F6345",
+  "executableSha256": "CDA88D238C2563DFDA493915892B75CC3BF66F2E25669990377A9BB59F50B21B",
+  "callerIsAdministrator": false,
+  "processExitCode": 1,
+  "observation": {
+    "fixtureName": "voldiq-shell-guard-{9D2E38F5-34AB-4E57-8E13-78CACB84A322}",
+    "baseline": {
+      "guarded": false,
+      "performHr": "0x00000000",
+      "postDeleteHr": "0x00270008",
+      "deleteCallbacks": 1,
+      "deleteFlags": 642,
+      "aborted": false,
+      "sourceRemained": false,
+      "recycled": true,
+      "binIdentityMatched": true,
+      "writeOpenError": 0,
+      "restorePerformHr": "0x80004004",
+      "postRestoreHr": "0x80004004",
+      "restoreCallbacks": 1,
+      "restored": false,
+      "contentPreserved": false,
+      "fixtureFileCleaned": false,
+      "error": "0x8000ffff"
+    },
+    "guarded": {
+      "guarded": false,
+      "performHr": "0x8000000a",
+      "postDeleteHr": "0x8000000a",
+      "deleteCallbacks": 0,
+      "deleteFlags": 0,
+      "aborted": true,
+      "sourceRemained": true,
+      "recycled": false,
+      "binIdentityMatched": false,
+      "writeOpenError": 0,
+      "restorePerformHr": "0x8000000a",
+      "postRestoreHr": "0x8000000a",
+      "restoreCallbacks": 0,
+      "restored": false,
+      "contentPreserved": false,
+      "fixtureFileCleaned": false,
+      "error": "0x00000000"
+    },
+    "fixtureDirectoryCleaned": true
+  },
+  "productionRecyclingVerified": false,
+  "scope": "Owned four-byte fixtures only; exact queued-item callbacks, no bin enumeration or empty-bin action. No elevation. Tests sharing compatibility, not namespace protection or durable recovery."
+}
