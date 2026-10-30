@@ -20,6 +20,18 @@ pnpm tauri build --bundles nsis
 
 The Tauri command builds the frontend before compiling the native release executable. Its output directory is `target/release/bundle/nsis`. A running development window can stay open during the release build.
 
+### Open a release preview
+
+Prepare a separate copy before opening a release build. Running `target/release/voldiq.exe` directly can prevent the bundler from updating its metadata.
+
+```powershell
+$preview = ./scripts/prepare_release_preview.ps1
+# Close any existing Voldiq window before launching another instance.
+Start-Process -FilePath $preview.Path
+```
+
+The script only prepares the executable; it never launches or closes a process. It stores one verified copy per SHA-256 in ignored `target/preview`, reuses matching copies, and refuses to overwrite a mismatched executable. This keeps the release path available to the bundler. Remove obsolete preview directories only after their application instances have closed; retain the current preview while it is running.
+
 `src-tauri/tauri.conf.json` selects `offlineInstaller` for WebView2. The bundler downloads Microsoft's standalone runtime installer during the build and embeds it in the setup executable. Installation therefore does not need to download that runtime. Tauri's default NSIS mode installs for the current user. See the [official Windows installer documentation](https://v2.tauri.app/distribute/windows-installer/).
 
 ## Artwork
@@ -42,7 +54,7 @@ Release signing and a public download are not configured. Packaging does not clo
 | NSIS installer, version 0.1.0 | 221,087,507 | `8D89E2E31A2873F04F3956CB93A5F012FA166531A716CAD7946E955766A43A4C` |
 | Microsoft offline runtime source, version 1.3.307.15 | 214,999,248 | `F9D45CF7BEF9576D6DF50C7A7525E0BC8C26B6C3BC2C667B494AAFB062A35B6F` |
 
-The application stayed open. Its in-use image was retained at `target/release/voldiq.running-6c3fc8a.exe`, while an identical writable copy at the ordinary release path let the bundler apply its package metadata and restore the original file afterward. The holding image is still in use and must remain until that application closes. The previous installer was replaced, rather than archived.
+The application stayed open during packaging. Its in-use image was retained at `target/release/voldiq.running-6c3fc8a.exe`, while an identical writable copy at the ordinary release path let the bundler apply its package metadata and restore the original file afterward. After that instance closed, the holding image was removed. The same release was subsequently opened from its hash-addressed preview copy; its window responded and the canonical release executable remained writable. The previous installer was replaced, rather than archived.
 
 ### User-owned clean-machine check
 
