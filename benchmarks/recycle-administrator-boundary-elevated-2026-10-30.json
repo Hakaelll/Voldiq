@@ -1,0 +1,14 @@
+{
+  "checkedUtc": "2026-10-30T21:15:46.7665280Z",
+  "sourceCommit": "c88355ced791430541febaef153d556b06bb78c9",
+  "probeSha256": "1B07A0F40B66617BDF28DDD0F05D5A1C7D45554ED094535C5E518EC80D6CC00A",
+  "administratorBoundary": true,
+  "callerIsAdministrator": true,
+  "actorSidSha256": "0C058BB9FFAA1C2AB85A03A3B471A101BCCC230F0F579F4361039607E60CAA8B",
+  "result": "administrator_boundary=True; caller_is_administrator=True; sealed_create_status=0x00000000; granted_access=0x001600a3; staging_requested_access=0x001600a3; source_requested_access=0x00010080; source_granted_access=0x00110080; parent_requested_access=0x00020080; parent_granted_access=0x00120080; rename=False; rename_error=87; native_rename_status=0x00000000; source_moved=True; source_content_preserved=True; new_child_denied=False",
+  "failure": null,
+  "cleanupStatus": "acl_restore_error=0; native_acl_restore_status=0x00000000",
+  "fixtureCleanupCompleted": true,
+  "recyclingVerified": false,
+  "scope": "Only owned disposable files and the explicitly requested new report are written. No Shell/recycling API, service installation or personal-file operations."
+}

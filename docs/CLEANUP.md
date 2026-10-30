@@ -250,7 +250,9 @@ The existing [owned-file probe](../benchmarks/recycle-binding-probe.ps1) has an 
 
 The [non-administrator observation](../benchmarks/recycle-administrator-boundary-normal-2026-10-30.json) records a created directory, retained granted access `0x001200a3`, denied native enrollment (`0xc0000022`) and denied new-child creation. The original four-byte payload remains unchanged before fixture cleanup. DACL restoration is denied because the handle lacks `WRITE_DAC`; removal of the known empty fixture directory through its owned parent still completes. The record hashes the caller SID rather than publishing it and identifies the executed script.
 
-The elevated counterpart is pending Windows UAC consent. A successful comparison would establish only the admission boundary for this fixture. Transfer to a normal Shell caller, retained content authority, per-item recycling, durable recovery and restoration would still need proof before enabling an executor. No permanent administrator setting or service is introduced.
+The user-authorized [elevated observation](../benchmarks/recycle-administrator-boundary-elevated-2026-10-30.json) ran once after Windows UAC consent. It records the same caller SID hash and probe source hash as the normal-token run. The elevated handle receives the requested `0x001600a3` access; native rename succeeds with `0x00000000`, moves the original four-byte payload unchanged, and permits the administrator to create a child. DACL restoration and fixture cleanup complete without errors. The Win32 rename attempt still returns error 87; only the subsequent native rename succeeds.
+
+This comparison establishes the admission boundary for this fixture. It does not execute a recycling API. Transfer to a normal Shell caller, retained content authority, per-item recycling, durable recovery and restoration still need proof before enabling an executor. No permanent administrator setting or service is introduced.
 
 From the repository, each run can write a new report without overwriting an existing file:
 
