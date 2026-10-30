@@ -1,0 +1,29 @@
+{
+  "utc": "2026-10-30T23:41:45.7827365Z",
+  "controllerElevated": false,
+  "executableSha256": "E07262F813B231ED9D9575D7E5034E2A29CB0E83045412A78411F8334B7C99A5",
+  "sources": {
+    "crates/voldiq-core/examples/stage_admission_probe.rs": "F36638F796DFCC781D3D7661FB671F538982D28D0F2BBFD7456EB5F8F7BA225C",
+    "crates/voldiq-core/src/windows/cleanup_channel.rs": "E9DAB1FF2B8F037F6AF386540E420F6A50155C18E3124EBC6AECC17BB174830B",
+    "crates/voldiq-core/src/windows/security.rs": "A3259B436D1E91C1CD607A02EBC952551E49791842E924354DA46C983C780D10",
+    "crates/voldiq-core/src/windows/cleanup_stage.rs": "7F39F093C634540BBB35C62447A61A7101A2E1D634211EDE266862D1040DFE72",
+    "crates/voldiq-core/src/windows/cleanup_stage/admission.rs": "AA8F22E4B2E8FA578647FE01A661BCFD6DBD5FE2D2637451626000065F0271D1",
+    "crates/voldiq-core/src/cleanup.rs": "EF1E73C68F9FA16C0CA1F091E39D06EE799685E02F72CB7E417BBD6162BA5DBB",
+    "crates/voldiq-core/src/cleanup/journal.rs": "ECDED539804891222F69957CD5A1F8164BFCC8B0C7E64F8C509B9846E9601710",
+    "crates/voldiq-core/src/cleanup/journal/relocation.rs": "CDFAB2CF4EE5A8D02A304F4D3784C427EED22661C91598ED71F3AAEE37EE3AD6",
+    "benchmarks/run_stage_admission_probe.ps1": "A15A307C153A84F9FC680BF8823D601ADA20E009EECD31577EC5E6E72ECAC454"
+  },
+  "observation": {
+    "helperElevated": false,
+    "journalIntentAndResultSurvivedRestart": true,
+    "nativeAdmissionSucceeded": false,
+    "nativeError": 5,
+    "originalIdentityAndContentsVerified": true,
+    "ownedFixtureCleaned": true,
+    "populatedStageRejected": false,
+    "returnedByOrdinaryController": false,
+    "rollbackCollisionPreservedBothFiles": false,
+    "sameUserImageAndRoleVerified": true
+  },
+  "scope": "Owned temporary fixture and durable admission/rollback ledger only. No Shell recycling or application transaction is claimed."
+}

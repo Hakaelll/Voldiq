@@ -12,7 +12,7 @@ mod probe {
         ptr,
     };
     use voldiq_core::{
-        cleanup::Plan,
+        cleanup::{Plan, journal::Journal},
         windows::{
             cleanup_channel::{Channel, PeerElevation, Server, current_elevation},
             cleanup_stage::{StageEntry, StageIdentity, StageName, StagePin},
@@ -257,7 +257,11 @@ mod probe {
         let source = planned.verify(id)?;
         let parent = directory(root)?;
         let name = StageName::generate()?;
+        let journal_path = root.join("admission.sqlite");
+        let mut journal = Journal::open(&journal_path)?;
+        let relocation = journal.prepare_relocation(&planned, id, &source, &name)?;
         let mut stage = StagePin::create(&parent, &name)?;
+        journal.relocation_stage_ready(relocation, stage.identity())?;
         let request = Request {
             version: 1,
             stage: name.as_str().to_owned(),
@@ -292,6 +296,7 @@ mod probe {
         })?;
         channel.offer_stage_parent(&parent)?;
         source.offer_source(&mut channel)?;
+        journal.start_relocation(relocation)?;
         channel.send(&serde_json::to_vec(&request)?)?;
         let reply: Reply = serde_json::from_slice(&channel.receive()?)?;
         let entry = StageEntry::parse(&request.entry)?;
@@ -306,6 +311,8 @@ mod probe {
             {
                 return Err("Admission changed source identity or contents.".into());
             }
+            journal.record_staged(relocation)?;
+            journal.start_return(relocation)?;
             let replaced = replacement(&source_path)?;
             let error = source
                 .return_from_stage(&mut stage, &entry, &entry)
@@ -331,6 +338,24 @@ mod probe {
         {
             return Err("Original fixture was not preserved/restored.".into());
         }
+        if external {
+            journal.record_returned(relocation)?;
+        } else {
+            journal.record_unmoved(relocation)?;
+        }
+        drop(journal);
+        let recovered = Journal::open(&journal_path)?;
+        let records = recovered.relocations(0, 100)?;
+        if records.len() != 1
+            || records[0].source != original
+            || records[0].path != source.path().to_str().ok_or("Inexact fixture path.")?
+            || records[0].stage_name != name.as_str()
+            || records[0].stage_file != Some(stage.identity().file)
+            || records[0].state != if external { "returned" } else { "unmoved" }
+        {
+            return Err("Durable relocation evidence did not survive restart.".into());
+        }
+        drop(recovered);
         channel.send(b"release")?;
         if wait(peer)? != 0 {
             return Err("Owned helper failed on exit.".into());
@@ -344,9 +369,10 @@ mod probe {
         drop(stage);
         drop(parent);
         std::fs::remove_dir(root.join(name.as_str()))?;
+        std::fs::remove_file(&journal_path)?;
         std::fs::remove_dir(root)?;
         Ok(
-            serde_json::json!({"helperElevated":external,"sameUserImageAndRoleVerified":true,"nativeAdmissionSucceeded":reply.admitted,"nativeError":reply.native_error,
+            serde_json::json!({"helperElevated":external,"journalIntentAndResultSurvivedRestart":true,"sameUserImageAndRoleVerified":true,"nativeAdmissionSucceeded":reply.admitted,"nativeError":reply.native_error,
             "populatedStageRejected":reply.replay_rejected,"rollbackCollisionPreservedBothFiles":external,"returnedByOrdinaryController":external,"originalIdentityAndContentsVerified":true,"ownedFixtureCleaned":true}),
         )
     }

@@ -80,7 +80,7 @@ fn native_error(operation: &'static str) -> io::Error {
     io::Error::new(error.kind(), format!("{operation}: {error}"))
 }
 
-fn identity(file: &File) -> io::Result<StageIdentity> {
+pub(crate) fn identity(file: &File) -> io::Result<StageIdentity> {
     let mut attributes: FILE_ATTRIBUTE_TAG_INFO = unsafe { std::mem::zeroed() };
     let mut id: FILE_ID_INFO = unsafe { std::mem::zeroed() };
     if unsafe {

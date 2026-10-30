@@ -55,6 +55,7 @@ try {
     $observation = $stdout | ConvertFrom-Json
     if ($observation.helperElevated -ne [bool]$RequestUac -or
         -not $observation.sameUserImageAndRoleVerified -or
+        -not $observation.journalIntentAndResultSurvivedRestart -or
         -not $observation.originalIdentityAndContentsVerified -or
         -not $observation.ownedFixtureCleaned) {
         throw 'Fixture did not confirm its required invariants.'
@@ -77,6 +78,8 @@ try {
         'crates/voldiq-core/src/windows/cleanup_stage.rs',
         'crates/voldiq-core/src/windows/cleanup_stage/admission.rs',
         'crates/voldiq-core/src/cleanup.rs',
+        'crates/voldiq-core/src/cleanup/journal.rs',
+        'crates/voldiq-core/src/cleanup/journal/relocation.rs',
         'benchmarks/run_stage_admission_probe.ps1'
     )
     $hashes = [ordered]@{}
@@ -89,7 +92,7 @@ try {
         executableSha256 = (Get-FileHash -LiteralPath $binary -Algorithm SHA256).Hash
         sources = $hashes
         observation = $observation
-        scope = 'Owned temporary fixture only. No Shell recycling, application transaction, or journal recovery is claimed.'
+        scope = 'Owned temporary fixture and durable admission/rollback ledger only. No Shell recycling or application transaction is claimed.'
     }
     $suffix = if ($RequestUac) { 'elevated' } else { 'ordinary' }
     $reportPath = Join-Path $PSScriptRoot ("stage-admission-$suffix-" + [DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss-fff') + '.json')
