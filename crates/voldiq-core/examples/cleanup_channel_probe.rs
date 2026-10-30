@@ -8,11 +8,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         time::{Duration, Instant},
     };
     use voldiq_core::windows::cleanup_channel::{Channel, MAX_MESSAGE, Server};
+    use voldiq_core::windows::cleanup_stage::{StageIdentity, StageName, StagePin};
     use windows_sys::Win32::{
         Foundation::INVALID_HANDLE_VALUE,
         Storage::FileSystem::{
-            CreateFileW, DELETE, FILE_FLAG_OPEN_NO_RECALL, FILE_FLAG_OPEN_REPARSE_POINT,
-            FILE_READ_ATTRIBUTES, FILE_READ_DATA, FILE_SHARE_READ, OPEN_EXISTING, SYNCHRONIZE,
+            CreateFileW, DELETE, FILE_ADD_SUBDIRECTORY, FILE_DELETE_CHILD,
+            FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_NO_RECALL, FILE_FLAG_OPEN_REPARSE_POINT,
+            FILE_LIST_DIRECTORY, FILE_READ_ATTRIBUTES, FILE_READ_DATA, FILE_SHARE_READ,
+            FILE_SHARE_WRITE, OPEN_EXISTING, READ_CONTROL, SYNCHRONIZE,
         },
         System::Threading::{OpenProcess, PROCESS_DUP_HANDLE, PROCESS_QUERY_LIMITED_INFORMATION},
     };
@@ -36,6 +39,30 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()
+    }
+    fn stage_parent(path: &std::path::Path, writable: bool) -> io::Result<File> {
+        let name = voldiq_core::windows::wide(path);
+        let mut access = FILE_LIST_DIRECTORY | FILE_READ_ATTRIBUTES | READ_CONTROL;
+        if writable {
+            access |= FILE_ADD_SUBDIRECTORY | FILE_DELETE_CHILD;
+        }
+        let handle = unsafe {
+            CreateFileW(
+                name.as_ptr(),
+                access,
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                std::ptr::null(),
+                OPEN_EXISTING,
+                FILE_FLAG_BACKUP_SEMANTICS
+                    | FILE_FLAG_OPEN_REPARSE_POINT
+                    | FILE_FLAG_OPEN_NO_RECALL,
+                std::ptr::null_mut(),
+            )
+        };
+        if handle == INVALID_HANDLE_VALUE {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(unsafe { File::from_raw_handle(handle) })
     }
     fn finish(mut child: Child) -> Result<String, Box<dyn std::error::Error>> {
         let deadline = Instant::now() + Duration::from_secs(8);
@@ -119,6 +146,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     io::ErrorKind::NotConnected
                 );
                 println!("readonly_source_rejected");
+            }
+            "stage-parent" => {
+                let parent = channel.receive_stage_parent()?;
+                let name = channel.receive()?;
+                let name = StageName::parse(std::str::from_utf8(&name)?)?;
+                let evidence = channel.receive()?;
+                assert_eq!(evidence.len(), 24);
+                let expected = StageIdentity {
+                    volume: u64::from_le_bytes(evidence[..8].try_into()?),
+                    file: evidence[8..].try_into()?,
+                };
+                let pin = StagePin::acquire(&parent, &name, expected)?;
+                channel.send(b"parent-held")?;
+                assert_eq!(channel.receive()?, b"release-parent");
+                drop(pin);
+                drop(parent);
+                channel.send(b"parent-released")?;
             }
             _ => return Err("Unknown probe role.".into()),
         }
@@ -240,8 +284,57 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(bytes, b"owned source transfer");
     drop(readonly);
     fixture.close()?;
+
+    let stage_fixture = tempfile::tempdir()?;
+    let parent_path = stage_fixture.path().join("parent");
+    let parent_moved = stage_fixture.path().join("released-parent");
+    std::fs::create_dir(&parent_path)?;
+    let parent = stage_parent(&parent_path, true)?;
+    let name = StageName::generate()?;
+    let creator = StagePin::create(&parent, &name)?;
+    let expected = creator.identity();
+    let server = Server::create()?;
+    let child = spawn("stage-parent", server.name(), std::process::id())?;
+    let mut channel = server.accept(child.as_handle())?;
+    let narrow = stage_parent(&parent_path, false)?;
+    assert_eq!(
+        channel.offer_stage_parent(&narrow).unwrap_err().kind(),
+        io::ErrorKind::PermissionDenied
+    );
+    drop(narrow);
+    assert_eq!(
+        channel.offer_source(&parent).unwrap_err().kind(),
+        io::ErrorKind::PermissionDenied
+    );
+    channel.offer_stage_parent(&parent)?;
+    channel.send(name.as_str().as_bytes())?;
+    let mut evidence = Vec::with_capacity(24);
+    evidence.extend_from_slice(&expected.volume.to_le_bytes());
+    evidence.extend_from_slice(&expected.file);
+    channel.send(&evidence)?;
+    assert_eq!(channel.receive()?, b"parent-held");
+    drop(creator);
+    drop(parent);
+    let parent_rename_error = std::fs::rename(&parent_path, &parent_moved)
+        .unwrap_err()
+        .raw_os_error()
+        .ok_or("Missing parent-rename error.")?;
+    assert!([5, 32].contains(&parent_rename_error));
+    let stage_path = parent_path.join(name.as_str());
+    let stage_rename_error = std::fs::rename(&stage_path, parent_path.join("moved-stage"))
+        .unwrap_err()
+        .raw_os_error()
+        .ok_or("Missing stage-rename error.")?;
+    assert!([5, 32].contains(&stage_rename_error));
+    channel.send(b"release-parent")?;
+    assert_eq!(channel.receive()?, b"parent-released");
+    finish(child)?;
+    std::fs::rename(&parent_path, &parent_moved)?;
+    std::fs::remove_dir(parent_moved.join(name.as_str()))?;
+    std::fs::remove_dir(&parent_moved)?;
+    stage_fixture.close()?;
     println!(
-        "{{\"maximumMessageExchanged\":true,\"invalidOutboundSizesRejected\":true,\"wrongClientRejected\":true,\"wrongServerRejected\":true,\"idleReadCancelledAndClosed\":true,\"sourceHandleTransferred\":true,\"receiverWritesDenied\":true,\"senderClosePreservedReceiverGuard\":true,\"guardedRenameError\":{rename_error},\"receiverReleaseAllowedRename\":true,\"forgedReadonlyOfferRejected\":true,\"senderHandleSurvivedRejection\":true,\"ownedFixtureCleaned\":true}}"
+        "{{\"maximumMessageExchanged\":true,\"invalidOutboundSizesRejected\":true,\"wrongClientRejected\":true,\"wrongServerRejected\":true,\"idleReadCancelledAndClosed\":true,\"sourceHandleTransferred\":true,\"receiverWritesDenied\":true,\"senderClosePreservedReceiverGuard\":true,\"guardedRenameError\":{rename_error},\"receiverReleaseAllowedRename\":true,\"forgedReadonlyOfferRejected\":true,\"senderHandleSurvivedRejection\":true,\"stageParentTransferred\":true,\"narrowStageParentRejected\":true,\"directorySourceRoleRejected\":true,\"receiverPinnedStage\":true,\"parentRenameWhileReceiverHeldError\":{parent_rename_error},\"stageRenameWhileReceiverHeldError\":{stage_rename_error},\"receiverReleaseAllowedParentRename\":true,\"ownedFixtureCleaned\":true}}"
     );
     Ok(())
 }
