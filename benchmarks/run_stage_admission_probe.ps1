@@ -56,6 +56,9 @@ try {
     if ($observation.helperElevated -ne [bool]$RequestUac -or
         -not $observation.sameUserImageAndRoleVerified -or
         -not $observation.journalIntentAndResultSurvivedRestart -or
+        -not $observation.unadmittedSourceRejectedForRecycling -or
+        -not $observation.shellApartmentInitialized -or
+        -not $observation.protectedStageShellBindingVerified -or
         -not $observation.originalIdentityAndContentsVerified -or
         -not $observation.ownedFixtureCleaned) {
         throw 'Fixture did not confirm its required invariants.'
@@ -80,6 +83,7 @@ try {
         'crates/voldiq-core/src/cleanup.rs',
         'crates/voldiq-core/src/cleanup/journal.rs',
         'crates/voldiq-core/src/cleanup/journal/relocation.rs',
+        'crates/voldiq-core/src/cleanup/recycle.rs',
         'benchmarks/run_stage_admission_probe.ps1'
     )
     $hashes = [ordered]@{}

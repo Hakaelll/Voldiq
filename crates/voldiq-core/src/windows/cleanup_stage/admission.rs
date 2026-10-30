@@ -243,6 +243,16 @@ impl StagePin {
         original_name: &StageEntry,
     ) -> io::Result<()> {
         source_access(source)?;
+        self.verify_source(source, staged_name)?;
+        local_ntfs(&self._parent)?;
+        rename(source, &self._parent, original_name)
+    }
+
+    pub(crate) fn verify_source(
+        &self,
+        source: &File,
+        staged_name: &StageEntry,
+    ) -> io::Result<StageIdentity> {
         let (expected, _) = source_identity(source)?;
         contents(&self._file, Some(staged_name))?;
         let metadata = cleanup_io::open_component(
@@ -259,7 +269,6 @@ impl StagePin {
             return Err(invalid("Staged entry does not match the retained source."));
         }
         drop(metadata);
-        local_ntfs(&self._parent)?;
-        rename(source, &self._parent, original_name)
+        Ok(expected)
     }
 }

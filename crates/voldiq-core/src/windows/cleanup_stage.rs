@@ -71,6 +71,94 @@ impl StageName {
     }
 }
 
+impl StagePin {
+    pub(crate) fn path(&self) -> io::Result<std::path::PathBuf> {
+        use std::os::windows::ffi::OsStringExt;
+        volume_root(&self._file)?;
+        let mut path = vec![0u16; 32768];
+        let length = unsafe {
+            GetFinalPathNameByHandleW(
+                self._file.as_raw_handle(),
+                path.as_mut_ptr(),
+                path.len() as u32,
+                VOLUME_NAME_DOS,
+            )
+        };
+        if length == 0 {
+            return Err(io::Error::last_os_error());
+        }
+        if length as usize >= path.len() {
+            return Err(invalid("Stage path exceeds the supported length."));
+        }
+        path.truncate(length as usize);
+        let prefix: Vec<u16> = r"\\?\".encode_utf16().collect();
+        if !path.starts_with(&prefix)
+            || path.len() < 7
+            || !matches!(path[4], 65..=90 | 97..=122)
+            || path[5] != b':' as u16
+            || path[6] != b'\\' as u16
+        {
+            return Err(invalid(
+                "Shell recycling requires a global fixed-drive letter.",
+            ));
+        }
+        let drive = [path[4], b':' as u16, 0];
+        let global: Vec<u16> = "Global\\".encode_utf16().chain(drive).collect();
+        let current = dos_target(&drive)?;
+        let global = dos_target(&global)?;
+        let native_prefix: Vec<u16> = r"\Device\HarddiskVolume".encode_utf16().collect();
+        if current != global
+            || !global.starts_with(&native_prefix)
+            || global.len() == native_prefix.len()
+            || !global[native_prefix.len()..]
+                .iter()
+                .all(|unit| (48..=57).contains(unit))
+        {
+            return Err(invalid(
+                "Shell recycling rejects local aliases and substituted drives.",
+            ));
+        }
+        let shell_path: std::path::PathBuf = std::ffi::OsString::from_wide(&path[4..]).into();
+        let wide = super::wide(&shell_path);
+        let handle = unsafe {
+            CreateFileW(
+                wide.as_ptr(),
+                FILE_READ_ATTRIBUTES,
+                FILE_SHARE_READ | FILE_SHARE_WRITE,
+                ptr::null(),
+                OPEN_EXISTING,
+                FILE_FLAG_BACKUP_SEMANTICS
+                    | FILE_FLAG_OPEN_REPARSE_POINT
+                    | FILE_FLAG_OPEN_NO_RECALL,
+                ptr::null_mut(),
+            )
+        };
+        if handle == INVALID_HANDLE_VALUE {
+            return Err(io::Error::last_os_error());
+        }
+        let checked = unsafe { File::from_raw_handle(handle) };
+        if identity(&checked)? != self.identity {
+            return Err(invalid("Shell stage path does not match its retained pin."));
+        }
+        Ok(shell_path)
+    }
+}
+
+fn dos_target(name: &[u16]) -> io::Result<Vec<u16>> {
+    let mut target = vec![0u16; 32768];
+    let length =
+        unsafe { QueryDosDeviceW(name.as_ptr(), target.as_mut_ptr(), target.len() as u32) };
+    if length == 0 {
+        return Err(io::Error::last_os_error());
+    }
+    let end = target[..length as usize]
+        .iter()
+        .position(|unit| *unit == 0)
+        .ok_or_else(|| invalid("Malformed drive mapping."))?;
+    target.truncate(end);
+    Ok(target)
+}
+
 fn invalid(message: &'static str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message)
 }

@@ -5,6 +5,8 @@ mod disposition_tests;
 #[cfg(windows)]
 pub mod execute;
 pub mod journal;
+#[cfg(windows)]
+pub mod recycle;
 pub mod rules;
 use std::{
     collections::HashSet,

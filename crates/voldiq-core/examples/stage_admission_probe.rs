@@ -262,6 +262,14 @@ mod probe {
         let relocation = journal.prepare_relocation(&planned, id, &source, &name)?;
         let mut stage = StagePin::create(&parent, &name)?;
         journal.relocation_stage_ready(relocation, stage.identity())?;
+        if source
+            .prepare_recycling(&stage, StageEntry::parse("owned.bin")?)
+            .is_ok()
+        {
+            return Err("Unadmitted source was accepted for recycling.".into());
+        }
+        let source = planned.verify(id)?;
+        voldiq_core::cleanup::recycle::ShellApartment::new()?.check_stage(&stage)?;
         let request = Request {
             version: 1,
             stage: name.as_str().to_owned(),
@@ -372,7 +380,7 @@ mod probe {
         std::fs::remove_file(&journal_path)?;
         std::fs::remove_dir(root)?;
         Ok(
-            serde_json::json!({"helperElevated":external,"journalIntentAndResultSurvivedRestart":true,"sameUserImageAndRoleVerified":true,"nativeAdmissionSucceeded":reply.admitted,"nativeError":reply.native_error,
+            serde_json::json!({"helperElevated":external,"unadmittedSourceRejectedForRecycling":true,"shellApartmentInitialized":true,"protectedStageShellBindingVerified":true,"journalIntentAndResultSurvivedRestart":true,"sameUserImageAndRoleVerified":true,"nativeAdmissionSucceeded":reply.admitted,"nativeError":reply.native_error,
             "populatedStageRejected":reply.replay_rejected,"rollbackCollisionPreservedBothFiles":external,"returnedByOrdinaryController":external,"originalIdentityAndContentsVerified":true,"ownedFixtureCleaned":true}),
         )
     }

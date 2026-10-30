@@ -1,0 +1,33 @@
+{
+  "utc": "2026-10-30T23:57:56.1345497Z",
+  "controllerElevated": false,
+  "executableSha256": "DC68511FBA2AEFAC708B23125342564A8AE433C35018CBA673438BC50150CF0A",
+  "sources": {
+    "crates/voldiq-core/examples/stage_admission_probe.rs": "6C3EE20D86C996536557F77D447836425B7EC8F50248F96D625FFD9CD80338A6",
+    "crates/voldiq-core/src/windows/cleanup_channel.rs": "E9DAB1FF2B8F037F6AF386540E420F6A50155C18E3124EBC6AECC17BB174830B",
+    "crates/voldiq-core/src/windows/security.rs": "A3259B436D1E91C1CD607A02EBC952551E49791842E924354DA46C983C780D10",
+    "crates/voldiq-core/src/windows/cleanup_stage.rs": "B8E1BCC877A869AA7E0E8D7FE84FD3C074A83E52AC0CD0D878554E93D90F0296",
+    "crates/voldiq-core/src/windows/cleanup_stage/admission.rs": "9360F6084571D9CDA2EAF9BF36D7A04BA02BD67CE2E1C2F74911761B1516AE0B",
+    "crates/voldiq-core/src/cleanup.rs": "68E1E0B9460B9B71482CF02A8E4D5A0635B62133A69C1CF281BF95BDE30F775D",
+    "crates/voldiq-core/src/cleanup/journal.rs": "ECDED539804891222F69957CD5A1F8164BFCC8B0C7E64F8C509B9846E9601710",
+    "crates/voldiq-core/src/cleanup/journal/relocation.rs": "CDFAB2CF4EE5A8D02A304F4D3784C427EED22661C91598ED71F3AAEE37EE3AD6",
+    "crates/voldiq-core/src/cleanup/recycle.rs": "12FA3968F319C1A8B85D2374D6397133FEE8BDFED81C00298E03EEACFDB1F065",
+    "benchmarks/run_stage_admission_probe.ps1": "B6445A6ECAB0C307533E5B74292DC62BAFADED80312EE490D680EA031BB75EC0"
+  },
+  "observation": {
+    "helperElevated": false,
+    "journalIntentAndResultSurvivedRestart": true,
+    "nativeAdmissionSucceeded": false,
+    "nativeError": 5,
+    "originalIdentityAndContentsVerified": true,
+    "ownedFixtureCleaned": true,
+    "populatedStageRejected": false,
+    "protectedStageShellBindingVerified": true,
+    "returnedByOrdinaryController": false,
+    "rollbackCollisionPreservedBothFiles": false,
+    "sameUserImageAndRoleVerified": true,
+    "shellApartmentInitialized": true,
+    "unadmittedSourceRejectedForRecycling": true
+  },
+  "scope": "Owned temporary fixture and durable admission/rollback ledger only. No Shell recycling or application transaction is claimed."
+}
