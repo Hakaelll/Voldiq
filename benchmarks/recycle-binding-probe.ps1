@@ -1,4 +1,17 @@
+param(
+    [switch]$AdministratorBoundary,
+    [string]$OutputPath
+)
 $ErrorActionPreference = 'Stop'
+$reportPath = $null
+if ($OutputPath) {
+    $reportPath = [IO.Path]::GetFullPath($OutputPath)
+    if ([IO.Path]::GetDirectoryName($reportPath) -ne [IO.Path]::GetFullPath($PSScriptRoot) -or
+        [IO.Path]::GetExtension($reportPath) -ne '.json' -or
+        (Test-Path -LiteralPath $reportPath)) {
+        throw 'Reports must be new JSON files directly inside the probe directory.'
+    }
+}
 
 # A disposable capability probe. It never opens or recycles user-selected files.
 Add-Type -TypeDefinition @'
@@ -8,6 +21,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 
 public static class RecycleBindingProbe {
+    public static string CleanupStatus;
     [StructLayout(LayoutKind.Sequential)] struct UnicodeString {
         public ushort Length, MaximumLength;
         public IntPtr Buffer;
@@ -54,13 +68,15 @@ public static class RecycleBindingProbe {
             return (uint)Marshal.ReadInt32(basic, 4);
         } finally { Marshal.FreeHGlobal(basic); }
     }
-    public static string Run() {
+    public static string Run(bool administratorBoundary, string userSid, bool callerIsAdministrator) {
         if (IntPtr.Size != 8) throw new PlatformNotSupportedException("This probe requires x64 Windows.");
         var temporaryRoot = Path.GetFullPath(Path.GetTempPath());
         var fixture = Path.GetFullPath(Path.Combine(temporaryRoot, "voldiq-binding-" + Guid.NewGuid().ToString("N")));
         Directory.CreateDirectory(fixture);
         var original = Path.Combine(fixture, "original.bin");
-        File.WriteAllBytes(original, new byte[] { 1, 2, 3, 4 });
+        using (var source = new FileStream(original, FileMode.CreateNew, FileAccess.Write)) {
+            source.Write(new byte[] { 1, 2, 3, 4 }, 0, 4);
+        }
         IntPtr parent = IntPtr.Zero, leaf = IntPtr.Zero, sealedDirectory = IntPtr.Zero;
         IntPtr security = IntPtr.Zero, parentDescriptor = IntPtr.Zero, dacl = IntPtr.Zero;
         IntPtr nameBuffer = IntPtr.Zero, unicodeBuffer = IntPtr.Zero, renameBuffer = IntPtr.Zero;
@@ -69,9 +85,12 @@ public static class RecycleBindingProbe {
             parent = Open(fixture, 0x00020080, 7, 0x02200000);
             uint get = GetSecurityInfo(parent, 1, 4, IntPtr.Zero, IntPtr.Zero, out dacl, IntPtr.Zero, out parentDescriptor);
             if (get != 0) throw new IOException("Read parent ACL failed: " + get);
-            // Deny new children, attribute mutation and security mutation from creation, including owner rights.
+            // The alternate policy grants writes to enabled administrators, while ordinary owner access stays read-only.
+            string policy = administratorBoundary
+                ? "O:" + userSid + "D:P(A;;FA;;;BA)(A;;0x001200a9;;;" + userSid + ")(A;;0x001200a9;;;OW)"
+                : "D:P(D;;0x000c0116;;;WD)(D;;WD;;;OW)(A;;0x001200e9;;;OW)";
             if (!ConvertStringSecurityDescriptorToSecurityDescriptorW(
-                "D:P(D;;0x000c0116;;;WD)(D;;WD;;;OW)(A;;0x001200e9;;;OW)",
+                policy,
                 1, out security, out uint descriptorSize))
                 throw new IOException("SDDL failed: " + Marshal.GetLastWin32Error());
             var name = "sealed";
@@ -82,7 +101,8 @@ public static class RecycleBindingProbe {
             var attributes = new ObjectAttributes { Length = (uint)Marshal.SizeOf<ObjectAttributes>(),
                 RootDirectory = parent, ObjectName = unicodeBuffer, Attributes = 0x40, SecurityDescriptor = security };
             // FILE_CREATE + DIRECTORY + synchronous I/O, requesting an enrollment/recovery capability atomically.
-            int status = NtCreateFile(out sealedDirectory, 0x001600a2, ref attributes, out IoStatus io,
+            uint stagingAccess = administratorBoundary ? 0x001600a3u : 0x001600a2u;
+            int status = NtCreateFile(out sealedDirectory, stagingAccess, ref attributes, out IoStatus io,
                 IntPtr.Zero, 0x10, 3, 2, 0x00200021, IntPtr.Zero, 0);
             if (status < 0) return "sealed_create_status=0x" + ((uint)status).ToString("x8") + "; rename=not_attempted";
             sealedCreated = true;
@@ -101,19 +121,33 @@ public static class RecycleBindingProbe {
             uint sourceGranted = GrantedAccess(leaf);
             uint parentGranted = GrantedAccess(parent);
             bool replacementDenied;
-            try { File.WriteAllBytes(Path.Combine(fixture, "sealed", "substitute.bin"), new byte[] { 9 }); replacementDenied = false; }
+            try {
+                using (var child = new FileStream(Path.Combine(fixture, "sealed", "substitute.bin"), FileMode.CreateNew, FileAccess.Write)) {
+                    child.WriteByte(9);
+                }
+                replacementDenied = false;
+            }
             catch (UnauthorizedAccessException) { replacementDenied = true; }
-            if (!replacementDenied) throw new IOException("Sealed directory allowed an unexpected new child.");
-            return "sealed_create_status=0x00000000; granted_access=0x" + granted.ToString("x8") +
-                "; staging_requested_access=0x001600a2; source_requested_access=0x00010080; source_granted_access=0x" + sourceGranted.ToString("x8") +
+            bool expectedDenial = !administratorBoundary || !callerIsAdministrator;
+            if (replacementDenied != expectedDenial) throw new IOException("Child admission did not match the caller's expected authority.");
+            bool moved = renamed || nativeRename >= 0;
+            string observedPath = moved ? Path.Combine(fixture, "sealed", "entry.bin") : original;
+            using (var observed = new FileStream(observedPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete)) {
+                if (observed.Length != 4 || observed.ReadByte() != 1 || observed.ReadByte() != 2 || observed.ReadByte() != 3 || observed.ReadByte() != 4)
+                    throw new IOException("Owned source content changed unexpectedly.");
+            }
+            return "administrator_boundary=" + administratorBoundary + "; caller_is_administrator=" + callerIsAdministrator +
+                "; sealed_create_status=0x00000000; granted_access=0x" + granted.ToString("x8") +
+                "; staging_requested_access=0x" + stagingAccess.ToString("x8") + "; source_requested_access=0x00010080; source_granted_access=0x" + sourceGranted.ToString("x8") +
                 "; parent_requested_access=0x00020080; parent_granted_access=0x" + parentGranted.ToString("x8") +
                 "; rename=" + renamed + "; rename_error=" + renameError + "; native_rename_status=0x" +
-                ((uint)nativeRename).ToString("x8") + "; new_child_denied=" + replacementDenied;
+                ((uint)nativeRename).ToString("x8") + "; source_moved=" + moved + "; source_content_preserved=True; new_child_denied=" + replacementDenied;
         } finally {
             if (sealedCreated) {
                 uint restore = SetSecurityInfo(sealedDirectory, 1, 0x80000004, IntPtr.Zero, IntPtr.Zero, dacl, IntPtr.Zero);
                 int nativeRestore = restore == 0 ? 0 : NtSetSecurityObject(sealedDirectory, 0x80000004, parentDescriptor);
-                Console.WriteLine("acl_restore_error=" + restore + "; native_acl_restore_status=0x" + ((uint)nativeRestore).ToString("x8"));
+                CleanupStatus = "acl_restore_error=" + restore + "; native_acl_restore_status=0x" + ((uint)nativeRestore).ToString("x8");
+                Console.WriteLine(CleanupStatus);
             }
             if (leaf != IntPtr.Zero && leaf != new IntPtr(-1)) CloseHandle(leaf);
             if (sealedDirectory != IntPtr.Zero && sealedDirectory != new IntPtr(-1)) CloseHandle(sealedDirectory);
@@ -141,4 +175,44 @@ public static class RecycleBindingProbe {
 }
 '@
 
-[RecycleBindingProbe]::Run()
+$identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+try {
+    $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+    $isAdministrator = $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    $result = $null
+    $failure = $null
+    try {
+        $result = [RecycleBindingProbe]::Run($AdministratorBoundary.IsPresent, $identity.User.Value, $isAdministrator)
+    } catch {
+        $failure = $_.Exception.GetBaseException().Message
+    }
+    if ($reportPath) {
+        $sha = [Security.Cryptography.SHA256]::Create()
+        try {
+            $actorHash = [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($identity.User.Value))).Replace('-', '')
+        } finally { $sha.Dispose() }
+        $record = [ordered]@{
+            checkedUtc = [DateTime]::UtcNow.ToString('o')
+            sourceCommit = (git rev-parse HEAD)
+            probeSha256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash
+            administratorBoundary = $AdministratorBoundary.IsPresent
+            callerIsAdministrator = $isAdministrator
+            actorSidSha256 = $actorHash
+            result = $result
+            failure = $failure
+            cleanupStatus = [RecycleBindingProbe]::CleanupStatus
+            fixtureCleanupCompleted = ($null -eq $failure)
+            recyclingVerified = $false
+            scope = 'Only owned disposable files and the explicitly requested new report are written. No Shell/recycling API, service installation or personal-file operations.'
+        }
+        $stream = [IO.File]::Open($reportPath, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+        try {
+            $writer = [IO.StreamWriter]::new($stream, [Text.UTF8Encoding]::new($false))
+            try { $writer.WriteLine(($record | ConvertTo-Json -Depth 4)) } finally { $writer.Dispose() }
+        } finally { $stream.Dispose() }
+    }
+    if ($failure) { throw $failure }
+    $result
+} finally {
+    $identity.Dispose()
+}

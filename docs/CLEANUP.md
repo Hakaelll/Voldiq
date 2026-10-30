@@ -243,3 +243,19 @@ Earlier native verification covered numeric boundaries, invalid drive paths and 
 ### Staging handoff constraint
 
 Microsoft's [`FILE_RENAME_INFORMATION` contract](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntifs/ns-ntifs-_file_rename_information) explains that `RootDirectory` is used for an internal target-directory open. That open requests write-data and synchronize access. A retained directory handle therefore does not, by itself, delegate its existing access rights to the rename. The internal open is a candidate explanation for the access and sharing failures in the earlier sealed-directory experiments; no kernel trace establishes the exact failing check. Correcting the creation handle's missing `WRITE_DAC` would not alone prove admission into the sealed namespace. The next recycling design must account for this internal open and retain object authority through the actual Shell operation. Opening the Windows bin does not fulfill that executor requirement.
+
+### Administrator-boundary experiment
+
+The existing [owned-file probe](../benchmarks/recycle-binding-probe.ps1) has an alternate `-AdministratorBoundary` mode. Its creation-time DACL grants full access to enabled Administrators, while the current user and OWNER RIGHTS receive directory read/list/traverse access. The explicit OWNER RIGHTS entry suppresses the owner's otherwise implicit security-editing rights; see Microsoft's [SID reference](https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/understand-security-identifiers). The probe requests directory-list access so its retained directory handle also participates in name pinning. It neither elevates itself nor calls a recycling API.
+
+The [non-administrator observation](../benchmarks/recycle-administrator-boundary-normal-2026-10-30.json) records a created directory, retained granted access `0x001200a3`, denied native enrollment (`0xc0000022`) and denied new-child creation. The original four-byte payload remains unchanged before fixture cleanup. DACL restoration is denied because the handle lacks `WRITE_DAC`; removal of the known empty fixture directory through its owned parent still completes. The record hashes the caller SID rather than publishing it and identifies the executed script.
+
+The elevated counterpart is pending Windows UAC consent. A successful comparison would establish only the admission boundary for this fixture. Transfer to a normal Shell caller, retained content authority, per-item recycling, durable recovery and restoration would still need proof before enabling an executor. No permanent administrator setting or service is introduced.
+
+From the repository, each run can write a new report without overwriting an existing file:
+
+```powershell
+./benchmarks/recycle-binding-probe.ps1 -AdministratorBoundary -OutputPath "$PWD/benchmarks/recycle-boundary-observation.json"
+```
+
+The output must be a new JSON file directly in `benchmarks`. Use the same account for any separately authorized elevated comparison; compare `actorSidSha256` before interpreting the two permission results together.
