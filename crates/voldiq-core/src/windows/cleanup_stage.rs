@@ -1,5 +1,7 @@
 //! Protected stage creation and independently acquired read-only namespace pins.
+mod admission;
 use super::security::{SecurityDescriptor, current_user_sid};
+pub use admission::StageEntry;
 use std::{
     fs::File,
     io,
@@ -36,6 +38,7 @@ pub struct StageIdentity {
 
 pub struct StagePin {
     _file: File,
+    _parent: File,
     identity: StageIdentity,
 }
 
@@ -141,6 +144,10 @@ fn local_ntfs(parent: &File) -> io::Result<()> {
             "Protected stages require NTFS permissions.",
         ));
     }
+    volume_root(parent).map(|_| ())
+}
+
+fn volume_root(parent: &File) -> io::Result<Vec<u16>> {
     let mut name = vec![0u16; 32768];
     let length = unsafe {
         GetFinalPathNameByHandleW(
@@ -171,7 +178,7 @@ fn local_ntfs(parent: &File) -> io::Result<()> {
             "Protected stages require a fixed local volume.",
         ));
     }
-    Ok(())
+    Ok(root)
 }
 
 fn policy() -> io::Result<SecurityDescriptor> {
@@ -209,7 +216,7 @@ fn open(
             &attributes,
             &mut status_block,
             ptr::null(),
-            FILE_ATTRIBUTE_DIRECTORY,
+            FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_HIDDEN,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
             if descriptor.is_some() {
                 FILE_CREATE
@@ -242,6 +249,7 @@ impl StagePin {
     /// A failure after native creation can leave that named empty directory for explicit reconciliation.
     pub fn create(parent: &File, name: &StageName) -> io::Result<Self> {
         local_ntfs(parent)?;
+        let parent_pin = parent.try_clone()?;
         let descriptor = policy()?;
         let file = open(parent, name, Some(&descriptor))?;
         let identity = identity(&file)?;
@@ -250,6 +258,7 @@ impl StagePin {
         }
         Ok(Self {
             _file: file,
+            _parent: parent_pin,
             identity,
         })
     }
@@ -263,6 +272,7 @@ impl StagePin {
         }
         Ok(Self {
             _file: file,
+            _parent: parent.try_clone()?,
             identity: actual,
         })
     }

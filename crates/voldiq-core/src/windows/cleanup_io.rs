@@ -71,7 +71,7 @@ pub(crate) fn open_leaf(parent: &File, name: &OsStr, access: LeafAccess) -> Resu
     open_component(parent, name, access, FILE_SHARE_READ)
 }
 
-fn open_component(parent: &File, name: &OsStr, access: u32, share: u32) -> Result<File> {
+pub(crate) fn open_component(parent: &File, name: &OsStr, access: u32, share: u32) -> Result<File> {
     let mut components = Path::new(name).components();
     if !matches!(components.next(), Some(Component::Normal(_))) || components.next().is_some() {
         return Err(Error::Invalid(

@@ -12,10 +12,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     use windows_sys::Win32::{
         Foundation::INVALID_HANDLE_VALUE,
         Storage::FileSystem::{
-            CreateFileW, DELETE, FILE_ADD_SUBDIRECTORY, FILE_DELETE_CHILD,
-            FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_NO_RECALL, FILE_FLAG_OPEN_REPARSE_POINT,
-            FILE_LIST_DIRECTORY, FILE_READ_ATTRIBUTES, FILE_READ_DATA, FILE_SHARE_READ,
-            FILE_SHARE_WRITE, OPEN_EXISTING, READ_CONTROL, SYNCHRONIZE,
+            CREATE_NEW, CreateFileW, DELETE, FILE_ADD_SUBDIRECTORY, FILE_DELETE_CHILD,
+            FILE_DISPOSITION_INFO, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_NO_RECALL,
+            FILE_FLAG_OPEN_REPARSE_POINT, FILE_FLAG_OVERLAPPED, FILE_LIST_DIRECTORY,
+            FILE_READ_ATTRIBUTES, FILE_READ_DATA, FILE_SHARE_READ, FILE_SHARE_WRITE,
+            FileDispositionInfo, OPEN_EXISTING, READ_CONTROL, SYNCHRONIZE,
+            SetFileInformationByHandle,
         },
         System::Threading::{OpenProcess, PROCESS_DUP_HANDLE, PROCESS_QUERY_LIMITED_INFORMATION},
     };
@@ -132,6 +134,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 drop(file);
                 channel.send(b"released")?;
             }
+            "source-metadata" => {
+                let mut source = channel.receive_source()?;
+                assert_eq!(
+                    source.read_to_end(&mut Vec::new()).unwrap_err().kind(),
+                    io::ErrorKind::PermissionDenied
+                );
+                channel.send(b"metadata-only")?;
+            }
             "reject-source" => {
                 assert_eq!(
                     channel
@@ -239,6 +249,62 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         io::ErrorKind::PermissionDenied
     );
     drop(readonly);
+    for (label, mode) in [
+        ("pending-deletion.bin", 0),
+        ("overlapped.bin", FILE_FLAG_OVERLAPPED),
+    ] {
+        let path = fixture.path().join(label);
+        let wide = voldiq_core::windows::wide(&path);
+        let handle = unsafe {
+            CreateFileW(
+                wide.as_ptr(),
+                DELETE | FILE_READ_DATA | FILE_READ_ATTRIBUTES,
+                FILE_SHARE_READ,
+                std::ptr::null(),
+                CREATE_NEW,
+                FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_OPEN_NO_RECALL | mode,
+                std::ptr::null_mut(),
+            )
+        };
+        if handle == INVALID_HANDLE_VALUE {
+            return Err(io::Error::last_os_error().into());
+        }
+        let candidate = unsafe { File::from_raw_handle(handle) };
+        if mode == 0 {
+            let disposition = FILE_DISPOSITION_INFO { DeleteFile: true };
+            if unsafe {
+                SetFileInformationByHandle(
+                    candidate.as_raw_handle(),
+                    FileDispositionInfo,
+                    (&disposition as *const FILE_DISPOSITION_INFO).cast(),
+                    std::mem::size_of::<FILE_DISPOSITION_INFO>() as u32,
+                )
+            } == 0
+            {
+                return Err(io::Error::last_os_error().into());
+            }
+        }
+        assert_eq!(
+            channel.offer_source(&candidate).unwrap_err().kind(),
+            io::ErrorKind::PermissionDenied
+        );
+        if mode == FILE_FLAG_OVERLAPPED {
+            let disposition = FILE_DISPOSITION_INFO { DeleteFile: true };
+            if unsafe {
+                SetFileInformationByHandle(
+                    candidate.as_raw_handle(),
+                    FileDispositionInfo,
+                    (&disposition as *const FILE_DISPOSITION_INFO).cast(),
+                    std::mem::size_of::<FILE_DISPOSITION_INFO>() as u32,
+                )
+            } == 0
+            {
+                return Err(io::Error::last_os_error().into());
+            }
+        }
+        drop(candidate);
+        assert!(!path.exists());
+    }
     let wide = voldiq_core::windows::wide(&source);
     let raw = unsafe {
         CreateFileW(
@@ -268,6 +334,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     finish(child)?;
     std::fs::rename(&source, &moved)?;
     assert_eq!(std::fs::read(&moved)?, b"owned source transfer");
+
+    let server = Server::create()?;
+    let child = spawn("source-metadata", server.name(), std::process::id())?;
+    let mut channel = server.accept(child.as_handle())?;
+    let index = voldiq_core::scanner::scan(
+        fixture.path(),
+        &voldiq_core::ScanOptions::default(),
+        &std::sync::atomic::AtomicBool::new(false),
+        |_| {},
+    )?;
+    let id = index
+        .entries
+        .iter()
+        .find(|entry| entry.name == "moved.bin")
+        .ok_or("Missing fixture entry.")?
+        .id;
+    let plan = voldiq_core::cleanup::Plan::manual(&index, &[id])?;
+    let metadata_only = plan.verify(id)?;
+    metadata_only.offer_source(&mut channel)?;
+    assert_eq!(channel.receive()?, b"metadata-only");
+    finish(child)?;
+    drop(metadata_only);
 
     let server = Server::create()?;
     let child = spawn("reject-source", server.name(), std::process::id())?;
@@ -334,7 +422,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::fs::remove_dir(&parent_moved)?;
     stage_fixture.close()?;
     println!(
-        "{{\"maximumMessageExchanged\":true,\"invalidOutboundSizesRejected\":true,\"wrongClientRejected\":true,\"wrongServerRejected\":true,\"idleReadCancelledAndClosed\":true,\"sourceHandleTransferred\":true,\"receiverWritesDenied\":true,\"senderClosePreservedReceiverGuard\":true,\"guardedRenameError\":{rename_error},\"receiverReleaseAllowedRename\":true,\"forgedReadonlyOfferRejected\":true,\"senderHandleSurvivedRejection\":true,\"stageParentTransferred\":true,\"narrowStageParentRejected\":true,\"directorySourceRoleRejected\":true,\"receiverPinnedStage\":true,\"parentRenameWhileReceiverHeldError\":{parent_rename_error},\"stageRenameWhileReceiverHeldError\":{stage_rename_error},\"receiverReleaseAllowedParentRename\":true,\"ownedFixtureCleaned\":true}}"
+        "{{\"maximumMessageExchanged\":true,\"invalidOutboundSizesRejected\":true,\"wrongClientRejected\":true,\"wrongServerRejected\":true,\"idleReadCancelledAndClosed\":true,\"sourceHandleTransferred\":true,\"receiverWritesDenied\":true,\"senderClosePreservedReceiverGuard\":true,\"guardedRenameError\":{rename_error},\"receiverReleaseAllowedRename\":true,\"forgedReadonlyOfferRejected\":true,\"senderHandleSurvivedRejection\":true,\"pendingDeletionSourceRejected\":true,\"overlappedSourceRejected\":true,\"reviewedPlanSourceTransferred\":true,\"metadataOnlySourceTransferred\":true,\"stageParentTransferred\":true,\"narrowStageParentRejected\":true,\"directorySourceRoleRejected\":true,\"receiverPinnedStage\":true,\"parentRenameWhileReceiverHeldError\":{parent_rename_error},\"stageRenameWhileReceiverHeldError\":{stage_rename_error},\"receiverReleaseAllowedParentRename\":true,\"ownedFixtureCleaned\":true}}"
     );
     Ok(())
 }

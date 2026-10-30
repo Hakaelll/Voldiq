@@ -9,6 +9,90 @@ use windows_sys::Win32::{
     Security::{Authorization::*, *},
     System::Threading::{GetCurrentProcess, OpenProcessToken},
 };
+use windows_sys::{
+    Wdk::{
+        Foundation::{NtQueryObject, ObjectBasicInformation},
+        Storage::FileSystem::{
+            FILE_DELETE_ON_CLOSE, FILE_MODE_INFORMATION, FILE_SYNCHRONOUS_IO_NONALERT,
+            FileModeInformation, NtQueryInformationFile,
+        },
+    },
+    Win32::{
+        Storage::FileSystem::*,
+        System::{IO::IO_STATUS_BLOCK, WindowsProgramming::PUBLIC_OBJECT_BASIC_INFORMATION},
+    },
+};
+
+pub(crate) fn granted_access(file: &File) -> io::Result<u32> {
+    let mut information: PUBLIC_OBJECT_BASIC_INFORMATION = unsafe { std::mem::zeroed() };
+    let mut returned = 0;
+    let status = unsafe {
+        NtQueryObject(
+            file.as_raw_handle(),
+            ObjectBasicInformation,
+            (&mut information as *mut PUBLIC_OBJECT_BASIC_INFORMATION).cast(),
+            size_of::<PUBLIC_OBJECT_BASIC_INFORMATION>() as u32,
+            &mut returned,
+        )
+    };
+    if status < 0 || returned < 8 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Unable to query native handle access.",
+        ));
+    }
+    Ok(information.GrantedAccess)
+}
+
+pub(crate) fn source_access(file: &File) -> io::Result<u32> {
+    let granted = granted_access(file)?;
+    let required = DELETE | FILE_READ_ATTRIBUTES;
+    if granted & required != required || granted & !(required | FILE_READ_DATA | SYNCHRONIZE) != 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "Cleanup source has unexpected access rights.",
+        ));
+    }
+    let mut mode: FILE_MODE_INFORMATION = unsafe { std::mem::zeroed() };
+    let mut status_block = IO_STATUS_BLOCK::default();
+    let status = unsafe {
+        NtQueryInformationFile(
+            file.as_raw_handle(),
+            &mut status_block,
+            (&mut mode as *mut FILE_MODE_INFORMATION).cast(),
+            size_of::<FILE_MODE_INFORMATION>() as u32,
+            FileModeInformation,
+        )
+    };
+    if status != 0 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "Unable to query source I/O mode.",
+        ));
+    }
+    let mut standard: FILE_STANDARD_INFO = unsafe { std::mem::zeroed() };
+    if unsafe {
+        GetFileInformationByHandleEx(
+            file.as_raw_handle(),
+            FileStandardInfo,
+            (&mut standard as *mut FILE_STANDARD_INFO).cast(),
+            size_of::<FILE_STANDARD_INFO>() as u32,
+        )
+    } == 0
+    {
+        return Err(io::Error::last_os_error());
+    }
+    if mode.Mode & FILE_SYNCHRONOUS_IO_NONALERT == 0
+        || mode.Mode & FILE_DELETE_ON_CLOSE != 0
+        || standard.DeletePending
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::PermissionDenied,
+            "Cleanup source requires nonalertable I/O without pending deletion.",
+        ));
+    }
+    Ok(granted)
+}
 
 struct LocalMemory(*mut std::ffi::c_void);
 

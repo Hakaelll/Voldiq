@@ -2,12 +2,12 @@
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::{
         fs::File,
-        io,
+        io::{self, Read, Write},
         os::windows::io::{AsRawHandle, FromRawHandle},
         ptr,
     };
     use voldiq_core::windows::{
-        cleanup_stage::{StageIdentity, StageName, StagePin},
+        cleanup_stage::{StageEntry, StageIdentity, StageName, StagePin},
         wide,
     };
     use windows_sys::Win32::{
@@ -69,7 +69,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let creator = StagePin::create(&parent, &name)?;
     let expected = creator.identity();
     assert!(StagePin::create(&parent, &name).is_err());
-    let consumer = StagePin::acquire(&parent, &name, expected)?;
+    let mut consumer = StagePin::acquire(&parent, &name, expected)?;
     assert_eq!(consumer.identity(), expected);
     let mut wrong = expected;
     wrong.file[0] ^= 1;
@@ -117,6 +117,57 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     unsafe { LocalFree(descriptor) };
     assert_eq!(acl_error, 5);
+    for invalid in [
+        "", ".", "..", "../x", "x:y", "file.", "file ", "CON.txt", "CON .txt", "CONOUT$", "lpt¹",
+        "x*",
+    ] {
+        assert!(
+            StageEntry::parse(invalid).is_err(),
+            "Unexpected accepted filename: {invalid}"
+        );
+    }
+    assert_eq!(StageEntry::parse("Résumé.txt")?.as_str(), "Résumé.txt");
+    let source_path = fixture.path().join("owned-source.bin");
+    let mut writer = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create_new(true)
+        .open(&source_path)?;
+    writer.write_all(&[1, 2, 3, 4])?;
+    let source_identity = native_identity(&writer)?;
+    drop(writer);
+    let source_wide = wide(&source_path);
+    let raw_source = unsafe {
+        CreateFileW(
+            source_wide.as_ptr(),
+            DELETE | FILE_READ_DATA | FILE_READ_ATTRIBUTES,
+            FILE_SHARE_READ,
+            ptr::null(),
+            OPEN_EXISTING,
+            FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_OPEN_NO_RECALL,
+            ptr::null_mut(),
+        )
+    };
+    if raw_source == INVALID_HANDLE_VALUE {
+        return Err(io::Error::last_os_error().into());
+    }
+    let mut source = unsafe { File::from_raw_handle(raw_source) };
+    assert_eq!(native_identity(&source)?, source_identity);
+    let source_entry = StageEntry::parse("owned-source.bin")?;
+    let admission_error = consumer
+        .admit(&source, &source_entry)
+        .unwrap_err()
+        .raw_os_error()
+        .ok_or("Missing native admission error.")?;
+    assert_eq!(admission_error, 5);
+    assert!(source_path.is_file());
+    assert!(!path.join(source_entry.as_str()).exists());
+    let mut original_bytes = Vec::new();
+    source.read_to_end(&mut original_bytes)?;
+    assert_eq!(original_bytes, [1, 2, 3, 4]);
+    assert_eq!(native_identity(&source)?, source_identity);
+    drop(source);
+    std::fs::remove_file(&source_path)?;
     drop(creator);
     let moved = fixture.path().join("released-stage");
     let rename_error = std::fs::rename(&path, &moved)
@@ -148,7 +199,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::fs::remove_dir(&moved)?;
     fixture.close()?;
     println!(
-        "{{\"createdWithSealedPermissions\":true,\"independentReadPinAcquired\":true,\"collisionRejected\":true,\"wrongIdentityRejected\":true,\"unsealedDirectoryRejected\":true,\"childCreateError\":{child_error},\"securityChangeError\":{acl_error},\"renameWhileConsumerPinnedError\":{rename_error},\"renameAfterReleaseSucceeded\":true,\"renamedIdentityPreserved\":true,\"ownedFixtureCleaned\":true}}"
+        "{{\"createdWithSealedPermissions\":true,\"independentReadPinAcquired\":true,\"collisionRejected\":true,\"wrongIdentityRejected\":true,\"unsealedDirectoryRejected\":true,\"childCreateError\":{child_error},\"securityChangeError\":{acl_error},\"normalAdmissionError\":{admission_error},\"deniedAdmissionPreservedSource\":true,\"ambiguousEntryNamesRejected\":true,\"unicodeEntryNamePreserved\":true,\"renameWhileConsumerPinnedError\":{rename_error},\"renameAfterReleaseSucceeded\":true,\"renamedIdentityPreserved\":true,\"ownedFixtureCleaned\":true}}"
     );
     Ok(())
 }

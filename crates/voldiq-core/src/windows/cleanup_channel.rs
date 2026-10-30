@@ -1,5 +1,5 @@
 //! Local, process-bound transport for the one-use cleanup helper. No filesystem commands.
-use super::security::{SecurityDescriptor, current_user_sid};
+use super::security::{SecurityDescriptor, current_user_sid, granted_access, source_access};
 use std::{
     fs::File,
     io,
@@ -7,15 +7,11 @@ use std::{
     ptr,
     time::{Duration, Instant},
 };
-use windows_sys::Wdk::Foundation::{NtQueryObject, ObjectBasicInformation};
 use windows_sys::Win32::{
     Foundation::*,
     Security::SECURITY_ATTRIBUTES,
     Storage::FileSystem::*,
-    System::{
-        Com::CoCreateGuid, IO::*, Pipes::*, Threading::*,
-        WindowsProgramming::PUBLIC_OBJECT_BASIC_INFORMATION,
-    },
+    System::{Com::CoCreateGuid, IO::*, Pipes::*, Threading::*},
 };
 
 pub const MAX_MESSAGE: usize = 4096;
@@ -71,43 +67,24 @@ fn handle_frame(file: &File, kind: HandleKind) -> io::Result<Vec<u8>> {
     if unsafe { GetFileType(handle) } != FILE_TYPE_DISK {
         return Err(invalid_source());
     }
-    let mut information: PUBLIC_OBJECT_BASIC_INFORMATION = unsafe { std::mem::zeroed() };
-    let mut returned = 0;
-    let status = unsafe {
-        NtQueryObject(
-            handle,
-            ObjectBasicInformation,
-            (&mut information as *mut PUBLIC_OBJECT_BASIC_INFORMATION).cast(),
-            size_of::<PUBLIC_OBJECT_BASIC_INFORMATION>() as u32,
-            &mut returned,
-        )
-    };
-    if status < 0 || returned < 8 {
-        return Err(invalid_source());
-    }
-    let granted = information.GrantedAccess;
-    let (required, allowed) = match kind {
-        HandleKind::Source => {
-            let required = DELETE | FILE_READ_ATTRIBUTES;
-            (required, required | FILE_READ_DATA | SYNCHRONIZE)
-        }
+    let granted = match kind {
+        HandleKind::Source => source_access(file)?,
         HandleKind::StageParent => {
+            let granted = granted_access(file)?;
             let required = FILE_LIST_DIRECTORY
                 | FILE_READ_ATTRIBUTES
                 | FILE_ADD_SUBDIRECTORY
                 | FILE_DELETE_CHILD;
-            (
-                required,
-                required | SYNCHRONIZE | READ_CONTROL | FILE_TRAVERSE | FILE_READ_EA,
-            )
+            let allowed = required | SYNCHRONIZE | READ_CONTROL | FILE_TRAVERSE | FILE_READ_EA;
+            if granted & required != required || granted & !allowed != 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::PermissionDenied,
+                    "Cleanup parent has unexpected access rights.",
+                ));
+            }
+            granted
         }
     };
-    if granted & required != required || granted & !allowed != 0 {
-        return Err(io::Error::new(
-            io::ErrorKind::PermissionDenied,
-            "Cleanup handle has unexpected access rights.",
-        ));
-    }
     let mut attributes: FILE_ATTRIBUTE_TAG_INFO = unsafe { std::mem::zeroed() };
     let mut identity: FILE_ID_INFO = unsafe { std::mem::zeroed() };
     if unsafe {
@@ -356,6 +333,8 @@ impl Channel {
     }
 
     /// Keeps the sender's handle borrowed until the peer confirms an identical, independently owned duplicate.
+    /// Acquisition must exclude delete-on-close; metadata cannot establish that flag's absence.
+    /// Desktop callers should use VerifiedFile::offer_source from a reviewed plan.
     pub fn offer_source(&mut self, file: &File) -> io::Result<()> {
         self.offer_handle(file, HandleKind::Source)
     }

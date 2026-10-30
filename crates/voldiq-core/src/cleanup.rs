@@ -327,6 +327,13 @@ pub struct VerifiedFile {
 
 #[cfg(windows)]
 impl VerifiedFile {
+    /// Transfers a source acquired with the plan's fixed, non-delete-on-close open flags.
+    pub fn offer_source(&self, channel: &mut windows::cleanup_channel::Channel) -> Result<()> {
+        self.check_stamp()?;
+        channel.offer_source(&self.file)?;
+        Ok(())
+    }
+
     fn check_stamp(&self) -> Result<()> {
         let metadata = self.file.metadata()?;
         validate_file(&metadata)?;
