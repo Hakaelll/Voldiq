@@ -22,12 +22,12 @@ Execution is inline, without subagents or computer use, as the user requested. T
 - [x] Read the complete prompt, source instructions, product/design documents and current architecture.
 - [x] Pin and inspect TreeMap source without running its code or installing its dependencies.
 - [x] Create coverage for every requested product area, distinguishing source evidence from current verification.
-- [ ] Run the existing six-stage source gate and record results. Visual baseline is the existing release and source tokens; new captures are excluded by the user's instruction.
-- [ ] Commit and push the audit on `codex/storage-workbench`.
+- [x] Run the existing six-stage source gate and record results. Visual baseline is the existing release and source tokens; new captures are excluded by the user's instruction.
+- [x] Commit and push the audit on `codex/storage-workbench` (`ff38f66`).
 
 ## B. Shared model, authorization and jobs
 
-- [ ] Add `crates/voldiq-core/src/agents.rs` and focused fixtures for explicit capabilities, canonical root authorization, exclusions, revocation, bounded results and non-disclosing errors.
+- [x] Add `crates/voldiq-core/src/agents.rs` and focused fixtures for explicit capabilities, canonical root authorization, exclusions, revocation, bounded policies and non-disclosing errors. Actual query/result filtering remains in the shared-service task.
 - [ ] Add durable SQLite agent/job state with transactional migrations, human provisioning, credential rotation and a single cross-process scan lease. Reuse the existing snapshot store for indexes.
 - [ ] Extract reusable operation coordination from desktop ownership without dropping current `IndexId` guarantees. Add provenance, cloud state and unknown metric contracts where the existing index lacks them.
 - [ ] Verify wrong/revoked credentials, sibling paths, links, overlapping roots, concurrency, cancellation and restart. Commit and push.

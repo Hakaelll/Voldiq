@@ -1,3 +1,4 @@
+pub mod agents;
 pub mod cleanup;
 pub mod developer;
 pub mod duplicates;

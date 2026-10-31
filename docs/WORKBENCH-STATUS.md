@@ -16,7 +16,7 @@ The complete task remains active. See the [coverage matrix](WORKBENCH-COVERAGE.m
 
 ## Verification
 
-The initial sandboxed source gate passed formatting, Svelte check (zero errors/warnings), 20 frontend tests and the production frontend build. The native Rust fixture failed in the pre-existing pnpm fallback-path assertion (`pnpm_config.rs:384`). The sandbox temporary path contains `sandbox.{UUID}`; `expand_path` stops at the first closing brace and rejects the opening brace in that fallback. No task product code had changed. A repeat outside sandbox redirection is running to distinguish baseline behavior from that environment-specific case; Clippy is still pending.
+The initial sandboxed source gate passed formatting, Svelte check (zero errors/warnings), 20 frontend tests and the production frontend build. The native Rust fixture failed in the pre-existing pnpm fallback-path assertion (`pnpm_config.rs:384`). The sandbox temporary path contains `sandbox.{UUID}`; `expand_path` stops at the first closing brace and rejects the opening brace in that fallback. No task product code had changed. The repeat outside sandbox redirection passed all six stages: formatting, Svelte diagnostics, 20 frontend cases, production frontend build, 10 Rust cases and strict workspace Clippy. Native fixture compilation used the baseline product source; core permissions changed later during the running gate, so this is not a claim that the new module passed all of those baseline tests.
 
 The user supplied five visual references during the audit: treemap controls/export menu, app scatter/list, trends, split history comparison and operational dashboard. They guide information hierarchy and continuity within Voldiq's existing tokens, not TreeMap branding, macOS controls or synthetic values.
 
@@ -24,4 +24,6 @@ Run the gate with `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/v
 
 ## Next executable block
 
-Finish the baseline gate and audit commit, then implement core authorization with real temporary-directory fixtures. No agent tools or additional destructive entry points are exposed before permission and plan checks exist.
+Core authorization now has five passing real-fixture cases and a passing strict core Clippy check. It provides OS-random individual credentials (only BLAKE3 digests persisted), explicit capabilities and bounded policies, per-call revocation/rotation checks, canonical component-based scopes, stable root identities, exclusions that also follow directory identity, and Windows metadata handles that pin all ancestors without following reparse points or recalling cloud content. The fixtures include a real junction, hostile Windows path forms, sibling-prefix denial, renamed exclusions, replaced roots, retained-handle rename refusal, concurrent migration and future-schema refusal. A sandboxed root-rename fixture was denied by the environment; the same complete suite passes outside redirection. This module is not yet exposed through GUI, CLI or MCP.
+
+Next: integrate durable jobs and shared scan ownership, then add the headless/MCP adapter and separate human provisioning UI. No new destructive entry points are exposed before plan and approval checks exist. The complete goal remains open.
