@@ -1,3 +1,4 @@
+use crate::analysis_status::IndexId;
 use crate::{
     Engine,
     overview::{Overview, overview},
@@ -216,6 +217,7 @@ fn selected_details(
 }
 
 async fn run_query<T: Send + 'static>(
+    index_id: IndexId,
     epoch: u64,
     family: QueryFamily,
     request_id: u64,
@@ -236,9 +238,17 @@ async fn run_query<T: Send + 'static>(
         if cancelled.load(Ordering::Relaxed) {
             return Ok(None);
         }
-        let index = _request.engine.index()?;
-        let index = index.read().map_err(|e| e.to_string())?;
-        execute(&index, &cancelled)
+        let shared = _request.engine.index_for(index_id)?;
+        let result = {
+            let index = shared.read().map_err(|error| error.to_string())?;
+            execute(&index, &cancelled)?
+        };
+        if cancelled.load(Ordering::Relaxed)
+            || !_request.engine.index_is_current(index_id, &shared)?
+        {
+            return Ok(None);
+        }
+        Ok(result)
     })
     .await
     .map_err(|e| e.to_string())?
@@ -246,12 +256,14 @@ async fn run_query<T: Send + 'static>(
 
 #[tauri::command]
 pub(crate) async fn query_overview(
+    index_id: IndexId,
     epoch: u64,
     id: NodeId,
     request_id: u64,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<Option<Overview>, String> {
     run_query(
+        index_id,
         epoch,
         QueryFamily::OverviewChildren,
         request_id,
@@ -263,12 +275,14 @@ pub(crate) async fn query_overview(
 
 #[tauri::command]
 pub(crate) async fn query_details_cancellable(
+    index_id: IndexId,
     epoch: u64,
     id: NodeId,
     request_id: u64,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<Option<SelectedDetails>, String> {
     run_query(
+        index_id,
         epoch,
         QueryFamily::Details,
         request_id,
@@ -295,12 +309,14 @@ pub(crate) fn cancel_query(
 
 #[tauri::command]
 pub(crate) async fn query_files_cancellable(
+    index_id: IndexId,
     epoch: u64,
     query: Query,
     request_id: u64,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<Option<FilePage>, String> {
     run_query(
+        index_id,
         epoch,
         QueryFamily::FileList,
         request_id,

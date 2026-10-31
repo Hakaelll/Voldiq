@@ -1,0 +1,22 @@
+{
+  "utc": "2026-10-31T13:30:11.3109351Z",
+  "baseCommit": "0f8b4c18245772e0ada0e213ff25ea29b7845ec3",
+  "executable": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\0B3AEAA86B4B6B921F8F6DC42F0F4275F4F96C12B2D10D16A20710675E1490DA\\voldiq.exe",
+  "sha256": "0B3AEAA86B4B6B921F8F6DC42F0F4275F4F96C12B2D10D16A20710675E1490DA",
+  "processId": 13816,
+  "windowTitle": "Voldiq",
+  "responding": true,
+  "windowHandlePresent": true,
+  "obsoletePreviewBytesRemoved": 12699648,
+  "frontendAssets": [
+    {
+      "name": "index-B_xoelD8.js",
+      "sha256": "62023F9BEB2FF155C916449F83E714A93D76E36E0050CA8C9C346E64EB5B1BA3"
+    },
+    {
+      "name": "index-DKcM9PYI.css",
+      "sha256": "B1FC4698DDCA6479543A22F5BB59CE0923C916256670F151F30085B95C84B727"
+    }
+  ],
+  "scope": "Native launch/window metadata only. No Computer Use, screenshots, navigation interaction, UAC or recycling execution."
+}

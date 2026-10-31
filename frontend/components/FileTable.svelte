@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { onDestroy, onMount, tick } from 'svelte';
+  import { onDestroy, onMount, tick, untrack } from 'svelte';
+  import { getIndexContext } from '../lib/index-context';
   import { fileQueries } from '../lib/queries';
   import {
     virtualWindow,
@@ -35,6 +36,7 @@
     oncheck?: (id: number, checked: boolean) => void;
     ranked?: boolean;
   } = $props();
+  const indexId = untrack(getIndexContext);
   let scrollTop = $state(0),
     total = $state(0),
     rows = $state<Entry[]>([]),
@@ -56,7 +58,7 @@
     let alive = true;
     let issued: ReturnType<typeof fileQueries.request> | undefined;
     const timer = setTimeout(() => {
-      issued = fileQueries.request({ ...next, offset: start, limit: 80 });
+      issued = fileQueries.request({ ...next, offset: start, limit: 80, indexId });
       issued.result
         .then((page) => {
           if (alive && token === request && page) {

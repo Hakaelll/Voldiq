@@ -1,0 +1,10 @@
+# Index ownership implementation
+
+- Ground: node and duplicate-group IDs are local to one `SharedIndex`. Frontend query epochs currently distinguish window sessions, not index replacements. Plan execution already compares the retained index Arc; plan preparation and read requests still resolve bare IDs against the current index.
+- Sketch: give each published Arc an opaque `IndexId`, stable while that Arc remains loaded. Progress and snapshot loading disclose the token. Every index-scoped request carries the token captured when it was scheduled. Native `index_for` rejects mismatches before resolving IDs. Late queries check the retained Arc again before returning. Frontend publication adoption clears selections/scopes and remounts index-bound views.
+- Alternative: wrap every response with an index token. Rejected for this wave because it adds wrappers across all DTOs while still requiring expected-token request validation and selection ownership.
+- Decision: expected-token requests plus publication notifications retain existing response shapes. Query-session epochs keep their separate reload/cancellation purpose. Journal receipt IDs and snapshot database IDs remain independent.
+- Implement: native identity and validation; migrate all indexed IPC callers together; publication reset; retained native/frontend regression coverage; source gate and native preview. Keep eight declared tests, no subagents or Computer Use, and no deferred UAC execution.
+- Scrap: remove any transitional unscoped endpoint or caller before committing. The token must not be inferred from timestamps or paths.
+
+- Result: the migration is implemented across indexed native commands and frontend callers. Both retained counterexamples fail when their guard is removed. The restored final source passes all six verification stages with eight declared tests. The release executable builds and opens a responding native window. Evidence is in `benchmarks/index-ownership-20261031.json` and `benchmarks/native-index-ownership-preview-20261031.json`. Manual interaction and deferred UAC acceptance remain open.

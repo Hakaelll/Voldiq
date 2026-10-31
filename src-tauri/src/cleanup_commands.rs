@@ -1,4 +1,4 @@
-use crate::{Engine, Operation};
+use crate::{Engine, Operation, analysis_status::IndexId};
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
 use tauri::State;
@@ -72,6 +72,38 @@ mod execution_tests {
             std::fs::read(fixture.path().join("selected")).unwrap(),
             b"original"
         );
+        let engine = Engine::default();
+        let first = engine.publish(current.clone(), None).unwrap();
+        assert!(engine.index_is_current(first, &current).unwrap());
+        assert_eq!(engine.publish(current.clone(), Some(123)).unwrap(), first);
+        let other = fixture.path().join("other");
+        std::fs::create_dir(&other).unwrap();
+        std::fs::write(other.join("unrelated"), b"other").unwrap();
+        let other_index = Arc::new(RwLock::new(
+            voldiq_core::scanner::scan(
+                &other,
+                &voldiq_core::ScanOptions::default(),
+                &AtomicBool::new(false),
+                |_| {},
+            )
+            .unwrap(),
+        ));
+        assert_eq!(
+            other_index.read().unwrap().entry(id).unwrap().name,
+            "unrelated"
+        );
+        let second = engine.publish(other_index.clone(), None).unwrap();
+        assert_ne!(first, second);
+        assert!(engine.index_for(first).is_err());
+        assert!(!engine.index_is_current(first, &current).unwrap());
+        assert!(Arc::ptr_eq(
+            &engine.index_for(second).unwrap(),
+            &other_index
+        ));
+        *engine.index.lock().unwrap() = None;
+        assert!(engine.index_for(second).is_err());
+        let reinstalled = engine.publish(other_index, None).unwrap();
+        assert_ne!(reinstalled, second);
         crate::docker_commands::verify_disk_usage_versions();
     }
 }
@@ -350,6 +382,7 @@ pub async fn query_recycle_bin(
 
 #[tauri::command]
 pub async fn query_cleanup_rule(
+    index_id: Option<IndexId>,
     app: tauri::AppHandle,
     rule: voldiq_core::cleanup::rules::RuleKind,
     offset: usize,
@@ -357,12 +390,11 @@ pub async fn query_cleanup_rule(
     engine: State<'_, Arc<Engine>>,
 ) -> Result<voldiq_core::cleanup::rules::Page, String> {
     let caches = crate::developer_commands::cache_locations(&app);
-    let index = engine
-        .index
-        .lock()
-        .map_err(|e| e.to_string())?
-        .as_ref()
-        .map(|loaded| loaded.index.clone());
+    let index = match index_id {
+        Some(id) => Some(engine.index_for(id)?),
+        None if engine.index_id()?.is_none() => None,
+        None => return Err("Analysis changed. Refresh the view before continuing.".into()),
+    };
     tauri::async_runtime::spawn_blocking(move || {
         let root = std::env::temp_dir();
         let guard = index
@@ -407,6 +439,7 @@ pub async fn query_cleanup_rule(
 
 #[tauri::command]
 pub async fn preview_cleanup_rule(
+    index_id: IndexId,
     app: tauri::AppHandle,
     rule: voldiq_core::cleanup::rules::RuleKind,
     selection: Vec<NodeId>,
@@ -420,7 +453,7 @@ pub async fn preview_cleanup_rule(
         engine: engine.clone(),
         id,
     };
-    let index = engine.index()?;
+    let index = engine.index_for(index_id)?;
     let plans = plans.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = operation;
@@ -463,6 +496,7 @@ pub async fn preview_cleanup_rule(
 
 #[tauri::command]
 pub async fn preview_cleanup(
+    index_id: IndexId,
     selection: Vec<NodeId>,
     engine: State<'_, Arc<Engine>>,
     plans: State<'_, CleanupPlans>,
@@ -473,7 +507,7 @@ pub async fn preview_cleanup(
         engine: engine.clone(),
         id,
     };
-    let index = engine.index()?;
+    let index = engine.index_for(index_id)?;
     let plans = plans.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = operation;
@@ -503,6 +537,7 @@ pub fn discard_cleanup(id: u64, plans: State<'_, CleanupPlans>) -> Result<(), St
 
 #[tauri::command]
 pub async fn preview_duplicate_cleanup(
+    index_id: IndexId,
     selection: Vec<NodeId>,
     progress: tauri::ipc::Channel<u64>,
     engine: State<'_, Arc<Engine>>,
@@ -514,7 +549,7 @@ pub async fn preview_duplicate_cleanup(
         engine: engine.clone(),
         id,
     };
-    let index = engine.index()?;
+    let index = engine.index_for(index_id)?;
     let run = engine
         .duplicates
         .lock()

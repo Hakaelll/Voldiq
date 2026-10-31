@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { invokeIndexed } from '../lib/index-context';
   import { onDestroy, untrack, tick } from 'svelte';
   import { invoke, isTauri } from '@tauri-apps/api/core';
   import { bytes, date, type CleanupRulePage, type CleanupPreview } from '../lib/types';
@@ -55,7 +56,7 @@
     const restoreFocus = region?.contains(focusTarget) && !selectionRegion?.contains(focusTarget);
     loadState = 'loading';
     try {
-      const result = await invoke<CleanupRulePage>('query_cleanup_rule', {
+      const result = await invokeIndexed<CleanupRulePage>('query_cleanup_rule', {
         rule,
         offset: next,
         limit,
@@ -88,7 +89,7 @@
     reviewing = true;
     onbusy(true);
     try {
-      const plan = await invoke<CleanupPreview>('preview_cleanup_rule', {
+      const plan = await invokeIndexed<CleanupPreview>('preview_cleanup_rule', {
         rule,
         selection: [...selected.keys()],
       });

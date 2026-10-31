@@ -1,6 +1,6 @@
 <script lang="ts">
+  import { invokeIndexed } from '../lib/index-context';
   import { onDestroy, untrack, tick } from 'svelte';
-  import { invoke } from '@tauri-apps/api/core';
   import { bytes, type DeveloperPage, type DeveloperItem } from '../lib/types';
   import Icon from './Icon.svelte';
   import DockerStorage from './DockerStorage.svelte';
@@ -41,7 +41,7 @@
     loadState = 'loading';
     selected = null;
     try {
-      const result = await invoke<DeveloperPage>('query_developer_storage', {
+      const result = await invokeIndexed<DeveloperPage>('query_developer_storage', {
         query: { scope: 0, offset: next, limit, category: category || null, sort },
       });
       if (token !== generation) return;

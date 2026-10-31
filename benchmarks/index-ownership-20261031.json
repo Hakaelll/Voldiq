@@ -1,0 +1,63 @@
+{
+  "recordedUtc": "2026-10-31T13:28:20.202880+00:00",
+  "baseCommit": "0f8b4c18245772e0ada0e213ff25ea29b7845ec3",
+  "scope": "Native publication identity and frontend source ownership. No screenshots, Computer Use, UAC or native pointer/keyboard acceptance.",
+  "originalFailure": "A bare NodeId can resolve a different file after the loaded SharedIndex is replaced because node IDs are local to each index.",
+  "behavior": [
+    "The same published Arc retains its identity when only its date changes",
+    "A different Arc receives a different identity, even if a NodeId is reused",
+    "Clearing invalidates the identity, and reinstalling the same removed Arc gets a fresh identity",
+    "Indexed IPC carries the originating identity before resolving nodes or duplicate groups",
+    "Cancellable query completion checks that its captured Arc remains current",
+    "Frontend index adoption clears selection, details and scope and remounts indexed views",
+    "Delayed management replies cannot publish after the frontend identity changes",
+    "Terminal scan identity and date are captured together before operation release"
+  ],
+  "counterexamples": [
+    {
+      "mutation": "Replace native identity equality with a nonzero-token predicate.",
+      "command": "cargo test --offline --release -p voldiq --bin voldiq confirmation_requires -- --nocapture",
+      "exitCode": 101,
+      "failure": "engine.index_for(first).is_err() after publishing a second real index with an overlapping NodeId",
+      "restored": true
+    },
+    {
+      "mutation": "Disable the frontend post-reply identity comparison.",
+      "command": "pnpm test",
+      "exitCode": 1,
+      "failure": "Missing expected rejection for a late reply after setIndexContext changes",
+      "restored": true
+    }
+  ],
+  "fixtures": {
+    "native": "Two owned ordinary temporary folders scanned into actual indexes. The same node ID names a different file in the second index. No cleanup execution or UAC.",
+    "frontend": "The real invokeIndexed helper with a controlled Tauri invoke bridge in the retained Node test. This is a transport unit check, not desktop IPC acceptance."
+  },
+  "declaredTestsAdded": 0,
+  "declaredTestsTotal": 8,
+  "sourceVerification": "project-verification-index-ownership-20261031.json",
+  "sources": {
+    "src-tauri/src/main.rs": "10548d10b4eb8096841ab0b4e98f4ee3363f3ec62245990f8ab374b0591dcad0",
+    "src-tauri/src/analysis_status.rs": "35d774f9dfa87d76e22f497bc1fd382887f16e99c84668acd6126e7a1719ba79",
+    "src-tauri/src/query_commands.rs": "47c921bbb8d0e887a612cc5690a4180144fa12c05220a433e53dee04f57381e9",
+    "src-tauri/src/cleanup_commands.rs": "2534609e9f1aa733e4771700c4a27f25c9794f271b4ba07fdf22ce633b9d9d7c",
+    "src-tauri/src/snapshot_commands.rs": "2c76073a099c0206d929affb1425a9ca1fef6e4b9af5767558d5424605a572c1",
+    "frontend/App.svelte": "6c6bb05d39b1a3af8bc0efe41f0dff39c40e19929a5994e88e36ce90c23f9dbb",
+    "frontend/lib/index-context.ts": "d9f4bb2c3255976e197fae288745efa0fa1c5426c44d6301eb183256123464a7",
+    "frontend/lib/queries.ts": "834144d9c11ad4d8d2a151757e1d7750c8a942aa9e07557d98f3e90c068c9df5",
+    "frontend/lib/cleanup-selection.test.ts": "9ef752a8eeb34c2be1a92b7d31c13ee9bb9d8272551d9201846901778f22cdb6",
+    "frontend/components/FileTable.svelte": "08ad10a5d87a3ece07723fb4644c37bd2c9a921056d20b0073c4f4ebc754352c",
+    "frontend/components/CleanupRules.svelte": "fbda3ce02500d058780a749c1946aec68704bdd073f8d18164d162b30d57bd73",
+    "frontend/components/Duplicates.svelte": "159992617e05e68f6d6b26ce5e1874377ff10e5033e953a03246fd0dd449b435",
+    "frontend/components/DeveloperStorage.svelte": "e0c2879247223573b5fe3643606681beb611ff2739bccf5c40cad16e36778dc6",
+    "frontend/components/History.svelte": "d2854ccef22fc2d2465ad8665623933bea3f8bc2ecea9747dd5f301527d3a295",
+    "frontend/lib/types.ts": "dee323ca188be5e1c92983652b6a895b7e4f9b792792aee2a80913836864f24f"
+  },
+  "nativeBuild": {
+    "command": "cargo build --offline --release -p voldiq --bin voldiq",
+    "exitCode": 0,
+    "singleTarget": "target/release"
+  },
+  "sourceVerificationCheckedUtc": "2026-10-31T13:29:48.3283345Z",
+  "nativePreview": "native-index-ownership-preview-20261031.json"
+}

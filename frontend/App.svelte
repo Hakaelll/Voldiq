@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { invokeIndexed, setIndexContext, type IndexId } from './lib/index-context';
   import { onMount, tick } from 'svelte';
   import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
   import Icon from './components/Icon.svelte';
@@ -66,6 +67,7 @@
   let recentPaths = $state<string[]>([]);
   let operation = $state<Progress | null>(null),
     scanId = $state<number | null>(null);
+  let indexId = $state<IndexId | null>(setIndexContext(null));
   let ready = $state(false),
     revision = $state(0),
     scope = $state(0);
@@ -93,6 +95,7 @@
   let search: HTMLInputElement;
   let refreshToken = 0;
   let interactionToken = 0;
+  let scanRequest = 0;
   const navigationRefresh = createNavigationRefresh();
   let analysisBusy = $state(false);
   let historical = $state<Snapshot | null>(null);
@@ -116,7 +119,7 @@
     if (busy || historical || selection.size === 0) return;
     analysisBusy = true;
     try {
-      cleanupPreview = await invoke<CleanupPreview>('preview_cleanup', {
+      cleanupPreview = await invokeIndexed<CleanupPreview>('preview_cleanup', {
         selection: [...selection],
       });
     } catch (problem) {
@@ -185,9 +188,29 @@
     detailQueries.cancel();
     return ++interactionToken;
   }
+  function adoptIndex(value: number | null): void {
+    const next = setIndexContext(value);
+    if (next === indexId) return;
+    indexId = next;
+    invalidateInteraction();
+    invalidateRefresh();
+    scope = 0;
+    selection = new Set();
+    directory = null;
+    details = null;
+    children = { items: [], total: 0 };
+    types = { items: [], total_bytes: 0, total_files: 0 };
+    branches = [];
+    cleanupPreview = null;
+    cleanupNeedsRefresh = false;
+    issues = [];
+    showIssues = false;
+    error = '';
+    revision += 1;
+  }
   async function refresh(id = scope, navigationOwner: number | null = null): Promise<void> {
     const token = ++refreshToken;
-    const overviewRequest = overviewQueries.request({ id });
+    const overviewRequest = overviewQueries.request({ id, indexId });
     try {
       const result = await overviewRequest.result;
       if (token !== refreshToken || result === null || (navigationOwner !== null && navigationOwner !== interactionToken)) return;
@@ -209,7 +232,7 @@
       return;
     }
     try {
-      const item = await detailQueries.request({ id }).result;
+      const item = await detailQueries.request({ id, indexId }).result;
       if (item && token === interactionToken && ready) details = item;
     } catch (problem) {
       if (token === interactionToken) report(problem);
@@ -248,7 +271,7 @@
     }
     navigationRefresh.begin(token);
     try {
-      const item = await detailQueries.request({ id }).result;
+      const item = await detailQueries.request({ id, indexId }).result;
       if (!item || token !== interactionToken || !ready) return;
       if (item.entry.kind === 'directory') {
         text = '';
@@ -265,6 +288,8 @@
   }
   async function start(path: string): Promise<void> {
     if (!path || busy) return;
+    const owner = ++scanRequest;
+    scanId = null;
     selection = new Set();
     cleanupPreview = null;
     invalidateRefresh();
@@ -279,6 +304,7 @@
     scanPath = path;
     scope = 0;
     operation = {
+      index_id: indexId,
       analyzed_at: null,
       previous: false,
       phase: 'scanning',
@@ -292,6 +318,8 @@
     const channel = new Channel<Progress>();
     let lastRefresh = 0;
     channel.onmessage = (update) => {
+      if (owner !== scanRequest) return;
+      adoptIndex(update.index_id);
       operation = update;
       if (update.phase === 'scanning') {
         ready = true;
@@ -335,8 +363,9 @@
         },
         progress: channel,
       });
-      if (operation?.phase === 'scanning') scanId = id;
+      if (owner === scanRequest && operation?.phase === 'scanning') scanId = id;
     } catch (problem) {
+      if (owner !== scanRequest) return;
       operation = null;
       report(problem);
     }
@@ -356,6 +385,8 @@
     invalidateInteraction();
     try {
       await invoke('clear_current_analysis');
+      scanRequest += 1;
+      adoptIndex(null);
       ready = false;
       historical = null;
       operation = null;
@@ -378,7 +409,9 @@
       analysisBusy = false;
     }
   }
-  async function loadSnapshot(snapshot: Snapshot): Promise<void> {
+  async function loadSnapshot(snapshot: Snapshot, loadedIndex: number): Promise<void> {
+    scanRequest += 1;
+    adoptIndex(loadedIndex);
     selection = new Set();
     cleanupPreview = null;
     invalidateRefresh();
@@ -404,7 +437,7 @@
   async function reveal(): Promise<void> {
     if (details)
       try {
-        await invoke('reveal_item', { id: details.entry.id });
+        await invokeIndexed('reveal_item', { id: details.entry.id });
       } catch (problem) {
         report(problem);
       }
@@ -419,7 +452,7 @@
   }
   async function inspectIssues(): Promise<void> {
     try {
-      issues = await invoke<Issue[]>('get_issues');
+      issues = await invokeIndexed<Issue[]>('get_issues');
       showIssues = true;
     } catch (problem) {
       report(problem);
@@ -819,7 +852,7 @@
           </section>
         </section>
       {:else if view === 'developer'}
-        <DeveloperStorage
+        {#key indexId}<DeveloperStorage
           enabled={ready && !busy}
           {revision}
           onopen={(id) => {
@@ -828,6 +861,7 @@
           }}
           onerror={report}
         />
+        {/key}
       {:else if view === 'history'}
         <History
           enabled={ready && !busy && historical === null}
@@ -838,6 +872,7 @@
           onerror={report}
         />
       {:else}
+        {#key indexId}
         {#if !ready && view !== 'duplicates' && view !== 'cleanup'}<ScanWelcome
             {volume}
             {busy}
@@ -1109,6 +1144,7 @@
               </section>{/if}
           </div>
         {/if}
+        {/key}
       {/if}
     </main>
     <footer class="app-footer">
@@ -1158,6 +1194,8 @@
         analysisBusy = value;
       }}
       onchanged={() => {
+        scanRequest += 1;
+        adoptIndex(null);
         cleanupNeedsRefresh = true;
         invalidateRefresh();
         invalidateInteraction();
@@ -1176,6 +1214,8 @@
   <RestorationDialog receipt={restoreReceipt}
     onbusy={(value) => { analysisBusy = value; }}
     onchanged={() => {
+      scanRequest += 1;
+      adoptIndex(null);
       restoreNeedsRefresh = true;
       invalidateRefresh();
       invalidateInteraction();

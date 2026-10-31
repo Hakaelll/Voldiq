@@ -19,6 +19,7 @@ mod overview;
 mod query_commands;
 mod restore_commands;
 mod snapshot_commands;
+use analysis_status::IndexId;
 use cleanup_commands::*;
 use snapshot_commands::*;
 use voldiq_core::{
@@ -76,10 +77,46 @@ impl Engine {
             .map(|loaded| loaded.index.clone())
             .ok_or_else(|| "Scan a drive or folder first.".into())
     }
-    fn publish(&self, index: SharedIndex, analyzed_at: Option<u64>) -> Result<(), String> {
-        *self.index.lock().map_err(|e| e.to_string())? =
-            Some(analysis_status::LoadedAnalysis { index, analyzed_at });
-        Ok(())
+    fn index_for(&self, expected: IndexId) -> Result<SharedIndex, String> {
+        self.index
+            .lock()
+            .map_err(|error| error.to_string())?
+            .as_ref()
+            .filter(|loaded| loaded.id == expected)
+            .map(|loaded| loaded.index.clone())
+            .ok_or_else(|| "Analysis changed. Refresh the view before continuing.".into())
+    }
+    fn index_id(&self) -> Result<Option<IndexId>, String> {
+        Ok(self
+            .index
+            .lock()
+            .map_err(|error| error.to_string())?
+            .as_ref()
+            .map(|loaded| loaded.id))
+    }
+    fn index_is_current(&self, expected: IndexId, index: &SharedIndex) -> Result<bool, String> {
+        Ok(self
+            .index
+            .lock()
+            .map_err(|error| error.to_string())?
+            .as_ref()
+            .is_some_and(|loaded| loaded.id == expected && Arc::ptr_eq(&loaded.index, index)))
+    }
+    fn publish(&self, index: SharedIndex, analyzed_at: Option<u64>) -> Result<IndexId, String> {
+        let mut slot = self.index.lock().map_err(|error| error.to_string())?;
+        let id = match slot
+            .as_ref()
+            .filter(|loaded| Arc::ptr_eq(&loaded.index, &index))
+        {
+            Some(loaded) => loaded.id,
+            None => IndexId(self.sequence.fetch_add(1, Ordering::Relaxed) + 1),
+        };
+        *slot = Some(analysis_status::LoadedAnalysis {
+            id,
+            index,
+            analyzed_at,
+        });
+        Ok(id)
     }
 }
 
@@ -171,6 +208,7 @@ fn start_scan(
                     if update.phase == ScanPhase::Scanning {
                         let analyzed_at = if update.previous { previous_date } else { None };
                         let _ = progress.send(analysis_status::ScanProgress {
+                            index_id: engine.index_id().ok().flatten(),
                             progress: update,
                             analyzed_at,
                         });
@@ -202,16 +240,21 @@ fn start_scan(
             Ok(None) => {}
             Err(error) => failure = Some(error.to_string()),
         }
-        let analyzed_at = engine
+        let (index_id, analyzed_at) = engine
             .index
             .lock()
             .ok()
-            .and_then(|slot| slot.as_ref().and_then(|loaded| loaded.analyzed_at));
+            .and_then(|slot| {
+                slot.as_ref()
+                    .map(|loaded| (Some(loaded.id), loaded.analyzed_at))
+            })
+            .unwrap_or((None, None));
         if let Ok(mut active) = engine.active.lock() {
             *active = None;
         }
         if let Some(error) = failure {
             let _ = progress.send(analysis_status::ScanProgress {
+                index_id,
                 progress: Progress {
                     previous: false,
                     phase: ScanPhase::Failed,
@@ -226,6 +269,7 @@ fn start_scan(
             });
         } else if let Some(update) = final_progress {
             let _ = progress.send(analysis_status::ScanProgress {
+                index_id,
                 progress: update,
                 analyzed_at,
             });
@@ -246,6 +290,7 @@ fn cancel_operation(id: u64, engine: State<'_, Arc<Engine>>) -> Result<(), Strin
 
 #[tauri::command]
 fn start_duplicates(
+    index_id: IndexId,
     scope: NodeId,
     min_size: u64,
     progress: Channel<duplicates::Progress>,
@@ -257,7 +302,7 @@ fn start_duplicates(
         engine: engine.clone(),
         id,
     };
-    let index = engine.index()?;
+    let index = engine.index_for(index_id)?;
     index
         .read()
         .map_err(|e| e.to_string())?
@@ -357,14 +402,19 @@ fn duplicate_group(
 
 #[tauri::command]
 async fn query_duplicate_groups(
+    index_id: IndexId,
     offset: usize,
     limit: usize,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<Option<DuplicatePage>, String> {
+    let current = engine.index_for(index_id)?;
     let result = engine.duplicates.lock().map_err(|e| e.to_string())?.clone();
     let Some(run) = result else {
         return Ok(None);
     };
+    if !Arc::ptr_eq(&run.index, &current) {
+        return Err("Duplicate results belong to another analysis.".into());
+    }
     tauri::async_runtime::spawn_blocking(move || {
         let result = &run.analysis;
         let index = run.index.read().map_err(|e| e.to_string())?;
@@ -402,17 +452,22 @@ struct DuplicateItem {
 
 #[tauri::command]
 async fn query_duplicate_members(
+    index_id: IndexId,
     group: usize,
     offset: usize,
     limit: usize,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<Vec<DuplicateItem>, String> {
+    let current = engine.index_for(index_id)?;
     let result = engine
         .duplicates
         .lock()
         .map_err(|e| e.to_string())?
         .clone()
         .ok_or("Analyze duplicates first.")?;
+    if !Arc::ptr_eq(&result.index, &current) {
+        return Err("Duplicate results belong to another analysis.".into());
+    }
     tauri::async_runtime::spawn_blocking(move || {
         let group = result
             .analysis
@@ -444,30 +499,44 @@ async fn query_duplicate_members(
 }
 
 #[tauri::command]
-fn get_duplicate_issues(engine: State<'_, Arc<Engine>>) -> Result<Vec<voldiq_core::Issue>, String> {
-    Ok(engine
+fn get_duplicate_issues(
+    index_id: IndexId,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Vec<voldiq_core::Issue>, String> {
+    let current = engine.index_for(index_id)?;
+    let result = engine
         .duplicates
         .lock()
-        .map_err(|e| e.to_string())?
-        .as_ref()
-        .map(|result| result.analysis.issues.clone())
-        .unwrap_or_default())
+        .map_err(|error| error.to_string())?
+        .clone();
+    match result {
+        Some(run) if Arc::ptr_eq(&run.index, &current) => Ok(run.analysis.issues.clone()),
+        Some(_) => Err("Duplicate results belong to another analysis.".into()),
+        None => Ok(Vec::new()),
+    }
 }
 
 #[tauri::command]
-fn get_issues(engine: State<'_, Arc<Engine>>) -> Result<Vec<voldiq_core::Issue>, String> {
-    Ok(engine
-        .index()?
+fn get_issues(
+    index_id: IndexId,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Vec<voldiq_core::Issue>, String> {
+    let current = engine.index_for(index_id)?;
+    Ok(current
         .read()
-        .map_err(|e| e.to_string())?
+        .map_err(|error| error.to_string())?
         .issues
         .clone())
 }
 
 #[tauri::command]
-async fn reveal_item(id: NodeId, engine: State<'_, Arc<Engine>>) -> Result<(), String> {
+async fn reveal_item(
+    index_id: IndexId,
+    id: NodeId,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<(), String> {
     let path = engine
-        .index()?
+        .index_for(index_id)?
         .read()
         .map_err(|e| e.to_string())?
         .path(id)
@@ -505,11 +574,12 @@ async fn open_windows_recycle_bin() -> Result<(), String> {
 
 #[tauri::command]
 async fn query_developer_storage(
+    index_id: IndexId,
     app: tauri::AppHandle,
     query: voldiq_core::developer::Query,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<voldiq_core::developer::Page, String> {
-    let shared = engine.index()?;
+    let shared = engine.index_for(index_id)?;
     tauri::async_runtime::spawn_blocking(move || {
         let historical = shared
             .read()

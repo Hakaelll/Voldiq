@@ -1,15 +1,21 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::time::{SystemTime, UNIX_EPOCH};
 use voldiq_core::{Progress, ScanPhase, scanner::SharedIndex};
 
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(transparent)]
+pub(crate) struct IndexId(pub u64);
+
 #[derive(Clone)]
 pub(crate) struct LoadedAnalysis {
+    pub id: IndexId,
     pub index: SharedIndex,
     pub analyzed_at: Option<u64>,
 }
 
 #[derive(Serialize)]
 pub(crate) struct ScanProgress {
+    pub index_id: Option<IndexId>,
     #[serde(flatten)]
     pub progress: Progress,
     pub analyzed_at: Option<u64>,

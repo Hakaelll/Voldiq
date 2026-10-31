@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { invokeIndexed } from '../lib/index-context';
   import { onMount, onDestroy } from 'svelte';
   import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
   import Icon from './Icon.svelte';
@@ -80,7 +81,7 @@
       if (!alive) void cancelReview();
     };
     try {
-      const plan = await invoke<CleanupPreview>('preview_duplicate_cleanup', {
+      const plan = await invokeIndexed<CleanupPreview>('preview_duplicate_cleanup', {
         selection: [...checked.keys()],
         progress,
       });
@@ -109,7 +110,7 @@
     loadFailed = false;
     groupRetryOffset = next;
     try {
-      const result = await invoke<DuplicatePage | null>('query_duplicate_groups', {
+      const result = await invokeIndexed<DuplicatePage | null>('query_duplicate_groups', {
         offset: next,
         limit: groupLimit,
       });
@@ -137,7 +138,7 @@
     memberLoading = true;
     memberFailed = false;
     try {
-      const result = await invoke<DuplicateItem[]>('query_duplicate_members', {
+      const result = await invokeIndexed<DuplicateItem[]>('query_duplicate_members', {
         group,
         offset: next,
         limit: memberLimit,
@@ -190,7 +191,7 @@
       }
     };
     try {
-      const id = await invoke<number>('start_duplicates', {
+      const id = await invokeIndexed<number>('start_duplicates', {
         scope,
         minSize: Math.max(0, minimum || 0) * 1024 * 1024,
         progress: channel,
@@ -212,7 +213,7 @@
   }
   async function issues(): Promise<void> {
     try {
-      onissues(await invoke<Issue[]>('get_duplicate_issues'));
+      onissues(await invokeIndexed<Issue[]>('get_duplicate_issues'));
     } catch (problem) {
       onerror(problem);
     }

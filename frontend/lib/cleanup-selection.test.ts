@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { updateCleanupSelection } from './cleanup-selection.ts';
 import { createNavigationRefresh } from './navigation-refresh.ts';
+import { getIndexContext, setIndexContext, invokeIndexed } from './index-context.ts';
 import type { CleanupRulePage } from './types';
 
 function item(id: number): CleanupRulePage['items'][number] {
@@ -15,7 +16,7 @@ function item(id: number): CleanupRulePage['items'][number] {
   };
 }
 
-test('selection limits and live refresh preserve explicit user intent', () => {
+test('selection, navigation and index ownership preserve user intent', async () => {
   const current = new Map(Array.from({ length: 499 }, (_, id) => [id, item(id)]));
   assert.equal(updateCleanupSelection(current, [item(499), item(500)], true), null);
   assert.equal(current.size, 499);
@@ -41,4 +42,32 @@ test('selection limits and live refresh preserve explicit user intent', () => {
   refresh.reset();
   assert.equal(refresh.finish(3), false);
   assert.equal(refresh.request(), true);
+  setIndexContext(10);
+  assert.equal(getIndexContext(), 10);
+  assert.throws(() => setIndexContext(-1), /Invalid analysis identity/);
+  assert.equal(getIndexContext(), 10);
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
+  const reply: { release: ((value: unknown) => void) | null } = { release: null };
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: {
+    __TAURI_INTERNALS__: { invoke: (_command: string, args: { indexId: number }) => {
+      assert.equal(args.indexId, getIndexContext());
+      return new Promise<unknown>((resolve) => { reply.release = resolve; });
+    } },
+  } });
+  try {
+    const stale = invokeIndexed<unknown[]>('get_issues', { indexId: 999 });
+    setIndexContext(11);
+    assert.ok(reply.release);
+    reply.release([]);
+    await assert.rejects(stale, /Analysis changed/);
+    const current = invokeIndexed<unknown[]>('get_issues');
+    assert.ok(reply.release);
+    reply.release([]);
+    assert.deepEqual(await current, []);
+  } finally {
+    setIndexContext(null);
+    if (previousWindow) Object.defineProperty(globalThis, 'window', previousWindow);
+    else Reflect.deleteProperty(globalThis, 'window');
+  }
+  assert.equal(getIndexContext(), null);
 });

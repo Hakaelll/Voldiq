@@ -28,13 +28,13 @@ pnpm build
 
 | Cases | Behavior |
 |---|---|
-| 1 native command test | Permanent and recycling actions require distinct exact confirmations and the same live index; each plan can be consumed only once. The same retained case also verifies canonical/transitional/legacy Docker accounting, known zero and unknown sizes. It does not move files or launch UAC. |
+| 1 native command test | Permanent and recycling actions require distinct exact confirmations and the same live index; each plan can be consumed only once. It rejects a stale publication identity even when a second real index reuses the same node ID, and checks canonical/transitional/legacy Docker accounting, known zero and unknown sizes. It does not move files or launch UAC. |
 | 2 cleanup execution tests | Changed retained duplicate copies prevent deletion; cancellation preserves pending files; journal write failure stops further removal and preserves the partial report. |
 | 1 cleanup journal test | Interrupted deletion preserves replacements and unrecorded outcomes. Fresh historical restoration checks parent identity, collision, source locking, session ownership, intent persistence and one-use completion with owned ordinary files. |
 | 1 file disposition test | Replaced files and read-only targets are not removed. |
 | 1 Windows handle test | An acquired parent directory cannot be renamed until its handle is released. |
 | 1 snapshot integration test | Saved history survives reopening, compares actual file changes and preserves case-insensitive ASCII/Unicode search results through both query methods. |
-| 1 frontend selection test | The cleanup selection limit rejects a whole page without partial changes. |
+| 1 frontend selection test | Selection limits reject a whole page without partial changes. Navigation refreshes coalesce without releasing a newer owner. Indexed IPC captures the originating identity and rejects late replies after replacement. |
 
 Rust fixtures use disposable temporary folders. The Windows cleanup tests remove only files they create. The frontend test runs directly with Node's test runner and requires no browser automation.
 
@@ -57,3 +57,5 @@ The [desktop restoration source gate](../benchmarks/project-verification-restora
 The [prepared recycling source gate](../benchmarks/project-verification-recycling-integration-20261031.json) passes all six stages and retains eight tests. Native recycling execution remains blocked by its verification gate while the user defers the combined UAC fixture.
 
 The existing frontend case also checks live-navigation refresh ownership: progress refreshes defer and coalesce, old completions cannot release a newer navigation, and invalidation discards abandoned ownership. An unconditional-refresh counterexample fails the case; the verified implementation passes. No declared test was added. See [live navigation verification](../benchmarks/live-navigation-refresh-20261031.json).
+
+The [index ownership source gate](../benchmarks/project-verification-index-ownership-20261031.json) passes all six stages with eight declared tests. The retained native case checks publication replacement, stable identity for the same Arc, clearing and reinstalling. The frontend case uses a controlled Tauri transport reply. Disabling either native identity matching or frontend late-reply rejection makes the corresponding case fail. See [counterexample evidence](../benchmarks/index-ownership-20261031.json). Native scan/snapshot interaction remains for manual acceptance.

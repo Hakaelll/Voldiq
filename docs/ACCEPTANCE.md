@@ -54,3 +54,5 @@ The user owns visual acceptance and has requested no Computer Use or automated s
 5. Complete the user's manual visual and interaction acceptance.
 
 The [desktop restoration source gate](../benchmarks/project-verification-restoration-20261031.json) passes all six stages with the unchanged eight-test inventory. The restored-item activity flag is covered by the retained journal regression. This source result does not claim native modal interaction, lease expiry behavior, combined UAC recycling or clean-machine acceptance.
+
+Index-scoped desktop requests now carry their publication identity. Replacement clears index-bound selections and cancels obsolete reads; native validation rejects reused node IDs from a different analysis. The retained native/frontend counterexamples and [source gate](../benchmarks/project-verification-index-ownership-20261031.json) verify this boundary without increasing the eight-test inventory. Native scan/snapshot interaction, combined privileged recycling and clean-machine acceptance remain open.

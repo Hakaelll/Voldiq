@@ -1,4 +1,4 @@
-use crate::{Engine, Operation};
+use crate::{Engine, Operation, analysis_status::IndexId};
 use std::{
     path::Path,
     sync::{Arc, Mutex, RwLock},
@@ -16,6 +16,7 @@ impl SnapshotDatabase {
 
 #[tauri::command]
 pub async fn save_snapshot(
+    index_id: IndexId,
     app: tauri::AppHandle,
     engine: State<'_, Arc<Engine>>,
     database: State<'_, SnapshotDatabase>,
@@ -26,7 +27,7 @@ pub async fn save_snapshot(
         engine: engine.clone(),
         id,
     };
-    let index = engine.index()?;
+    let index = engine.index_for(index_id)?;
     let store = database.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = operation;
@@ -68,7 +69,7 @@ pub async fn load_snapshot(
     id: i64,
     engine: State<'_, Arc<Engine>>,
     database: State<'_, SnapshotDatabase>,
-) -> Result<(), String> {
+) -> Result<IndexId, String> {
     let engine = engine.inner().clone();
     let (operation_id, _) = engine.begin()?;
     let operation = Operation {
@@ -83,9 +84,9 @@ pub async fn load_snapshot(
             .map_err(|e| e.to_string())?
             .load(id)
             .map_err(|e| e.to_string())?;
-        engine.publish(Arc::new(RwLock::new(index)), None)?;
+        let index_id = engine.publish(Arc::new(RwLock::new(index)), None)?;
         *engine.duplicates.lock().map_err(|e| e.to_string())? = None;
-        Ok(())
+        Ok(index_id)
     })
     .await
     .map_err(|e| e.to_string())?

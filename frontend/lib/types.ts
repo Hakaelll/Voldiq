@@ -148,6 +148,7 @@ export interface Issue {
   message: string;
 }
 export interface Progress {
+  index_id: number | null;
   analyzed_at: number | null;
   previous: boolean;
   phase: 'scanning' | 'complete' | 'cancelled' | 'failed';

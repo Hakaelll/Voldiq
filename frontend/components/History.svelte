@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { invokeIndexed } from '../lib/index-context';
   import { onMount, onDestroy, tick } from 'svelte';
   import { invoke, isTauri } from '@tauri-apps/api/core';
   import Icon from './Icon.svelte';
@@ -14,7 +15,7 @@
   }: {
     enabled: boolean;
     onbusy: (busy: boolean) => void;
-    onload: (snapshot: Snapshot) => Promise<void>;
+    onload: (snapshot: Snapshot, indexId: number) => Promise<void>;
     onerror: (problem: unknown) => void;
   } = $props();
   const limit = 20;
@@ -102,14 +103,14 @@
   }
   async function save(): Promise<void> {
     await mutate(async () => {
-      await invoke('save_snapshot');
+      await invokeIndexed('save_snapshot');
       await refresh(0);
     });
   }
   async function open(snapshot: Snapshot): Promise<void> {
     await mutate(async () => {
-      await invoke('load_snapshot', { id: snapshot.id });
-      await onload(snapshot);
+      const indexId = await invoke<number>('load_snapshot', { id: snapshot.id });
+      await onload(snapshot, indexId);
     });
   }
   async function remove(id: number): Promise<void> {
