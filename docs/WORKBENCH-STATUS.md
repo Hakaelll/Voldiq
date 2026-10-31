@@ -1,6 +1,6 @@
 # Storage workbench status
 
-Delivery branch: `main`, as the user explicitly requested during implementation. Work started on `codex/storage-workbench` at `fae47a0`. All task commits are to be consolidated into `main` before removing the other branches.
+Delivery branch: `main`, as the user explicitly requested during implementation. Work started on `codex/storage-workbench` at `fae47a0`. All six task commits through `253c774` were fast-forwarded and pushed to `main`. Both `codex/disk-city` and `codex/storage-workbench` were then deleted locally and remotely after verifying ancestry; remote deletion used exact expected commits to avoid discarding a concurrent update. Only `main` remains. Continue directly on `main`.
 
 The complete task remains active. See the [coverage matrix](WORKBENCH-COVERAGE.md) and [execution plan](plans/storage-workbench.md). This status does not declare pending capabilities implemented.
 

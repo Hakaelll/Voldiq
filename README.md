@@ -20,9 +20,9 @@ Voldiq is a Windows storage explorer with a native Rust indexing engine and a co
 
 No account, cloud service, advertising or telemetry. The application uses actual filesystem data and works offline.
 
-## Agent analysis on the development branch
+## Agent analysis in the current source
 
-This branch adds human-managed connections under Settings, plus a separate Rust CLI and authenticated local stdio MCP server. They scan allowed folders and query measured snapshots through the existing core, without loading the desktop renderer. Agent file modification and its independent approval lifecycle are still being implemented. These additions are not part of the published 0.2.0 installer yet. See [MCP setup](docs/MCP.md) and [workbench coverage](docs/WORKBENCH-COVERAGE.md).
+The current source adds human-managed connections under Settings, plus a separate Rust CLI and authenticated local stdio MCP server. They scan allowed folders and query measured snapshots through the existing core, without loading the desktop renderer. Agent file modification and its independent approval lifecycle are still being implemented. These additions are not part of the published 0.2.0 installer yet. See [MCP setup](docs/MCP.md) and [workbench coverage](docs/WORKBENCH-COVERAGE.md).
 
 ## Install
 
