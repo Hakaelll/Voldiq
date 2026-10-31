@@ -1,0 +1,11 @@
+{
+  "utc": "2026-10-31T10:32:50.2786523Z",
+  "sourceCommit": "aab744c80cef05da10f046a94e67b4611468321c",
+  "executableSha256": "EECF7A24B27218CC39FBDD61C188B2CA2DC99E738C98F78955C44AAF15814B33",
+  "pid": 15004,
+  "responding": true,
+  "windowTitle": "Voldiq",
+  "windowHandle": 6881644,
+  "oldPreviewRemovedBytes": 12947968,
+  "scope": "Normally replaced the previously owned preview with the rebuilt optimized executable. Process/window metadata only; no UI automation, scan, cleanup action, or UAC invocation."
+}

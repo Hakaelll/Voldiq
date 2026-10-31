@@ -3,24 +3,77 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::{
         fs::File,
         io::{self, Read, Write},
-        os::windows::io::{AsHandle, AsRawHandle, FromRawHandle, OwnedHandle},
+        os::windows::{
+            io::{AsHandle, AsRawHandle, FromRawHandle, OwnedHandle},
+            process::CommandExt,
+        },
         process::{Child, Command, Stdio},
         time::{Duration, Instant},
     };
     use voldiq_core::windows::cleanup_channel::{Channel, MAX_MESSAGE, Server};
     use voldiq_core::windows::cleanup_stage::{StageIdentity, StageName, StagePin};
     use windows_sys::Win32::{
-        Foundation::INVALID_HANDLE_VALUE,
+        Foundation::{
+            ERROR_BROKEN_PIPE, ERROR_MORE_DATA, ERROR_NO_DATA, GENERIC_READ, GENERIC_WRITE,
+            INVALID_HANDLE_VALUE,
+        },
         Storage::FileSystem::{
             CREATE_NEW, CreateFileW, DELETE, FILE_ADD_SUBDIRECTORY, FILE_DELETE_CHILD,
             FILE_DISPOSITION_INFO, FILE_FLAG_BACKUP_SEMANTICS, FILE_FLAG_OPEN_NO_RECALL,
-            FILE_FLAG_OPEN_REPARSE_POINT, FILE_FLAG_OVERLAPPED, FILE_LIST_DIRECTORY,
+            FILE_FLAG_OPEN_REPARSE_POINT, FILE_FLAG_OVERLAPPED, FILE_ID_INFO, FILE_LIST_DIRECTORY,
             FILE_READ_ATTRIBUTES, FILE_READ_DATA, FILE_SHARE_READ, FILE_SHARE_WRITE,
-            FileDispositionInfo, OPEN_EXISTING, READ_CONTROL, SYNCHRONIZE,
-            SetFileInformationByHandle,
+            FileDispositionInfo, FileIdInfo, GetFileInformationByHandleEx, OPEN_EXISTING,
+            READ_CONTROL, SECURITY_IDENTIFICATION, SECURITY_SQOS_PRESENT, SYNCHRONIZE,
+            SetFileInformationByHandle, WriteFile,
         },
-        System::Threading::{OpenProcess, PROCESS_DUP_HANDLE, PROCESS_QUERY_LIMITED_INFORMATION},
+        System::{
+            Pipes::GetNamedPipeServerProcessId,
+            Threading::{
+                CREATE_NO_WINDOW, OpenProcess, PROCESS_DUP_HANDLE,
+                PROCESS_QUERY_LIMITED_INFORMATION,
+            },
+        },
     };
+
+    fn source_frame(file: &File) -> io::Result<Vec<u8>> {
+        use windows_sys::{
+            Wdk::Foundation::{NtQueryObject, ObjectBasicInformation},
+            Win32::System::WindowsProgramming::PUBLIC_OBJECT_BASIC_INFORMATION,
+        };
+        let mut id = FILE_ID_INFO::default();
+        if unsafe {
+            GetFileInformationByHandleEx(
+                file.as_raw_handle(),
+                FileIdInfo,
+                (&mut id as *mut FILE_ID_INFO).cast(),
+                size_of::<FILE_ID_INFO>() as u32,
+            )
+        } == 0
+        {
+            return Err(io::Error::last_os_error());
+        }
+        let mut basic: PUBLIC_OBJECT_BASIC_INFORMATION = unsafe { std::mem::zeroed() };
+        let mut returned = 0;
+        if unsafe {
+            NtQueryObject(
+                file.as_raw_handle(),
+                ObjectBasicInformation,
+                (&mut basic as *mut PUBLIC_OBJECT_BASIC_INFORMATION).cast(),
+                size_of::<PUBLIC_OBJECT_BASIC_INFORMATION>() as u32,
+                &mut returned,
+            )
+        } < 0
+            || returned < 8
+        {
+            return Err(io::Error::other("Cannot inspect fixture handle authority."));
+        }
+        let mut frame = b"VDQSRC01".to_vec();
+        frame.extend_from_slice(&(file.as_raw_handle() as usize as u64).to_le_bytes());
+        frame.extend_from_slice(&id.VolumeSerialNumber.to_le_bytes());
+        frame.extend_from_slice(&id.FileId.Identifier);
+        frame.extend_from_slice(&basic.GrantedAccess.to_le_bytes());
+        Ok(frame)
+    }
 
     fn process(id: u32) -> io::Result<OwnedHandle> {
         let handle = unsafe {
@@ -38,6 +91,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     fn spawn(role: &str, name: &str, server: u32) -> io::Result<Child> {
         Command::new(std::env::current_exe()?)
             .args([role, name, &server.to_string()])
+            .creation_flags(CREATE_NO_WINDOW)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()
@@ -97,6 +151,51 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             io::stdin().read_to_end(&mut Vec::new())?;
             return Ok(());
         }
+        if role == "oversize" {
+            let name = voldiq_core::windows::wide(&std::path::PathBuf::from(&arguments[2]));
+            let handle = unsafe {
+                CreateFileW(
+                    name.as_ptr(),
+                    GENERIC_READ | GENERIC_WRITE,
+                    0,
+                    std::ptr::null(),
+                    OPEN_EXISTING,
+                    SECURITY_SQOS_PRESENT | SECURITY_IDENTIFICATION,
+                    std::ptr::null_mut(),
+                )
+            };
+            if handle == INVALID_HANDLE_VALUE {
+                return Err(io::Error::last_os_error().into());
+            }
+            let pipe = unsafe { File::from_raw_handle(handle) };
+            let mut server_pid = 0;
+            if unsafe { GetNamedPipeServerProcessId(pipe.as_raw_handle(), &mut server_pid) } == 0 {
+                return Err(io::Error::last_os_error().into());
+            }
+            assert_eq!(server_pid, arguments[3].parse::<u32>()?);
+            let bytes = vec![42; MAX_MESSAGE + 1];
+            let mut written = 0;
+            if unsafe {
+                WriteFile(
+                    pipe.as_raw_handle(),
+                    bytes.as_ptr(),
+                    bytes.len() as u32,
+                    &mut written,
+                    std::ptr::null_mut(),
+                )
+            } == 0
+            {
+                assert!(
+                    [Some(ERROR_BROKEN_PIPE as i32), Some(ERROR_NO_DATA as i32)]
+                        .contains(&io::Error::last_os_error().raw_os_error())
+                );
+            } else {
+                assert_eq!(written as usize, bytes.len());
+            }
+            io::stdin().read_to_end(&mut Vec::new())?;
+            println!("oversized_frame_completed_or_peer_closed");
+            return Ok(());
+        }
         let parent = process(arguments[3].parse()?)?;
         let result = Channel::connect(&arguments[2], parent.as_handle());
         if role == "wrong-server" {
@@ -109,6 +208,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         let mut channel = result?;
         match role {
+            "accept-raw-source" => {
+                let source = channel.receive_source()?;
+                assert_eq!(source.metadata()?.len(), 11);
+                channel.send(b"raw-source-accepted")?;
+            }
+            "reject-malformed-source" => {
+                assert_eq!(
+                    channel
+                        .receive_source()
+                        .err()
+                        .ok_or("Malformed source accepted.")?
+                        .kind(),
+                    io::ErrorKind::InvalidData
+                );
+                assert_eq!(
+                    channel.receive().unwrap_err().kind(),
+                    io::ErrorKind::NotConnected
+                );
+                println!("malformed_source_rejected");
+            }
             "echo" => {
                 assert_eq!(channel.receive()?, vec![42; MAX_MESSAGE]);
                 channel.send(b"ready")?;
@@ -197,6 +316,65 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(channel.receive()?, b"ready");
     finish(child)?;
     drop(channel);
+
+    let server = Server::create()?;
+    let mut attacker = spawn("oversize", server.name(), std::process::id())?;
+    let mut channel = server.accept(attacker.as_handle())?;
+    assert_eq!(
+        channel.receive().unwrap_err().raw_os_error(),
+        Some(ERROR_MORE_DATA as i32)
+    );
+    assert_eq!(
+        channel.receive().unwrap_err().kind(),
+        io::ErrorKind::NotConnected
+    );
+    attacker.stdin.take();
+    assert_eq!(
+        finish(attacker)?.trim(),
+        "oversized_frame_completed_or_peer_closed"
+    );
+
+    let frame_fixture = tempfile::tempdir()?;
+    let frame_path = frame_fixture.path().join("frame.bin");
+    std::fs::write(&frame_path, b"frame-proof")?;
+    use std::os::windows::fs::OpenOptionsExt;
+    let frame_source = std::fs::OpenOptions::new()
+        .access_mode(DELETE | FILE_READ_ATTRIBUTES)
+        .share_mode(FILE_SHARE_READ)
+        .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_OPEN_NO_RECALL)
+        .open(&frame_path)?;
+    let valid_frame = source_frame(&frame_source)?;
+    let server = Server::create()?;
+    let child = spawn("accept-raw-source", server.name(), std::process::id())?;
+    let mut channel = server.accept(child.as_handle())?;
+    channel.send(&valid_frame)?;
+    let mut acknowledgement = b"VDQACK01".to_vec();
+    acknowledgement.extend_from_slice(&valid_frame[16..]);
+    assert_eq!(channel.receive()?, acknowledgement);
+    assert_eq!(channel.receive()?, b"raw-source-accepted");
+    finish(child)?;
+    for kind in ["truncated", "wrong-kind", "zero-handle", "negative-handle"] {
+        let mut frame = valid_frame.clone();
+        match kind {
+            "truncated" => {
+                frame.pop();
+            }
+            "wrong-kind" => frame[..8].copy_from_slice(b"VDQPAR01"),
+            "zero-handle" => frame[8..16].fill(0),
+            "negative-handle" => frame[8..16].copy_from_slice(&u64::MAX.to_le_bytes()),
+            _ => unreachable!(),
+        }
+        let server = Server::create()?;
+        let child = spawn("reject-malformed-source", server.name(), std::process::id())?;
+        let mut channel = server.accept(child.as_handle())?;
+        channel.send(&frame)?;
+        assert!(channel.receive().is_err());
+        assert_eq!(finish(child)?.trim(), "malformed_source_rejected");
+        assert_eq!(source_frame(&frame_source)?, valid_frame);
+        assert_eq!(std::fs::read(&frame_path)?, b"frame-proof");
+    }
+    drop(frame_source);
+    frame_fixture.close()?;
 
     let server = Server::create()?;
     let mut expected = spawn("idle", "unused", std::process::id())?;
@@ -422,7 +600,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     std::fs::remove_dir(&parent_moved)?;
     stage_fixture.close()?;
     println!(
-        "{{\"maximumMessageExchanged\":true,\"invalidOutboundSizesRejected\":true,\"wrongClientRejected\":true,\"wrongServerRejected\":true,\"idleReadCancelledAndClosed\":true,\"sourceHandleTransferred\":true,\"receiverWritesDenied\":true,\"senderClosePreservedReceiverGuard\":true,\"guardedRenameError\":{rename_error},\"receiverReleaseAllowedRename\":true,\"forgedReadonlyOfferRejected\":true,\"senderHandleSurvivedRejection\":true,\"pendingDeletionSourceRejected\":true,\"overlappedSourceRejected\":true,\"reviewedPlanSourceTransferred\":true,\"metadataOnlySourceTransferred\":true,\"stageParentTransferred\":true,\"narrowStageParentRejected\":true,\"directorySourceRoleRejected\":true,\"receiverPinnedStage\":true,\"parentRenameWhileReceiverHeldError\":{parent_rename_error},\"stageRenameWhileReceiverHeldError\":{stage_rename_error},\"receiverReleaseAllowedParentRename\":true,\"ownedFixtureCleaned\":true}}"
+        "{{\"oversizedInboundRejected\":true,\"oversizedChannelClosed\":true,\"malformedSourceFramesRejected\":4,\"validRawSourceFrameAccepted\":true,\"senderSourceGuardPreservedAcrossMalformedFrames\":true,\"maximumMessageExchanged\":true,\"invalidOutboundSizesRejected\":true,\"wrongClientRejected\":true,\"wrongServerRejected\":true,\"idleReadCancelledAndClosed\":true,\"sourceHandleTransferred\":true,\"receiverWritesDenied\":true,\"senderClosePreservedReceiverGuard\":true,\"guardedRenameError\":{rename_error},\"receiverReleaseAllowedRename\":true,\"forgedReadonlyOfferRejected\":true,\"senderHandleSurvivedRejection\":true,\"pendingDeletionSourceRejected\":true,\"overlappedSourceRejected\":true,\"reviewedPlanSourceTransferred\":true,\"metadataOnlySourceTransferred\":true,\"stageParentTransferred\":true,\"narrowStageParentRejected\":true,\"directorySourceRoleRejected\":true,\"receiverPinnedStage\":true,\"parentRenameWhileReceiverHeldError\":{parent_rename_error},\"stageRenameWhileReceiverHeldError\":{stage_rename_error},\"receiverReleaseAllowedParentRename\":true,\"ownedFixtureCleaned\":true}}"
     );
     Ok(())
 }

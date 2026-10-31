@@ -1,4 +1,18 @@
-# Implementation ledger
+# Next work
+
+Current implementation baseline: `aab744c`, with the release overview optimization and its paired measurements pushed. The native executable has also rebuilt. Completion remains unproven; [product acceptance](docs/ACCEPTANCE.md) tracks the original requirements.
+
+1. Run the prepared `benchmarks/run_recycling_roundtrip_probe.ps1 -RequestUac` once only after fresh authorization. The outstanding request covers one owned four-byte source through the production launcher, admission, Rust recycling and original-location restoration. Earlier UAC consent is consumed.
+2. Complete the remaining failure/recovery gates and connect default recycling to the reviewed, current-index plan. Preserve explicit confirmation, cancellation, partial results and separate permanent deletion. Oversized inbound messages and four malformed source frames now have an ordinary native proof.
+3. Implement historical restoration with freshly acquired and verified authority. Read-only activity now includes both ledgers; an old journal ID or displayed path must not authorize a filesystem action.
+4. Finish native acceptance for the NTFS path, cancellation under load, loaded process-group memory/CPU and concurrent query responsiveness. Three release million-file map shapes and serialization are measured; those measurements do not establish 60 FPS, startup or whole-app latency.
+5. Run the final source gate, regenerate the installer from the completed source and record the final hashes. The user will test installation, launch without networking and uninstall on clean Windows, and owns visual/interaction acceptance.
+
+Keep eight declared tests at most, use no subagents or Computer Use, retain minimal interface copy, commit in English and push verified units. Reuse the single release target and remove obsolete owned compilation/preview artifacts periodically. Preserve unrelated `interface/prompts.json` and `output/` work.
+
+## Historical implementation ledger
+
+The entries below describe earlier states and historical test counts. They do not expand the current eight-test inventory or supersede the next actions above.
 
 This ledger records historical implementation steps; later entries can supersede earlier pending items. The current requirement-by-requirement status is maintained in [product acceptance](docs/ACCEPTANCE.md). The complete source verification passed on 2026-10-14 at `a2dbace`; default recycling/Undo, clean offline installation and whole-app performance remain open.
 

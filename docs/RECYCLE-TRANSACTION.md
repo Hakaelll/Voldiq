@@ -10,7 +10,15 @@ Messages are bounded to 4 KiB. Empty/oversized outbound messages are rejected be
 
 The [initial normal-process observation](../benchmarks/cleanup-channel-2026-10-30.json) runs the actual module through [this executable fixture](../crates/voldiq-core/examples/cleanup_channel_probe.rs). It verifies a maximum-size message and reply, rejected outbound sizes, a rejected client process, a rejected server process, and cancellation/closure of an idle read. That run starts and reaps only its own child processes; it never elevates, relocates files or calls Shell. Reproduce the current extended fixture with `cargo run --release -p voldiq-core --example cleanup_channel_probe` on Windows. The retained eight-test suite is unchanged.
 
-The admission session checks executable, user, role and elevation expectations before capability exchange. Cross-integrity source/parent transfer and admission/rollback passed the explicitly authorized UAC fixture below. Its PowerShell wrapper launched the helper; `Session::launch` itself has not been invoked. Malicious inbound frames and the complete admission-to-Shell transaction remain open. No desktop cleanup command exposes this channel.
+The admission session checks executable, user, role and elevation expectations before capability exchange. Cross-integrity source/parent transfer and admission/rollback passed the explicitly authorized UAC fixture below. Its PowerShell wrapper launched the helper; `Session::launch` itself has not been invoked. Tested oversized and malformed source frames are covered below; other adversarial substitutions and the complete admission-to-Shell transaction remain open. No desktop cleanup command exposes this channel.
+
+### Incoming frame rejection
+
+The [ordinary inbound proof](../benchmarks/cleanup-inbound-frames-20261031-102941-948.json) uses the production transport and its existing native example. A raw owned peer bypasses `Channel::send` to write a 4,097-byte message. The receiver returns native `ERROR_MORE_DATA`, closes the channel and refuses a subsequent read with `NotConnected`. This tests the receiving boundary rather than just the sender's size guard.
+
+The fixture constructs a source frame from a real retained file handle, queried full native identity and actual granted access. A control receiver accepts it and returns the expected acknowledgement. Four separate receivers then reject one-field mutations: a truncated frame, a stage-parent header in the source role, a zero handle and a negative handle. Each rejection closes that channel. The sender's original handle, identity, authority and eleven-byte contents survive every attempt. The control makes the other fields valid, so the wrong-role case does not rely on an independently invalid handle.
+
+The same run retains the earlier transfer, permission, peer, timeout and namespace-pin checks and cleans its own fixtures. No UAC, bin operation or additional declared test is involved. Helper command sequencing, claimed-identity substitutions, reparse races and the combined privileged transaction remain separate gates.
 
 ### Source-handle transfer
 
