@@ -1,0 +1,11 @@
+{
+  "utc": "2026-10-31T13:33:35.4083113Z",
+  "previousDistribution": "distribution-2026-10-30-current.json",
+  "currentDistribution": "distribution-2026-10-31-current.json",
+  "removedPath": "C:\\Users\\yagol\\AppData\\Local\\tauri\\x64\\d6179690-e992-460b-ae64-476693dd6a91\\MicrosoftEdgeWebView2RuntimeInstallerX64.exe",
+  "removedSha256": "F9D45CF7BEF9576D6DF50C7A7525E0BC8C26B6C3BC2C667B494AAFB062A35B6F",
+  "removedBytes": 214999248,
+  "retainedPath": "C:\\Users\\yagol\\AppData\\Local\\tauri\\x64\\d5cc3c1c-bb59-4158-aedc-db0035e44466\\MicrosoftEdgeWebView2RuntimeInstallerX64.exe",
+  "retainedSha256": "62863F0F0611A16CCF124B4F15650C3B66624504EBA74D7CDE1E2AE5D951249B",
+  "scope": "Removed only the prior project distribution runtime cache file after exact hash and running-process checks. No recursive deletion. Current runtime, executable, installer and running preview retained."
+}

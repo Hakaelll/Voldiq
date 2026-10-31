@@ -22,7 +22,7 @@ The [product acceptance record](docs/ACCEPTANCE.md) tracks the original requirem
 Install the stable Rust MSVC toolchain, Visual Studio C++ Build Tools with the Windows SDK, Node.js 22 (version 22.12 or later) or Node.js 24+, pnpm, and Microsoft Edge WebView2. Windows 10 and 11 x86-64 are the initial targets.
 
 ```powershell
-pnpm install
+pnpm install --frozen-lockfile
 cargo fetch --locked
 pnpm tauri dev
 ```
@@ -66,7 +66,7 @@ Both paths tolerate inaccessible files, report errors and support cancellation. 
 
 **Ctrl+K** opens Explorer at the scan root, clears extension/date filters and focuses the search text. It searches the loaded index, including a historical capture, without scanning again. Typing in Overview's search field opens the matching file list for its current scope. The shortcut is disabled during confirmation dialogs and operations that disable navigation.
 
-Changing a query or closing the file list cancels obsolete filtering and ranking work. Each query family keeps one running request and only its latest pending request; the overview and file list remain independent. Reloading the frontend creates a native query session that invalidates older requests. Cancellation is cooperative and does not return partial query pages.
+Changing a query or closing the file list cancels obsolete filtering and ranking work. Each query family keeps one running request and only its latest pending request; the overview and file list remain independent. Reloading the frontend creates a native query session that invalidates older requests. Cancellation is cooperative and does not return partial query pages. Indexed requests also carry their originating analysis identity. Loading another analysis clears the previous selection and rejects late replies, even when both analyses reuse the same local file IDs.
 
 The file list supports arrow keys, Home, End, Page Up and Page Down from a focused filename. Enter opens the item; Space selects it. Select the Name, Logical size or Modified header to order the indexed results; a chevron marks the active order. Distant keyboard targets fetch a bounded page before receiving focus. Large indices use a bounded scroll range while retaining normal row spacing and wheel steps.
 
