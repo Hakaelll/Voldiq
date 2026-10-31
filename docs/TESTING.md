@@ -1,6 +1,10 @@
 # Testing
 
-The automated suite contains 8 tests, reduced from 178 on 2026-10-21 at the project owner's request. This retains 4.5% of the original test cases. The other 170 cases and their unused fixtures and modules were deleted.
+The historical eight-test suite was reduced from 178 on 2026-10-21 at the project owner's request. Skyline later added geometry cases. The workbench request explicitly requires new security and adapter verification; its focused tests extend that baseline without restoring the deleted suite.
+
+The workbench source adds five agent-policy/credential/path fixtures, two durable-job/process-lease fixtures, one authorized scan/query fixture and two real headless subprocess fixtures. The MCP case uses the official SDK client against the actual binary, including invalid scope, unknown arguments and revocation after connection. Windows destructive and rename/reparse cases operate only on owned temporary files. Native connection dialogs, visual acceptance and scaling remain manual under the user's instruction; no computer use or subagents are involved. See [current workbench status](WORKBENCH-STATUS.md).
+
+The [workbench integration gate](../benchmarks/workbench-source-20261031.json) passes all six stages, including the current 20 frontend and 20 Rust cases. Its concurrent registry case repeats first-open initialization across 16 temporary databases. The job case reconciles abandoned records without touching active jobs or another owner. Historical inventory counts below describe their original release, not this expanded suite.
 
 For 0.1.0 delivery, the user accepted the outstanding manual checks. The final [source verification](../benchmarks/project-verification-release-010.json) and [distribution verification](../benchmarks/distribution-release-010.json) record fresh automated results. Historical notes below retain the scope of their original runs; deferred privileged diagnostics are not reported as newly executed.
 

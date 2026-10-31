@@ -16,6 +16,7 @@
   import RecycleBin from './components/RecycleBin.svelte';
   import CleanupActivity from './components/CleanupActivity.svelte';
   import RestorationDialog from './components/RestorationDialog.svelte';
+  import AgentConnections from './components/AgentConnections.svelte';
   import { readRecentPaths, rememberPath } from './lib/recent-paths';
   import { overviewQueries, detailQueries } from './lib/queries';
   import { createNavigationRefresh } from './lib/navigation-refresh';
@@ -897,6 +898,7 @@
               >
             </div>
           </section>
+          <AgentConnections />
         </section>
       {:else if view === 'developer'}
         {#key indexId}<DeveloperStorage

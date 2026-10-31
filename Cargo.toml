@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/voldiq-core", "src-tauri"]
+members = ["crates/voldiq-core", "crates/voldiq-headless", "src-tauri"]
 resolver = "2"
 
 [workspace.package]

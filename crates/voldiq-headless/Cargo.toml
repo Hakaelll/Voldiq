@@ -1,0 +1,20 @@
+[package]
+name = "voldiq-headless"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "voldiq-cli"
+path = "src/main.rs"
+
+[dependencies]
+voldiq-core = { path = "../voldiq-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+rmcp = { version = "3.8.0", default-features = false, features = ["server", "transport-io"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "io-std", "signal", "sync"] }
+
+[dev-dependencies]
+tempfile = "3"
+rmcp = { version = "3.8.0", default-features = false, features = ["client", "transport-child-process"] }

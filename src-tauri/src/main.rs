@@ -15,6 +15,7 @@ use std::{
 };
 use tauri::Manager;
 use tauri::{State, ipc::Channel};
+mod agent_commands;
 mod analysis_status;
 mod cleanup_commands;
 mod config_file;
@@ -154,8 +155,12 @@ fn start_scan(
     engine: State<'_, Arc<Engine>>,
     database: State<'_, SnapshotDatabase>,
 ) -> Result<u64, String> {
-    let directory = app.path().app_local_data_dir().map_err(|error| error.to_string())?;
-    let scan_lease = voldiq_core::jobs::ScanLease::acquire(&directory).map_err(|error| error.to_string())?;
+    let directory = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|error| error.to_string())?;
+    let scan_lease =
+        voldiq_core::jobs::ScanLease::acquire(&directory).map_err(|error| error.to_string())?;
     let engine = engine.inner().clone();
     let (id, cancel) = engine.begin()?;
     let operation = Operation {
@@ -710,6 +715,10 @@ fn main() {
         .manage(CleanupPlans::default())
         .manage(restore_commands::RestorationReviews::default())
         .invoke_handler(tauri::generate_handler![
+            agent_commands::list_agent_connections,
+            agent_commands::create_agent_connection,
+            agent_commands::rotate_agent_credential,
+            agent_commands::revoke_agent_connection,
             get_volumes,
             choose_folder,
             start_scan,

@@ -2,6 +2,16 @@
 
 Scanning is read-only and uses the user's current Windows permissions. Voldiq does not elevate the main application or install a resident service.
 
+## Agent boundary
+
+The workbench CLI/MCP adapter currently permits authenticated analysis only. Every connection has an OS-random individual credential, explicit capabilities, verified allowed roots, exclusions and limits. Only credential digests are persisted. Existing clients lose access on revocation or rotation. Windows metadata authorization pins ancestors, rejects reparse traversal and compares native identity; query totals come only from an authorized snapshot with sufficient exclusion coverage.
+
+Provisioning and rotation require a separate desktop/native confirmation. No agent transport exposes provisioning, approval, shell, file deletion or bin purge. The immutable-manifest human approval and execution lifecycle remains pending; this adapter has no mutation bypass while it is built.
+
+Stdio sends metadata to the local client, which may send it to an AI provider. These checks govern operations through Voldiq and do not sandbox a process with independent same-account filesystem access. Local state is not claimed tamper-proof. See [configuration, limits and tested boundaries](MCP.md).
+
+## Existing desktop guarantees
+
 Reparse points are not traversed. The scanner rejects a reparse-point scan root and records child reparse points as incomplete coverage. Metadata handles request file attributes, allow normal sharing and use `FILE_FLAG_OPEN_REPARSE_POINT`.
 
 Duplicate analysis rejects offline and recall-marked files before opening content and rechecks the opened handle. Windows content handles also use `FILE_FLAG_OPEN_NO_RECALL`, following the [native open flag contract](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew). A controlled fixture sets the offline attribute on two files and verifies zero content bytes read and no duplicate group. This does not certify every third-party cloud provider.

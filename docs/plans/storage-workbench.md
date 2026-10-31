@@ -28,7 +28,7 @@ Execution is inline, without subagents or computer use, as the user requested. T
 ## B. Shared model, authorization and jobs
 
 - [x] Add `crates/voldiq-core/src/agents.rs` and focused fixtures for explicit capabilities, canonical root authorization, exclusions, revocation, bounded policies and non-disclosing errors. Actual query/result filtering remains in the shared-service task.
-- [ ] Add durable SQLite agent/job state with transactional migrations, human provisioning, credential rotation and a single cross-process scan lease. Reuse the existing snapshot store for indexes.
+- [x] Add durable SQLite agent/job state with transactional migrations, human provisioning, credential rotation and a single cross-process scan lease. Reuse the existing snapshot store for indexes.
 - [ ] Extract reusable operation coordination from desktop ownership without dropping current `IndexId` guarantees. Add provenance, cloud state and unknown metric contracts where the existing index lacks them.
 - [ ] Verify wrong/revoked credentials, sibling paths, links, overlapping roots, concurrency, cancellation and restart. Commit and push.
 
@@ -36,7 +36,9 @@ Execution is inline, without subagents or computer use, as the user requested. T
 
 - [ ] Extend the existing cleanup preview/executor with immutable serializable manifests and explicit lifecycle states. Persist hash, principal, exact identities, policy version, expiry and audit. No agent approval endpoint.
 - [ ] Add a separate headless crate and CLI for scan/query/stats/history/plan/jobs/export, with JSON envelopes, structured errors and a read-only default.
+  Scan/query/stats/details/jobs/cancel and versioned errors are implemented and subprocess-tested. History/plan/export remain open.
 - [ ] Add official `rmcp` stdio transport, bounded schemas/results and tools that route through authorization and shared services. Verify protocol behavior with the SDK client against the real executable.
+  Transport plus seven analysis tools are implemented and verified with `rmcp` 3.8.0's real client. The broader catalogue remains open.
 - [ ] Add desktop connection management, separate human approval and revocation. Unavailable independent approval returns `needs_human_approval` without changing user data.
 - [ ] Test mutation, expiry, replay, concurrent execution and restart in temporary fixtures. Document generic stdio and current Codex configuration. Commit and push.
 

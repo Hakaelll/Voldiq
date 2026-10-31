@@ -1,6 +1,14 @@
 # Architecture
 
-Voldiq has one reusable engine crate and one desktop adapter. The engine can run without Tauri through its scan example and integration tests.
+Voldiq has one reusable engine crate, a desktop adapter and a separate headless CLI/MCP adapter. The headless binary depends on `voldiq-core` and the official MCP Rust SDK, without Tauri or a renderer.
+
+## Authorized headless services
+
+`agents` owns connection policies and digest-only credential storage. Windows authorization opens metadata handles from the volume root to the target, refuses reparse points and ambiguous path syntax, pins ancestor names and compares native root identities. Capabilities and credentials are rechecked on every call. Exclusions also match directory identity so a renamed excluded directory does not become an allowed metadata path.
+
+`jobs` stores bounded scan status and cancellation in SQLite. An OS-released `scan.lock` serializes scans across desktop and headless processes using the same state directory. Interrupted jobs are marked when the next lease is acquired and are never retried automatically. The desktop retains its existing `IndexId` publication rules; its in-memory progress is not yet mirrored into the durable job table.
+
+`service::AgentService` scans only permitted roots with verified exclusions, persists compact snapshots through the existing store and serves bounded queries from one cached index. At present a connection queries its own completed scan snapshots. It rejects broader or newly insufficient exclusion coverage before returning entries or aggregates. `voldiq-headless` implements versioned CLI output and seven `rmcp` stdio analysis tools, with bounded protocol input/output and worker concurrency. Human provisioning is a separate desktop command path with native review; agents cannot provision, rotate or approve through their transport. Agent plan approval and file execution are still pending. See [MCP](MCP.md) and [remaining coverage](WORKBENCH-COVERAGE.md).
 
 ## Engine
 
