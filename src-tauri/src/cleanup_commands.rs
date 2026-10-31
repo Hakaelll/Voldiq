@@ -109,6 +109,30 @@ mod execution_tests {
         assert!(engine.index_for(second).is_err());
         let reinstalled = engine.publish(other_index, None).unwrap();
         assert_ne!(reinstalled, second);
+        let retained = engine.index_for(reinstalled).unwrap();
+        assert!(
+            crate::snapshot_commands::finish_snapshot_load(
+                &engine,
+                Ok(scan()),
+                &AtomicBool::new(true)
+            )
+            .unwrap()
+            .is_none()
+        );
+        assert_eq!(engine.index_id().unwrap(), Some(reinstalled));
+        assert!(Arc::ptr_eq(
+            &engine.index_for(reinstalled).unwrap(),
+            &retained
+        ));
+        let loaded = crate::snapshot_commands::finish_snapshot_load(
+            &engine,
+            Ok(scan()),
+            &AtomicBool::new(false),
+        )
+        .unwrap()
+        .unwrap();
+        assert_ne!(loaded, reinstalled);
+        assert!(!Arc::ptr_eq(&engine.index_for(loaded).unwrap(), &retained));
         crate::docker_commands::verify_disk_usage_versions();
     }
 }

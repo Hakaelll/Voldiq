@@ -134,7 +134,7 @@ Docker analysis queries the local Engine API independently of filesystem scans. 
 
 ## Snapshot history
 
-Snapshots remain local in the application's data directory. SQLite stores a baseline and new versions of changed entries, so unchanged captures reuse existing entry data. Captures use transactions; cancellation and integer overflow roll back the entire write. Original Windows UTF-16 names survive persistence.
+Snapshots remain local in the application's data directory. SQLite stores a baseline and new versions of changed entries, so unchanged captures reuse existing entry data. Captures use transactions; cancellation and integer overflow roll back the entire write. Original Windows UTF-16 names survive persistence. History exposes Cancel while a native capture or load is running. Cancellation before publication keeps the previous analysis. Capture or load results that have already committed remain completed.
 
 New captures also preserve the supported developer-cache classifications for their indexed directories. Opening history uses that saved classification and measured size, independently of current tool settings. Older captures keep their original evidence without inferred cache labels.
 

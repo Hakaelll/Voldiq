@@ -1,7 +1,7 @@
 <script lang="ts">
   import { invokeIndexed } from '../lib/index-context';
   import { onMount, onDestroy, tick } from 'svelte';
-  import { invoke, isTauri } from '@tauri-apps/api/core';
+  import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
   import Icon from './Icon.svelte';
   import SnapshotChangeBars from './SnapshotChangeBars.svelte';
   import { historyTrend } from '../lib/history-trend';
@@ -34,6 +34,41 @@
   let cancelButton = $state<HTMLButtonElement>();
   let request = 0,
     comparisonRequest = 0;
+  let operationId = $state<number | null>(null);
+  let canCancel = $state(false),
+    cancelPending = $state(false);
+  let actionGeneration = 0,
+    alive = true;
+  function finishOperation(): void {
+    actionGeneration += 1;
+    operationId = null;
+    canCancel = cancelPending = false;
+  }
+  function operationChannel(): Channel<number> {
+    const owner = actionGeneration;
+    const channel = new Channel<number>();
+    channel.onmessage = (id) => {
+      if (!alive || owner !== actionGeneration)
+        void invoke('cancel_operation', { id }).catch(onerror);
+      else operationId = id;
+    };
+    return channel;
+  }
+  async function cancelOperation(): Promise<void> {
+    if (operationId === null || cancelPending) return;
+    const owner = actionGeneration;
+    const id = operationId;
+    cancelPending = true;
+    try {
+      await invoke('cancel_operation', { id });
+    } catch (problem) {
+      if (alive && owner === actionGeneration) {
+        cancelPending = false;
+        onerror(problem);
+      }
+    }
+  }
+
   const labels = {
     added: 'Added',
     removed: 'Removed',
@@ -87,8 +122,12 @@
       }
     }
   }
-  async function mutate(action: () => Promise<void>): Promise<void> {
+  async function mutate(action: () => Promise<void>, cancellableAction = false): Promise<void> {
     if (working) return;
+    const trigger = document.activeElement;
+    actionGeneration += 1;
+    canCancel = cancellableAction;
+    cancelPending = false;
     working = true;
     onbusy(true);
     comparisonRequest += 1;
@@ -97,21 +136,39 @@
     } catch (problem) {
       onerror(problem);
     } finally {
+      finishOperation();
       working = false;
       onbusy(false);
+      const completed = actionGeneration;
+      await tick();
+      if (
+        alive &&
+        completed === actionGeneration &&
+        document.activeElement === document.body &&
+        trigger instanceof HTMLElement &&
+        trigger.isConnected
+      )
+        trigger.focus();
     }
   }
   async function save(): Promise<void> {
     await mutate(async () => {
-      await invokeIndexed('save_snapshot');
-      await refresh(0);
-    });
+      const saved = await invokeIndexed<number | null>('save_snapshot', {
+        operation: operationChannel(),
+      });
+      finishOperation();
+      if (saved !== null && alive) await refresh(0);
+    }, true);
   }
   async function open(snapshot: Snapshot): Promise<void> {
     await mutate(async () => {
-      const indexId = await invoke<number>('load_snapshot', { id: snapshot.id });
-      await onload(snapshot, indexId);
-    });
+      const indexId = await invoke<number | null>('load_snapshot', {
+        id: snapshot.id,
+        operation: operationChannel(),
+      });
+      finishOperation();
+      if (indexId !== null && alive) await onload(snapshot, indexId);
+    }, true);
   }
   async function remove(id: number): Promise<void> {
     await mutate(async () => {
@@ -160,6 +217,9 @@
     if (isTauri()) void refresh(0);
   });
   onDestroy(() => {
+    alive = false;
+    actionGeneration += 1;
+    if (operationId !== null) void invoke('cancel_operation', { id: operationId }).catch(onerror);
     request += 1;
     comparisonRequest += 1;
   });
@@ -179,6 +239,11 @@
       onclick={save}
       disabled={!enabled || working || !isTauri()}><Icon name="history" />Save snapshot</button
     >
+    {#if canCancel}<button
+        onclick={cancelOperation}
+        disabled={operationId === null || cancelPending}
+        >{cancelPending ? 'Cancelling…' : 'Cancel'}</button
+      >{/if}
     <span
       >{#if loadState === 'ready'}{bytes(storage)} stored{/if}</span
     >

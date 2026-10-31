@@ -446,8 +446,8 @@ impl Store {
         .collect()
     }
 
-    pub fn load(&self, id: i64) -> Result<Index> {
-        self.load_index(id, false, None, None)
+    pub fn load(&self, id: i64, cancel: &AtomicBool) -> Result<Index> {
+        self.load_index(id, false, Some(cancel), None)
     }
 
     fn load_index(
@@ -457,6 +457,9 @@ impl Store {
         cancel: Option<&AtomicBool>,
         limit: Option<usize>,
     ) -> Result<Index> {
+        if cancel.is_some_and(|cancel| cancel.load(Ordering::Relaxed)) {
+            return Err(Error::Invalid("Snapshot loading cancelled.".into()));
+        }
         let _read_transaction = self.connection.unchecked_transaction()?;
         let (root_id, path, identity, coverage, errors) = self.connection.query_row(
             "SELECT s.root_id,r.path,r.identity,r.coverage,s.errors FROM snapshots s JOIN snapshot_roots r ON r.id=s.root_id WHERE s.id=?1",
@@ -495,7 +498,7 @@ impl Store {
                 ));
             }
             if cancel.is_some_and(|cancel| cancel.load(Ordering::Relaxed)) {
-                return Err(Error::Invalid("Snapshot resume cancelled.".into()));
+                return Err(Error::Invalid("Snapshot loading cancelled.".into()));
             }
             let data = Data::read(row)?;
             let path_id: i64 = row.get(9)?;
@@ -572,6 +575,9 @@ impl Store {
                 })
             })?
             .collect::<rusqlite::Result<_>>()?;
+        if cancel.is_some_and(|cancel| cancel.load(Ordering::Relaxed)) {
+            return Err(Error::Invalid("Snapshot loading cancelled.".into()));
+        }
         Ok(index)
     }
 

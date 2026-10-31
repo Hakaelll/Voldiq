@@ -21,6 +21,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     let fixture = tempfile::tempdir().unwrap();
     let database = tempfile::tempdir().unwrap();
     let db = database.path().join("history.db");
+    let loading = AtomicBool::new(false);
     std::fs::create_dir(fixture.path().join("nested")).unwrap();
     std::fs::write(fixture.path().join("nested/growth"), [1; 12]).unwrap();
     std::fs::write(fixture.path().join("removed"), [2; 7]).unwrap();
@@ -34,12 +35,23 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     std::fs::write(fixture.path().join("added"), [4; 14]).unwrap();
     let second = capture(fixture.path());
     let after = store.save(&second, &AtomicBool::new(false), &[]).unwrap();
+    assert!(store.save(&second, &AtomicBool::new(true), &[]).is_err());
+    assert_eq!(store.list(0, 10).unwrap().len(), 2);
     drop(store);
     let store = Store::open(&db).unwrap();
     let history = store.list(0, 10).unwrap();
     assert_eq!(history.len(), 2);
+    let cancelled = AtomicBool::new(true);
+    assert_eq!(
+        store.load(-1, &cancelled).err().unwrap().to_string(),
+        "Snapshot loading cancelled."
+    );
+    assert_eq!(
+        store.load(before, &cancelled).err().unwrap().to_string(),
+        "Snapshot loading cancelled."
+    );
     assert_eq!(history[0].id, after);
-    let loaded = store.load(before).unwrap();
+    let loaded = store.load(before, &loading).unwrap();
     assert_eq!(loaded.entries[0].logical, 33);
     assert_eq!(
         loaded
@@ -110,7 +122,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     assert_eq!(page.total, comparison.total);
     assert_eq!(page.changes.len(), 1);
     assert_eq!(page.file_changes, comparison.file_changes);
-    assert_eq!(store.load(after).unwrap().entries[0].logical, 61);
+    assert_eq!(store.load(after, &loading).unwrap().entries[0].logical, 61);
     drop(store);
     let connection = rusqlite::Connection::open(&db).unwrap();
     connection
@@ -119,7 +131,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     drop(connection);
     let mut store = Store::open(&db).unwrap();
     assert_eq!(store.list(0, 10).unwrap().len(), 2);
-    assert_eq!(store.load(after).unwrap().entries[0].logical, 61);
+    assert_eq!(store.load(after, &loading).unwrap().entries[0].logical, 61);
     let duplicates = tempfile::tempdir().unwrap();
     for name in ["first", "second"] {
         std::fs::write(duplicates.path().join(name), [7_u8; 16_384]).unwrap();

@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             baseline = id;
         }
         let start = Instant::now();
-        let loaded = store.load(id)?;
+        let loaded = store.load(id, &cancel)?;
         let load_ms = start.elapsed().as_secs_f64() * 1000.0;
         assert_eq!(loaded.entries[0].logical, index.entries[0].logical);
         let start = Instant::now();

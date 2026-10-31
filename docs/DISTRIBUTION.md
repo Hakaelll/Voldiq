@@ -2,7 +2,7 @@
 
 Voldiq builds an x64 Windows NSIS installer from the supplied artwork. Build artifacts stay in the ignored `target` directory; no download has been published.
 
-The executable and offline NSIS installer were refreshed on 2026-10-31 with persistent duplicate hashes, native index ownership, historical restoration review and the gated recycling integration. The [native launch record](../benchmarks/native-standalone-ui-preview-20261031.json) identifies the opened executable, and the [distribution record](../benchmarks/distribution-2026-10-31-standalone-ui.json) identifies the current package. Default recycling remains disabled pending the deferred combined UAC fixture. Clean-machine installation remains pending and will be checked by the user.
+The executable and offline NSIS installer were refreshed on 2026-10-31 with persistent duplicate hashes, native index ownership, historical restoration review and the gated recycling integration. The [native launch record](../benchmarks/native-snapshot-cancellation-preview-20261031.json) identifies the opened executable, and the [distribution record](../benchmarks/distribution-2026-10-31-snapshot-cancellation.json) identifies the current package. Default recycling remains disabled pending the deferred combined UAC fixture. Clean-machine installation remains pending and will be checked by the user.
 
 ## Build
 
@@ -42,7 +42,29 @@ Check the produced installer on a clean Windows machine with networking disabled
 
 Release signing and a public download are not configured. Packaging does not close the remaining product acceptance checks listed in `NEXT_TODOS.md` and `docs/TESTING.md`.
 
-## Latest corrected build, 2026-10-31
+## Latest build, 2026-10-31
+
+The snapshot cancellation working tree based on `ae36963` passes the [six-stage production source gate](../benchmarks/project-verification-snapshot-cancellation-20261031.json) with eight declared tests. `cargo build --offline --release -p voldiq --features production --bin voldiq` completes and the [current preview](../benchmarks/native-snapshot-cancellation-preview-20261031.json) opens a responding native window after decoded embedded-asset verification. History now exposes cancellation for native capture/loading. The user confirmed that the earlier corrected standalone interface displays correctly; detailed interaction acceptance remains manual.
+
+`pnpm tauri bundle --bundles nsis` replaces the installer from that verified production executable. The [distribution record](../benchmarks/distribution-2026-10-31-snapshot-cancellation.json) passes executable-level decoded JS/CSS matching plus architecture, version, offline/current-user settings, vendor signature and icon checks. The runtime download was reused. Native image and setup remain unsigned. Installation and installer payload extraction remain unverified.
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| Native x64 executable, version 0.1.0 | 13,216,256 | `A2BB2190BD8FEA26F970E5CEE055B0DD021AC8B8420A02003A57C8943DA6DEE9` |
+| NSIS installer, version 0.1.0 | 221,622,648 | `04D5DDDB9243FC4F804CE3C0F0CAEC0823793457941E24274BDFCD44B208310D` |
+| Microsoft offline runtime source, version 1.3.307.15 | 215,017,168 | `62863F0F0611A16CCF124B4F15650C3B66624504EBA74D7CDE1E2AE5D951249B` |
+
+The previous window accepted a normal close request, but PID 16504 remained running with no main-window handle. Its in-use preview executable is retained until that process exits. No forced termination or deletion of its image was performed. The cause of this shutdown delay is not established. See the current launch record for exact process and image identities.
+
+### User-owned clean-machine check
+
+1. Copy the installer to a clean x64 Windows environment and verify its SHA-256 above. Record the Windows version and whether WebView2 is initially present. Test the absent-runtime case to verify the embedded runtime installer.
+2. Disconnect networking, install for the current user and launch from the installed shortcut without development tools.
+3. Scan a disposable folder with known contents. Check totals, search, folder navigation, Explorer reveal and the installed icons. Windows Recycle Bin access should open the system bin; this does not test recycling from Voldiq.
+4. Close the application and uninstall it. Check shortcut/executable removal and the chosen user-data retention behavior.
+5. Report the initial environment and the install, offline launch, native scan and uninstall results. These checks remain pending until that report is available.
+
+## Earlier standalone correction, 2026-10-31
 
 The working tree based on `3d29649` builds with `cargo build --offline --release -p voldiq --features production --bin voldiq`. The [production source gate](../benchmarks/project-verification-standalone-ui-20261031.json) passes all six stages and eight retained tests. A no-feature optimized desktop check now fails with exit 101 at the compile-time guard. The [correction record](../benchmarks/standalone-ui-fix-20261031.json) includes exact source hashes and the rejected old-image check.
 
@@ -57,14 +79,6 @@ The [actual executable probe](../benchmarks/embedded-ui-production-20261031.json
 | Microsoft offline runtime source, version 1.3.307.15 | 215,017,168 | `62863F0F0611A16CCF124B4F15650C3B66624504EBA74D7CDE1E2AE5D951249B` |
 
 The package includes snapshot schema 5 and finite pointer-driven treemap navigation. Older schema-4 executables cannot reopen an upgraded history database. Default recycling stays disabled while the combined UAC fixture is deferred.
-
-### User-owned clean-machine check
-
-1. Copy the installer to a clean x64 Windows environment and verify its SHA-256 above. Record the Windows version and whether WebView2 is initially present. Test the absent-runtime case to verify the embedded runtime installer.
-2. Disconnect networking, install for the current user and launch from the installed shortcut without development tools.
-3. Scan a disposable folder with known contents. Check totals, search, folder navigation, Explorer reveal and the installed icons. Windows Recycle Bin access should open the system bin; this does not test recycling from Voldiq.
-4. Close the application and uninstall it. Check shortcut/executable removal and the chosen user-data retention behavior.
-5. Report the initial environment and the install, offline launch, native scan and uninstall results. These checks remain pending until that report is available.
 
 ## Correction to earlier build evidence
 

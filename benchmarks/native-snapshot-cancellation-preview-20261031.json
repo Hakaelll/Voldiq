@@ -1,0 +1,16 @@
+{
+  "utc": "2026-10-31T15:18:27.1077077Z",
+  "baseCommit": "ae369635879d90aa5e0df731dd4d3ee364aa0cdf",
+  "executable": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\A2BB2190BD8FEA26F970E5CEE055B0DD021AC8B8420A02003A57C8943DA6DEE9\\voldiq.exe",
+  "sha256": "A2BB2190BD8FEA26F970E5CEE055B0DD021AC8B8420A02003A57C8943DA6DEE9",
+  "processId": 17000,
+  "windowTitle": "Voldiq",
+  "responding": true,
+  "windowHandlePresent": true,
+  "embeddedUiVerified": true,
+  "previousPreviewProcessId": 16504,
+  "previousPreviewStillRunning": true,
+  "previousPreviewVisibleWindow": false,
+  "obsoletePreviewBytesRemoved": 0,
+  "scope": "Decoded production-asset gate and native window metadata. Previous window closed normally but its process has not exited, so its in-use image is retained. No Computer Use, screenshots, capture/load interaction, UAC or recycling fixture."
+}

@@ -1,0 +1,60 @@
+{
+  "recordedUtc": "2026-10-31T15:08:33.571871+00:00",
+  "baseCommit": "ae369635879d90aa5e0df731dd4d3ee364aa0cdf",
+  "originalFailure": "History did not receive operation IDs for capture/loading; native loading discarded the cancellation flag.",
+  "implementedBehavior": [
+    "Capture/loading acknowledge the owning native operation ID through a channel",
+    "History exposes Cancel only while the native capture/load is pending",
+    "Cancelled loading returns no publication and retains the prior analysis",
+    "Publication and cancellation acknowledgement share the active-operation mutex",
+    "Successful committed captures return a saved ID even if cancellation arrives afterward",
+    "Late channel acknowledgements are cancelled by action generation and work is cancelled on unmount",
+    "Cancel disappears before frontend refresh/adoption and connected trigger focus is restored without stealing moved focus"
+  ],
+  "retainedTestEvidence": [
+    "Cancelled capture adds no snapshot record",
+    "Cancelled loading short-circuits even for an absent snapshot ID",
+    "The previous saved captures remain loadable after cancellation",
+    "Cancelled native publication retains exactly the prior identity and Arc",
+    "A subsequent native publication succeeds with a different identity and Arc"
+  ],
+  "counterexample": {
+    "mutation": "Store::load passes no cancellation flag to load_index",
+    "command": "cargo test --offline --release -p voldiq-core --test snapshots -- --nocapture",
+    "exitCode": 101,
+    "failure": "Absent-ID load queries SQLite instead of returning Snapshot loading cancelled.",
+    "restored": true
+  },
+  "declaredTestsAdded": 0,
+  "declaredTestsTotal": 8,
+  "sourceVerification": "project-verification-snapshot-cancellation-20261031.json",
+  "sourceVerificationCheckedUtc": "2026-10-31T15:02:26.2496693Z",
+  "limitations": "Cooperative cancellation does not interrupt an already running SQLite call or connection-mutex wait. Native channel/focus timing and large-index cancellation latency remain manual or unmeasured. Comparison, deletion and compaction are outside this capture/load control.",
+  "scope": "Retained real-filesystem/SQLite case, native publication-boundary case and source integration. No Computer Use, screenshots, UAC or recycling fixture.",
+  "sources": {
+    "crates/voldiq-core/src/snapshots.rs": "1def8a7f04d907ba74ccd5905a839dc3c1d1d2f527850f78c3435c4efd856aa5",
+    "crates/voldiq-core/tests/snapshots.rs": "dc40435a89c90f18bf85bfb7cdcf1dc83649b4b2492575963bc1a5b49a77f38c",
+    "crates/voldiq-core/examples/snapshot_benchmark.rs": "538663b12d8cd8445171f7b7cd1b285ce0305924801d508ebcb12e15d9ececfa",
+    "src-tauri/src/snapshot_commands.rs": "fe7ac4948d2b88b89c2878279efc68208507fc2b0c47752ecc35bebb13befc77",
+    "src-tauri/src/cleanup_commands.rs": "f91f2dcb82eb8593918e79c34af70e0e302a78da3fcbbe3f4da65a8437fb8607",
+    "frontend/components/History.svelte": "e1603d014229c461ce71fa25ddfbe2bf2170a68d0d388727c58b9f9cc9f49398"
+  },
+  "nativeBuild": {
+    "command": "cargo build --offline --release -p voldiq --features production --bin voldiq",
+    "exitCode": 0
+  },
+  "nativePreview": "native-snapshot-cancellation-preview-20261031.json",
+  "distribution": "distribution-2026-10-31-snapshot-cancellation.json",
+  "packaging": {
+    "command": "pnpm tauri bundle --bundles nsis",
+    "exitCode": 0
+  },
+  "shutdownObservation": {
+    "previousPid": 16504,
+    "normalCloseSent": true,
+    "exitedWithinTenSeconds": false,
+    "subsequentMainWindowHandle": 0,
+    "previousInUseImageRetained": true,
+    "causeEstablished": false
+  }
+}
