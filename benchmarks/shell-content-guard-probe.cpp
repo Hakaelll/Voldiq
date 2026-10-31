@@ -1,4 +1,4 @@
-// Owned disposable fixtures only. Optional --direct; no elevation, bin enumeration or empty-bin action.
+// Owned disposable fixtures only. --undelete enumerates only to select its exact own item; no elevation or empty-bin action.
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <shobjidl.h>
@@ -60,6 +60,41 @@ static ComPtr<IShellItem> Item(const std::wstring& path) {
     return item;
 }
 
+static ComPtr<IShellItem> VirtualBinItem(const std::wstring& path, FILE_ID_INFO expected, IContextMenu** menu) {
+    ComPtr<IShellItem> bin;
+    Check(SHGetKnownFolderItem(FOLDERID_RecycleBinFolder, KF_FLAG_DEFAULT, nullptr, IID_PPV_ARGS(&bin)));
+    ComPtr<IShellFolder2> folder;
+    Check(bin->BindToHandler(nullptr, BHID_SFObject, IID_PPV_ARGS(&folder)));
+    ComPtr<IEnumIDList> items;
+    Check(folder->EnumObjects(nullptr, SHCONTF_FOLDERS | SHCONTF_NONFOLDERS, &items));
+    ComPtr<IShellItem> selected;
+    for (;;) {
+        PITEMID_CHILD child = nullptr;
+        ULONG fetched = 0;
+        const auto next = items->Next(1, &child, &fetched);
+        Check(next);
+        if (next == S_FALSE || fetched == 0) break;
+        ComPtr<IShellItem> item;
+        const auto created = SHCreateItemWithParent(nullptr, folder.Get(), child, IID_PPV_ARGS(&item));
+        if (FAILED(created)) { CoTaskMemFree(child); throw created; }
+        PWSTR text = nullptr;
+        if (FAILED(item->GetDisplayName(SIGDN_FILESYSPATH, &text))) { CoTaskMemFree(child); continue; }
+        const bool matches = _wcsicmp(path.c_str(), text) == 0;
+        CoTaskMemFree(text);
+        if (!matches) { CoTaskMemFree(child); continue; }
+        Require(!selected);
+        auto metadata = Open(path, FILE_READ_ATTRIBUTES, 7);
+        Require(Same(Identity(metadata.get()), expected));
+        PCUITEMID_CHILD source = child;
+        const auto menuResult = folder->GetUIObjectOf(nullptr, 1, &source, IID_IContextMenu, nullptr, reinterpret_cast<void**>(menu));
+        CoTaskMemFree(child);
+        Check(menuResult);
+        selected = item;
+    }
+    Require(selected != nullptr);
+    return selected;
+}
+
 class Sink final : public RuntimeClass<RuntimeClassFlags<ClassicCom>, IFileOperationProgressSink> {
 public:
     HRESULT deleteResult = E_PENDING, moveResult = E_PENDING;
@@ -103,12 +138,87 @@ static ComPtr<IFileOperation> Operation(DWORD flags) {
 struct Observation {
     bool guarded = false, recycled = false, restored = false, contentPreserved = false, cleanup = false;
     bool binIdentityMatches = false, sourceAfter = true, aborted = true;
+    bool directMove = false, collisionPreserved = false, recoveryUsed = false;
+    bool binMetadataPresent = false, binMetadataRemoved = false, orphanMetadataCleaned = false;
+    bool virtualItem = false;
+    bool undelete = false;
+    HRESULT collisionResult = E_PENDING;
     DWORD writeError = 0, deleteFlags = 0;
     UINT deleteCalls = 0, restoreCalls = 0;
     HRESULT perform = E_PENDING, postDelete = E_PENDING, restorePerform = E_PENDING, postRestore = E_PENDING, error = S_OK;
 };
 
-static Observation Experiment(const std::wstring& directory, bool guarded, bool direct) {
+static void RestoreObserved(IShellItem* recycled, const std::wstring& directory, bool guarded, Observation& result) {
+    auto restoreSink = Microsoft::WRL::Make<Sink>();
+    Require(restoreSink != nullptr);
+    auto restore = Operation(FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_RENAMEONCOLLISION | FOFX_EARLYFAILURE);
+    auto parent = Item(directory);
+    Check(restore->MoveItem(recycled, parent.Get(), guarded ? L"guarded.bin" : L"baseline.bin", restoreSink.Get()));
+    result.restorePerform = restore->PerformOperations();
+    BOOL restoreAborted = TRUE;
+    Check(restore->GetAnyOperationsAborted(&restoreAborted));
+    result.postRestore = restoreSink->moveResult;
+    result.restoreCalls = restoreSink->moveCalls;
+    Require(SUCCEEDED(result.restorePerform) && !restoreAborted && result.restoreCalls == 1 && SUCCEEDED(result.postRestore));
+}
+
+static void DirectRestore(IShellItem* recycled, const std::wstring& directory, bool guarded,
+    const std::wstring& path, const std::wstring& binPath, FILE_ID_INFO original, Observation& result) {
+    ComPtr<IShellItem> binParent;
+    Check(recycled->GetParent(&binParent));
+    ComPtr<ITransferSource> transfer;
+    Check(binParent->BindToHandler(nullptr, BHID_Transfer, IID_PPV_ARGS(&transfer)));
+    auto destination = Item(directory);
+    auto occupied = Open(path, GENERIC_READ | GENERIC_WRITE | DELETE, FILE_SHARE_READ, CREATE_NEW);
+    const BYTE marker[] = {9, 8, 7, 6};
+    DWORD written = 0;
+    WinCheck(WriteFile(occupied.get(), marker, 4, &written, nullptr) != FALSE);
+    Require(written == 4);
+    const auto replacement = Identity(occupied.get());
+    ComPtr<IShellItem> moved;
+    const wchar_t* name = guarded ? L"guarded.bin" : L"baseline.bin";
+    result.collisionResult = transfer->MoveItem(recycled, destination.Get(), name, TSF_FAIL_EXIST, &moved);
+    auto remaining = Open(binPath, FILE_READ_ATTRIBUTES, 7);
+    auto replacementAtPath = Open(path, FILE_READ_ATTRIBUTES, 7);
+    Require(!moved && Same(Identity(remaining.get()), original) && Same(Identity(replacementAtPath.get()), replacement));
+    remaining.reset(); replacementAtPath.reset();
+    BYTE actual[4]{}; DWORD count = 0; LARGE_INTEGER zero{};
+    WinCheck(SetFilePointerEx(occupied.get(), zero, nullptr, FILE_BEGIN) != FALSE);
+    WinCheck(ReadFile(occupied.get(), actual, 4, &count, nullptr) != FALSE);
+    Require(count == 4 && std::memcmp(actual, marker, 4) == 0);
+    result.collisionPreserved = true;
+    FILE_DISPOSITION_INFO disposition{TRUE};
+    WinCheck(SetFileInformationByHandle(occupied.get(), FileDispositionInfo, &disposition, sizeof(disposition)) != FALSE);
+    occupied.reset();
+    Require(!Exists(path));
+    result.restorePerform = transfer->MoveItem(recycled, destination.Get(), name, TSF_FAIL_EXIST, &moved);
+    Check(result.restorePerform);
+    Require(moved != nullptr);
+    PWSTR movedPath = nullptr;
+    Check(moved->GetDisplayName(SIGDN_FILESYSPATH, &movedPath));
+    const std::wstring actualPath(movedPath);
+    CoTaskMemFree(movedPath);
+    Require(_wcsicmp(actualPath.c_str(), path.c_str()) == 0);
+    result.postRestore = result.restorePerform;
+    result.directMove = true;
+}
+
+static HRESULT RestoreVerb(IContextMenu* menu) {
+    const auto popup = CreatePopupMenu();
+    WinCheck(popup != nullptr);
+    const auto queried = menu->QueryContextMenu(popup, 0, 1, 0x7fff, CMF_NORMAL);
+    if (FAILED(queried)) { DestroyMenu(popup); throw queried; }
+    CMINVOKECOMMANDINFO info{};
+    info.cbSize = sizeof(info);
+    info.fMask = CMIC_MASK_FLAG_NO_UI | CMIC_MASK_NOASYNC;
+    info.lpVerb = "undelete";
+    info.nShow = SW_HIDE;
+    const auto result = menu->InvokeCommand(&info);
+    DestroyMenu(popup);
+    return result;
+}
+
+static Observation Experiment(const std::wstring& directory, bool guarded, bool direct, bool directMove, bool undelete) {
     Observation result{};
     result.guarded = guarded;
     const auto path = directory + (guarded ? L"\\guarded.bin" : L"\\baseline.bin");
@@ -175,26 +285,61 @@ static Observation Experiment(const std::wstring& directory, bool guarded, bool 
             Check(sink->recycled->GetDisplayName(SIGDN_FILESYSPATH, &binPath));
             std::wstring retainedPath(binPath);
             CoTaskMemFree(binPath);
+            const auto separator = retainedPath.find_last_of(L"\\/");
+            Require(separator != std::wstring::npos && retainedPath.substr(separator + 1, 2) == L"$R");
+            std::wstring metadataPath = retainedPath;
+            metadataPath[separator + 2] = L'I';
+            auto binMetadata = Open(metadataPath, DELETE | FILE_READ_DATA | FILE_READ_ATTRIBUTES, 7);
+            const auto expectedMetadata = Identity(binMetadata.get());
+            binMetadata.reset();
+            result.binMetadataPresent = true;
             auto inBin = Open(retainedPath, FILE_READ_ATTRIBUTES, 7);
             result.binIdentityMatches = Same(original, Identity(inBin.get()));
             inBin.reset();
             Require(result.binIdentityMatches && !Exists(path));
-            auto restoreSink = Microsoft::WRL::Make<Sink>();
-            Require(restoreSink != nullptr);
-            auto restore = Operation(FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_RENAMEONCOLLISION | FOFX_EARLYFAILURE);
-            auto parent = Item(directory);
-            Check(restore->MoveItem(sink->recycled.Get(), parent.Get(), guarded ? L"guarded.bin" : L"baseline.bin", restoreSink.Get()));
-            result.restorePerform = restore->PerformOperations();
-            BOOL restoreAborted = TRUE;
-            Check(restore->GetAnyOperationsAborted(&restoreAborted));
-            result.postRestore = restoreSink->moveResult;
-            result.restoreCalls = restoreSink->moveCalls;
-            Require(SUCCEEDED(result.restorePerform) && !restoreAborted && result.restoreCalls == 1 && SUCCEEDED(result.postRestore));
+            ComPtr<IContextMenu> restoreMenu;
+            if (undelete) {
+                sink->recycled = VirtualBinItem(retainedPath, original, &restoreMenu);
+                result.virtualItem = true;
+            }
+            if (undelete) {
+                result.restorePerform = RestoreVerb(restoreMenu.Get());
+                Check(result.restorePerform);
+                result.postRestore = result.restorePerform;
+                result.undelete = true;
+            } else if (directMove) {
+                try {
+                    DirectRestore(sink->recycled.Get(), directory, guarded, path, retainedPath, original, result);
+                } catch (HRESULT error) {
+                    result.error = error;
+                    if (!Exists(path)) {
+                        auto retained = Open(retainedPath, FILE_READ_ATTRIBUTES, 7);
+                        Require(Same(original, Identity(retained.get())));
+                        retained.reset();
+                        result.recoveryUsed = true;
+                        RestoreObserved(sink->recycled.Get(), directory, guarded, result);
+                    }
+                }
+            } else {
+                RestoreObserved(sink->recycled.Get(), directory, guarded, result);
+            }
             auto restored = Open(path, GENERIC_READ, 7);
             Require(Same(original, Identity(restored.get())));
             ReadOriginal(restored.get());
             result.restored = true;
             result.contentPreserved = true;
+            restoreMenu.Reset();
+            sink->recycled.Reset();
+            result.binMetadataRemoved = !Exists(metadataPath);
+            if (!result.binMetadataRemoved) {
+                auto currentMetadata = Open(metadataPath, DELETE | FILE_READ_ATTRIBUTES, FILE_SHARE_READ);
+                Require(Same(expectedMetadata, Identity(currentMetadata.get())));
+                FILE_DISPOSITION_INFO disposition{TRUE};
+                WinCheck(SetFileInformationByHandle(currentMetadata.get(), FileDispositionInfo, &disposition, sizeof(disposition)) != FALSE);
+                currentMetadata.reset();
+                result.orphanMetadataCleaned = !Exists(metadataPath);
+                Require(result.orphanMetadataCleaned);
+            }
         } else {
             Require(!result.recycled && result.sourceAfter);
             auto remaining = Open(path, GENERIC_READ, 7);
@@ -221,16 +366,22 @@ static void Print(const Observation& item) {
         "\"deleteCallbacks\":%u,\"deleteFlags\":%lu,\"aborted\":%s,\"sourceRemained\":%s,"
         "\"recycled\":%s,\"binIdentityMatched\":%s,\"writeOpenError\":%lu,"
         "\"restorePerformHr\":\"0x%08lx\",\"postRestoreHr\":\"0x%08lx\",\"restoreCallbacks\":%u,"
-        "\"restored\":%s,\"contentPreserved\":%s,\"fixtureFileCleaned\":%s,\"error\":\"0x%08lx\"}",
+        "\"restored\":%s,\"contentPreserved\":%s,\"fixtureFileCleaned\":%s,\"error\":\"0x%08lx\","
+        "\"directMove\":%s,\"collisionPreserved\":%s,\"recoveryUsed\":%s,\"collisionHr\":\"0x%08lx\","
+        "\"binMetadataPresent\":%s,\"binMetadataRemoved\":%s,\"orphanMetadataCleaned\":%s,\"virtualItem\":%s,\"undelete\":%s}",
         item.guarded ? "true" : "false", static_cast<unsigned long>(item.perform), static_cast<unsigned long>(item.postDelete),
         item.deleteCalls, item.deleteFlags, item.aborted ? "true" : "false", item.sourceAfter ? "true" : "false",
         item.recycled ? "true" : "false", item.binIdentityMatches ? "true" : "false", item.writeError,
         static_cast<unsigned long>(item.restorePerform), static_cast<unsigned long>(item.postRestore), item.restoreCalls,
-        item.restored ? "true" : "false", item.contentPreserved ? "true" : "false", item.cleanup ? "true" : "false", static_cast<unsigned long>(item.error));
+        item.restored ? "true" : "false", item.contentPreserved ? "true" : "false", item.cleanup ? "true" : "false", static_cast<unsigned long>(item.error),
+        item.directMove ? "true" : "false", item.collisionPreserved ? "true" : "false", item.recoveryUsed ? "true" : "false", static_cast<unsigned long>(item.collisionResult),
+        item.binMetadataPresent ? "true" : "false", item.binMetadataRemoved ? "true" : "false", item.orphanMetadataCleaned ? "true" : "false", item.virtualItem ? "true" : "false", item.undelete ? "true" : "false");
 }
 
 int wmain(int argc, wchar_t** argv) {
-    const bool direct = argc == 2 && std::wcscmp(argv[1], L"--direct") == 0;
+    const bool undelete = argc == 2 && std::wcscmp(argv[1], L"--undelete") == 0;
+    const bool directMove = argc == 2 && std::wcscmp(argv[1], L"--direct-move") == 0;
+    const bool direct = undelete || directMove || (argc == 2 && std::wcscmp(argv[1], L"--direct") == 0);
     if (argc != 1 && !direct) return 2;
     HRESULT initialized = CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED);
     if (FAILED(initialized)) return 3;
@@ -245,10 +396,10 @@ int wmain(int argc, wchar_t** argv) {
         const std::wstring name = std::wstring(L"voldiq-shell-guard-") + suffix;
         const std::wstring fixture = std::wstring(temporary) + name;
         WinCheck(CreateDirectoryW(fixture.c_str(), nullptr) != FALSE);
-        Observation baseline = Experiment(fixture, false, direct);
+        Observation baseline = Experiment(fixture, false, direct, directMove, undelete);
         Observation guarded{};
         if (baseline.recycled && baseline.restored && baseline.cleanup && SUCCEEDED(baseline.error))
-            guarded = Experiment(fixture, true, direct);
+            guarded = Experiment(fixture, true, direct, directMove, undelete);
         DWORD attributes = GetFileAttributesW(fixture.c_str());
         bool cleanup = attributes != INVALID_FILE_ATTRIBUTES && !(attributes & FILE_ATTRIBUTE_REPARSE_POINT) &&
             RemoveDirectoryW(fixture.c_str()) != FALSE;
@@ -259,6 +410,7 @@ int wmain(int argc, wchar_t** argv) {
         std::printf(",\"fixtureDirectoryCleaned\":%s}\n", cleanup ? "true" : "false");
         exit = cleanup && baseline.recycled && baseline.restored && baseline.cleanup &&
             guarded.recycled && guarded.restored && guarded.cleanup &&
+            (!directMove || (baseline.directMove && guarded.directMove && baseline.collisionPreserved && guarded.collisionPreserved)) &&
             SUCCEEDED(baseline.error) && SUCCEEDED(guarded.error) ? 0 : 1;
     } catch (HRESULT error) { std::printf("{\"fatalError\":\"0x%08lx\"}\n", static_cast<unsigned long>(error)); }
     CoUninitialize();

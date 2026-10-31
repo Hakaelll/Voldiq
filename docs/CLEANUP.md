@@ -292,10 +292,10 @@ Build and run from an x64 Visual Studio Developer PowerShell, at the repository 
 
 ```powershell
 New-Item -ItemType Directory -Force target/probes | Out-Null
-cl.exe /nologo /std:c++17 /EHsc /W4 /WX /O2 /DUNICODE /D_UNICODE benchmarks/shell-content-guard-probe.cpp /Fotarget/probes/shell-content-guard-probe.obj /Fetarget/probes/shell-content-guard-probe.exe /link ole32.lib shell32.lib
+cl.exe /nologo /std:c++17 /EHsc /W4 /WX /O2 /DUNICODE /D_UNICODE benchmarks/shell-content-guard-probe.cpp /Fotarget/probes/shell-content-guard-probe.obj /Fetarget/probes/shell-content-guard-probe.exe /link ole32.lib shell32.lib uuid.lib user32.lib
 if ($LASTEXITCODE -ne 0) { throw 'Probe compilation failed.' }
 & ./target/probes/shell-content-guard-probe.exe
 if ($LASTEXITCODE -ne 0) { throw 'Inspect the failed observation before running again.' }
 ```
 
-The executable accepts no arguments. It emits the fixture GUID and per-case JSON results. A nonzero exit or `fixtureFileCleaned = false` requires checking the owned fixture before another run. The recorded successful run hashes both source and executable; temporary compiler products were removed afterward. This probe is separate from the retained eight-test suite and does not enable the application executor.
+The default mode uses the observed general Shell operation. `--direct` uses dedicated recycling with observed restoration; `--direct-move` adds direct no-overwrite restoration and an occupied-name check. `--undelete` compares Windows' own restore command on exactly the fixture's bin item. Each mode emits the fixture GUID and per-case JSON results. A nonzero exit or `fixtureFileCleaned = false` requires checking the owned fixture before another run. The recorded successful run hashes both source and executable; temporary compiler products were removed afterward. This probe is separate from the retained eight-test suite and does not enable the application executor. See [the restoration comparison](RECYCLE-TRANSACTION.md#restoration-control-and-collision-behavior) for current evidence and limits.
