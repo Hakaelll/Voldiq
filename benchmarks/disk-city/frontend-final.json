@@ -1,0 +1,44 @@
+{
+  "checkedUtc": "2026-10-31T20:50:50.350519+00:00",
+  "sourceCommit": "5d9d50012081b9b6307fd5b9b741bc5ec1afecf3",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "checks": [
+    {
+      "command": "pnpm check",
+      "exitCode": 0,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "command": "pnpm test",
+      "exitCode": 0,
+      "passed": 20
+    },
+    {
+      "command": "pnpm tauri build --bundles nsis",
+      "exitCode": 0
+    },
+    {
+      "command": "node scripts/disk_city_smoke.mjs",
+      "exitCode": 0,
+      "runtimeErrors": 0,
+      "idleDraws": 0,
+      "workerFallback": true,
+      "cancelledWorkerLateError": true
+    }
+  ],
+  "preview": {
+    "Id": 7316,
+    "Preview": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\471F803CCDB72D75C351F84E35F6B96B433229852831267CB4815F262A14CB61\\voldiq.exe",
+    "Sha256": "471F803CCDB72D75C351F84E35F6B96B433229852831267CB4815F262A14CB61"
+  },
+  "frontendAssetsSha256": {
+    "dist/index.html": "58c3651869cc9681d69e2fd06cc677fd0767a23960c8b49c1d42779274fbdc35",
+    "dist/symbol.png": "5fb3ac0b0df1c1e3375e30763e3852a748c9014c24e89b5d0e8e2d07fd60f256",
+    "dist/wordmark.png": "b60ca1cc83c1a3a0eef166cc31b833fc0d95e0dacf5d3c1cf09d7f63a411a0d1",
+    "dist/assets/city.worker-DLxzT0Wm.js": "97cceb4c907c9a84374a7687a0d59b33b777c1701de77989bbba60fed3ad177b",
+    "dist/assets/index-CF7oKBnm.css": "147fb101794f2f52b2ec79d9fa8fad7fa928a6d718684707879746af46fc9a3e",
+    "dist/assets/index-DJrV2ioQ.js": "fd49aa0ab054cf0dd80e1afeb14e435029d05a37b92796832e6d9a1a78fcb6d9"
+  },
+  "sourceGateNote": "source-gate.json covers the full Rust source gate on the working tree before the final UI refinement. This receipt records the later frontend and native verification; no backend Rust source changed after the full gate."
+}

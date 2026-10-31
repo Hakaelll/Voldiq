@@ -1,0 +1,6 @@
+{
+  "captured": "2026-10-31T20:05:20.275Z",
+  "root": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\disk-city-fixture",
+  "platform": "Windows native Tauri WebView2",
+  "text": "Select a drive\nBook 13 (C:\\) · NTFS\nChoose folder\nRecent\nC:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\disk-city-fixture\nC:\\\nCtrl K\nStorage overview\n\nC:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\disk-city-fixture\n\nRescan\nScan complete\n386 files · 12 MiB logical · 0.1 s\n31/10/2026, 21:05:20\nScan root\nBook 13\nUsed on volume\n189.3 GiB\nFree space\n31.8 GiB\nTotal capacity\n221.1 GiB\n85.6%\nIndexed logical size\n12 MiB\n\n386 files\n\nLargest items\nSee all\nMedia\n3.1 MiB\nPhotographs\n2.7 MiB\nSource\n2.2 MiB\nArchives\n1.8 MiB\nDocuments\n1.3 MiB\nAudio\n909.5 KiB\nTiny files\n53.2 KiB\nRead me & inspect.txt\n32 B\nEmpty file.txt\n0 B\nEmpty folder\n0 B\nStorage map\nLogical size\nUnique allocation\nMap\nList\n\\\\?\\C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\disk-city-fixture\n12 MiB\n386 files\nFile types\n.mp4\n.jpg\n.rs\n.zip\n.mp4\n3.1 MiB\n14 files\n.jpg\n2.7 MiB\n14 files\n.rs\n2.2 MiB\n14 files\n.zip\n1.8 MiB\n14 files\n.pdf\n1.3 MiB\n14 files\n.flac\n909.5 KiB\n14 files\n.json\n53.2 KiB\n300 files\n.txt\n32 B\n2 files\nVoldiq 0.1.0\n395 entries"
+}

@@ -169,6 +169,19 @@ async function main() {
     await client.click('Skyline');
     await client.until("document.querySelector('.storage-map')?.dataset.ready==='true'");
     const before = await client.evaluate('document.querySelector(".storage-map").dataset.layout');
+    for (const choice of ['Files', 'Depth', 'Modified']) await client.click(choice);
+    await client.until("document.querySelector('.storage-map')?.dataset.ready==='true'");
+    assert.equal(
+      await client.evaluate('document.querySelector(".storage-map").dataset.layout'),
+      before,
+      'height changes must not relayout',
+    );
+    for (const choice of ['Size', 'Age', 'Type']) await client.click(choice);
+    assert.equal(
+      await client.evaluate('document.querySelector(".storage-map").dataset.layout'),
+      before,
+      'color changes must not relayout',
+    );
     const scanStatus = await client.evaluate('document.querySelector(".scan-status").innerText');
     await client.click('Treemap');
     assert.equal(
@@ -218,6 +231,7 @@ async function main() {
         await client.click('Fit');
         await frame();
         samples.push({
+          dataset: 'root',
           run,
           variant,
           ...(await client.evaluate(
@@ -246,6 +260,8 @@ async function main() {
     await client.until("document.querySelector('.details-panel h2')?.textContent==='Media'");
     await client.capture(resolve(output, 'city-inspector-1366.png'), 1366, 768);
     captures.push('city-inspector-1366.png');
+    await client.capture(resolve(output, 'city-inspector-1000.png'), 1000, 768);
+    captures.push('city-inspector-1000.png');
     await client.evaluate(
       "document.querySelector('.navigation').dispatchEvent(new PointerEvent('pointerenter',{bubbles:false}))",
     );
@@ -288,6 +304,46 @@ async function main() {
     await client.until("document.querySelector('.storage-map')?.dataset.ready==='true'");
     await client.capture(resolve(output, 'city-dense-1920.png'), 1920, 1080);
     captures.push('city-dense-1920.png');
+    for (let run = 0; run < 5; run++)
+      for (const variant of ['flat', 'basic', 'full']) {
+        await client.click(variant === 'flat' ? 'Treemap' : 'Skyline');
+        await client.until("document.querySelector('.storage-map')?.dataset.ready==='true'");
+        if (variant !== 'flat')
+          await client.evaluate(
+            `(()=>{const e=[...document.querySelectorAll('.map-camera-tools input')].find(e=>e.type==='checkbox');if(e.checked!==${variant === 'full'})e.click()})()`,
+          );
+        await client.click('Fit');
+        await frame();
+        samples.push({
+          dataset: 'dense',
+          run,
+          variant,
+          ...(await client.evaluate(
+            `(()=>{const m=document.querySelector('.storage-map');return {drawMs:Number(m.dataset.drawMs),layoutMs:Number(m.dataset.layoutMs),geometryMs:Number(m.dataset.geometryMs),shadowMs:Number(m.dataset.shadowMs),projectionMs:Number(m.dataset.projectionMs),orderingMs:Number(m.dataset.orderingMs),blocks:Number(m.dataset.blocks),jsHeapBytes:performance.memory?.usedJSHeapSize??null}})()`,
+          )),
+        });
+      }
+    await client.click('Treemap');
+    await client.evaluate(
+      "window.__originalWorker=window.Worker;window.Worker=class{constructor(){throw new Error('Worker capability unavailable for fallback test')}}",
+    );
+    await client.click('Skyline');
+    await client.until("document.querySelector('.storage-map')?.dataset.ready==='true'");
+    await client.evaluate('window.Worker=window.__originalWorker;delete window.__originalWorker');
+    await client.click('Treemap');
+    await client.evaluate(
+      `(()=>{const Native=window.Worker;window.__originalWorker=Native;window.Worker=class extends Native{delivered=false;constructor(...args){super(...args);this.addEventListener('message',()=>{this.delivered=true})}terminate(){const late=!this.delivered&&this.onerror;super.terminate();if(late)setTimeout(()=>late(new Event('error')),10)}}})()`,
+    );
+    await client.click('Skyline');
+    for (const choice of ['Files', 'Depth', 'Modified']) await client.click(choice);
+    await client.until("document.querySelector('.storage-map')?.dataset.ready==='true'");
+    await new Promise((done) => setTimeout(done, 120));
+    assert.equal(
+      await client.evaluate("document.querySelector('.storage-map')?.dataset.ready"),
+      'true',
+      'late errors from cancelled workers must not cancel the latest scene',
+    );
+    await client.evaluate('window.Worker=window.__originalWorker;delete window.__originalWorker');
     assert.equal(client.errors.length, 0, JSON.stringify(client.errors));
     await writeFile(
       resolve(output, 'native-smoke.json'),

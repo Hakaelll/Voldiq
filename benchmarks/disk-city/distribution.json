@@ -1,0 +1,80 @@
+{
+  "checkedUtc": "2026-10-31T20:48:48.1586007Z",
+  "checkoutCommit": "5d9d50012081b9b6307fd5b9b741bc5ec1afecf3",
+  "buildCommitVerified": false,
+  "scope": "Native embedded-UI probe and static artifact/generated-source checks; installation and installer payload extraction are not verified.",
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "64A602954B03CB79905E2D7F6468AE4A30ACF43EDCEBCFA5638408F07146EF0B"
+      },
+      {
+        "path": "assets/index-CF7oKBnm.css",
+        "bytes": 52348,
+        "sha256": "147FB101794F2F52B2EC79D9FA8FAD7FA928A6D718684707879746AF46FC9A3E"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      },
+      {
+        "path": "assets/city.worker-DLxzT0Wm.js",
+        "bytes": 2879,
+        "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+      },
+      {
+        "path": "assets/index-DJrV2ioQ.js",
+        "bytes": 194910,
+        "sha256": "FD49AA0AB054CF0DD80E1AFEB14E435029D05A37B92796832E6D9A1A78FCB6D9"
+      },
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      }
+    ]
+  },
+  "native": {
+    "name": "voldiq.exe",
+    "bytes": 13668864,
+    "sha256": "A3B8D27C11C214CF8C8EFBCA62CAB7E973D9E7E7C992CC4BC0B24D53CB4EF470",
+    "peMachine": "0x8664",
+    "productVersion": "0.2.0",
+    "signature": "NotSigned",
+    "signer": null
+  },
+  "installer": {
+    "name": "Voldiq_0.2.0_x64-setup.exe",
+    "bytes": 221757215,
+    "sha256": "031A1E734751B9B8281DD404FB28D22D9253E12BC70EBC435E973AFDE9AE6FCB",
+    "peMachine": "0x014C",
+    "productVersion": "0.2.0",
+    "signature": "NotSigned",
+    "signer": null
+  },
+  "runtime": {
+    "name": "MicrosoftEdgeWebView2RuntimeInstallerX64.exe",
+    "bytes": 215017168,
+    "sha256": "62863F0F0611A16CCF124B4F15650C3B66624504EBA74D7CDE1E2AE5D951249B",
+    "peMachine": "0x014C",
+    "productVersion": "1.3.307.15",
+    "signature": "Valid",
+    "signer": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US"
+  },
+  "installMode": "currentUser",
+  "webviewMode": "offlineInstaller",
+  "iconSizes": [
+    16,
+    24,
+    32,
+    48,
+    64,
+    128,
+    256
+  ]
+}

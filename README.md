@@ -74,7 +74,7 @@ A direct native build must use `cargo build --offline --release -p voldiq --feat
 
 ## Documentation
 
-[Architecture](docs/ARCHITECTURE.md) · [Design](DESIGN.md) · [Developer storage](docs/DEVELOPER.md) · [NTFS](docs/NTFS.md) · [Performance](docs/PERFORMANCE.md) · [Testing](docs/TESTING.md) · [Product acceptance](docs/ACCEPTANCE.md)
+[Skyline](docs/SKYLINE.md) · [Architecture](docs/ARCHITECTURE.md) · [Design](DESIGN.md) · [Developer storage](docs/DEVELOPER.md) · [NTFS](docs/NTFS.md) · [Performance](docs/PERFORMANCE.md) · [Testing](docs/TESTING.md) · [Product acceptance](docs/ACCEPTANCE.md)
 
 Performance figures describe their recorded hardware and workloads. They are engineering measurements, not universal guarantees. Known filesystem and tool-configuration limits are documented with each subsystem.
 
