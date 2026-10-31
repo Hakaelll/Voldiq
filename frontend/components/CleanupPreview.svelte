@@ -2,7 +2,7 @@
   import { onMount, onDestroy, untrack } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
   import { Channel } from '@tauri-apps/api/core';
-  import { bytes, type CleanupPreview, type CleanupReport } from '../lib/types';
+  import { bytes, type CleanupPreview, type CleanupReport, type RecyclingReport } from '../lib/types';
   let {
     plan,
     onclose,
@@ -19,31 +19,44 @@
   type Execution =
     | { kind: 'idle' }
     | { kind: 'confirm' }
-    | { kind: 'running'; id: number | null; completed: number; total: number }
+    | { kind: 'running'; mode: 'recycle' | 'permanent'; id: number | null; completed: number; total: number }
     | { kind: 'finished'; report: CleanupReport }
+    | { kind: 'recycled'; report: RecyclingReport }
     | { kind: 'failed'; message: string };
   let execution = $state<Execution>({ kind: 'idle' });
   let confirmation = $state('');
-  async function execute(): Promise<void> {
-    if (execution.kind !== 'confirm' || confirmation !== 'DELETE') return;
-    execution = { kind: 'running', id: null, completed: 0, total: plan.preview.items.length };
+  let recyclingAvailable = $state(false);
+  async function execute(mode: 'recycle' | 'permanent'): Promise<void> {
+    if (mode === 'permanent' && (execution.kind !== 'confirm' || confirmation !== 'DELETE')) return;
+    if (mode === 'recycle' && (execution.kind !== 'idle' || !recyclingAvailable)) return;
+    execution = { kind: 'running', mode, id: null, completed: 0, total: plan.preview.items.length };
     onbusy(true);
     const progress = new Channel<{ id: number; completed: number; total: number }>();
     progress.onmessage = (update) => {
-      if (execution.kind === 'running') execution = { kind: 'running', ...update };
+      if (execution.kind === 'running') execution = { ...execution, ...update };
     };
     try {
-      const report = await invoke<CleanupReport>('execute_permanent_cleanup', {
-        id,
-        confirmation,
-        progress,
-      });
-      execution = { kind: 'finished', report };
+      if (mode === 'permanent') {
+        const report = await invoke<CleanupReport>('execute_permanent_cleanup', { id, confirmation, progress });
+        execution = { kind: 'finished', report };
+      } else {
+        const report = await invoke<RecyclingReport>('execute_recycling_cleanup', { id, confirmation: 'RECYCLE', progress });
+        execution = { kind: 'recycled', report };
+      }
     } catch (problem) {
       execution = { kind: 'failed', message: String(problem) };
     } finally {
       onbusy(false);
       onchanged();
+    }
+  }
+  function outcome(item: RecyclingReport['items'][number]): string {
+    switch (item.outcome) {
+      case 'recycled': return 'Sent to Recycle Bin';
+      case 'returned': return 'Returned to original folder';
+      case 'unmoved': return 'Not moved';
+      case 'not_started': return 'Not attempted';
+      case 'unknown': return 'Needs review';
     }
   }
   async function cancel(): Promise<void> {
@@ -67,6 +80,11 @@
   }
   onMount(() => {
     dialog.showModal();
+    let alive = true;
+    void invoke<{ recycling: boolean }>('cleanup_capabilities').then((value) => {
+      if (alive) recyclingAvailable = value.recycling;
+    }).catch(onerror);
+    return () => { alive = false; };
   });
   onDestroy(() => {
     void invoke('discard_cleanup', { id }).catch(onerror);
@@ -113,6 +131,7 @@
   </div>
   <div class="execution-actions" aria-live="polite">
     {#if execution.kind === 'idle'}
+      <button class="primary" disabled={!recyclingAvailable} title={recyclingAvailable ? undefined : 'Unavailable'} onclick={() => execute('recycle')}>Move to Recycle Bin</button>
       <button
         onclick={() => {
           execution = { kind: 'confirm' };
@@ -123,7 +142,7 @@
       <label
         >Type DELETE<input bind:value={confirmation} autocomplete="off" spellcheck="false" /></label
       >
-      <button onclick={execute} disabled={confirmation !== 'DELETE'}>Delete permanently</button>
+      <button onclick={() => execute('permanent')} disabled={confirmation !== 'DELETE'}>Delete permanently</button>
       <button
         onclick={() => {
           execution = { kind: 'idle' };
@@ -131,7 +150,7 @@
         }}>Back</button
       >
     {:else if execution.kind === 'running'}
-      <span>Deleting · {execution.completed} / {execution.total}</span>
+      <span>{execution.mode === 'recycle' ? 'Moving' : 'Deleting'} · {execution.completed} / {execution.total}</span>
       <button onclick={cancel} disabled={execution.id === null}>Cancel</button>
     {:else if execution.kind === 'finished'}
       <span
@@ -148,6 +167,18 @@
         >
           {item.path} · {item.error ?? 'Removed · result not recorded'}
         </p>{/each}
+    {:else if execution.kind === 'recycled'}
+      <span>{execution.report.items.filter((item) => item.outcome === 'recycled').length} sent to Recycle Bin
+        · {execution.report.items.filter((item) => item.outcome === 'unmoved' || item.outcome === 'returned').length} unchanged
+        {#if execution.report.items.some((item) => item.outcome === 'unknown')} · {execution.report.items.filter((item) => item.outcome === 'unknown').length} need review{/if}
+        {#if execution.report.items.some((item) => item.outcome === 'not_started')} · {execution.report.items.filter((item) => item.outcome === 'not_started').length} not attempted{/if}
+        {#if execution.report.cancelled} · Cancelled{/if}
+      </span>
+      {#if execution.report.journal_error}<p role="alert">Results not fully recorded. {execution.report.journal_error}</p>{/if}
+      {#if execution.report.helper_error}<p role="alert">{execution.report.helper_error}</p>{/if}
+      {#each execution.report.items.filter((item) => item.error || item.cleanup_error || item.outcome === 'unknown' || (item.operation !== null && !item.recorded)) as item (item.id)}
+        <p>{item.path} · {outcome(item)}{#if item.error} · {item.error}{/if}{#if item.cleanup_error} · {item.cleanup_error}{/if}{#if item.operation !== null && !item.recorded} · Result not recorded{/if}</p>
+      {/each}
     {:else if execution.kind === 'failed'}<p role="alert">{execution.message}</p>{/if}
   </div>
 </dialog>

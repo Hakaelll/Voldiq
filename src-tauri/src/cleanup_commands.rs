@@ -41,15 +41,33 @@ mod execution_tests {
             _plan: plan,
         }));
         for confirmation in ["", "delete", "RECYCLE"] {
-            assert!(consume_plan(&plans, &current, 42, confirmation).is_err());
+            assert!(
+                consume_plan(&plans, &current, 42, confirmation, CleanupAction::Permanent).is_err()
+            );
         }
-        assert!(consume_plan(&plans, &current, 43, "DELETE").is_err());
+        assert!(consume_plan(&plans, &current, 43, "DELETE", CleanupAction::Permanent).is_err());
         let rescan = Arc::new(RwLock::new(scan()));
-        assert!(consume_plan(&plans, &rescan, 42, "DELETE").is_err());
+        assert!(consume_plan(&plans, &rescan, 42, "DELETE", CleanupAction::Permanent).is_err());
         assert!(plans.lock().unwrap().is_some());
-        let session = consume_plan(&plans, &current, 42, "DELETE").unwrap();
+        let session =
+            consume_plan(&plans, &current, 42, "DELETE", CleanupAction::Permanent).unwrap();
         assert_eq!(session._plan.preview().items[0].id, id);
-        assert!(consume_plan(&plans, &current, 42, "DELETE").is_err());
+        assert!(consume_plan(&plans, &current, 42, "DELETE", CleanupAction::Permanent).is_err());
+        *plans.lock().unwrap() = Some(Session {
+            id: 44,
+            _index: current.clone(),
+            _plan: Plan::manual(&current.read().unwrap(), &[id]).unwrap(),
+        });
+        for confirmation in ["", "recycle", "DELETE"] {
+            assert!(
+                consume_plan(&plans, &current, 44, confirmation, CleanupAction::Recycle).is_err()
+            );
+        }
+        assert!(consume_plan(&plans, &rescan, 44, "RECYCLE", CleanupAction::Recycle).is_err());
+        let recycling =
+            consume_plan(&plans, &current, 44, "RECYCLE", CleanupAction::Recycle).unwrap();
+        assert_eq!(recycling._plan.preview().items[0].id, id);
+        assert!(consume_plan(&plans, &current, 44, "RECYCLE", CleanupAction::Recycle).is_err());
         assert_eq!(
             std::fs::read(fixture.path().join("selected")).unwrap(),
             b"original"
@@ -121,14 +139,29 @@ pub struct CleanupProgress {
     total: usize,
 }
 
+#[derive(Clone, Copy)]
+enum CleanupAction {
+    Permanent,
+    Recycle,
+}
+
 fn consume_plan(
     plans: &Mutex<Option<Session>>,
     current: &SharedIndex,
     id: u64,
     confirmation: &str,
+    action: CleanupAction,
 ) -> Result<Session, String> {
-    if confirmation != "DELETE" {
-        return Err("Type DELETE to confirm permanent deletion.".into());
+    let expected = match action {
+        CleanupAction::Permanent => "DELETE",
+        CleanupAction::Recycle => "RECYCLE",
+    };
+    if confirmation != expected {
+        return Err(match action {
+            CleanupAction::Permanent => "Type DELETE to confirm permanent deletion.",
+            CleanupAction::Recycle => "Confirm moving the reviewed files to the Recycle Bin.",
+        }
+        .into());
     }
     let mut slot = plans.lock().map_err(|error| error.to_string())?;
     let session = slot
@@ -157,7 +190,13 @@ pub async fn execute_permanent_cleanup(
         id: operation_id,
     };
     let current = engine.index()?;
-    let session = consume_plan(&plans.0, &current, id, &confirmation)?;
+    let session = consume_plan(
+        &plans.0,
+        &current,
+        id,
+        &confirmation,
+        CleanupAction::Permanent,
+    )?;
     let journal = journal.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = operation;
@@ -177,6 +216,83 @@ pub async fn execute_permanent_cleanup(
             .lock()
             .map_err(|error| error.to_string())? = None;
         voldiq_core::cleanup::execute::permanent(session._plan, journal, &cancel, |completed| {
+            if progress
+                .send(CleanupProgress {
+                    id: operation_id,
+                    completed,
+                    total,
+                })
+                .is_err()
+            {
+                cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
+        })
+        .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+// The combined protected-admission roundtrip is awaiting the user's deferred UAC fixture.
+const RECYCLING_VERIFIED: bool = false;
+
+#[derive(Serialize)]
+pub struct CleanupCapabilities {
+    recycling: bool,
+}
+
+#[tauri::command]
+pub fn cleanup_capabilities() -> CleanupCapabilities {
+    CleanupCapabilities {
+        recycling: RECYCLING_VERIFIED,
+    }
+}
+
+#[tauri::command]
+pub async fn execute_recycling_cleanup(
+    id: u64,
+    confirmation: String,
+    progress: tauri::ipc::Channel<CleanupProgress>,
+    engine: State<'_, Arc<Engine>>,
+    plans: State<'_, CleanupPlans>,
+    journal: State<'_, CleanupJournal>,
+) -> Result<voldiq_core::cleanup::recycle::batch::Report, String> {
+    if !RECYCLING_VERIFIED {
+        return Err("Recycling is not available yet.".into());
+    }
+    let engine = engine.inner().clone();
+    let (operation_id, cancel) = engine.begin()?;
+    let operation = Operation {
+        engine: engine.clone(),
+        id: operation_id,
+    };
+    let current = engine.index()?;
+    let session = consume_plan(
+        &plans.0,
+        &current,
+        id,
+        &confirmation,
+        CleanupAction::Recycle,
+    )?;
+    let journal = journal.0.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _operation = operation;
+        let mut journal = journal.lock().map_err(|error| error.to_string())?;
+        let journal = journal.as_mut().map_err(|error| error.clone())?;
+        let total = session._plan.preview().items.len();
+        progress
+            .send(CleanupProgress {
+                id: operation_id,
+                completed: 0,
+                total,
+            })
+            .map_err(|error| error.to_string())?;
+        *engine.index.lock().map_err(|error| error.to_string())? = None;
+        *engine
+            .duplicates
+            .lock()
+            .map_err(|error| error.to_string())? = None;
+        voldiq_core::cleanup::recycle::batch::run(session._plan, journal, &cancel, |completed| {
             if progress
                 .send(CleanupProgress {
                     id: operation_id,

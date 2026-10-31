@@ -567,6 +567,8 @@ fn main() {
             discard_cleanup,
             clear_current_analysis,
             execute_permanent_cleanup,
+            cleanup_capabilities,
+            execute_recycling_cleanup,
             query_cleanup_history,
             restore_commands::preview_restoration,
             restore_commands::discard_restoration,

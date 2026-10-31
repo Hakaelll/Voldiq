@@ -28,7 +28,7 @@ pnpm build
 
 | Cases | Behavior |
 |---|---|
-| 1 native command test | Cleanup requires the exact confirmation and live index; a plan can be consumed only once. |
+| 1 native command test | Permanent and recycling actions require distinct exact confirmations and the same live index; each plan can be consumed only once. The test does not move files or launch UAC. |
 | 2 cleanup execution tests | Changed retained duplicate copies prevent deletion; cancellation preserves pending files; journal write failure stops further removal and preserves the partial report. |
 | 1 cleanup journal test | Interrupted deletion preserves replacements and unrecorded outcomes. Fresh historical restoration checks parent identity, collision, source locking, session ownership, intent persistence and one-use completion with owned ordinary files. |
 | 1 file disposition test | Replaced files and read-only targets are not removed. |
@@ -53,3 +53,5 @@ The browser preview has no filesystem bridge. Native interaction, performance ta
 The standalone [historical restoration fixture](../benchmarks/run_historical_restore_probe.ps1) verifies ordinary Shell recycling, release/reacquisition of actual bin authority, no-overwrite restoration and durable replay refusal with an owned four-byte file. It adds no declared test and does not exercise protected admission or desktop commands. The [completed receipt](../benchmarks/historical-bin-restore-20261031-112253-343.json) includes source/image hashes and scope.
 
 The [desktop restoration source gate](../benchmarks/project-verification-restoration-20261031.json) passed all six stages on the working tree based on `110e452`: eight retained tests, strict workspace Clippy, Svelte diagnostics and the production frontend build. The activity regression checks that only versioned recycled receipts are eligible and restored receipts are not. Native modal and lease acceptance remain manual.
+
+The [prepared recycling source gate](../benchmarks/project-verification-recycling-integration-20261031.json) passes all six stages and retains eight tests. Native recycling execution remains blocked by its verification gate while the user defers the combined UAC fixture.

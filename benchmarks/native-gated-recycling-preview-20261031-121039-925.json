@@ -1,0 +1,30 @@
+{
+  "utc": "2026-10-31T12:10:39.8230020Z",
+  "baseCommit": "0c8f4c1964a4eaeb91ff81ca3445328ad32e4b01",
+  "executable": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\6B2566F468DA45B1727ECFB2844CF41AFE2CD4E09F3D0CFA1044B919A54C73A2\\voldiq.exe",
+  "sha256": "6B2566F468DA45B1727ECFB2844CF41AFE2CD4E09F3D0CFA1044B919A54C73A2",
+  "processId": 1272,
+  "windowTitle": "Voldiq",
+  "responding": true,
+  "windowHandlePresent": true,
+  "obsoletePreviewBytesRemoved": 12672000,
+  "frontendAssets": [
+    {
+      "name": "index-BMNjr4lx.js",
+      "sha256": "6F339C4BBF2DC4C0ED0AF3ABDF629069AF24E6BEE635A2256459F33CF36466EF"
+    },
+    {
+      "name": "index-DKcM9PYI.css",
+      "sha256": "B1FC4698DDCA6479543A22F5BB59CE0923C916256670F151F30085B95C84B727"
+    }
+  ],
+  "sources": {
+    "src-tauri/src/cleanup_commands.rs": "F310D636B6F386FACF9C30CE3ABDEF70AB59C31C9F837129E16F634D117D4AB0",
+    "src-tauri/src/main.rs": "64070AF2B45C7DDAEA795163B7F8D175EFF9B85E39E9CC5559DBAB53FE57E792",
+    "frontend/components/CleanupPreview.svelte": "BE493CC77E4D6630D4CB49F1E304CE66F38B3D5B0F6D75EC97C8E5A774D18744",
+    "frontend/components/CleanupActivity.svelte": "7C4101C1769BF611C948C24C029C43DA0E40B1AAA2220BA6896876E29D02A691",
+    "frontend/lib/types.ts": "A4B6BF175A61F62361161604BD9F15A0341F04706B626297DF9444C7823C4554"
+  },
+  "recyclingVerificationGate": "Disabled in native command and capability response. User deferred the combined UAC fixture.",
+  "scope": "Native process/window metadata only. No Computer Use, screenshots, UAC or recycling execution."
+}

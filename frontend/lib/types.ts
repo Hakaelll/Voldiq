@@ -14,6 +14,21 @@ export interface CleanupReport {
   cancelled: boolean;
   journal_error: string | null;
 }
+export interface RecyclingReport {
+  items: {
+    id: NodeId;
+    path: string;
+    outcome: 'not_started' | 'unmoved' | 'returned' | 'recycled' | 'unknown';
+    recorded: boolean;
+    operation: number | null;
+    bin_path: number[] | null;
+    error: string | null;
+    cleanup_error: string | null;
+  }[];
+  cancelled: boolean;
+  journal_error: string | null;
+  helper_error: string | null;
+}
 export interface CleanupPreview {
   id: number;
   preview: {

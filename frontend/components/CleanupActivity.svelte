@@ -134,7 +134,7 @@
                 <td>{date(item.created)}</td>
                 <td class="actions">
                   {#if item.can_restore}
-                    <button disabled={busy} aria-label={`Restore ${item.path}`} onclick={() => onrestore(item.operation)}>Restore</button>
+                    <button disabled={busy} aria-label={`Restore ${item.path}`} onclick={() => { region?.focus(); onrestore(item.operation); }}>Restore</button>
                   {/if}
                 </td>
               </tr>
