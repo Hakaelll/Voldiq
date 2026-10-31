@@ -1,0 +1,42 @@
+{
+  "utc": "2026-10-31T12:33:54.0866972Z",
+  "checkoutCommit": "9e5bbd68a26b35cb5a07935e3db515c94e7f6157",
+  "executableSha256": "D71825F6483A0198421FA1D3D72E4A60AB396B4F39A004FFFC1AC86347906BF8",
+  "sources": {
+    "src-tauri/examples/live_query_benchmark.rs": "483F6FAF17E414E9B53C94DF9C003223C58E5DAE3697D6DAB8C8E36E249DAC5E",
+    "src-tauri/src/overview.rs": "27FCD062FAE96DB5D78C87F635ABA2EAA5980F35E7F929B817357E41F30B547D",
+    "crates/voldiq-core/src/lib.rs": "656BC77D43611525B0DF6DB11CC74E453361ABF0756E14C4F2D378DE50A49D28",
+    "crates/voldiq-core/src/index.rs": "8884884E1B83F13D62C965119CBE134C13B8317E9C682F0DDE9DFA002AF5FDAE",
+    "crates/voldiq-core/src/index/rank.rs": "A29A60AC2E42E26853E743CA3A446E1536ACBF14C95408400C8090305B5D9DE9",
+    "crates/voldiq-core/src/scanner.rs": "79F7F7B73433E759829AF720A42E61233C2D170ABF7F619B14AC5EAEC1FC8059",
+    "crates/voldiq-core/src/scanner/directory.rs": "1FBBEECE8B208AA8FBC231A960D650F50F68D9E2C9FAF556C0AB77AA6897DABE",
+    "benchmarks/run_live_query_benchmark.ps1": "BB51D2B8E7C9EF09E01D56CA9850AA7E2780ACDA1AB67FB6C4D1EAD3C7382CA8"
+  },
+  "profile": "release",
+  "fixtureFiles": 100000,
+  "pid": 20000,
+  "finished": true,
+  "exitCode": 0,
+  "rows": 525,
+  "raw": "live-query-20261031-123016-889.jsonl",
+  "stderr": "Owned live-query fixture: C:\\Users\\yagol\\AppData\\Local\\Temp\\voldiq-live-query-wyI8zT\nOwned live-query fixture removed: C:\\Users\\yagol\\AppData\\Local\\Temp\\voldiq-live-query-wyI8zT\n",
+  "cpuBefore": [
+    {
+      "Name": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
+      "NumberOfCores": 4,
+      "NumberOfLogicalProcessors": 8,
+      "LoadPercentage": 40
+    }
+  ],
+  "cpuAfter": [
+    {
+      "LoadPercentage": 46
+    }
+  ],
+  "operatingSystem": {
+    "Caption": "Microsoft Windows 11 Home",
+    "Version": "10.0.26200",
+    "TotalVisibleMemorySize": 16535812
+  },
+  "scope": "Five alternating quiet/observed pairs of real directory scans. An observer rotates root listing, global file search and the shared production overview, sleeping 100ms after each response. Read-lock wait, query work, lock hold including bounded assertions, and JSON serialization are measured separately. Overview answer boxing is included. Fixture creation, final validation, observer joining and cleanup are outside scan timers. No Tauri IPC, DOM, frame timing, cold/HDD/raw-NTFS or whole-app acceptance."
+}

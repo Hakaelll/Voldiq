@@ -203,6 +203,26 @@ The Automatic preflight uses the same canonical path form as the scanner and rep
 
 Reproduce with `cargo build --offline --release -p voldiq-core --example concurrency_benchmark`, then `./benchmarks/run_concurrency_benchmark.ps1 -FileCount 100000 -CancelOnly`. The current default runs the full matrix followed by independent cancellation. The earlier callback-boundary dataset remains valid for its recorded source revision and scope. No production scanner policy or declared test count changed; example Clippy, release compilation and fixture assertions pass.
 
+## Queries during live index publication
+
+The [raw live-query observations](../benchmarks/live-query-20261031-123016-889.jsonl), [per-run summary](../benchmarks/live-query-20261031-123016-889.summary.json) and [provenance](../benchmarks/live-query-20261031-123016-889.provenance.json) cover five alternating pairs of directory scans over 100,000 owned 128-byte files in 100 folders. One pass has no reader; the other uses the actual shared `scan_live` index and rotates root listing, global file search and the production overview composition. The overview module is imported directly from the desktop source. Pages contain at most 100 entries; the overview retains its production bounds.
+
+All ten final indexes have 100,101 entries, 100,000 files, exact logical totals, known allocation, complete coverage and zero errors. All 515 query replies pass consistency checks against the locked snapshot they read, including published file totals, search counts, category byte/file totals, bounded map branches and JSON output. The fixture is removed and its absence verified.
+
+The table describes samples taken with 50,000–100,000 files already published. Each run's median and nearest-rank p95 are calculated separately before aggregating across the five runs, rather than treating correlated requests as independent repetitions.
+
+| Query | Late samples | Median of run medians ms | Median of run p95 ms | Run p95 range ms |
+|---|---:|---:|---:|---:|
+| Root listing | 85 | 0.661 | 1.009 | 0.781–1.680 |
+| Global file search | 85 | 4.901 | 8.319 | 6.787–16.023 |
+| Overview | 84 | 11.157 | 17.246 | 13.119–21.384 |
+
+These intervals run from read-lock request through JSON serialization. Read-lock wait never exceeds 0.007 ms in the late samples; query computation dominates response time, with serialization much smaller. Lock hold includes bounded consistency assertions, and overview answer boxing is part of the query measurement. JSON decoding checks run after the response timer. The observer sleeps 100 ms after each completed response, so it generates at most ten requests per second rather than an exact fixed rate.
+
+Quiet scan median is 10,212.972 ms, range 9,874.110–12,511.147. Observed scan median is 10,477.387 ms, range 10,237.246–11,624.291. Paired differences range from -1,115.954 to +1,238.143 ms. The spans overlap and do not establish a clear throughput change attributable to this observer. The observed workload includes test-only validation and response decoding. Host load was uncontrolled at 40% before and 46% after; no project compilation ran during capture.
+
+Reproduce with `cargo build --offline --release -p voldiq --example live_query_benchmark`, then `./benchmarks/run_live_query_benchmark.ps1 -FileCount 100000`. Fixture creation, final validation, observer joining, diagnostic output and removal are outside scan timers. No Tauri IPC, frontend event delivery, DOM, Canvas, frame rate, whole-app memory, cold storage or raw-NTFS result is established. These async backend timings must not be treated as UI frame times. No production behavior or declared test count changes.
+
 ## Bounded scan concurrency
 
 The current UI adds Automatic while preserving saved numeric limits. Before conventional enumeration, Automatic queries the local fixed volume's [seek-penalty descriptor](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-device_seek_penalty_descriptor) through a zero-access handle and read-only storage property IOCTL. Relative, UNC and non-fixed paths are unclassified. Unavailable or malformed descriptors and reported seek penalties select one worker. A valid no-penalty descriptor selects at most two, bounded by available processors. It is a device capability hint, not an SSD brand/type or speed measurement. No file contents are read by this probe; driver latency and cancellation of the synchronous IOCTL have not been measured.
