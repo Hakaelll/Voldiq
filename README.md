@@ -24,11 +24,7 @@ No account, cloud service, advertising or telemetry. The application uses actual
 
 Download **Voldiq_0.1.0_x64-setup.exe** from the [latest release](https://github.com/Hakaelll/Voldiq/releases/latest). The current-user installer includes the offline Microsoft WebView2 runtime. Development tools are not required.
 
-The application and installer are unsigned. Release assets include `SHA256SUMS.txt` so you can verify the downloaded installer:
-
-```powershell
-Get-FileHash .\Voldiq_0.1.0_x64-setup.exe -Algorithm SHA256
-```
+The application and installer are unsigned.
 
 ## Explore your storage
 

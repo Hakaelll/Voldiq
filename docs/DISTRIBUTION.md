@@ -1,6 +1,6 @@
 # Windows distribution
 
-Voldiq ships an x64 Windows NSIS installer with the supplied artwork and an embedded offline Microsoft WebView2 installer. Build artifacts stay in the ignored `target` directory. Published installers and checksums are available from [GitHub releases](https://github.com/Hakaelll/Voldiq/releases).
+Voldiq ships an x64 Windows NSIS installer with the supplied artwork and an embedded offline Microsoft WebView2 installer. Build artifacts stay in the ignored `target` directory. Published installers are available from [GitHub releases](https://github.com/Hakaelll/Voldiq/releases).
 
 The final 0.1.0 delivery enables recycling following the user's acceptance of the outstanding manual checks. The [final source gate](../benchmarks/project-verification-release-010.json) and [distribution verification](../benchmarks/distribution-release-010.json) identify the delivered build. Application and installer remain unsigned. The dated build records below describe earlier artifacts and do not identify the final release.
 
@@ -40,7 +40,7 @@ The script only prepares the executable; it never launches or closes a process. 
 
 Check the produced installer on a clean Windows machine with networking disabled and WebView2 absent. Verify installation, first launch, native filesystem access on a disposable fixture, installed icons, uninstall and retained user data. This check must use the actual installer; a native development build or embedded-runtime configuration cannot substitute for it.
 
-The user reported that the outstanding checks were complete and requested final delivery. This is user-reported acceptance, not a machine-generated clean-environment report. The procedure above remains available for future releases. Release signing is not configured; published assets include SHA-256 checksums.
+The user reported that the outstanding checks were complete and requested final delivery. This is user-reported acceptance, not a machine-generated clean-environment report. The procedure above remains available for future releases. Release signing is not configured. The release includes the installer only, as requested by the user.
 
 ## Earlier build, 2026-10-31 before final acceptance
 

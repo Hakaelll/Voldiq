@@ -1,5 +1,5 @@
 {
-  "checkedUtc": "2026-10-31T19:05:48.3500762Z",
+  "checkedUtc": "2026-10-31T19:06:56.1303411Z",
   "releaseCommit": "c4b282ff5692809bb19be2596c3ce24aae69d210",
   "repository": "Hakaelll/Voldiq",
   "releaseId": 430128666,
@@ -13,15 +13,10 @@
       "name": "Voldiq_0.1.0_x64-setup.exe",
       "size": 221738012,
       "digest": "sha256:b60393a9058ce67cc47f5717106fc1cf4bde5f4708d56b0a177f30f5eeb0f4bf",
-      "browser_download_url": "https://github.com/Hakaelll/Voldiq/releases/download/untagged-6b7b45825193c719e0a3/Voldiq_0.1.0_x64-setup.exe"
-    },
-    {
-      "name": "SHA256SUMS.txt",
-      "size": 93,
-      "digest": "sha256:9cd7c9f72f4b22a2f950fd7d81b547062f021992d659b47948369edf82ab79d7",
-      "browser_download_url": "https://github.com/Hakaelll/Voldiq/releases/download/untagged-6b7b45825193c719e0a3/SHA256SUMS.txt"
+      "browser_download_url": "https://github.com/Hakaelll/Voldiq/releases/download/v0.1.0/Voldiq_0.1.0_x64-setup.exe"
     }
   ],
-  "notesSha256": "EC4029996B4F29ABA6CA9EA1A4CBC5F74DD7AE3D0A502384F2EDEEE343062DFD",
-  "userAcceptance": "The user reported all outstanding checks complete and explicitly requested final delivery and a GitHub release."
+  "notesSha256": "3FFEE30DB8F366893AD9881191A40F335A682C348532D03E0579A4A8449D2F22",
+  "userAcceptance": "The user reported all outstanding checks complete and explicitly requested final delivery and a GitHub release.",
+  "checksumAssetRemovedAtUserRequest": true
 }
