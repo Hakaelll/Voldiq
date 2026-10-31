@@ -1,0 +1,13 @@
+{
+  "repository": "Hakaelll/Voldiq",
+  "commit": "54b03d8d430fb1f868f9a54c154ba6f184a4528c",
+  "tag": "v0.2.0",
+  "url": "https://github.com/Hakaelll/Voldiq/releases/tag/v0.2.0",
+  "publishedAt": "2026-10-31T20:53:43Z",
+  "asset": {
+    "name": "Voldiq_0.2.0_x64-setup.exe",
+    "bytes": 221757215,
+    "sha256": "031a1e734751b9b8281dd404fb28d22d9253e12bc70ebc435e973afde9ae6fcb",
+    "url": "https://github.com/Hakaelll/Voldiq/releases/download/untagged-41dba8423449b3cd3a7d/Voldiq_0.2.0_x64-setup.exe"
+  }
+}

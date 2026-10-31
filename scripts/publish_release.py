@@ -91,6 +91,9 @@ def main():
     verified = api(f'/releases/{release["id"]}')
     if verified['draft'] or verified['tag_name'] != args.tag:
         raise RuntimeError('Release publication could not be verified.')
+    asset = next(item for item in verified['assets'] if item['id'] == asset['id'])
+    if asset['size'] != size or asset.get('digest') != f'sha256:{digest}':
+        raise RuntimeError('Published installer checksum mismatch.')
     receipt = {
         'repository': args.repo, 'commit': commit, 'tag': args.tag,
         'url': verified['html_url'], 'publishedAt': verified['published_at'],
