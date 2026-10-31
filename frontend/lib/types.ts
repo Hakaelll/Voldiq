@@ -1,3 +1,13 @@
+export interface RestorationPreview {
+  id: number;
+  path: string;
+  size: number;
+}
+export interface RestorationResult {
+  path: string;
+  recorded: boolean;
+  journal_error: string | null;
+}
 export type NodeId = number;
 export interface CleanupReport {
   items: { id: NodeId; path: string; removed: boolean; error: string | null; recorded: boolean }[];

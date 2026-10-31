@@ -103,7 +103,9 @@ pub async fn clear_current_analysis(
         .map_err(|error| error.to_string())?
 }
 
-pub struct CleanupJournal(Arc<Mutex<Result<voldiq_core::cleanup::journal::Journal, String>>>);
+pub struct CleanupJournal(
+    pub(crate) Arc<Mutex<Result<voldiq_core::cleanup::journal::Journal, String>>>,
+);
 impl CleanupJournal {
     pub fn open(path: &std::path::Path) -> Self {
         Self(Arc::new(Mutex::new(

@@ -17,6 +17,7 @@ mod developer_commands;
 mod docker_commands;
 mod overview;
 mod query_commands;
+mod restore_commands;
 mod snapshot_commands;
 use cleanup_commands::*;
 use snapshot_commands::*;
@@ -543,6 +544,7 @@ fn main() {
         })
         .manage(Arc::new(Engine::default()))
         .manage(CleanupPlans::default())
+        .manage(restore_commands::RestorationReviews::default())
         .invoke_handler(tauri::generate_handler![
             get_volumes,
             choose_folder,
@@ -566,6 +568,9 @@ fn main() {
             clear_current_analysis,
             execute_permanent_cleanup,
             query_cleanup_history,
+            restore_commands::preview_restoration,
+            restore_commands::discard_restoration,
+            restore_commands::execute_restoration,
             query_developer_storage,
             docker_commands::query_docker_storage,
             get_issues,

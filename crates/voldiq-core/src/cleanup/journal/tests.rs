@@ -627,6 +627,15 @@ fn historical_restoration_requires_fresh_authority(fixture: &tempfile::TempDir) 
     drop(journal);
     let mut journal = Journal::open(&database).unwrap();
     let destination = std::path::PathBuf::from(&record.path);
+    assert!(
+        journal
+            .activity(0, 100)
+            .unwrap()
+            .iter()
+            .any(|item| item.kind == ActivityKind::Recycling
+                && item.item.operation == id.value()
+                && item.can_restore)
+    );
     let previous_parent = root.join("previous-original");
     std::fs::rename(&original, &previous_parent).unwrap();
     std::fs::create_dir(&original).unwrap();
@@ -677,6 +686,13 @@ fn historical_restoration_requires_fresh_authority(fixture: &tempfile::TempDir) 
     assert_eq!(
         journal.relocation(id.value()).unwrap().unwrap().state,
         "restored"
+    );
+    assert!(
+        journal
+            .activity(0, 100)
+            .unwrap()
+            .iter()
+            .all(|item| !item.can_restore)
     );
     assert!(RestorationReview::prepare(&journal, id.value()).is_err());
 }

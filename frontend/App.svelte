@@ -13,6 +13,7 @@
   import CleanupRules from './components/CleanupRules.svelte';
   import RecycleBin from './components/RecycleBin.svelte';
   import CleanupActivity from './components/CleanupActivity.svelte';
+  import RestorationDialog from './components/RestorationDialog.svelte';
   import { readRecentPaths, rememberPath } from './lib/recent-paths';
   import { overviewQueries, detailQueries } from './lib/queries';
   import { scopedFileQuery } from './lib/file-query';
@@ -96,6 +97,8 @@
   let selection = $state(new Set<number>());
   let cleanupPreview = $state<CleanupPreview | null>(null);
   let cleanupNeedsRefresh = false;
+  let restoreReceipt = $state<number | null>(null);
+  let restoreNeedsRefresh = false;
   function checkFile(id: number, checked: boolean): void {
     const next = new Set(selection);
     if (checked) {
@@ -121,7 +124,7 @@
     }
   }
   let volume = $derived(volumes.find((v) => v.path === volumePath));
-  let busy = $derived(operation?.phase === 'scanning' || analysisBusy);
+  let busy = $derived(operation?.phase === 'scanning' || analysisBusy || restoreReceipt !== null);
   let query = $derived<Query>(
     scopedFileQuery({
       scope,
@@ -456,7 +459,7 @@
     const keyboard = (event: KeyboardEvent): void => {
       if (event.ctrlKey && event.key.toLowerCase() === 'k') {
         event.preventDefault();
-        if (ready && !analysisBusy && !cleanupPreview && !showIssues) {
+        if (ready && !analysisBusy && !cleanupPreview && restoreReceipt === null && !showIssues) {
           invalidateInteraction();
           invalidateRefresh();
           scope = 0;
@@ -919,7 +922,9 @@
                 }}
                 onerror={report}
               />
-              <CleanupActivity {revision} {busy} />
+              <CleanupActivity {revision} {busy} onrestore={(receipt) => {
+                if (!busy && !cleanupPreview && restoreReceipt === null) restoreReceipt = receipt;
+              }} />
             {:else if view === 'duplicates'}
               <Duplicates
                 {scope}
@@ -1160,3 +1165,31 @@
       }}
       onerror={report}
     />{/key}{/if}
+
+{#if restoreReceipt !== null}
+  <RestorationDialog receipt={restoreReceipt}
+    onbusy={(value) => { analysisBusy = value; }}
+    onchanged={() => {
+      restoreNeedsRefresh = true;
+      invalidateRefresh();
+      invalidateInteraction();
+      ready = false;
+      operation = null;
+      selection = new Set();
+      details = null;
+      directory = null;
+      children = { items: [], total: 0 };
+      types = { items: [], total_bytes: 0, total_files: 0 };
+      revision += 1;
+    }}
+    onclose={() => {
+      restoreReceipt = null;
+      if (restoreNeedsRefresh) {
+        restoreNeedsRefresh = false;
+        historical = null;
+        if (scanPath) void start(scanPath);
+      }
+    }}
+    onerror={report}
+  />
+{/if}

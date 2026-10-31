@@ -47,6 +47,7 @@ pub enum ActivityKind {
 #[derive(Debug, Serialize)]
 pub struct ActivityItem {
     pub kind: ActivityKind,
+    pub can_restore: bool,
     #[serde(flatten)]
     pub item: Item,
 }
@@ -260,10 +261,11 @@ impl Journal {
     pub fn activity(&self, offset: usize, limit: usize) -> Result<Vec<ActivityItem>> {
         let mut statement = self.connection.prepare(
             "SELECT 0 AS kind,i.operation AS operation,i.node AS node,i.path AS path,
-                i.state AS state,i.message AS message,o.created AS created
+                i.state AS state,i.message AS message,o.created AS created,0 AS can_restore
              FROM items i JOIN operations o ON o.id=i.operation
              UNION ALL
-             SELECT 1,r.id,r.node,r.path,r.state,r.message,r.created FROM relocations r
+             SELECT 1,r.id,r.node,r.path,r.state,r.message,r.created,
+                r.state='recycled' AND r.recycled_change_time IS NOT NULL FROM relocations r
              ORDER BY created DESC,kind DESC,operation DESC,node ASC LIMIT ?1 OFFSET ?2",
         )?;
         let rows = statement.query_map(
@@ -274,6 +276,7 @@ impl Journal {
             ],
             |row| {
                 Ok(ActivityItem {
+                    can_restore: row.get(7)?,
                     kind: if row.get::<_, bool>(0)? {
                         ActivityKind::Recycling
                     } else {

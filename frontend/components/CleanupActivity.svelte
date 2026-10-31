@@ -3,9 +3,10 @@
   import { invoke, isTauri } from '@tauri-apps/api/core';
   import { date } from '../lib/types';
 
-  let { revision, busy }: { revision: number; busy: boolean } = $props();
+  let { revision, busy, onrestore }: { revision: number; busy: boolean; onrestore: (receipt: number) => void } = $props();
   type Item = {
     kind: 'permanent' | 'recycling';
+    can_restore: boolean;
     operation: number;
     node: number;
     path: string;
@@ -131,6 +132,11 @@
                   {/if}
                 </td>
                 <td>{date(item.created)}</td>
+                <td class="actions">
+                  {#if item.can_restore}
+                    <button disabled={busy} aria-label={`Restore ${item.path}`} onclick={() => onrestore(item.operation)}>Restore</button>
+                  {/if}
+                </td>
               </tr>
             {/each}
           </tbody>
@@ -202,8 +208,12 @@
   th:first-child {
     width: 50%;
   }
-  th:last-child {
-    width: 25%;
+  th:nth-child(3) {
+    width: 22%;
+  }
+  .actions {
+    width: 90px;
+    text-align: right;
   }
   small {
     display: block;

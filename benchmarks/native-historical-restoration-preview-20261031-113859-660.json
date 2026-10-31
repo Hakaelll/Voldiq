@@ -1,0 +1,32 @@
+{
+  "utc": "2026-10-31T11:38:59.1642309Z",
+  "baseCommit": "110e4521a4c940410411ba3dd543b881bb26ac1d",
+  "executable": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\26D1B070AD3650E86D2C268587D83F5B92A1CC2F6B6BCADC2B91613FC47057BD\\voldiq.exe",
+  "sha256": "26D1B070AD3650E86D2C268587D83F5B92A1CC2F6B6BCADC2B91613FC47057BD",
+  "processId": 3008,
+  "windowTitle": "Voldiq",
+  "responding": true,
+  "windowHandlePresent": true,
+  "obsoletePreviewBytesRemoved": 12947456,
+  "frontendAssets": [
+    {
+      "name": "index-BcJu_CP3.js",
+      "sha256": "9BD2148F698042CFCD0D197F582713C0E209875965354F33760B5EE33D6B758D"
+    },
+    {
+      "name": "index-DKcM9PYI.css",
+      "sha256": "B1FC4698DDCA6479543A22F5BB59CE0923C916256670F151F30085B95C84B727"
+    }
+  ],
+  "sources": {
+    "src-tauri/src/restore_commands.rs": "D3D241B9E7643CB2E2D05124C3D9A41082AC4172B8B4BE7669C9E78C49205DAE",
+    "src-tauri/src/main.rs": "611108EF327217F0863C3C6981FD7B2D4D1690B485B397D9BD1D60DB71286E0E",
+    "frontend/App.svelte": "6B7933124220AB2907B81265AB43C030CA8EDB67FC684A497755EA9266EEB85D",
+    "frontend/components/RestorationDialog.svelte": "3B22487C1F3F589A00990187D74FD11825F847A084CAE7B7ACC45E3A05420F63",
+    "frontend/components/CleanupActivity.svelte": "BCA18C34F73064FF5CD35DC19B285754E4328C88247A84BA30009CAD9735A9EF",
+    "frontend/lib/types.ts": "D609AA0336A363BFD291D6F611A93BE5CF952989311BDD6EA139BE29417B8FD3",
+    "crates/voldiq-core/src/cleanup/recycle/historical.rs": "BCD5ED54D75CA933EB1F5175F1A7B77CF72FE769C0E610E8006130CF09D07E84",
+    "crates/voldiq-core/src/cleanup/journal.rs": "12B5F45578DE6201346DF2B91F067E80728271E527958F168468294AD3DA74CC"
+  },
+  "scope": "Native process/window metadata only. No Computer Use, screenshot, modal interaction or lease-expiry proof. Source gate passed separately."
+}

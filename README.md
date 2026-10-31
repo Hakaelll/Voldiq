@@ -112,7 +112,7 @@ In Large files, **Items** switches between files and folders. Folder rankings us
 
 The advanced **Permanently delete…** action requires typing `DELETE` and confirming the irreversible operation. Each file is verified through retained native handles, its intent is committed before removal, and its result is recorded afterward. Duplicate selections also pin and freshly hash one preserved copy per group throughout execution, then freshly hash every selected file before removal. Results distinguish removal, failure, cancellation and unrecorded outcomes. Closing the result triggers a fresh analysis. This action does not use the Recycle Bin and has no undo; interrupted work is never retried automatically. Recycling is still pending. See [cleanup guarantees and remaining work](docs/CLEANUP.md).
 
-Cleanup activity lists saved per-file results and operation start times, including interrupted outcomes after restart. It is read-only and paginated; unknown results never imply successful removal or trigger retries.
+Cleanup activity lists saved per-file results and operation start times, including interrupted outcomes after restart. Compatible recycled receipts offer **Restore**. Review the verified original location and confirm before moving a file back. Existing files are never overwritten. Unknown results remain unresolved and cannot be retried through this action. Reviews expire after two minutes; prepare a new review if needed.
 
 ## Preferences
 
