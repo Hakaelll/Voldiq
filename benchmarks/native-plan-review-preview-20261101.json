@@ -1,0 +1,78 @@
+{
+  "checkedUtc": "2026-10-31T23:31:38.4297219Z",
+  "checkoutCommit": "f3e62c12a2bcdb5f6d15788455f9a1deede30225",
+  "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\22F3E977D116F1A2AAE5FB2DE066F73EFCD21E8E5548633008E8E0C579480D70\\voldiq.exe",
+  "sha256": "22F3E977D116F1A2AAE5FB2DE066F73EFCD21E8E5548633008E8E0C579480D70",
+  "processId": 11480,
+  "embeddedAssetProbe": "Passed against current dist JS/CSS by prepare_release_preview.ps1",
+  "tracePath": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\diagnostics\\plan-review-9c62e83f76304e4690944bad4acfd6ec.jsonl",
+  "launchEvents": [
+    {
+      "event": "process-start",
+      "pid": 11480,
+      "state": null,
+      "unixMs": 1793489496760
+    },
+    {
+      "event": "setup-start",
+      "pid": 11480,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "idle",
+        "snapshots": "unavailable"
+      },
+      "unixMs": 1793489497192
+    },
+    {
+      "event": "snapshot-open-start",
+      "pid": 11480,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "idle",
+        "snapshots": "unavailable"
+      },
+      "unixMs": 1793489497193
+    },
+    {
+      "event": "snapshot-open-end",
+      "pid": 11480,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793489497197
+    },
+    {
+      "event": "setup-end",
+      "pid": 11480,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793489498232
+    },
+    {
+      "event": "ready",
+      "pid": 11480,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793489498232
+    },
+    {
+      "event": "page-finished",
+      "pid": 11480,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793489498289
+    }
+  ],
+  "scope": "Native process launch and application lifecycle only. No UI interaction, screenshot or visual/scaling acceptance."
+}
