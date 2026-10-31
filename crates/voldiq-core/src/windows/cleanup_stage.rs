@@ -2,6 +2,7 @@
 mod admission;
 use super::security::{SecurityDescriptor, current_user_sid};
 pub use admission::StageEntry;
+pub(crate) use admission::restore_to_parent;
 use std::{
     fs::File,
     io,

@@ -1,5 +1,6 @@
 //! Single-item Shell recycling from a pinned protected stage with durable intent and result records.
 pub mod batch;
+mod restore;
 use super::journal::{Journal, relocation::RelocationId};
 use super::{Stamp, VerifiedFile, validate_file};
 use crate::{
@@ -17,6 +18,7 @@ use ::windows::{
     },
     core::PCWSTR,
 };
+pub use restore::RestoredItem;
 use std::{
     fs::{File, OpenOptions},
     marker::PhantomData,
@@ -84,6 +86,8 @@ pub struct RecycledItem<'a, 'stage> {
     source: &'a mut StagedSource<'stage>,
     locator: PathBuf,
     journal_error: Option<String>,
+    relocation: RelocationId,
+    restore_attempted: bool,
 }
 
 pub struct PreparationError {
@@ -170,6 +174,17 @@ impl<'stage> StagedSource<'stage> {
             ));
         }
         self.stage.verify_source(&self.guard, &self.entry)?;
+        let file = self.strict_guard()?;
+        drop(self.guard);
+        Ok(VerifiedFile {
+            file,
+            path: self.original_path,
+            parents: self._ancestors,
+            stamp: self.stamp,
+        })
+    }
+
+    fn strict_guard(&self) -> Result<File> {
         check_content(&self.guard, &self.stamp)?;
         let handle = unsafe {
             ReOpenFile(
@@ -184,16 +199,12 @@ impl<'stage> StagedSource<'stage> {
         }
         let file = unsafe { File::from_raw_handle(handle) };
         if file_identity(&file)? != self.identity {
-            return Err(Error::Invalid("Rollback guard identity changed.".into()));
+            return Err(Error::Invalid(
+                "Strict source guard identity changed.".into(),
+            ));
         }
         check_content(&file, &self.stamp)?;
-        drop(self.guard);
-        Ok(VerifiedFile {
-            file,
-            path: self.original_path,
-            parents: self._ancestors,
-            stamp: self.stamp,
-        })
+        Ok(file)
     }
 
     /// Commits bound intent before Shell. A returned item with a journal error is a partial result; stop the batch.
@@ -242,6 +253,8 @@ impl<'stage> StagedSource<'stage> {
             source: self,
             locator,
             journal_error,
+            relocation,
+            restore_attempted: false,
         })
     }
 }
@@ -275,7 +288,7 @@ fn check_content(file: &File, stamp: &Stamp) -> Result<()> {
     Ok(())
 }
 
-fn file_identity(file: &File) -> std::io::Result<StageIdentity> {
+pub(crate) fn file_identity(file: &File) -> std::io::Result<StageIdentity> {
     let mut id = FILE_ID_INFO::default();
     if unsafe {
         GetFileInformationByHandleEx(

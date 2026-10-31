@@ -215,6 +215,13 @@ fn rename(source: &File, directory: &File, name: &StageEntry) -> io::Result<()> 
     Ok(())
 }
 
+pub(crate) fn restore_to_parent(source: &File, parent: &File, name: &StageEntry) -> io::Result<()> {
+    source_access(source)?;
+    source_identity(source)?;
+    local_ntfs(parent)?;
+    rename(source, parent, name)
+}
+
 impl StagePin {
     /// Requires committed relocation intent and an already verified strict source handle.
     /// An error is not recovery evidence; the transaction must reconcile before any retry.

@@ -253,11 +253,16 @@ impl Journal {
     }
 
     /// Records an explicitly chosen destination, not permission to reopen or move a filesystem object.
-    pub fn start_restore(&mut self, id: RelocationId, destination: &Path) -> Result<()> {
+    pub fn start_restore(
+        &mut self,
+        id: RelocationId,
+        source: StageIdentity,
+        destination: &Path,
+    ) -> Result<()> {
         self.relocation_owner(id)?;
         let destination = native_path(destination)?;
         let transaction = self.connection.transaction()?;
-        let changed=transaction.execute("UPDATE relocations SET state='restoring',restore_path=?1 WHERE id=?2 AND state='recycled'",params![destination,id.0])?;
+        let changed=transaction.execute("UPDATE relocations SET state='restoring',restore_path=?1 WHERE id=?2 AND state='recycled' AND source_volume=?3 AND source_file=?4",params![destination,id.0,source.volume.to_le_bytes().as_slice(),source.file.as_slice()])?;
         require_one(changed)?;
         transaction.commit()?;
         Ok(())

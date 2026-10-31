@@ -72,6 +72,56 @@ fn interruption_after_deletion_never_retries_a_replacement_or_claims_success() {
     }
     relocation_migration_and_interruption(&fixture);
     recycling_receipts_and_migration(&fixture);
+    handle_bound_return_preserves_occupied_names(&fixture);
+}
+
+fn handle_bound_return_preserves_occupied_names(fixture: &tempfile::TempDir) {
+    use crate::cleanup::recycle::file_identity as identity;
+    use crate::windows::cleanup_stage::{StageEntry, restore_to_parent};
+    let root = fixture.path().join("native-return");
+    std::fs::create_dir(&root).unwrap();
+    let (plan, ids) = fixture_plan(&root, &["owned.bin"]);
+    let source = plan.verify(ids[0]).unwrap();
+    let original = identity(&source.file).unwrap();
+    let parent = source.stage_parent().unwrap();
+    let occupied = StageEntry::parse("occupied.bin").unwrap();
+    std::fs::write(root.join("occupied.bin"), b"replacement").unwrap();
+    assert_eq!(
+        restore_to_parent(&source.file, &parent, &occupied)
+            .unwrap_err()
+            .kind(),
+        std::io::ErrorKind::AlreadyExists
+    );
+    assert_eq!(
+        std::fs::read(root.join("owned.bin")).unwrap(),
+        b"fixture content"
+    );
+    assert_eq!(
+        std::fs::read(root.join("occupied.bin")).unwrap(),
+        b"replacement"
+    );
+    let returned = StageEntry::parse("returned.bin").unwrap();
+    restore_to_parent(&source.file, &parent, &returned).unwrap();
+    assert!(!root.join("owned.bin").exists());
+    assert_eq!(
+        std::fs::read(root.join("returned.bin")).unwrap(),
+        b"fixture content"
+    );
+    assert_eq!(
+        identity(&std::fs::File::open(root.join("returned.bin")).unwrap()).unwrap(),
+        original
+    );
+    assert_eq!(
+        std::fs::read(root.join("occupied.bin")).unwrap(),
+        b"replacement"
+    );
+    assert!(std::fs::rename(root.join("returned.bin"), root.join("changed.bin")).is_err());
+    drop(source);
+    std::fs::rename(root.join("returned.bin"), root.join("changed.bin")).unwrap();
+    assert_eq!(
+        std::fs::read(root.join("changed.bin")).unwrap(),
+        b"fixture content"
+    );
 }
 
 fn relocation_migration_and_interruption(fixture: &tempfile::TempDir) {
@@ -278,7 +328,16 @@ fn recycling_receipts_and_migration(fixture: &tempfile::TempDir) {
         }
         journal.record_recycled(id, record.source, &bin).unwrap();
         if phase >= 2 {
-            journal.start_restore(id, &destination).unwrap();
+            let mut wrong_source = record.source;
+            wrong_source.file[0] ^= 1;
+            assert!(
+                journal
+                    .start_restore(id, wrong_source, &destination)
+                    .is_err()
+            );
+            journal
+                .start_restore(id, record.source, &destination)
+                .unwrap();
             if phase == 3 {
                 assert!(
                     journal
@@ -323,7 +382,7 @@ fn recycling_receipts_and_migration(fixture: &tempfile::TempDir) {
         assert_eq!(std::fs::read(&record.path).unwrap(), b"fixture content");
         assert!(
             journal
-                .start_restore(sessions[phase], &destination)
+                .start_restore(sessions[phase], record.source, &destination)
                 .is_err()
         );
     }

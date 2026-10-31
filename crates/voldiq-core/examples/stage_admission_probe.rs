@@ -445,13 +445,117 @@ mod probe {
         Ok(())
     }
 
+    fn recycling_scenario(root: &Path) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+        use voldiq_core::cleanup::recycle::ShellApartment;
+        let source_path = root.join("owned.bin");
+        let mut writer = std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&source_path)?;
+        writer.write_all(&[1, 2, 3, 4])?;
+        let original = identity(&writer)?;
+        drop(writer);
+        let (planned, id) = plan(root)?;
+        let source = planned.verify(id)?;
+        let parent = source.stage_parent()?;
+        let name = StageName::generate()?;
+        let database = root.join("roundtrip.sqlite");
+        let reviewed_original = source.path().to_owned();
+        let mut journal = Journal::open(&database)?;
+        let relocation = journal.prepare_relocation(&planned, id, &source, &name)?;
+        let stage = StagePin::create(&parent, &name)?;
+        journal.relocation_stage_ready(relocation, stage.identity())?;
+        let apartment = ShellApartment::new()?;
+        apartment.check_stage(&stage)?;
+        let mut helper = Session::launch(&apartment)?;
+        journal.start_relocation(relocation)?;
+        let entry = StageEntry::parse("owned.bin")?;
+        let reply = helper.admit(&source, &parent, &name, stage.identity(), &entry)?;
+        if !reply.admitted {
+            return Err("Roundtrip admission was rejected.".into());
+        }
+        journal.record_staged(relocation)?;
+        helper.finish()?;
+        let mut staged = source
+            .prepare_recycling(&stage, entry)
+            .map_err(|failure| failure.error)?;
+        let mut recycled = staged.recycle(&apartment, &mut journal, relocation)?;
+        let locator = recycled.locator().to_owned();
+        if !recycled.recorded()
+            || recycled.identity() != original
+            || source_path.exists()
+            || std::fs::read(&locator)? != [1, 2, 3, 4]
+        {
+            return Err("Rust recycling did not preserve a durable matching item.".into());
+        }
+        let marker = replacement(&source_path, FILE_SHARE_READ)?;
+        let error = recycled
+            .restore(&mut journal)
+            .err()
+            .ok_or("Restoration overwrote an occupied name.")?;
+        if !matches!(error, voldiq_core::Error::Io(ref error) if error.kind() == io::ErrorKind::AlreadyExists)
+            || std::fs::read(&source_path)? != b"owned replacement"
+            || std::fs::read(&locator)? != [1, 2, 3, 4]
+            || identity(&File::open(&locator)?)? != original
+            || journal.relocations(0, 1)?[0].state != "recycled"
+        {
+            return Err(
+                "Restoration collision did not preserve both objects and its receipt.".into(),
+            );
+        }
+        remove_replacement(marker)?;
+        let restored = recycled.restore(&mut journal)?;
+        if !restored.recorded()
+            || restored.path() != reviewed_original
+            || restored.identity() != original
+            || std::fs::read(&source_path)? != [1, 2, 3, 4]
+            || locator.exists()
+            || recycled.restore(&mut journal).is_ok()
+        {
+            return Err("Rust restoration or one-attempt gate was not verified.".into());
+        }
+        drop(recycled);
+        drop(staged);
+        stage.remove_empty(&name)?;
+        drop(parent);
+        drop(journal);
+        let journal = Journal::open(&database)?;
+        let records = journal.relocations(0, 100)?;
+        if records.len() != 1
+            || records[0].state != "restored"
+            || records[0].source != original
+            || records[0].bin_path.as_ref() != Some(&locator)
+            || records[0].restore_path.as_ref() != Some(&reviewed_original)
+        {
+            return Err("Roundtrip evidence did not survive journal reopening.".into());
+        }
+        drop(journal);
+        let (fresh, id) = plan(root)?;
+        let file = fresh.verify(id)?;
+        if identity(&File::open(&source_path)?)? != original {
+            return Err("Fixture cleanup identity changed.".into());
+        }
+        file.remove_permanently()?;
+        std::fs::remove_file(database)?;
+        std::fs::remove_dir(root)?;
+        Ok(
+            serde_json::json!({"nativeLauncherVerified":true,"productionElevatedEntryVerified":true,
+            "protectedAdmissionVerified":true,"rustRecyclingVerified":true,"rustRestorationVerified":true,
+            "restoreCollisionPreservedBothFiles":true,"restoreReplayRejected":true,
+            "originalIdentityAndContentsVerified":true,"journalSurvivedRestart":true,
+            "ownedFilesystemFixtureCleaned":true,"binPayloadAbsentAfterRestoration":true,
+            "physicalBinMetadataRetirementClaimed":false}),
+        )
+    }
+
     pub fn run() -> Result<(), Box<dyn std::error::Error>> {
         let args: Vec<String> = std::env::args().collect();
         if args.len() == 4 && args[1] == "helper" {
             return helper(&args[2], args[3].parse()?);
         }
         let external = args.len() == 2 && args[1] == "--external-helper";
-        if args.len() != 1 && !external {
+        let recycling = args.len() == 2 && args[1] == "--recycle-and-restore";
+        if args.len() != 1 && !external && !recycling {
             return Err("Unexpected fixture arguments.".into());
         }
         if current_elevation()? != PeerElevation::Ordinary {
@@ -466,7 +570,12 @@ mod probe {
             .prefix("voldiq-admission-")
             .tempdir()?
             .keep();
-        match scenario(&root, external) {
+        let result = if recycling {
+            recycling_scenario(&root)
+        } else {
+            scenario(&root, external)
+        };
+        match result {
             Ok(result) => {
                 println!("{result}");
                 Ok(())
