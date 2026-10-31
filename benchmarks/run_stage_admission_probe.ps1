@@ -59,13 +59,15 @@ try {
         -not $observation.unadmittedSourceRejectedForRecycling -or
         -not $observation.shellApartmentInitialized -or
         -not $observation.protectedStageShellBindingVerified -or
+        -not $observation.productionAdmissionProtocolVerified -or
+        -not $observation.helperReleasedStrictSourceWhileLive -or
         -not $observation.originalIdentityAndContentsVerified -or
         -not $observation.ownedFixtureCleaned) {
         throw 'Fixture did not confirm its required invariants.'
     }
     if ($RequestUac) {
         if (-not $observation.nativeAdmissionSucceeded -or
-            -not $observation.populatedStageRejected -or
+            -not $observation.reviewedSourceReplayRejected -or
             -not $observation.rollbackCollisionPreservedBothFiles -or
             -not $observation.returnedByOrdinaryController) {
             throw 'Elevated admission or ordinary rollback was not verified.'
@@ -84,6 +86,7 @@ try {
         'crates/voldiq-core/src/cleanup/journal.rs',
         'crates/voldiq-core/src/cleanup/journal/relocation.rs',
         'crates/voldiq-core/src/cleanup/recycle.rs',
+        'crates/voldiq-core/src/cleanup/helper.rs',
         'benchmarks/run_stage_admission_probe.ps1'
     )
     $hashes = [ordered]@{}

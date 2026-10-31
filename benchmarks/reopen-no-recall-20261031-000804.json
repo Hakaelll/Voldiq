@@ -1,0 +1,53 @@
+{
+  "utc": "2026-10-31T00:08:03.3805926Z",
+  "scope": "Read-only inspection of an owned four-byte source. DELETE permission was opened and closed without setting deletion or moving anything.",
+  "observation": [
+    {
+      "originalAccess": "0x80",
+      "reopenFlags": "0x300000",
+      "error": 87
+    },
+    {
+      "originalAccess": "0x80",
+      "reopenFlags": "0x200000",
+      "error": 0
+    },
+    {
+      "originalAccess": "0x80",
+      "reopenFlags": "0x0",
+      "error": 0
+    },
+    {
+      "originalAccess": "0x100080",
+      "reopenFlags": "0x300000",
+      "error": 87
+    },
+    {
+      "originalAccess": "0x100080",
+      "reopenFlags": "0x200000",
+      "error": 0
+    },
+    {
+      "originalAccess": "0x100080",
+      "reopenFlags": "0x0",
+      "error": 0
+    },
+    {
+      "originalAccess": "0x80000000",
+      "reopenFlags": "0x300000",
+      "error": 87
+    },
+    {
+      "originalAccess": "0x80000000",
+      "reopenFlags": "0x200000",
+      "error": 0
+    },
+    {
+      "originalAccess": "0x80000000",
+      "reopenFlags": "0x0",
+      "error": 0
+    }
+  ],
+  "script": "import ctypes as c\nfrom ctypes import wintypes as w\nimport json\nk=c.WinDLL('kernel32',use_last_error=True)\nk.CreateFileW.argtypes=[w.LPCWSTR,w.DWORD,w.DWORD,c.c_void_p,w.DWORD,w.DWORD,w.HANDLE]\nk.CreateFileW.restype=w.HANDLE\nk.ReOpenFile.argtypes=[w.HANDLE,w.DWORD,w.DWORD,w.DWORD]\nk.ReOpenFile.restype=w.HANDLE\nk.CloseHandle.argtypes=[w.HANDLE]\npath=r'C:\\Users\\yagol\\AppData\\Local\\Temp\\voldiq-admission-hIBJLu\\owned.bin'\nresults=[]\nfor access in [0x80,0x100080,0x80000000]:\n    original=k.CreateFileW(path,access,7,None,3,0x300000,None)\n    if original==c.c_void_p(-1).value: raise c.WinError(c.get_last_error())\n    try:\n        for flags in [0x300000,0x200000,0]:\n            handle=k.ReOpenFile(original,0x10080,1,flags)\n            error=c.get_last_error() if handle==c.c_void_p(-1).value else 0\n            results.append({'originalAccess':hex(access),'reopenFlags':hex(flags),'error':error})\n            if not error:k.CloseHandle(handle)\n    finally:k.CloseHandle(original)\nprint(json.dumps(results))\n",
+  "sourceCommit": "ed04ef58861af93883685a560d76c36affe761c1"
+}

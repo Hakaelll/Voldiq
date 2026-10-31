@@ -96,7 +96,7 @@ impl VerifiedFile {
                 self.file.as_raw_handle(),
                 GENERIC_READ,
                 FILE_SHARE_READ | FILE_SHARE_DELETE,
-                FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_OPEN_NO_RECALL,
+                FILE_FLAG_OPEN_REPARSE_POINT,
             )
         };
         if handle == INVALID_HANDLE_VALUE {

@@ -12,36 +12,17 @@ mod probe {
         ptr,
     };
     use voldiq_core::{
-        cleanup::{Plan, journal::Journal},
+        cleanup::{Plan, helper::Session, journal::Journal},
         windows::{
-            cleanup_channel::{Channel, PeerElevation, Server, current_elevation},
+            cleanup_channel::{PeerElevation, Server, current_elevation},
             cleanup_stage::{StageEntry, StageIdentity, StageName, StagePin},
             wide,
         },
     };
     use windows_sys::Win32::{Foundation::*, Storage::FileSystem::*, System::Threading::*};
 
-    #[derive(serde::Serialize, serde::Deserialize)]
-    #[serde(deny_unknown_fields)]
-    struct Request {
-        version: u8,
-        stage: String,
-        identity: StageIdentity,
-        entry: String,
-    }
-
-    #[derive(serde::Serialize, serde::Deserialize)]
-    #[serde(deny_unknown_fields)]
-    struct Reply {
-        admitted: bool,
-        native_error: Option<i32>,
-        replay_rejected: bool,
-    }
-
-    fn process(id: u32, duplicate: bool) -> io::Result<OwnedHandle> {
-        let access = PROCESS_QUERY_LIMITED_INFORMATION
-            | SYNCHRONIZE
-            | if duplicate { PROCESS_DUP_HANDLE } else { 0 };
+    fn process(id: u32) -> io::Result<OwnedHandle> {
+        let access = PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE;
         let handle = unsafe { OpenProcess(access, 0, id) };
         if handle.is_null() {
             return Err(io::Error::last_os_error());
@@ -79,37 +60,7 @@ mod probe {
     }
 
     fn helper(name: &str, parent: u32) -> Result<(), Box<dyn std::error::Error>> {
-        let parent = process(parent, true)?;
-        let mut channel = Channel::connect(name, parent.as_handle())?;
-        channel.require_peer(PeerElevation::Ordinary)?;
-        let directory = channel.receive_stage_parent()?;
-        let source = channel.receive_source()?;
-        let request: Request = serde_json::from_slice(&channel.receive()?)?;
-        if request.version != 1 {
-            return Err("Unsupported fixture protocol.".into());
-        }
-        let name = StageName::parse(&request.stage)?;
-        let entry = StageEntry::parse(&request.entry)?;
-        let mut stage = StagePin::acquire(&directory, &name, request.identity)?;
-        let result = stage.admit(&source, &entry);
-        let reply = match result {
-            Ok(()) => Reply {
-                admitted: true,
-                native_error: None,
-                replay_rejected: stage
-                    .admit(&source, &entry)
-                    .is_err_and(|error| error.kind() == io::ErrorKind::AlreadyExists),
-            },
-            Err(error) => Reply {
-                admitted: false,
-                native_error: error.raw_os_error(),
-                replay_rejected: false,
-            },
-        };
-        channel.send(&serde_json::to_vec(&reply)?)?;
-        if channel.receive()? != b"release" {
-            return Err("Unexpected fixture completion.".into());
-        }
+        voldiq_core::cleanup::helper::serve(name, parent, current_elevation()?)?;
         Ok(())
     }
 
@@ -270,12 +221,10 @@ mod probe {
         }
         let source = planned.verify(id)?;
         voldiq_core::cleanup::recycle::ShellApartment::new()?.check_stage(&stage)?;
-        let request = Request {
-            version: 1,
-            stage: name.as_str().to_owned(),
-            identity: stage.identity(),
-            entry: "owned.bin".into(),
-        };
+        let image = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(FILE_SHARE_READ)
+            .open(std::env::current_exe()?)?;
         let server = Server::create()?;
         let mut ordinary = None;
         let external_process;
@@ -287,7 +236,7 @@ mod probe {
             io::stdout().flush()?;
             let mut line = String::new();
             io::stdin().read_line(&mut line)?;
-            external_process = process(line.trim().parse()?, false)?;
+            external_process = process(line.trim().parse()?)?;
             external_process.as_handle()
         } else {
             ordinary = Some(child(&server)?);
@@ -296,21 +245,26 @@ mod probe {
                 .ok_or("Missing owned helper.")?
                 .as_handle()
         };
-        let mut channel = server.accept(peer)?;
-        channel.require_peer(if external {
-            PeerElevation::Elevated
-        } else {
-            PeerElevation::Ordinary
-        })?;
-        channel.offer_stage_parent(&parent)?;
-        source.offer_source(&mut channel)?;
+        let mut session = Session::connect(
+            server,
+            peer,
+            if external {
+                PeerElevation::Elevated
+            } else {
+                PeerElevation::Ordinary
+            },
+            image,
+        )?;
+        let entry = StageEntry::parse("owned.bin")?;
         journal.start_relocation(relocation)?;
-        channel.send(&serde_json::to_vec(&request)?)?;
-        let reply: Reply = serde_json::from_slice(&channel.receive()?)?;
-        let entry = StageEntry::parse(&request.entry)?;
+        let reply = session.admit(&source, &parent, &name, stage.identity(), &entry)?;
+        let replay_rejected = external
+            && session
+                .admit(&source, &parent, &name, stage.identity(), &entry)
+                .is_err();
         let staged_path = root.join(name.as_str()).join(entry.as_str());
         if external {
-            if !reply.admitted || !reply.replay_rejected {
+            if !reply.admitted || !replay_rejected {
                 return Err("Elevated helper did not admit exactly once.".into());
             }
             if source_path.exists()
@@ -364,15 +318,37 @@ mod probe {
             return Err("Durable relocation evidence did not survive restart.".into());
         }
         drop(recovered);
-        channel.send(b"release")?;
-        if wait(peer)? != 0 {
-            return Err("Owned helper failed on exit.".into());
+        let metadata = std::fs::OpenOptions::new()
+            .access_mode(FILE_READ_ATTRIBUTES)
+            .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE)
+            .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_OPEN_NO_RECALL)
+            .open(&source_path)?;
+        drop(source);
+        if unsafe { WaitForSingleObject(peer.as_raw_handle(), 0) } != WAIT_TIMEOUT {
+            return Err("Helper exited before its handle-release check.".into());
         }
+        let reopened = unsafe {
+            ReOpenFile(
+                metadata.as_raw_handle(),
+                DELETE | FILE_READ_ATTRIBUTES,
+                FILE_SHARE_READ,
+                FILE_FLAG_OPEN_REPARSE_POINT,
+            )
+        };
+        if reopened == INVALID_HANDLE_VALUE {
+            return Err(io::Error::last_os_error().into());
+        }
+        let release_probe = unsafe { File::from_raw_handle(reopened) };
+        if identity(&release_probe)? != original {
+            return Err("Release check changed source identity.".into());
+        }
+        drop(release_probe);
+        drop(metadata);
+        session.finish()?;
         if let Some(mut child) = ordinary {
             child.wait()?;
         }
         let (fresh, id) = plan(root)?;
-        drop(source);
         fresh.verify(id)?.remove_permanently()?;
         drop(stage);
         drop(parent);
@@ -380,8 +356,8 @@ mod probe {
         std::fs::remove_file(&journal_path)?;
         std::fs::remove_dir(root)?;
         Ok(
-            serde_json::json!({"helperElevated":external,"unadmittedSourceRejectedForRecycling":true,"shellApartmentInitialized":true,"protectedStageShellBindingVerified":true,"journalIntentAndResultSurvivedRestart":true,"sameUserImageAndRoleVerified":true,"nativeAdmissionSucceeded":reply.admitted,"nativeError":reply.native_error,
-            "populatedStageRejected":reply.replay_rejected,"rollbackCollisionPreservedBothFiles":external,"returnedByOrdinaryController":external,"originalIdentityAndContentsVerified":true,"ownedFixtureCleaned":true}),
+            serde_json::json!({"helperElevated":external,"productionAdmissionProtocolVerified":true,"helperReleasedStrictSourceWhileLive":true,"unadmittedSourceRejectedForRecycling":true,"shellApartmentInitialized":true,"protectedStageShellBindingVerified":true,"journalIntentAndResultSurvivedRestart":true,"sameUserImageAndRoleVerified":true,"nativeAdmissionSucceeded":reply.admitted,"nativeError":reply.native_error,
+            "reviewedSourceReplayRejected":replay_rejected,"rollbackCollisionPreservedBothFiles":external,"returnedByOrdinaryController":external,"originalIdentityAndContentsVerified":true,"ownedFixtureCleaned":true}),
         )
     }
 
@@ -421,6 +397,9 @@ mod probe {
 
 #[cfg(windows)]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(code) = voldiq_core::cleanup::helper::run_cli() {
+        std::process::exit(code);
+    }
     probe::run()
 }
 

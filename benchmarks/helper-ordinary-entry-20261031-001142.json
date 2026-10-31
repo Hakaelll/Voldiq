@@ -1,0 +1,10 @@
+{
+  "utc": "2026-10-31T00:11:42.9263601Z",
+  "controllerElevated": false,
+  "executableSha256": "D14134DB9F2BC351C495FE84FBCCF38D15565F99684AC7EEF0D3835F93164CC6",
+  "helperSourceSha256": "921E87F55ADBC0A2213E03EBCA4CD8008FDB7273FF509AD92CAB373DE6C36F18",
+  "nativeEntrySourceSha256": "5F8CB53A59CD6165A4537F76660489C00CE0C6CBC1C2EA0AE4717B2BC11B44AC",
+  "processExitCode": 1,
+  "observation": "Cleanup helper: Unexpected helper elevation.",
+  "scope": "Shared CLI entry rejects an ordinary token before pipe connection. No GUI, source capabilities, UAC launch, or filesystem mutations were requested."
+}

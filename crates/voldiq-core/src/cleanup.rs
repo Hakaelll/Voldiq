@@ -4,6 +4,8 @@ use serde::Serialize;
 mod disposition_tests;
 #[cfg(windows)]
 pub mod execute;
+#[cfg(windows)]
+pub mod helper;
 pub mod journal;
 #[cfg(windows)]
 pub mod recycle;

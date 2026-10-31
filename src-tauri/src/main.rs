@@ -528,6 +528,10 @@ async fn query_developer_storage(
 }
 
 fn main() {
+    #[cfg(windows)]
+    if let Some(code) = voldiq_core::cleanup::helper::run_cli() {
+        std::process::exit(code);
+    }
     tauri::Builder::default()
         .setup(|app| {
             let directory = app.path().app_local_data_dir()?;
