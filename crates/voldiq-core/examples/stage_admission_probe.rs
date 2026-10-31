@@ -488,6 +488,32 @@ mod probe {
         {
             return Err("Rust recycling did not preserve a durable matching item.".into());
         }
+        let observed_version = journal
+            .relocations(0, 1)?
+            .remove(0)
+            .recycled_version
+            .ok_or("Missing durable recycled version.")?;
+        let bin_file = File::open(&locator)?;
+        let mut basic = FILE_BASIC_INFO::default();
+        if unsafe {
+            GetFileInformationByHandleEx(
+                bin_file.as_raw_handle(),
+                FileBasicInfo,
+                (&mut basic as *mut FILE_BASIC_INFO).cast(),
+                size_of::<FILE_BASIC_INFO>() as u32,
+            )
+        } == 0
+        {
+            return Err(io::Error::last_os_error().into());
+        }
+        let metadata = bin_file.metadata()?;
+        if observed_version.change_time != basic.ChangeTime as u64
+            || observed_version.size != metadata.len()
+            || observed_version.modified != metadata.modified()?
+        {
+            return Err("Durable recycled version differs from the retained bin item.".into());
+        }
+        drop(bin_file);
         let marker = replacement(&source_path, FILE_SHARE_READ)?;
         let error = recycled
             .restore(&mut journal)
@@ -526,6 +552,7 @@ mod probe {
             || records[0].source != original
             || records[0].bin_path.as_ref() != Some(&locator)
             || records[0].restore_path.as_ref() != Some(&reviewed_original)
+            || records[0].recycled_version != Some(observed_version)
         {
             return Err("Roundtrip evidence did not survive journal reopening.".into());
         }
@@ -544,7 +571,7 @@ mod probe {
             "restoreCollisionPreservedBothFiles":true,"restoreReplayRejected":true,
             "originalIdentityAndContentsVerified":true,"journalSurvivedRestart":true,
             "ownedFilesystemFixtureCleaned":true,"binPayloadAbsentAfterRestoration":true,
-            "physicalBinMetadataRetirementClaimed":false}),
+            "physicalBinMetadataRetirementClaimed":false,"recycledVersionSurvivedRestart":true}),
         )
     }
 

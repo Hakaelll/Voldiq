@@ -66,7 +66,7 @@ try {
     @('nativeLauncherVerified','productionElevatedEntryVerified','protectedAdmissionVerified',
         'rustRecyclingVerified','rustRestorationVerified','restoreCollisionPreservedBothFiles',
         'restoreReplayRejected','originalIdentityAndContentsVerified','journalSurvivedRestart',
-        'ownedFilesystemFixtureCleaned','binPayloadAbsentAfterRestoration') | ForEach-Object {
+        'ownedFilesystemFixtureCleaned','binPayloadAbsentAfterRestoration','recycledVersionSurvivedRestart') | ForEach-Object {
             if ($observation.$_ -ne $true) { throw "Required roundtrip observation missing: $_" }
         }
     Write-Output ($observation | ConvertTo-Json -Compress)

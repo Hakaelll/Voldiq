@@ -1,0 +1,43 @@
+{
+  "utc": "2026-10-31T10:54:38.7570455Z",
+  "controllerElevated": false,
+  "executableSha256": "65894FF6D2252BAC3CB10335A304E1C139D969A4BAE29265CB7B4C812467359E",
+  "sources": {
+    "crates/voldiq-core/examples/stage_admission_probe.rs": "F4C368C731D94E7F64B733BA074B34E16C67D0543B81B06594151E5B14228D74",
+    "crates/voldiq-core/src/windows/cleanup_channel.rs": "70090273E22E1F6C4D7298E37EF50D0482E328CB1D1DC420574238B1984FFD5B",
+    "crates/voldiq-core/src/windows/cleanup_io.rs": "8E35074EDBB96F355B73A3A244A65B8CAAAA45B438BCC493600DD85989451CFB",
+    "crates/voldiq-core/src/windows/security.rs": "A3259B436D1E91C1CD607A02EBC952551E49791842E924354DA46C983C780D10",
+    "crates/voldiq-core/src/windows/cleanup_stage.rs": "F73A8A54166650E4CE41A486E453F84594B9314E82EF72FE35F3CFA3D6299590",
+    "crates/voldiq-core/src/windows/cleanup_stage/admission.rs": "081D1A479002ACBB9A95694A56BDF2BE0AC2CD5B1A1EFB4B80859CC62E74C785",
+    "crates/voldiq-core/src/cleanup.rs": "08EC8F9D8AF675655134C22B436F8FE25567BA31EEF0CA00D69EB2E48B01C93B",
+    "crates/voldiq-core/src/cleanup/journal.rs": "B9B8123170E6410602F62A73A158C34DCCC56093479CBB57ECCBF2D0C133C457",
+    "crates/voldiq-core/src/cleanup/journal/relocation.rs": "0E10C91904D6217FFB2085DCEC57BF1E0BDBEBF9DE32824BB2E8D4D60BB673FB",
+    "crates/voldiq-core/src/cleanup/recycle.rs": "C42BF05BE3DEEEED5DA3CA35165CC1AD50E375D27CC80F79D40317281E0F5022",
+    "crates/voldiq-core/src/cleanup/recycle/batch.rs": "AF043307418100FB5A9B3E0ECA204105C52A7EFD4901E242E70865FCD22AE03B",
+    "crates/voldiq-core/src/cleanup/helper.rs": "921E87F55ADBC0A2213E03EBCA4CD8008FDB7273FF509AD92CAB373DE6C36F18",
+    "benchmarks/run_stage_admission_probe.ps1": "DB3A70F4CE599D281D0E9326A1B2EF2518AA8B837889C89DDB722135703BDC6A"
+  },
+  "observation": {
+    "batchCancellationPreservedSources": true,
+    "batchOrdinaryDenialVerified": true,
+    "emptyStageRemovedByVerifiedHandle": true,
+    "helperElevated": false,
+    "helperReleasedStrictSourceWhileLive": true,
+    "journalIntentAndResultSurvivedRestart": true,
+    "nativeAdmissionSucceeded": false,
+    "nativeError": 5,
+    "originalIdentityAndContentsVerified": true,
+    "ownedFixtureCleaned": true,
+    "parentAuthorityReopenedAndNarrowed": true,
+    "productionAdmissionProtocolVerified": true,
+    "protectedStageShellBindingVerified": true,
+    "returnedByOrdinaryController": false,
+    "reviewedSourceReplayRejected": false,
+    "rollbackCollisionPreservedBothFiles": false,
+    "sameUserImageAndRoleVerified": true,
+    "shellApartmentInitialized": true,
+    "unadmittedSourceRejectedForRecycling": true,
+    "wrongCleanupTargetPreserved": true
+  },
+  "scope": "Owned temporary fixture and durable admission/rollback ledger only. No Shell recycling or application transaction is claimed."
+}

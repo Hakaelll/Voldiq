@@ -74,6 +74,96 @@ fn interruption_after_deletion_never_retries_a_replacement_or_claims_success() {
     recycling_receipts_and_migration(&fixture);
     handle_bound_return_preserves_occupied_names(&fixture);
     activity_keeps_both_operation_kinds_and_uncertain_results(&fixture);
+    version3_receipts_do_not_gain_invented_versions(&fixture);
+}
+
+fn version3_receipts_do_not_gain_invented_versions(fixture: &tempfile::TempDir) {
+    let path = fixture.path().join("version3.sqlite");
+    let survivor = fixture.path().join("version3-survivor.bin");
+    std::fs::write(&survivor, b"untouched").unwrap();
+    let legacy = Connection::open(&path).unwrap();
+    legacy.execute_batch(SCHEMA).unwrap();
+    legacy.execute_batch(super::relocation::SCHEMA).unwrap();
+    legacy
+        .execute_batch(super::relocation::RECYCLING_MIGRATION)
+        .unwrap();
+    let bin: Vec<u8> = "C:\\legacy-bin"
+        .encode_utf16()
+        .flat_map(u16::to_le_bytes)
+        .collect();
+    legacy.execute_batch(&format!("PRAGMA application_id={APPLICATION_ID};
+        INSERT INTO operations VALUES(1,'manual','permanent',42,'finished');
+        INSERT INTO items VALUES(1,7,'historical.bin',zeroblob(16),zeroblob(8),4,1,0,'succeeded',NULL);")).unwrap();
+    legacy.execute("INSERT INTO relocations(id,node,path,source_volume,source_file,parent_file,change_time,size,modified_seconds,modified_nanos,stage_name,stage_file,state,created,bin_path)
+        VALUES(27,1,'C:\\legacy-original.bin',zeroblob(8),zeroblob(16),zeroblob(16),zeroblob(8),4,1,0,'voldiq-stage-00000000000000000000000000000001',zeroblob(16),'recycled',1,?1)",params![bin]).unwrap();
+    legacy
+        .execute_batch("UPDATE sqlite_sequence SET seq=90 WHERE name='relocations';")
+        .unwrap();
+    drop(legacy);
+    for _ in 0..2 {
+        let journal = Journal::open(&path).unwrap();
+        assert_eq!(
+            journal
+                .connection
+                .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
+                .unwrap(),
+            4
+        );
+        assert_eq!(
+            journal
+                .connection
+                .query_row(
+                    "SELECT seq FROM sqlite_sequence WHERE name='relocations'",
+                    [],
+                    |row| row.get::<_, i64>(0)
+                )
+                .unwrap(),
+            90
+        );
+        let records = journal.relocations(0, 100).unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].id, 27);
+        assert_eq!(records[0].state, "recycled");
+        assert_eq!(
+            records[0].bin_path.as_deref(),
+            Some(Path::new("C:\\legacy-bin"))
+        );
+        assert!(records[0].recycled_version.is_none());
+        assert_eq!(journal.items(0, 100).unwrap()[0].state, "succeeded");
+        assert_eq!(std::fs::read(&survivor).unwrap(), b"untouched");
+    }
+    let journal = Journal::open(&path).unwrap();
+    assert!(
+        journal
+            .connection
+            .execute("UPDATE relocations SET recycled_change_time=x'010203'", [])
+            .is_err()
+    );
+    journal
+        .connection
+        .execute(
+            "UPDATE relocations SET recycled_change_time=zeroblob(8),modified_nanos=1000000000",
+            [],
+        )
+        .unwrap();
+    assert!(journal.relocations(0, 100).is_err());
+    journal
+        .connection
+        .execute(
+            "UPDATE relocations SET modified_nanos=0,modified_seconds=-1",
+            [],
+        )
+        .unwrap();
+    assert!(journal.relocations(0, 100).is_err());
+    journal
+        .connection
+        .execute(
+            "UPDATE relocations SET modified_seconds=9223372036854775807",
+            [],
+        )
+        .unwrap();
+    assert!(journal.relocations(0, 100).is_err());
+    assert_eq!(std::fs::read(survivor).unwrap(), b"untouched");
 }
 
 fn activity_keeps_both_operation_kinds_and_uncertain_results(fixture: &tempfile::TempDir) {
@@ -186,7 +276,7 @@ fn relocation_migration_and_interruption(fixture: &tempfile::TempDir) {
             .connection
             .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
             .unwrap(),
-        3
+        4
     );
     let history = journal.items(0, 100).unwrap();
     assert_eq!(history.len(), 1);
@@ -278,6 +368,7 @@ fn relocation_migration_and_interruption(fixture: &tempfile::TempDir) {
 }
 
 fn recycling_receipts_and_migration(fixture: &tempfile::TempDir) {
+    use super::relocation::RecycledVersion;
     use crate::windows::cleanup_stage::{StageIdentity, StageName};
     use std::os::windows::ffi::OsStringExt;
     let root = fixture.path().join("receipt-fixture");
@@ -312,6 +403,7 @@ fn recycling_receipts_and_migration(fixture: &tempfile::TempDir) {
         (19, "returned", Some("preserved"))
     );
     assert!(history[0].bin_path.is_none());
+    assert!(history[0].recycled_version.is_none());
     let mut units: Vec<u16> = r"C:\$Recycle.Bin\owned-".encode_utf16().collect();
     units.push(0xd800);
     let bin: std::path::PathBuf = std::ffi::OsString::from_wide(&units).into();
@@ -319,6 +411,12 @@ fn recycling_receipts_and_migration(fixture: &tempfile::TempDir) {
     let mut sessions = Vec::new();
     for (phase, node) in nodes.iter().enumerate() {
         let source = plan.verify(*node).unwrap();
+        let metadata = source.file.metadata().unwrap();
+        let version = RecycledVersion {
+            change_time: 0xfedc_ba98_7654_3210 + phase as u64,
+            size: metadata.len(),
+            modified: metadata.modified().unwrap(),
+        };
         let id = journal
             .prepare_relocation(&plan, *node, &source, &StageName::generate().unwrap())
             .unwrap();
@@ -351,7 +449,7 @@ fn recycling_receipts_and_migration(fixture: &tempfile::TempDir) {
         }
         assert!(
             journal
-                .record_recycled(id, record.source, Path::new("relative"))
+                .record_recycled(id, record.source, Path::new("relative"), version)
                 .is_err()
         );
         if phase == 4 {
@@ -359,7 +457,11 @@ fn recycling_receipts_and_migration(fixture: &tempfile::TempDir) {
                 .connection
                 .execute_batch("PRAGMA query_only=ON;")
                 .unwrap();
-            assert!(journal.record_recycled(id, record.source, &bin).is_err());
+            assert!(
+                journal
+                    .record_recycled(id, record.source, &bin, version)
+                    .is_err()
+            );
             journal
                 .connection
                 .execute_batch("PRAGMA query_only=OFF;")
@@ -367,7 +469,35 @@ fn recycling_receipts_and_migration(fixture: &tempfile::TempDir) {
             sessions.push(id);
             continue;
         }
-        journal.record_recycled(id, record.source, &bin).unwrap();
+        assert!(
+            journal
+                .record_recycled(
+                    id,
+                    record.source,
+                    &bin,
+                    RecycledVersion {
+                        size: version.size + 1,
+                        ..version
+                    }
+                )
+                .is_err()
+        );
+        assert!(
+            journal
+                .record_recycled(
+                    id,
+                    record.source,
+                    &bin,
+                    RecycledVersion {
+                        modified: version.modified + std::time::Duration::from_secs(1),
+                        ..version
+                    }
+                )
+                .is_err()
+        );
+        journal
+            .record_recycled(id, record.source, &bin, version)
+            .unwrap();
         if phase >= 2 {
             let mut wrong_source = record.source;
             wrong_source.file[0] ^= 1;
@@ -421,6 +551,17 @@ fn recycling_receipts_and_migration(fixture: &tempfile::TempDir) {
             }
         );
         assert_eq!(std::fs::read(&record.path).unwrap(), b"fixture content");
+        if (1..=3).contains(&phase) {
+            let version = record.recycled_version.unwrap();
+            assert_eq!(version.change_time, 0xfedc_ba98_7654_3210 + phase as u64);
+            assert_eq!(version.size, 15);
+            assert_eq!(
+                version.modified,
+                std::fs::metadata(&record.path).unwrap().modified().unwrap()
+            );
+        } else {
+            assert!(record.recycled_version.is_none());
+        }
         assert!(
             journal
                 .start_restore(sessions[phase], record.source, &destination)

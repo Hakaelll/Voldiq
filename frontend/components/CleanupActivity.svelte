@@ -27,7 +27,7 @@
     if (item.kind === 'recycling') {
       switch (item.state) {
         case 'recycled':
-          return 'In Recycle Bin';
+          return 'Sent to Recycle Bin';
         case 'restored':
           return 'Restored';
         case 'returned':

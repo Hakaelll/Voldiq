@@ -1,7 +1,10 @@
 //! Single-item Shell recycling from a pinned protected stage with durable intent and result records.
 pub mod batch;
 mod restore;
-use super::journal::{Journal, relocation::RelocationId};
+use super::journal::{
+    Journal,
+    relocation::{RecycledVersion, RelocationId},
+};
 use super::{Stamp, VerifiedFile, validate_file};
 use crate::{
     Error, Result,
@@ -243,10 +246,17 @@ impl<'stage> StagedSource<'stage> {
             ));
         }
         check_content(&self.guard, &self.stamp)?;
-        let journal_error = journal
-            .record_recycled(relocation, self.identity, &locator)
-            .err()
-            .map(|error| error.to_string());
+        let journal_error = (|| {
+            let metadata = self.guard.metadata()?;
+            let version = RecycledVersion {
+                change_time: crate::windows::file_identity(&self.guard)?.change_time,
+                size: metadata.len(),
+                modified: metadata.modified()?,
+            };
+            journal.record_recycled(relocation, self.identity, &locator, version)
+        })()
+        .err()
+        .map(|error: Error| error.to_string());
         Ok(RecycledItem {
             _item: item,
             _apartment: apartment,
