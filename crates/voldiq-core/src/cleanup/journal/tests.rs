@@ -73,6 +73,47 @@ fn interruption_after_deletion_never_retries_a_replacement_or_claims_success() {
     relocation_migration_and_interruption(&fixture);
     recycling_receipts_and_migration(&fixture);
     handle_bound_return_preserves_occupied_names(&fixture);
+    activity_keeps_both_operation_kinds_and_uncertain_results(&fixture);
+}
+
+fn activity_keeps_both_operation_kinds_and_uncertain_results(fixture: &tempfile::TempDir) {
+    let path = fixture.path().join("activity.sqlite");
+    let survivor = fixture.path().join("activity-survivor.bin");
+    std::fs::write(&survivor, b"untouched").unwrap();
+    let journal = Journal::open(&path).unwrap();
+    journal.connection.execute_batch("INSERT INTO operations VALUES(1,'manual','permanent',10,'finished');
+        INSERT INTO items VALUES(1,7,'removed.bin',zeroblob(16),zeroblob(8),4,1,0,'succeeded',NULL);
+        INSERT INTO relocations(id,node,path,source_volume,source_file,parent_file,change_time,size,modified_seconds,modified_nanos,stage_name,state,message,created)
+        VALUES(1,7,'uncertain.bin',zeroblob(8),zeroblob(16),zeroblob(16),zeroblob(8),4,1,0,'voldiq-stage-00000000000000000000000000000001','unknown','Review required',20);").unwrap();
+    let native = |value: &str| {
+        value
+            .encode_utf16()
+            .flat_map(u16::to_le_bytes)
+            .collect::<Vec<_>>()
+    };
+    journal.connection.execute("INSERT INTO relocations(id,node,path,source_volume,source_file,parent_file,change_time,size,modified_seconds,modified_nanos,stage_name,stage_file,state,created,bin_path,restore_path)
+        VALUES(2,8,'restored.bin',zeroblob(8),zeroblob(16),zeroblob(16),zeroblob(8),4,1,0,'voldiq-stage-00000000000000000000000000000002',zeroblob(16),'restored',30,?1,?2)",
+        params![native("C:\\fixture-bin"),native("C:\\fixture-destination")]).unwrap();
+    drop(journal);
+    let journal = Journal::open(&path).unwrap();
+    let first = journal.activity(0, 2).unwrap();
+    assert_eq!(first.len(), 2);
+    assert_eq!(first[0].kind, ActivityKind::Recycling);
+    assert_eq!(first[0].item.path, "restored.bin");
+    assert_eq!(first[0].item.state, "restored");
+    assert_eq!(first[1].item.operation, 1);
+    assert_eq!(first[1].item.node, NodeId(7));
+    assert_eq!(first[1].item.state, "unknown");
+    assert_eq!(first[1].item.message.as_deref(), Some("Review required"));
+    let second = journal.activity(2, 2).unwrap();
+    assert_eq!(second.len(), 1);
+    assert_eq!(second[0].kind, ActivityKind::Permanent);
+    assert_eq!(second[0].item.operation, 1);
+    assert_eq!(second[0].item.node, NodeId(7));
+    assert_eq!(second[0].item.path, "removed.bin");
+    assert_eq!(second[0].item.state, "succeeded");
+    assert!(journal.activity(3, 2).unwrap().is_empty());
+    assert_eq!(std::fs::read(survivor).unwrap(), b"untouched");
 }
 
 fn handle_bound_return_preserves_occupied_names(fixture: &tempfile::TempDir) {

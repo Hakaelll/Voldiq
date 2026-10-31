@@ -5,6 +5,7 @@
 
   let { revision, busy }: { revision: number; busy: boolean } = $props();
   type Item = {
+    kind: 'permanent' | 'recycling';
     operation: number;
     node: number;
     path: string;
@@ -22,8 +23,27 @@
   let generation = 0;
   let region: HTMLElement;
 
-  function result(value: string): string {
-    switch (value) {
+  function result(item: Item): string {
+    if (item.kind === 'recycling') {
+      switch (item.state) {
+        case 'recycled':
+          return 'In Recycle Bin';
+        case 'restored':
+          return 'Restored';
+        case 'returned':
+          return 'Returned to original folder';
+        case 'unmoved':
+          return 'Not moved';
+        case 'cancelled':
+          return 'Not attempted';
+        case 'prepared':
+        case 'stage_ready':
+          return 'Pending';
+        default:
+          return 'Needs review';
+      }
+    }
+    switch (item.state) {
       case 'succeeded':
         return 'Permanently removed';
       case 'failed':
@@ -35,9 +55,9 @@
       case 'in_flight':
         return 'Unresolved';
       case 'unknown':
-        return 'Unknown';
+        return 'Needs review';
       default:
-        return 'Unknown';
+        return 'Needs review';
     }
   }
   async function load(offset: number): Promise<void> {
@@ -102,15 +122,13 @@
             ></thead
           >
           <tbody>
-            {#each state.items as item (`${item.operation}:${item.node}`)}
+            {#each state.items as item (`${item.kind}:${item.operation}:${item.node}`)}
               <tr>
                 <td class="path">{item.path}</td>
                 <td>
-                  <span>{result(item.state)}</span>
+                  <span>{result(item)}</span>
                   {#if item.message}<small>{item.message}</small>
-                  {:else if item.state === 'unknown' || item.state === 'in_flight'}<small
-                      >Result unconfirmed</small
-                    >{/if}
+                  {/if}
                 </td>
                 <td>{date(item.created)}</td>
               </tr>

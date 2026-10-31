@@ -197,7 +197,7 @@ pub async fn query_cleanup_history(
     offset: usize,
     limit: usize,
     journal: State<'_, CleanupJournal>,
-) -> Result<Vec<voldiq_core::cleanup::journal::Item>, String> {
+) -> Result<Vec<voldiq_core::cleanup::journal::ActivityItem>, String> {
     let journal = journal.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         journal
@@ -205,7 +205,7 @@ pub async fn query_cleanup_history(
             .map_err(|error| error.to_string())?
             .as_ref()
             .map_err(|error| error.clone())?
-            .items(offset, limit)
+            .activity(offset, limit)
             .map_err(|error| error.to_string())
     })
     .await

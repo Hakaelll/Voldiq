@@ -37,6 +37,20 @@ pub enum Outcome {
     Failed(String),
 }
 
+#[derive(Debug, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ActivityKind {
+    Permanent,
+    Recycling,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ActivityItem {
+    pub kind: ActivityKind,
+    #[serde(flatten)]
+    pub item: Item,
+}
+
 #[derive(Debug, Serialize)]
 pub struct Item {
     pub operation: i64,
@@ -233,6 +247,43 @@ impl Journal {
                     state: row.get(3)?,
                     message: row.get(4)?,
                     created: row.get(5)?,
+                })
+            },
+        )?;
+        Ok(rows.collect::<std::result::Result<_, _>>()?)
+    }
+
+    #[cfg(windows)]
+    pub fn activity(&self, offset: usize, limit: usize) -> Result<Vec<ActivityItem>> {
+        let mut statement = self.connection.prepare(
+            "SELECT 0 AS kind,i.operation AS operation,i.node AS node,i.path AS path,
+                i.state AS state,i.message AS message,o.created AS created
+             FROM items i JOIN operations o ON o.id=i.operation
+             UNION ALL
+             SELECT 1,r.id,r.node,r.path,r.state,r.message,r.created FROM relocations r
+             ORDER BY created DESC,kind DESC,operation DESC,node ASC LIMIT ?1 OFFSET ?2",
+        )?;
+        let rows = statement.query_map(
+            params![
+                limit.clamp(1, 100) as i64,
+                i64::try_from(offset)
+                    .map_err(|_| Error::Invalid("Invalid activity offset.".into()))?
+            ],
+            |row| {
+                Ok(ActivityItem {
+                    kind: if row.get::<_, bool>(0)? {
+                        ActivityKind::Recycling
+                    } else {
+                        ActivityKind::Permanent
+                    },
+                    item: Item {
+                        operation: row.get(1)?,
+                        node: NodeId(row.get(2)?),
+                        path: row.get(3)?,
+                        state: row.get(4)?,
+                        message: row.get(5)?,
+                        created: row.get(6)?,
+                    },
                 })
             },
         )?;

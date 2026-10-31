@@ -26,7 +26,7 @@ Voldiq uses the provided stacked-storage logo, including its disc-shaped top and
 
 Visible copy stays minimal: labels, measured states and necessary warnings. Keep implementation explanations, privacy descriptions and extended guidance in documentation.
 
-The user owns visual acceptance and has asked to stop Computer Use and repeated screenshot checks. Subagent reviews of design and code are authorized. Continue source reviews, functional verification and compilation without browser automation or capture cycles.
+The user owns visual acceptance and has asked to stop Computer Use and repeated screenshot checks. The user has also requested no subagents. Continue source reviews, functional verification and compilation without browser automation or capture cycles.
 
 ## Evidence on hand
 
