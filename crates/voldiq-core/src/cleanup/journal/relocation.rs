@@ -123,6 +123,17 @@ impl Journal {
         source: &VerifiedFile,
         stage: &StageName,
     ) -> Result<RelocationId> {
+        self.prepare_relocation_with_origin(plan, node, source, stage, None)
+    }
+
+    pub(crate) fn prepare_relocation_with_origin(
+        &mut self,
+        plan: &Plan,
+        node: NodeId,
+        source: &VerifiedFile,
+        stage: &StageName,
+        origin: Option<&super::AgentExecutionRef<'_>>,
+    ) -> Result<RelocationId> {
         let planned = plan
             .files
             .iter()
@@ -168,6 +179,9 @@ impl Journal {
             params![node.0,path,source_id.volume.to_le_bytes().as_slice(),source_id.file.as_slice(),parent.file.as_slice(),
                 planned.stamp.change_time.to_le_bytes().as_slice(),integer(planned.stamp.size)?,integer(modified.as_secs())?,modified.subsec_nanos(),stage.as_str(),integer(crate::cleanup::rules::now()?)?])?;
         let id = transaction.last_insert_rowid();
+        if let Some(origin) = origin {
+            super::agent::bind(&transaction, id, origin, self._directory.identity())?;
+        }
         transaction.commit()?;
         Ok(RelocationId(id, self.owner))
     }

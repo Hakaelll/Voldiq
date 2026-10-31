@@ -266,6 +266,10 @@ impl Store {
             owner: context.owner(),
             nonce,
             directory: self.directory.identity(),
+            #[cfg(windows)]
+            issuer: human.issuer().to_owned(),
+            #[cfg(windows)]
+            binding: stored.binding,
         }))
     }
 
@@ -279,7 +283,11 @@ impl Store {
         if lease.directory != self.directory.identity()
             || !matches!(
                 state,
-                State::Completed | State::PartiallyCompleted | State::Failed | State::Cancelled
+                State::Completed
+                    | State::PartiallyCompleted
+                    | State::Failed
+                    | State::Cancelled
+                    | State::Invalidated
             )
             || now < 0
         {
@@ -441,6 +449,46 @@ impl Store {
             record,
             binding,
         })
+    }
+
+    #[cfg(windows)]
+    pub(super) fn execution_record(
+        &self,
+        context: &PlanContext<'_>,
+        human: &HumanAuthority,
+        lease: &ExecutionLease,
+    ) -> Result<Record> {
+        context.check(Capability::ExecuteApproved)?;
+        human.check_directory(self.directory.identity())?;
+        if lease.directory != self.directory.identity()
+            || lease.owner != context.owner()
+            || lease.issuer != human.issuer()
+            || lease.binding != context.binding()?
+        {
+            return Err(invalid());
+        }
+        let stored = self.read(context, &lease.id)?;
+        let current: bool = self.connection.query_row("SELECT EXISTS(SELECT 1 FROM agent_plans WHERE id=?1 AND owner=?2 AND hash=?3 AND execution_nonce=?4 AND state='executing')",params![lease.id,lease.owner,lease.hash,lease.nonce],|row| row.get(0))?;
+        if !current || stored.view.hash != lease.hash || stored.view.state != State::Executing {
+            return Err(invalid());
+        }
+        Ok(stored.record)
+    }
+
+    #[cfg(windows)]
+    pub(super) fn preflight_ready(
+        &mut self,
+        context: &PlanContext<'_>,
+        human: &HumanAuthority,
+        lease: &ExecutionLease,
+    ) -> Result<()> {
+        self.execution_record(context, human, lease)?;
+        let tx = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        audit(&tx, &lease.id, now()?, "preflight_ready")?;
+        tx.commit()?;
+        Ok(())
     }
 
     fn load(&mut self, context: &PlanContext<'_>, id: &str, now: i64) -> Result<Stored> {

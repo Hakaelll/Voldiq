@@ -28,6 +28,7 @@ export interface RecyclingReport {
   cancelled: boolean;
   journal_error: string | null;
   helper_error: string | null;
+  preflight_error: string | null;
 }
 export interface CleanupPreview {
   id: number;

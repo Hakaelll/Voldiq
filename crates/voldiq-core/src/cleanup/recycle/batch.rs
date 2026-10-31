@@ -50,6 +50,7 @@ pub struct Report {
     pub cancelled: bool,
     pub journal_error: Option<String>,
     pub helper_error: Option<String>,
+    pub preflight_error: Option<String>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -90,10 +91,7 @@ pub fn run(
             .spawn(move || {
                 let apartment = ShellApartment::new()?;
                 let batch = Batch::prepare(plan, journal, cancel, &apartment)?;
-                if batch.prepared.is_empty()
-                    || batch.report.journal_error.is_some()
-                    || cancel.load(Ordering::Relaxed)
-                {
+                if !batch.ready_for_admission() || cancel.load(Ordering::Relaxed) {
                     return Ok(batch.abort(journal, cancel, progress));
                 }
                 match Session::launch(&apartment) {
@@ -118,11 +116,39 @@ pub fn run(
 }
 
 impl Batch {
+    pub fn ready_for_admission(&self) -> bool {
+        !self.prepared.is_empty()
+            && self.prepared.len() == self._plan.files.len()
+            && self.report.items.len() == self._plan.files.len()
+            && self.report.journal_error.is_none()
+            && self.report.items.iter().all(|item| item.error.is_none())
+    }
+
     pub fn prepare(
         plan: Plan,
         journal: &mut Journal,
         cancel: &AtomicBool,
         apartment: &ShellApartment,
+    ) -> Result<Self> {
+        Self::prepare_with_origin(plan, journal, cancel, apartment, None)
+    }
+
+    pub(crate) fn prepare_agent(
+        plan: Plan,
+        journal: &mut Journal,
+        cancel: &AtomicBool,
+        apartment: &ShellApartment,
+        origin: &crate::cleanup::journal::AgentExecutionRef<'_>,
+    ) -> Result<Self> {
+        Self::prepare_with_origin(plan, journal, cancel, apartment, Some(origin))
+    }
+
+    fn prepare_with_origin(
+        plan: Plan,
+        journal: &mut Journal,
+        cancel: &AtomicBool,
+        apartment: &ShellApartment,
+        origin: Option<&crate::cleanup::journal::AgentExecutionRef<'_>>,
     ) -> Result<Self> {
         plan.validate_retained()?;
         if plan.files.is_empty() || plan.files.len() > 500 {
@@ -157,6 +183,7 @@ impl Batch {
                 cancelled: false,
                 journal_error: None,
                 helper_error: None,
+                preflight_error: None,
             },
         };
         for (row, file) in batch._plan.files.iter().enumerate() {
@@ -180,8 +207,13 @@ impl Batch {
                         .ok_or_else(|| Error::Invalid("Inexact recycling filename.".into()))?,
                 )?;
                 let name = StageName::generate()?;
-                let relocation =
-                    journal.prepare_relocation(&batch._plan, file.id, &source, &name)?;
+                let relocation = journal.prepare_relocation_with_origin(
+                    &batch._plan,
+                    file.id,
+                    &source,
+                    &name,
+                    origin,
+                )?;
                 batch.report.items[row].operation = Some(relocation.value());
                 pending = Some(Prepared {
                     row,
@@ -231,6 +263,11 @@ impl Batch {
         mut progress: impl FnMut(usize),
     ) -> Report {
         self.report.cancelled |= cancel.load(Ordering::Relaxed);
+        if !self.report.cancelled && !self.ready_for_admission() {
+            self.report.preflight_error = Some(
+                "The complete selection did not pass preflight. No source was admitted.".into(),
+            );
+        }
         for item in self.prepared {
             cancel_item(item, journal, &mut self.report);
         }
@@ -247,6 +284,12 @@ impl Batch {
         mut session: Session,
         mut progress: impl FnMut(usize),
     ) -> Report {
+        if !self.ready_for_admission() || cancel.load(Ordering::Relaxed) {
+            if let Err(error) = session.finish() {
+                self.report.helper_error = Some(error.to_string());
+            }
+            return self.abort(journal, cancel, progress);
+        }
         for item in &mut self.prepared {
             if cancel.load(Ordering::Relaxed) || self.report.journal_error.is_some() {
                 break;

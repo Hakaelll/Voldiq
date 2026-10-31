@@ -338,7 +338,10 @@ impl Plan {
             modified: metadata.modified()?,
             change_time: identity.change_time,
         };
-        if current != planned.stamp {
+        if current != planned.stamp
+            || identity.allocated != planned.allocated
+            || identity.links != planned.links
+        {
             return Err(Error::Invalid("File changed since preview.".into()));
         }
         Ok(VerifiedFile {

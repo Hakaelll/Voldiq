@@ -27,6 +27,49 @@ pub struct FileEvidence {
 }
 
 impl Record {
+    #[cfg(windows)]
+    pub(crate) fn into_plan(self) -> Result<Plan> {
+        let mut preview = super::Preview {
+            rule: "agent-files",
+            risk: "review",
+            policy: "recycle",
+            items: Vec::new(),
+            logical: 0,
+            reclaimable: 0,
+            retained: Vec::new(),
+        };
+        for file in &self.files {
+            let reclaimable = if file.links == 1 { file.allocated } else { 0 };
+            preview.logical = preview
+                .logical
+                .checked_add(file.stamp.size)
+                .ok_or_else(invalid)?;
+            preview.reclaimable = preview
+                .reclaimable
+                .checked_add(reclaimable)
+                .ok_or_else(invalid)?;
+            preview.items.push(super::PreviewItem {
+                id: file.id,
+                path: file.path.to_str().ok_or_else(invalid)?.to_owned(),
+                logical: file.stamp.size,
+                reclaimable,
+                hard_link: file.links > 1,
+                modified: Some(
+                    file.stamp
+                        .modified
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map_err(|_| invalid())?
+                        .as_secs(),
+                ),
+            });
+        }
+        Ok(Plan {
+            preview,
+            files: self.files,
+            retained: Vec::new(),
+        })
+    }
+
     pub(crate) fn capture(index: &Index, selection: &[NodeId]) -> Result<Self> {
         // A saved scan supplies evidence only; every selected file is checked against the live filesystem.
         let plan = Plan::prepare_verified(index, selection, &AtomicBool::new(false))?;

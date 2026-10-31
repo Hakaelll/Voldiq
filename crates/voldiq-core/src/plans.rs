@@ -1,11 +1,15 @@
 //! Exact immutable manifests and single-use human grants. No file mutation is performed here.
 mod desktop;
 mod human;
+#[cfg(windows)]
+mod recycling;
 mod store;
 pub use crate::cleanup::record::FileEvidence;
 use crate::{Error, Result};
 pub use desktop::{Desktop, Review, ReviewPage};
 pub use human::{Begin, HumanAuthority};
+#[cfg(windows)]
+pub use recycling::PreparedRecycling;
 use serde::{Deserialize, Serialize};
 pub use store::Store;
 
@@ -99,6 +103,10 @@ pub struct ExecutionLease {
     owner: i64,
     nonce: String,
     directory: (u64, u64),
+    #[cfg(windows)]
+    issuer: String,
+    #[cfg(windows)]
+    binding: String,
 }
 
 fn invalid() -> Error {

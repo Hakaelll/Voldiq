@@ -1,6 +1,6 @@
 # Agent plan boundary
 
-The core stores exact recycling manifests. CLI/MCP prepare and inspect them; the desktop owns separate human review and live grants. Executor integration is pending. No agent file mutation endpoint is enabled.
+The core stores exact recycling manifests. CLI/MCP prepare and inspect them; the desktop owns separate human review and live grants. Approved tickets now support exact native preflight and journal association. Execution dispatch is pending. No agent file mutation endpoint is enabled.
 
 A manifest identifies its connection, Windows user, source snapshot, root identity, selected file identities, bytes, timestamps, risk, action and expiry. Byte quantities and native identities are strings, preserving exact values in JavaScript clients. Recycling reports zero immediate freed bytes; potential allocation recovery is a separate value and excludes multiply linked files.
 
@@ -12,7 +12,15 @@ Plans expire after 15 minutes. A human approval lasts at most two minutes, bound
 
 The lifecycle is `draft`, `awaiting_approval`, `approved`, `executing`, then a terminal result. Rejection, expiry and changed material evidence are terminal. Transactions allow one opaque execution ticket; concurrent or repeated calls report the existing operation. Finishing requires that ticket and its private nonce. Starting a new human session discards old grants. Explicit recovery returns old approvals to review and marks abandoned execution `failed` with `recovery_required`, without repeating uncertain I/O.
 
-The store does not execute files. SQLite requests/status coordinate the clients and desktop; they never prove approval. The desktop facade owns the only live human grants, uses current connection policy without credentials in IPC, and invalidates the session when the native window is destroyed. Before executor integration, the entire selection must pass native preflight under retained handles, and journal entries must be linked to the plan before original files move. The existing desktop executor's ability to proceed with a valid subset must not be reused for an immutable agent selection.
+The store does not execute files. SQLite requests/status coordinate the clients and desktop; they never prove approval. The desktop facade owns the only live human grants, uses current connection policy without credentials in IPC, and invalidates the session when the native window is destroyed.
+
+The shared recycling executor now requires the complete selection to pass preparation before launching its elevated helper. Its lower-level admission method enforces the same gate. A changed or inaccessible entry aborts all prepared sources; runtime failures still produce explicit per-file outcomes. Native verification also compares allocation and hard-link count. The desktop displays a batch preflight error without implying that the valid subset ran.
+
+`Store::prepare_recycling` consumes the opaque approved ticket, rechecks current authority, policy, manifest and disk evidence, then constructs the exact internal plan. It holds source and ancestor handles and returns a non-serializable prepared object. Its only current public continuation is cancellation. It cannot be expanded with additional paths or used through an agent tool. A failed preparation cancels owned stages and terminates the plan. Closing a prepared source handle or restarting never repeats uncertain work automatically.
+
+Cleanup-journal schema 5 associates each agent relocation with its manifest, connection and execution nonce in the same transaction as preparation, before stage creation or any original move. These rows are audit, not approval proof. The journal must be in the ticket's pinned state directory. Migration preserves historical receipts and creates no invented agent associations. Bounded read-only receipts omit the nonce.
+
+Before enabling execution, finish the shared operation coordinator, user protections, desktop request dispatch, approval-deadline and capability checks around admission/recycling, bounded result reporting and cancellation/recovery wiring. Native helper and Shell execution through this agent path remain unverified and disabled.
 
 Six owned-fixture tests cover forged database approval, wrong hashes, expiry, restart, changed files, changed hard-link count, principal isolation, rotation, limits, rejection, protected selections and eight competing requests. These tests issue and consume execution tickets without cleaning any user data. They do not establish native UI acceptance or actual approved recycling through CLI/MCP.
 

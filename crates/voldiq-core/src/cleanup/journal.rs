@@ -8,7 +8,13 @@ use std::{
     time::{Duration, UNIX_EPOCH},
 };
 #[cfg(windows)]
+mod agent;
+#[cfg(windows)]
 pub mod relocation;
+#[cfg(windows)]
+pub(crate) use agent::AgentExecutionRef;
+#[cfg(windows)]
+pub use agent::AgentRelocation;
 
 const APPLICATION_ID: i64 = 0x56444c43;
 static OWNERS: AtomicU64 = AtomicU64::new(1);
@@ -27,6 +33,7 @@ PRAGMA user_version=1;";
 pub struct Journal {
     connection: Connection,
     owner: u64,
+    _directory: crate::agents::AuthorizedPath,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -75,7 +82,16 @@ impl Journal {
                 "Cleanup journal requires an absolute file path.".into(),
             ));
         }
-        let mut connection = Connection::open(path)?;
+        let parent = path
+            .parent()
+            .ok_or_else(|| Error::Invalid("Journal parent unavailable.".into()))?;
+        let directory = crate::agents::pin_directory(&std::fs::canonicalize(parent)?)?;
+        let mut connection = Connection::open(
+            directory.path().join(
+                path.file_name()
+                    .ok_or_else(|| Error::Invalid("Journal filename unavailable.".into()))?,
+            ),
+        )?;
         connection.busy_timeout(Duration::from_millis(250))?;
         connection.execute_batch(
             "PRAGMA foreign_keys=ON; PRAGMA locking_mode=EXCLUSIVE; PRAGMA synchronous=FULL;",
@@ -109,7 +125,7 @@ impl Journal {
             }
             transaction.execute_batch(SCHEMA)?;
             transaction.execute_batch(&format!("PRAGMA application_id={APPLICATION_ID};"))?;
-        } else if !matches!(version, 1..=4) || application != APPLICATION_ID {
+        } else if !matches!(version, 1..=5) || application != APPLICATION_ID {
             return Err(Error::Invalid(
                 "Unsupported cleanup journal database.".into(),
             ));
@@ -125,6 +141,9 @@ impl Journal {
             if version < 4 {
                 transaction.execute_batch(relocation::VERSION_MIGRATION)?;
             }
+            if version < 5 {
+                transaction.execute_batch(agent::MIGRATION)?;
+            }
             transaction.execute("UPDATE relocations SET state=CASE state WHEN 'prepared' THEN 'cancelled' ELSE 'unknown' END,
                 message='Interrupted; reconcile identities before any explicit recovery.'
                 WHERE state IN ('prepared','stage_ready','relocating','staged','returning','recycling','restoring')", [])?;
@@ -137,7 +156,11 @@ impl Journal {
             [],
         )?;
         transaction.commit()?;
-        Ok(Self { connection, owner })
+        Ok(Self {
+            connection,
+            owner,
+            _directory: directory,
+        })
     }
 
     /// Records permanent-delete intent only. This does not confirm or execute a deletion.

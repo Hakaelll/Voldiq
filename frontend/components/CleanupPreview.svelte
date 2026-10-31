@@ -176,6 +176,7 @@
       </span>
       {#if execution.report.journal_error}<p role="alert">Results not fully recorded. {execution.report.journal_error}</p>{/if}
       {#if execution.report.helper_error}<p role="alert">{execution.report.helper_error}</p>{/if}
+      {#if execution.report.preflight_error}<p role="alert">{execution.report.preflight_error}</p>{/if}
       {#each execution.report.items.filter((item) => item.error || item.cleanup_error || item.outcome === 'unknown' || (item.operation !== null && !item.recorded)) as item (item.id)}
         <p>{item.path} · {outcome(item)}{#if item.error} · {item.error}{/if}{#if item.cleanup_error} · {item.cleanup_error}{/if}{#if item.operation !== null && !item.recorded} · Result not recorded{/if}</p>
       {/each}

@@ -108,7 +108,7 @@ fn version3_receipts_do_not_gain_invented_versions(fixture: &tempfile::TempDir) 
                 .connection
                 .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
                 .unwrap(),
-            4
+            5
         );
         assert_eq!(
             journal
@@ -130,6 +130,14 @@ fn version3_receipts_do_not_gain_invented_versions(fixture: &tempfile::TempDir) 
             Some(Path::new("C:\\legacy-bin"))
         );
         assert!(records[0].recycled_version.is_none());
+        assert_eq!(
+            journal
+                .connection
+                .query_row("SELECT count(*) FROM agent_relocations", [], |row| row
+                    .get::<_, i64>(0))
+                .unwrap(),
+            0
+        );
         assert_eq!(journal.items(0, 100).unwrap()[0].state, "succeeded");
         assert_eq!(std::fs::read(&survivor).unwrap(), b"untouched");
     }
@@ -277,7 +285,7 @@ fn relocation_migration_and_interruption(fixture: &tempfile::TempDir) {
             .connection
             .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
             .unwrap(),
-        4
+        5
     );
     let history = journal.items(0, 100).unwrap();
     assert_eq!(history.len(), 1);
