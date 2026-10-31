@@ -19,6 +19,8 @@
     types,
     selected,
     sizeMode,
+    reduceMotion,
+    animateNavigation,
     onmetric,
     onselect,
     onopen,
@@ -32,9 +34,11 @@
     types: FileTypes;
     selected: Details | null;
     sizeMode: string;
+    reduceMotion: boolean;
+    animateNavigation: boolean;
     onmetric: (metric: string) => void;
     onselect: (id: number) => void;
-    onopen: (id: number) => void;
+    onopen: (id: number, pointer?: boolean) => void;
     onlist: () => void;
     ontype: (item: FileType) => void;
   } = $props();
@@ -111,7 +115,7 @@
           aria-pressed={selected?.entry.id === entry.id}
           style:--item-color={nodes[position]?.paint?.fill ?? color(entry.name)}
           onclick={() => onselect(entry.id)}
-          ondblclick={() => onopen(entry.id)}
+          ondblclick={() => onopen(entry.id, true)}
         >
           <span class="item-swatch"></span>
           <span class="ranking-name" title={entry.name}>{entry.name}</span><strong
@@ -144,7 +148,7 @@
           >
         </div>
       </div>
-      {#if directory}<Treemap {nodes} selected={selected?.entry.id ?? null} {onselect} {onopen} />
+      {#if directory}<Treemap {nodes} scope={directory.entry.id} {reduceMotion} {animateNavigation} selected={selected?.entry.id ?? null} {onselect} onopen={(id) => onopen(id, true)} />
       {:else}<div class="overview-loading" role="status">Loading…</div>{/if}
       {#if directory}<div class="map-caption">
           <span title={selected?.path || directory.path}>{selected?.path || directory.path}</span>

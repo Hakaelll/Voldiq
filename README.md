@@ -34,12 +34,14 @@ The complete source gate reuses release artifacts and offline Cargo dependencies
 ```powershell
 pnpm check
 pnpm test
-cargo test --offline --release --workspace
-cargo clippy --offline --release --workspace --all-targets -- -D warnings
+cargo test --offline --release --workspace --features voldiq/production
+cargo clippy --offline --release --workspace --all-targets --features voldiq/production -- -D warnings
 pnpm tauri build
 ```
 
 The automated suite retains 8 focused tests, reduced from 178 on 2026-10-21. See [Testing](docs/TESTING.md) for coverage and manual checks.
+
+Build the desktop release with `pnpm tauri build`. A direct Cargo build must include `--features production`; `--release` alone changes optimization but does not select the embedded Tauri interface. The application refuses that invalid release mode. Preview and distribution verification also probe the actual executable and match its embedded JavaScript and CSS to the current frontend build.
 
 The release configuration targets an NSIS installer and includes the offline WebView2 installer. Build output is in `target/release/bundle/nsis`; run `./scripts/verify_distribution.ps1` on Windows after building to check artifact metadata and generated packaging configuration. A distributable download is not published yet. See [Windows distribution](docs/DISTRIBUTION.md) for build evidence and remaining installer acceptance checks.
 
@@ -82,7 +84,7 @@ The status strip shows the native analysis date for completed scans and retained
 
 Five scans of a real million-file fixture verified exact counts and sizes with zero errors. See [performance measurements](docs/PERFORMANCE.md#large-real-filesystem-fixture) for raw results, reproduction commands and the limits of this warm-cache scanner baseline.
 
-The current release also has a [native/WebView2 resource observation](docs/PERFORMANCE.md#native-application-process-observation), with per-process memory and CPU counters. Its scope and remaining idle/rendering checks are documented separately from scanner benchmarks.
+The earlier [native/WebView2 resource observation](docs/PERFORMANCE.md#native-application-process-observation) retains real counters but is withdrawn as an interface baseline after a development-protocol build error was found. The corrected standalone interface needs a new controlled resource capture. Scanner benchmarks remain separate evidence.
 
 ## Duplicate analysis
 

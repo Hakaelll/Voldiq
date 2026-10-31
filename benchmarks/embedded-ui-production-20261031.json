@@ -1,0 +1,31 @@
+{
+  "probe": "VOLDIQ_EMBEDDED_UI_V1",
+  "development": false,
+  "assets": [
+    {
+      "path": "assets/index-DinuaaBi.js",
+      "bytes": 163222,
+      "sha256": "543571E4EE944B7AD34CA5EF6C2F8727073E7B45A4136FD547E5319DB9311004"
+    },
+    {
+      "path": "assets/index-DKcM9PYI.css",
+      "bytes": 47456,
+      "sha256": "B1FC4698DDCA6479543A22F5BB59CE0923C916256670F151F30085B95C84B727"
+    },
+    {
+      "path": "symbol.png",
+      "bytes": 22602,
+      "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+    },
+    {
+      "path": "index.html",
+      "bytes": 438,
+      "sha256": "7A03D57633A8764F4E714E117E0A7BE2FF430A8F6209642B896AEF537F05EA25"
+    },
+    {
+      "path": "wordmark.png",
+      "bytes": 362444,
+      "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+    }
+  ]
+}

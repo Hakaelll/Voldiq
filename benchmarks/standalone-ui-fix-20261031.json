@@ -1,0 +1,55 @@
+{
+  "recordedUtc": "2026-10-31T14:33:29.635231+00:00",
+  "baseCommit": "3d29649c43401765bb8ceb5333e48fd4d61df6d7",
+  "reportedSymptom": "User-supplied native window screenshot shows 127.0.0.1 connection refusal.",
+  "rootCause": "Direct Cargo optimized builds omitted tauri/custom-protocol, so Tauri selected devUrl. Bundling the existing executable did not switch its compile-time protocol.",
+  "fix": [
+    "production forwards tauri/custom-protocol",
+    "Non-test optimized desktop compilation rejects Tauri dev mode",
+    "The source gate builds the frontend before production-feature native tests and Clippy",
+    "Native --verify-embedded-ui exits before application setup and reports decoded runtime assets",
+    "Preview and distribution gates match executable JS/CSS hashes to current dist assets"
+  ],
+  "negativeChecks": [
+    {
+      "command": "cargo check --offline --release -p voldiq --bin voldiq",
+      "exitCode": 101,
+      "result": "Compile-time embedded-assets guard rejects development-mode desktop release"
+    },
+    {
+      "command": "scripts/read_embedded_ui.ps1 on prior preview 8A0921EB496CE6EF5A93E77664149C75695A072DCB001B0D18EB51278C3E5F0E",
+      "result": "Rejected missing probe before executing the old image"
+    }
+  ],
+  "embeddedUi": "embedded-ui-production-20261031.json",
+  "nativePreview": "native-standalone-ui-preview-20261031.json",
+  "sourceVerification": "project-verification-standalone-ui-20261031.json",
+  "declaredTestsTotal": 8,
+  "declaredTestsAdded": 0,
+  "withdrawnEvidence": "app-processes-20261031-current summary is withdrawn as a frontend resource baseline. The native counters may describe an error page.",
+  "scope": "Actual native production mode and decoded asset hashes, compile-mode rejection and window metadata. No Computer Use, screenshots, scan interaction, installer execution, UAC or recycling fixture.",
+  "sources": {
+    "src-tauri/Cargo.toml": "00e718eb40a4be934113cb15415fc0ce53efc0330a6a496f623b160a8a1acb96",
+    "src-tauri/src/main.rs": "55adb70affe41578d49240b9a0a300843672d5530e3eb5979d96e8bab1580624",
+    "src-tauri/src/embedded_ui.rs": "ca8e378e12f07554cb73e56bac671a35ee2e2b6db2912f65d4b4ad691e898f75",
+    "src-tauri/src/cleanup_commands.rs": "9a2590c16a80a54390e23b9cc6b706fe136684b4844eaa86b0dbe1bb42c39bb7",
+    "scripts/read_embedded_ui.ps1": "0a84f3266f4ec3e285e5e1b6d39e9e96152adee0a60e142f99d750a386539c44",
+    "scripts/prepare_release_preview.ps1": "640345c231bc327369278751823daae180d3f9eed5b37b2d6f3e38e39f1de6f9",
+    "scripts/verify_distribution.ps1": "f11239458aee3f85a9cc9b3d6ca0204d2b928d3915e60d92901ecec06f6d1f08",
+    "scripts/verify_project.ps1": "a6bd1001ef7909a25db87843f74bdf1ab7a24428999f2a0bfbe4b12cc5c37025",
+    "frontend/App.svelte": "10e478b58c9d7df9689fb1fc2bff063b26af09979e0937d045145faf69cd3d15",
+    "frontend/components/Overview.svelte": "9731cbcf250f6ca84f2e83e41fc9e3fc89e1b724feb5694d18b75e5141ac0b6e",
+    "frontend/components/Treemap.svelte": "b6c13580cf89f6aed0e9bf2a98f71e27f7c6991654fd71d3a3c767f3b456fd01",
+    "frontend/lib/treemap-motion.ts": "09488948668eb80535c57fe983f64c6616b575b09af965eb37e2f84c0244629e",
+    "frontend/lib/cleanup-selection.test.ts": "3149aa7513cc1a23da1baf913467eb25985632ebbd415197af30d0d17c82731c"
+  },
+  "distribution": "distribution-2026-10-31-standalone-ui.json",
+  "nativeBuild": {
+    "command": "cargo build --offline --release -p voldiq --features production --bin voldiq",
+    "exitCode": 0
+  },
+  "packaging": {
+    "command": "pnpm tauri bundle --bundles nsis",
+    "exitCode": 0
+  }
+}

@@ -1,14 +1,28 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
+  import {
+    createTreemapAnimator,
+    resolveZoom,
+    zoomBox,
+    zoomEase,
+    type Box,
+    type Zoom,
+  } from '../lib/treemap-motion';
   import { nestedLayout, mapColor, type Rect, type WeightedNode } from '../lib/treemap';
   import { bytes } from '../lib/types';
   let {
     nodes,
+    scope,
+    reduceMotion,
+    animateNavigation,
     selected,
     onselect,
     onopen,
   }: {
     nodes: WeightedNode[];
+    scope: number;
+    reduceMotion: boolean;
+    animateNavigation: boolean;
     selected: number | null;
     onselect: (id: number) => void;
     onopen: (id: number) => void;
@@ -20,6 +34,22 @@
   let hovered = $state<Rect | null>(null);
   let tooltip = $state({ x: 0, y: 0 });
   let rects = $derived(nestedLayout(nodes, width, height));
+  let systemReduced = $state(false);
+  let previous: { scope: number; rects: Rect[]; width: number; height: number } | null = null;
+  let motion: { zoom: Zoom; before: Rect[]; after: Rect[] } | null = null;
+  let progress = 1;
+  const animation = createTreemapAnimator(
+    {
+      now: () => performance.now(),
+      request: (callback) => requestAnimationFrame(callback),
+      cancel: (id) => cancelAnimationFrame(id),
+    },
+    (value) => {
+      progress = value;
+      if (value === 1) motion = null;
+      draw();
+    },
+  );
   function draw(): void {
     if (!canvas || width <= 0 || height <= 0) return;
     const ratio = window.devicePixelRatio || 1;
@@ -31,7 +61,31 @@
     if (!ctx) return;
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.clearRect(0, 0, width, height);
-    for (const rect of rects) {
+    const full = { x: 0, y: 0, width, height };
+    if (!motion) {
+      paint(ctx, rects, 1, full);
+      return;
+    }
+    const amount = zoomEase(progress);
+    const box = zoomBox(motion.zoom, width, height, progress);
+    if (motion.zoom.direction === 'in') {
+      paint(ctx, motion.before, 1 - amount, full);
+      paint(ctx, motion.after, amount, box);
+    } else {
+      paint(ctx, motion.after, amount, full);
+      paint(ctx, motion.before, 1 - amount, box);
+    }
+  }
+  function paint(ctx: CanvasRenderingContext2D, items: Rect[], opacity: number, box: Box): void {
+    ctx.globalAlpha = opacity;
+    for (const item of items) {
+      const rect = {
+        ...item,
+        x: box.x + (item.x * box.width) / width,
+        y: box.y + (item.y * box.height) / height,
+        width: (item.width * box.width) / width,
+        height: (item.height * box.height) / height,
+      };
       const paint = rect.paint ?? mapColor(rect.name);
       ctx.fillStyle = paint.fill;
       ctx.fillRect(
@@ -79,12 +133,40 @@
         ctx.restore();
       }
     }
+    ctx.globalAlpha = 1;
   }
   $effect(() => {
-    void rects;
+    const next = { scope, rects, width, height };
+    const reduced = reduceMotion || systemReduced;
+    const animate = animateNavigation;
+    untrack(() => {
+      animation.stop();
+      const before = previous;
+      previous = next;
+      hovered = null;
+      if (
+        before &&
+        !reduced &&
+        animate &&
+        before.width === width &&
+        before.height === height &&
+        width > 0 &&
+        height > 0
+      ) {
+        const zoom = resolveZoom(before.scope, scope, before.rects, rects);
+        if (zoom) {
+          motion = { zoom, before: before.rects, after: rects };
+          animation.start();
+          return;
+        }
+      }
+      draw();
+    });
+  });
+  $effect(() => {
     void selected;
     void hovered;
-    draw();
+    untrack(draw);
   });
   onMount(() => {
     const observer = new ResizeObserver((entries) => {
@@ -94,10 +176,33 @@
         height = bounds.height;
       }
     });
+    const preference = matchMedia('(prefers-reduced-motion: reduce)');
+    const preferenceChanged = (): void => {
+      systemReduced = preference.matches;
+    };
+    const interrupt = (): void => {
+      animation.stop();
+    };
+    const visibility = (): void => {
+      if (document.hidden) animation.stop();
+    };
+    preferenceChanged();
+    preference.addEventListener('change', preferenceChanged);
+    document.addEventListener('pointerdown', interrupt, true);
+    document.addEventListener('keydown', interrupt, true);
+    document.addEventListener('visibilitychange', visibility);
     observer.observe(container);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      preference.removeEventListener('change', preferenceChanged);
+      document.removeEventListener('pointerdown', interrupt, true);
+      document.removeEventListener('keydown', interrupt, true);
+      document.removeEventListener('visibilitychange', visibility);
+      animation.stop();
+    };
   });
   function hit(event: MouseEvent): Rect | null {
+    if (animation.running()) return null;
     const bounds = canvas.getBoundingClientRect();
     const x = event.clientX - bounds.left,
       y = event.clientY - bounds.top;

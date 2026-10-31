@@ -1,0 +1,37 @@
+{
+  "recordedUtc": "2026-10-31T14:33:29.755618+00:00",
+  "baseCommit": "3d29649c43401765bb8ceb5333e48fd4d61df6d7",
+  "durationMs": 160,
+  "behavior": [
+    "Pointer navigation expands or contracts through an actual visible measured rectangle",
+    "Keyboard source is captured by the navigation owner and does not animate",
+    "Same-scope updates and absent anchors do not animate",
+    "Initial render, resize, reduced motion, replacement, hiding, unmount and new input leave no outstanding frame",
+    "The renderer reuses bounded vector layouts instead of bitmap captures"
+  ],
+  "retainedCaseChecks": [
+    "Literal entering, midpoint and leaving rectangle coordinates",
+    "Same-scope and absent-anchor fallback",
+    "Finite frame termination at 160 ms",
+    "Frame ID zero cancellation",
+    "No render when stopping an idle scheduler",
+    "Stale frame callback rejection"
+  ],
+  "counterexample": {
+    "mutation": "Remove the callback-generation guard",
+    "command": "pnpm test",
+    "exitCode": 1,
+    "result": "A cancelled stale callback appends an extra midpoint render",
+    "restored": true
+  },
+  "sourceVerification": "project-verification-standalone-ui-20261031.json",
+  "declaredTestsAdded": 0,
+  "scope": "Deterministic scheduler and geometry plus source integration. Native rendered motion, frame rate and visual acceptance remain manual.",
+  "sources": {
+    "frontend/App.svelte": "10e478b58c9d7df9689fb1fc2bff063b26af09979e0937d045145faf69cd3d15",
+    "frontend/components/Overview.svelte": "9731cbcf250f6ca84f2e83e41fc9e3fc89e1b724feb5694d18b75e5141ac0b6e",
+    "frontend/components/Treemap.svelte": "b6c13580cf89f6aed0e9bf2a98f71e27f7c6991654fd71d3a3c767f3b456fd01",
+    "frontend/lib/treemap-motion.ts": "09488948668eb80535c57fe983f64c6616b575b09af965eb37e2f84c0244629e",
+    "frontend/lib/cleanup-selection.test.ts": "3149aa7513cc1a23da1baf913467eb25985632ebbd415197af30d0d17c82731c"
+  }
+}

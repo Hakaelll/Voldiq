@@ -5,6 +5,9 @@ edition.workspace = true
 license.workspace = true
 default-run = "voldiq"
 
+[features]
+production = ["tauri/custom-protocol"]
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 

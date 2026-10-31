@@ -2,7 +2,7 @@
 
 Voldiq builds an x64 Windows NSIS installer from the supplied artwork. Build artifacts stay in the ignored `target` directory; no download has been published.
 
-The executable and offline NSIS installer were refreshed on 2026-10-31 with persistent duplicate hashes, native index ownership, historical restoration review and the gated recycling integration. The [native launch record](../benchmarks/native-persistent-hashes-preview-20261031.json) identifies the opened executable, and the [distribution record](../benchmarks/distribution-2026-10-31-persistent-hashes.json) identifies the current package. Default recycling remains disabled pending the deferred combined UAC fixture. Clean-machine installation remains pending and will be checked by the user.
+The executable and offline NSIS installer were refreshed on 2026-10-31 with persistent duplicate hashes, native index ownership, historical restoration review and the gated recycling integration. The [native launch record](../benchmarks/native-standalone-ui-preview-20261031.json) identifies the opened executable, and the [distribution record](../benchmarks/distribution-2026-10-31-standalone-ui.json) identifies the current package. Default recycling remains disabled pending the deferred combined UAC fixture. Clean-machine installation remains pending and will be checked by the user.
 
 ## Build
 
@@ -42,7 +42,35 @@ Check the produced installer on a clean Windows machine with networking disabled
 
 Release signing and a public download are not configured. Packaging does not close the remaining product acceptance checks listed in `NEXT_TODOS.md` and `docs/TESTING.md`.
 
-## Latest build evidence, 2026-10-31
+## Latest corrected build, 2026-10-31
+
+The working tree based on `3d29649` builds with `cargo build --offline --release -p voldiq --features production --bin voldiq`. The [production source gate](../benchmarks/project-verification-standalone-ui-20261031.json) passes all six stages and eight retained tests. A no-feature optimized desktop check now fails with exit 101 at the compile-time guard. The [correction record](../benchmarks/standalone-ui-fix-20261031.json) includes exact source hashes and the rejected old-image check.
+
+The [actual executable probe](../benchmarks/embedded-ui-production-20261031.json) reports production mode and decoded runtime hashes for embedded HTML, JavaScript, CSS and supplied images. Its JS/CSS match current `dist/assets`. The corrected preview opens with no server listening on port 1420. The prior defective preview closed normally and its 12,737,536-byte executable was removed. Native visual interaction remains user-owned.
+
+`pnpm tauri bundle --bundles nsis` replaced the existing installer from that production image. The [distribution verifier](../benchmarks/distribution-2026-10-31-standalone-ui.json) repeats the executable probe alongside architecture, version, current-user installation, offline runtime, vendor signature and icon checks. The canonical image still matches the opened preview after packaging. The offline runtime was reused. The native image and installer remain unsigned, and installer payload extraction and installation remain unverified.
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| Native x64 executable, version 0.1.0 | 13,210,624 | `ABE628085159BDDB345991A50931437F53116FB247A6D859CBF4094FCDB2430A` |
+| NSIS installer, version 0.1.0 | 221,626,350 | `29E95CB877711D918E8E8171D0A0DAF2A81CF33B08BC77F54C95CA67BBB04637` |
+| Microsoft offline runtime source, version 1.3.307.15 | 215,017,168 | `62863F0F0611A16CCF124B4F15650C3B66624504EBA74D7CDE1E2AE5D951249B` |
+
+The package includes snapshot schema 5 and finite pointer-driven treemap navigation. Older schema-4 executables cannot reopen an upgraded history database. Default recycling stays disabled while the combined UAC fixture is deferred.
+
+### User-owned clean-machine check
+
+1. Copy the installer to a clean x64 Windows environment and verify its SHA-256 above. Record the Windows version and whether WebView2 is initially present. Test the absent-runtime case to verify the embedded runtime installer.
+2. Disconnect networking, install for the current user and launch from the installed shortcut without development tools.
+3. Scan a disposable folder with known contents. Check totals, search, folder navigation, Explorer reveal and the installed icons. Windows Recycle Bin access should open the system bin; this does not test recycling from Voldiq.
+4. Close the application and uninstall it. Check shortcut/executable removal and the chosen user-data retention behavior.
+5. Report the initial environment and the install, offline launch, native scan and uninstall results. These checks remain pending until that report is available.
+
+## Correction to earlier build evidence
+
+The development-server connection failure reported by the user invalidates the standalone-UI acceptance of the Cargo-built images below. Their static metadata and responding-window checks did not detect the missing Tauri production protocol. The earlier static records remain historical evidence, not proof of a working standalone interface. Preview and distribution preparation now require an executable-level embedded-asset probe. The corrected package and executable-level evidence are recorded above.
+
+## Earlier build evidence, 2026-10-31 before production-mode correction
 
 The persistent-hash working tree based on `2e770fd` passes the [complete source gate](../benchmarks/project-verification-persistent-hashes-20261031.json), builds its native release executable and opens a responding Voldiq window. The [cache verification record](../benchmarks/persistent-hashes-20261031.json) hashes the application sources. `pnpm tauri bundle --bundles nsis` then replaces the previous installer without recompilation. The canonical executable still matches the opened preview after packaging.
 
@@ -55,14 +83,6 @@ The [static distribution record](../benchmarks/distribution-2026-10-31-persisten
 | Microsoft offline runtime source, version 1.3.307.15 | 215,017,168 | `62863F0F0611A16CCF124B4F15650C3B66624504EBA74D7CDE1E2AE5D951249B` |
 
 Opening this version migrates snapshot storage to schema 5 without rewriting saved captures. Earlier executables that support only schema 4 cannot reopen an upgraded database. This development package keeps default recycling disabled while the combined UAC fixture is deferred.
-
-### User-owned clean-machine check
-
-1. Copy the installer to a clean x64 Windows environment and verify its SHA-256 above. Record the Windows version and whether WebView2 is initially present. Test the absent-runtime case to verify the embedded runtime installer.
-2. Disconnect networking, install for the current user and launch from the installed shortcut without development tools.
-3. Scan a disposable folder with known contents. Check totals, search, folder navigation, Explorer reveal and the installed icons. Windows Recycle Bin access should open the system bin; this does not test recycling from Voldiq.
-4. Close the application and uninstall it. Check shortcut/executable removal and the chosen user-data retention behavior.
-5. Report the initial environment and the install, offline launch, native scan and uninstall results. These checks remain pending until that report is available.
 
 ## Earlier build evidence, 2026-10-31 before persistent hashes
 

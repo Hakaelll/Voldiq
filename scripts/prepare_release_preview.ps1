@@ -30,6 +30,8 @@ if ($sourceItem.PSIsContainer -or ($sourceItem.Attributes -band [IO.FileAttribut
     throw 'The release executable must be a regular file.'
 }
 
+$null = & (Join-Path $PSScriptRoot 'read_embedded_ui.ps1') -ExecutablePath $sourcePath
+
 # Keep the source unchanged while hashing/copying, without locking its pathname against replacement.
 $source = [IO.File]::Open($sourcePath, [IO.FileMode]::Open, [IO.FileAccess]::Read,
     ([IO.FileShare]::Read -bor [IO.FileShare]::Delete))

@@ -10,7 +10,7 @@ Run on Windows with the Rust MSVC toolchain, C++ Build Tools and project depende
 ./scripts/verify_project.ps1
 ```
 
-The script checks Rust formatting, Svelte and TypeScript diagnostics, the frontend test, all workspace Rust tests, strict Clippy and the production frontend build. It reuses release artifacts and offline Cargo dependencies. On a fresh checkout, run `cargo fetch --locked` once while online to populate the dependency cache. The gate stops on failure and reports success only after all six stages pass; its report records the profile and script hash.
+The script checks Rust formatting, Svelte and TypeScript diagnostics and the frontend test. It then builds frontend assets before running the production-feature workspace Rust tests and strict Clippy. It reuses release artifacts and offline Cargo dependencies. On a fresh checkout, run `cargo fetch --locked` once while online to populate the dependency cache. The gate stops on failure and reports success only after all six stages pass; its report records the profile and script hash.
 
 The [2026-10-31 release verification](../benchmarks/project-verification-20261031-103904-700.json) passed all six stages on the working tree based on `b78f022`: one frontend test and seven Rust tests, with zero Svelte diagnostics or Clippy warnings. The production frontend build also passed. This verifies the retained source gate, not the remaining native, UAC or installer acceptance requirements.
 
@@ -18,9 +18,9 @@ For individual checks:
 
 ```powershell
 pnpm test
-cargo test --offline --release --workspace
+cargo test --offline --release --workspace --features voldiq/production
 pnpm check
-cargo clippy --offline --release --workspace --all-targets -- -D warnings
+cargo clippy --offline --release --workspace --all-targets --features voldiq/production -- -D warnings
 pnpm build
 ```
 
@@ -28,7 +28,7 @@ pnpm build
 
 | Cases | Behavior |
 |---|---|
-| 1 native command test | Permanent and recycling actions require distinct exact confirmations and the same live index; each plan can be consumed only once. It rejects a stale publication identity even when a second real index reuses the same node ID, and checks canonical/transitional/legacy Docker accounting, known zero and unknown sizes. It does not move files or launch UAC. |
+| 1 native command test | The native production mode and embedded HTML/JavaScript/CSS must validate. Permanent and recycling actions require distinct exact confirmations and the same live index; each plan can be consumed only once. It rejects a stale publication identity even when a second real index reuses the same node ID, and checks canonical/transitional/legacy Docker accounting, known zero and unknown sizes. It does not move files or launch UAC. |
 | 2 cleanup execution tests | Changed retained duplicate copies prevent deletion; cancellation preserves pending files; journal write failure stops further removal and preserves the partial report. |
 | 1 cleanup journal test | Interrupted deletion preserves replacements and unrecorded outcomes. Fresh historical restoration checks parent identity, collision, source locking, session ownership, intent persistence and one-use completion with owned ordinary files. |
 | 1 file disposition test | Replaced files and read-only targets are not removed. |
@@ -63,3 +63,7 @@ The [index ownership source gate](../benchmarks/project-verification-index-owner
 The retained snapshot case also checks persistent duplicate hashes with two ordinary 16 KiB files. It verifies schema-4 migration without losing snapshots, exact BLAKE3 groups, zero content reads after reopening, re-reading one malformed record, same-size edits with preserved modification time, cancelled replacement rollback and explicit cache clearing. Omitting native change-time validation makes the existing case fail with a false duplicate group. This is correctness and byte-accounting evidence for the fixture, not a measured application speedup. See [persistent hash verification](../benchmarks/persistent-hashes-20261031.json).
 
 The final [persistent-hash source gate](../benchmarks/project-verification-persistent-hashes-20261031.json) passes formatting, frontend diagnostics, the one frontend case, all seven Rust cases, strict all-target Clippy and production frontend build. The native adapter's cache-failure fallback is source reviewed rather than a proven desktop interaction.
+
+The retained frontend case now checks literal map zoom geometry, same-scope and absent-anchor fallback, 160 ms termination, cancellation of frame ID zero, idle no-op stopping and stale callback rejection using a deterministic frame clock. Removing the callback-owner guard makes the case fail. This proves the scheduler and geometry, not rendered motion or a 60 FPS target. Pointer origin is captured by the owning navigation request; keyboard actions keep their immediate path. No declared test was added.
+
+The corrected [standalone source gate](../benchmarks/project-verification-standalone-ui-20261031.json) passes all six stages with `voldiq/production` and eight declared tests. A real no-feature desktop check fails at the compile-time guard with exit 101. The [executable probe](../scripts/read_embedded_ui.ps1) validates decoded production assets before preview or distribution acceptance. [Standalone evidence](../benchmarks/standalone-ui-fix-20261031.json) and [motion evidence](../benchmarks/treemap-motion-20261031.json) retain the scope and counterexamples. No visual acceptance is inferred from this gate.

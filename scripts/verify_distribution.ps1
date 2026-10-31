@@ -100,6 +100,7 @@ $runtime = Describe-File $runtimePath
 if ($runtime.signature -ne 'Valid' -or $runtime.signer -notmatch '(^|,\s*)O=Microsoft Corporation(,|$)') {
     throw 'The bundled runtime must have a valid Microsoft Corporation Authenticode signature.'
 }
+$embeddedUi = & (Join-Path $PSScriptRoot 'read_embedded_ui.ps1') -ExecutablePath $nativePath
 $setup = Describe-File $setupPath
 $commit = & git -C $repository rev-parse HEAD
 if ($LASTEXITCODE -ne 0) { throw 'Could not identify the current checkout commit.' }
@@ -107,7 +108,8 @@ if ($LASTEXITCODE -ne 0) { throw 'Could not identify the current checkout commit
     checkedUtc = [DateTime]::UtcNow.ToString('o')
     checkoutCommit = $commit
     buildCommitVerified = $false
-    scope = 'Static artifact and generated-source checks; installation and embedded payload extraction are not verified.'
+    scope = 'Native embedded-UI probe and static artifact/generated-source checks; installation and installer payload extraction are not verified.'
+    embeddedUi = $embeddedUi
     native = $native
     installer = $setup
     runtime = $runtime

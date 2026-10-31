@@ -87,7 +87,9 @@ This updates the query baseline for the current core. It measures neither filesy
 
 ## Native application process observation
 
-### Current release, 2026-10-31
+### Withdrawn interface baseline, 2026-10-31
+
+This capture is withdrawn as an application-interface baseline. A subsequent user screenshot showed a refused development-server connection, and the build investigation found that the executable omitted Tauri's production protocol feature. The process counters below remain real, but the frontend workload may have been an error page. Do not use this result to assess Voldiq's idle or loaded-interface memory target. The corrected executable requires a new capture.
 
 The executable with persistent duplicate hashes, SHA-256 `8A0921EB496CE6EF5A93E77664149C75695A072DCB001B0D18EB51278C3E5F0E`, was observed at checkout `c98a680` through the unchanged read-only process observer. One baseline and five five-second intervals retain seven stable native/WebView2 process identities. All 42 per-process rows independently reproduce the aggregate memory sums and surviving CPU deltas, with zero read errors or availability changes. See [raw group counters](../benchmarks/app-processes-20261031-current.csv), [per-process counters](../benchmarks/app-processes-20261031-current.processes.csv), [checked summary](../benchmarks/app-processes-20261031-current.summary.json) and [provenance](../benchmarks/app-processes-20261031-current.provenance.json).
 
@@ -100,7 +102,7 @@ The executable with persistent duplicate hashes, SHA-256 `8A0921EB496CE6EF5A93E7
 
 Intervals lasted 5.131–5.183 seconds. None of the surviving CPU counters advanced during this capture. This does not prove continuous zero CPU. The native process accounts for about 2.6% of median private bytes; WebView2 accounts for the rest. Summed working sets can count shared pages repeatedly and are not unique physical memory.
 
-The application workload and user input were not inspected or controlled. No build, scan benchmark or automated UI input was initiated during capture. Host CPU load was 10% before and 50% after, and the runtime was WebView2 156.0.4314.50. These observations establish current process counters, not controlled idle or loaded-index budgets, a comparison with the older runtime, startup latency or 60 FPS. The private-byte result falls within the specification's approximate 150–200 MB target for this observation only. Controlled workload acceptance remains open.
+The application workload and user input were not inspected or controlled. No build, scan benchmark or automated UI input was initiated during capture. Host CPU load was 10% before and 50% after, and the runtime was WebView2 156.0.4314.50. These observations establish current process counters, not controlled idle or loaded-index budgets, a comparison with the older runtime, startup latency or 60 FPS. The counter result does not establish the application memory target. Controlled workload acceptance remains open.
 
 ### Historical observation, 2026-10-13
 

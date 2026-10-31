@@ -1,0 +1,14 @@
+{
+  "utc": "2026-10-31T14:26:18.4997944Z",
+  "baseCommit": "3d29649c43401765bb8ceb5333e48fd4d61df6d7",
+  "executable": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\ABE628085159BDDB345991A50931437F53116FB247A6D859CBF4094FCDB2430A\\voldiq.exe",
+  "sha256": "ABE628085159BDDB345991A50931437F53116FB247A6D859CBF4094FCDB2430A",
+  "processId": 16504,
+  "windowTitle": "Voldiq",
+  "responding": true,
+  "windowHandlePresent": true,
+  "embeddedUi": "embedded-ui-production-20261031.json",
+  "obsoletePreviewBytesRemoved": 12737536,
+  "scope": "Native production-mode decoded assets and window metadata. No Computer Use, screenshots, loaded scan, UAC or recycling execution.",
+  "developmentPort1420Listening": false
+}

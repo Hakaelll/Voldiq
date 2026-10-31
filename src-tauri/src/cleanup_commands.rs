@@ -15,6 +15,11 @@ mod execution_tests {
 
     #[test]
     fn confirmation_requires_the_same_live_index_and_consumes_the_plan_once() {
+        assert!(
+            !tauri::is_dev(),
+            "Verify the native application with --features voldiq/production."
+        );
+        crate::embedded_ui::verify(&tauri::generate_context!()).unwrap();
         let fixture = tempfile::tempdir().unwrap();
         std::fs::write(fixture.path().join("selected"), b"original").unwrap();
         let scan = || {

@@ -96,6 +96,7 @@
   let refreshToken = 0;
   let interactionToken = 0;
   let scanRequest = 0;
+  let mapNavigation = $state(false);
   const navigationRefresh = createNavigationRefresh();
   let analysisBusy = $state(false);
   let historical = $state<Snapshot | null>(null);
@@ -184,6 +185,7 @@
     overviewQueries.cancel();
   }
   function invalidateInteraction(): number {
+    mapNavigation = false;
     navigationRefresh.reset();
     detailQueries.cancel();
     return ++interactionToken;
@@ -262,7 +264,7 @@
       document.removeEventListener('focusin', moved);
     }
   }
-  async function open(id: number): Promise<void> {
+  async function open(id: number, pointerNavigation = false): Promise<void> {
     const token = invalidateInteraction();
     invalidateRefresh();
     if (id === -1) {
@@ -270,6 +272,7 @@
       return;
     }
     navigationRefresh.begin(token);
+    mapNavigation = pointerNavigation;
     try {
       const item = await detailQueries.request({ id, indexId }).result;
       if (!item || token !== interactionToken || !ready) return;
@@ -888,17 +891,17 @@
           />
         {:else}
           {#if ready}<div class="breadcrumbs">
-              <button title="Scan root" onclick={() => open(0)}
+              <button title="Scan root" onclick={(event) => open(0, event.detail > 0)}
                 ><Icon name="disk" />Scan root</button
               >{#each directory?.ancestors.filter((entry) => entry.id !== 0) ?? [] as ancestor}<Icon
                   name="expand"
                   size={12}
-                /><button onclick={() => open(ancestor.id)}>{ancestor.name}</button
+                /><button onclick={(event) => open(ancestor.id, event.detail > 0)}>{ancestor.name}</button
                 >{/each}{#if directory && scope !== 0}<Icon name="expand" size={12} /><span
                   >{directory.entry.name}</span
                 >{/if}{#if directory?.entry.parent !== null && directory?.entry.parent !== undefined}<button
                   class="back-button"
-                  onclick={() => open(directory?.entry.parent ?? 0)}
+                  onclick={(event) => open(directory?.entry.parent ?? 0, event.detail > 0)}
                   ><Icon name="back" />Parent folder</button
                 >{/if}
             </div>{/if}
@@ -918,6 +921,8 @@
                 {types}
                 selected={details}
                 {sizeMode}
+                {reduceMotion}
+                animateNavigation={mapNavigation}
                 onmetric={(metric) => {
                   sizeMode = metric;
                   savePreferences();
@@ -925,8 +930,8 @@
                 onselect={(id) => {
                   void select(id);
                 }}
-                onopen={(id) => {
-                  void open(id);
+                onopen={(id, pointer = false) => {
+                  void open(id, pointer);
                 }}
                 onlist={() => {
                   view = 'explorer';

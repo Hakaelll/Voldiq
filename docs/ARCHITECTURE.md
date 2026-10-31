@@ -20,7 +20,7 @@ Scanning and queries run in background tasks. The engine publishes one shared in
 
 ## Interface
 
-Svelte owns interaction state, preferences and bounded query results. A custom squarified treemap redraws when geometry, selection or hover changes. There is no persistent animation loop or idle polling. Layout uses Windows system fonts and local artwork.
+Svelte owns interaction state, preferences and bounded query results. A custom squarified treemap redraws when geometry, selection or hover changes. There is no persistent animation loop or idle polling. Pointer hierarchy navigation can schedule a finite 160 ms map transition; it cancels on new input, replacement, resize, reduced motion, hiding or unmounting. Layout uses Windows system fonts and local artwork.
 
 ## Duplicate analysis
 
@@ -71,3 +71,9 @@ The frontend captures identity when scheduling queries and discards late managem
 The retained native case scans two real folders whose local node IDs overlap and proves that the first identity cannot resolve the second index. The frontend case verifies a delayed IPC reply against an injected transport. Both counterexample mutations fail their retained case, and the restored source passes the [complete source gate](../benchmarks/project-verification-index-ownership-20261031.json). These checks add no declared tests or native interaction acceptance. See [ownership verification](../benchmarks/index-ownership-20261031.json).
 
 The [current native preview](../benchmarks/native-index-ownership-preview-20261031.json) opens a responding Voldiq window from the rebuilt executable. Its receipt records the executable and frontend hashes. The previous owned preview closed normally and its 12,699,648-byte executable was removed. No visual or pointer/keyboard acceptance is inferred from this metadata.
+
+## Standalone interface loading
+
+Optimized native binaries must enable Tauri's production protocol. The project `production` feature forwards `tauri/custom-protocol`, and a compile-time guard rejects a non-test optimized binary in Tauri dev mode. The Tauri CLI production build also enables the underlying protocol. A direct Cargo `--release` flag alone is insufficient.
+
+The `--verify-embedded-ui` diagnostic constructs the compiled context and exits before application setup. It reports decoded runtime asset lengths and SHA-256 digests. Preview preparation and distribution verification run it and match JavaScript and CSS to current `dist/assets`. Raw storage iterators may contain compressed data; the diagnostic obtains content with `Assets::get`, the runtime decoding path. The source gate builds frontend assets before checking native production mode. This establishes compiled payload and mode, while actual desktop interaction and clean-machine installation remain separate.

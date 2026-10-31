@@ -1,5 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(all(not(debug_assertions), dev, not(test)))]
+compile_error!(
+    "Desktop release requires embedded assets. Build with pnpm tauri build or cargo build --release -p voldiq --features production."
+);
+
 use serde::Serialize;
 use std::{
     path::PathBuf,
@@ -15,6 +20,7 @@ mod cleanup_commands;
 mod config_file;
 mod developer_commands;
 mod docker_commands;
+mod embedded_ui;
 mod overview;
 mod query_commands;
 mod restore_commands;
@@ -657,6 +663,20 @@ fn main() {
     if let Some(code) = voldiq_core::cleanup::helper::run_cli() {
         std::process::exit(code);
     }
+    let context = tauri::generate_context!();
+    if std::env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new("--verify-embedded-ui")) {
+        match embedded_ui::verify(&context) {
+            Ok(report) => println!(
+                "{}",
+                serde_json::to_string(&report).expect("Embedded UI report is serializable")
+            ),
+            Err(error) => {
+                eprintln!("{error}");
+                std::process::exit(2);
+            }
+        }
+        return;
+    }
     tauri::Builder::default()
         .setup(|app| {
             let directory = app.path().app_local_data_dir()?;
@@ -710,6 +730,6 @@ fn main() {
             snapshot_storage,
             compact_snapshots
         ])
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("Voldiq could not start");
 }

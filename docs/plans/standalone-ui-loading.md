@@ -1,0 +1,9 @@
+# Standalone UI loading correction
+
+- Symptom: the user supplied a native Voldiq window showing 127.0.0.1 connection refusal. Window title/responding metadata had not established that the frontend loaded.
+- Cause: direct Cargo release commands omitted Tauri custom-protocol. Tauri therefore selected its configured development URL. Bundling an existing executable did not change that compile-time mode.
+- Fix: production forwards tauri/custom-protocol. A compile-time guard rejects non-test optimized desktop binaries in dev mode. The source verifier builds frontend assets first and runs native tests/Clippy with voldiq/production. The retained native case asserts production mode and validates its actual generated context.
+- Artifact proof: --verify-embedded-ui exits before application setup. It reports production mode plus decoded runtime asset hashes from Assets::get, not compressed storage bytes from Assets::iter. The shared PowerShell probe rejects older images without this diagnostic marker before execution, then matches the compiled JS/CSS against current dist files. Preview preparation and distribution verification both require it.
+- Acceptance: rebuild, verify exact embedded payload, open the corrected native copy and regenerate the installer. Leave the development server stopped. UI interaction and clean-machine installation remain manual. The earlier process resource capture is withdrawn as a frontend workload baseline.
+
+Result: the actual production executable reports five decoded embedded assets, with JS/CSS hashes matching the current frontend. It opens without a server listening on port 1420. The no-feature desktop check fails at the guard, all six production source checks pass with eight declared tests, and the regenerated installer passes the repeated executable probe. The defective old preview is removed. Native visual and clean-machine acceptance remain manual.
