@@ -56,6 +56,15 @@ pub(crate) fn open_child(parent: &File, name: &OsStr, directory: bool) -> Result
     open_component(parent, name, access, share)
 }
 
+pub(crate) fn reopen_directory(directory: &File, access: u32) -> Result<File> {
+    native_open(
+        &mut [],
+        Some(directory),
+        access,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
+    )
+}
+
 pub(crate) enum LeafAccess {
     Remove,
     Retain,

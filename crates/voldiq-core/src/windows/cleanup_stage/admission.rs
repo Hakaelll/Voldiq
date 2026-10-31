@@ -102,7 +102,7 @@ fn source_identity(file: &File) -> io::Result<(StageIdentity, u32)> {
     ))
 }
 
-fn contents(directory: &File, expected: Option<&StageEntry>) -> io::Result<()> {
+pub(super) fn contents(directory: &File, expected: Option<&StageEntry>) -> io::Result<()> {
     let mut buffer = vec![0u64; 512];
     if unsafe {
         GetFileInformationByHandleEx(

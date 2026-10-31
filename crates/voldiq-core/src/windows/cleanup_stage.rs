@@ -368,4 +368,41 @@ impl StagePin {
     pub fn identity(&self) -> StageIdentity {
         self.identity
     }
+
+    /// Removes only this verified empty stage. Never follows a replacement or deletes children.
+    pub fn remove_empty(self, name: &StageName) -> io::Result<()> {
+        let Self {
+            _file,
+            _parent,
+            identity: expected,
+        } = self;
+        drop(_file);
+        let directory = super::cleanup_io::open_component(
+            &_parent,
+            std::ffi::OsStr::new(name.as_str()),
+            DELETE | FILE_LIST_DIRECTORY | FILE_READ_ATTRIBUTES | READ_CONTROL,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+        )
+        .map_err(|error| match error {
+            crate::Error::Io(error) => error,
+            error => io::Error::new(io::ErrorKind::InvalidData, error),
+        })?;
+        if identity(&directory)? != expected || !policy()?.matches_file(&directory)? {
+            return Err(invalid("Cleanup stage identity or permissions changed."));
+        }
+        admission::contents(&directory, None)?;
+        let disposition = FILE_DISPOSITION_INFO { DeleteFile: true };
+        if unsafe {
+            SetFileInformationByHandle(
+                directory.as_raw_handle(),
+                FileDispositionInfo,
+                (&disposition as *const FILE_DISPOSITION_INFO).cast(),
+                size_of::<FILE_DISPOSITION_INFO>() as u32,
+            )
+        } == 0
+        {
+            return Err(io::Error::last_os_error());
+        }
+        Ok(())
+    }
 }

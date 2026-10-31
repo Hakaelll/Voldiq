@@ -64,31 +64,6 @@ mod probe {
         Ok(())
     }
 
-    fn directory(path: &Path) -> io::Result<File> {
-        let name = wide(path);
-        let handle = unsafe {
-            CreateFileW(
-                name.as_ptr(),
-                FILE_LIST_DIRECTORY
-                    | FILE_READ_ATTRIBUTES
-                    | FILE_ADD_SUBDIRECTORY
-                    | FILE_DELETE_CHILD
-                    | READ_CONTROL,
-                FILE_SHARE_READ | FILE_SHARE_WRITE,
-                ptr::null(),
-                OPEN_EXISTING,
-                FILE_FLAG_BACKUP_SEMANTICS
-                    | FILE_FLAG_OPEN_REPARSE_POINT
-                    | FILE_FLAG_OPEN_NO_RECALL,
-                ptr::null_mut(),
-            )
-        };
-        if handle == INVALID_HANDLE_VALUE {
-            return Err(io::Error::last_os_error());
-        }
-        Ok(unsafe { File::from_raw_handle(handle) })
-    }
-
     fn identity(file: &File) -> io::Result<StageIdentity> {
         let mut id: FILE_ID_INFO = unsafe { std::mem::zeroed() };
         if unsafe {
@@ -124,13 +99,13 @@ mod probe {
         Ok((Plan::manual(&index, &[id])?, id))
     }
 
-    fn replacement(path: &Path) -> io::Result<File> {
+    fn replacement(path: &Path, share: u32) -> io::Result<File> {
         let name = wide(path);
         let handle = unsafe {
             CreateFileW(
                 name.as_ptr(),
                 DELETE | FILE_READ_DATA | FILE_WRITE_DATA | FILE_READ_ATTRIBUTES,
-                FILE_SHARE_READ,
+                share,
                 ptr::null(),
                 CREATE_NEW,
                 FILE_FLAG_OPEN_REPARSE_POINT,
@@ -206,7 +181,7 @@ mod probe {
         drop(writer);
         let (planned, id) = plan(root)?;
         let source = planned.verify(id)?;
-        let parent = directory(root)?;
+        let parent = source.stage_parent()?;
         let name = StageName::generate()?;
         let journal_path = root.join("admission.sqlite");
         let mut journal = Journal::open(&journal_path)?;
@@ -275,7 +250,7 @@ mod probe {
             }
             journal.record_staged(relocation)?;
             journal.start_return(relocation)?;
-            let replaced = replacement(&source_path)?;
+            let replaced = replacement(&source_path, FILE_SHARE_READ)?;
             let error = source
                 .return_from_stage(&mut stage, &entry, &entry)
                 .err()
@@ -350,13 +325,29 @@ mod probe {
         }
         let (fresh, id) = plan(root)?;
         fresh.verify(id)?.remove_permanently()?;
-        drop(stage);
+        let other_name = StageName::generate()?;
+        let other_path = root.join(other_name.as_str());
+        std::fs::create_dir(&other_path)?;
+        let marker_path = other_path.join("owned.bin");
+        let marker = replacement(&marker_path, FILE_SHARE_READ | FILE_SHARE_DELETE)?;
+        let expected_stage = stage.identity();
+        let error = stage
+            .remove_empty(&other_name)
+            .err()
+            .ok_or("Wrong stage name was removed.")?;
+        if error.kind() != io::ErrorKind::InvalidData
+            || std::fs::read(&marker_path)? != b"owned replacement"
+        {
+            return Err("Stage cleanup did not preserve the wrong directory.".into());
+        }
+        StagePin::acquire(&parent, &name, expected_stage)?.remove_empty(&name)?;
+        remove_replacement(marker)?;
+        std::fs::remove_dir(&other_path)?;
         drop(parent);
-        std::fs::remove_dir(root.join(name.as_str()))?;
         std::fs::remove_file(&journal_path)?;
         std::fs::remove_dir(root)?;
         Ok(
-            serde_json::json!({"helperElevated":external,"productionAdmissionProtocolVerified":true,"helperReleasedStrictSourceWhileLive":true,"unadmittedSourceRejectedForRecycling":true,"shellApartmentInitialized":true,"protectedStageShellBindingVerified":true,"journalIntentAndResultSurvivedRestart":true,"sameUserImageAndRoleVerified":true,"nativeAdmissionSucceeded":reply.admitted,"nativeError":reply.native_error,
+            serde_json::json!({"helperElevated":external,"parentAuthorityReopenedAndNarrowed":true,"emptyStageRemovedByVerifiedHandle":true,"wrongCleanupTargetPreserved":true,"productionAdmissionProtocolVerified":true,"helperReleasedStrictSourceWhileLive":true,"unadmittedSourceRejectedForRecycling":true,"shellApartmentInitialized":true,"protectedStageShellBindingVerified":true,"journalIntentAndResultSurvivedRestart":true,"sameUserImageAndRoleVerified":true,"nativeAdmissionSucceeded":reply.admitted,"nativeError":reply.native_error,
             "reviewedSourceReplayRejected":replay_rejected,"rollbackCollisionPreservedBothFiles":external,"returnedByOrdinaryController":external,"originalIdentityAndContentsVerified":true,"ownedFixtureCleaned":true}),
         )
     }

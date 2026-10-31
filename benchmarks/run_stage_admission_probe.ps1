@@ -61,6 +61,9 @@ try {
         -not $observation.protectedStageShellBindingVerified -or
         -not $observation.productionAdmissionProtocolVerified -or
         -not $observation.helperReleasedStrictSourceWhileLive -or
+        -not $observation.parentAuthorityReopenedAndNarrowed -or
+        -not $observation.emptyStageRemovedByVerifiedHandle -or
+        -not $observation.wrongCleanupTargetPreserved -or
         -not $observation.originalIdentityAndContentsVerified -or
         -not $observation.ownedFixtureCleaned) {
         throw 'Fixture did not confirm its required invariants.'
@@ -79,6 +82,7 @@ try {
     $sources = @(
         'crates/voldiq-core/examples/stage_admission_probe.rs',
         'crates/voldiq-core/src/windows/cleanup_channel.rs',
+        'crates/voldiq-core/src/windows/cleanup_io.rs',
         'crates/voldiq-core/src/windows/security.rs',
         'crates/voldiq-core/src/windows/cleanup_stage.rs',
         'crates/voldiq-core/src/windows/cleanup_stage/admission.rs',

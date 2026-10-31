@@ -10,7 +10,7 @@ pub(crate) mod cleanup_io;
 pub mod cleanup_stage;
 pub mod recycle_bin;
 #[cfg(windows)]
-mod security;
+pub(crate) mod security;
 mod storage;
 pub use storage::storage_seek_penalty;
 mod settings;

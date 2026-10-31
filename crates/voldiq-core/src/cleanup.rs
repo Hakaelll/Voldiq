@@ -331,6 +331,48 @@ pub struct VerifiedFile {
 
 #[cfg(windows)]
 impl VerifiedFile {
+    /// Reopens the retained parent object as the ordinary caller, then narrows its transferable rights.
+    pub fn stage_parent(&self) -> Result<std::fs::File> {
+        use std::os::windows::io::{AsRawHandle, FromRawHandle};
+        use windows_sys::Win32::{
+            Foundation::DuplicateHandle, Storage::FileSystem::*,
+            System::Threading::GetCurrentProcess,
+        };
+        self.check_stamp()?;
+        let parent = self
+            .parents
+            .last()
+            .ok_or_else(|| Error::Invalid("Missing source parent guard.".into()))?;
+        let expected = windows::cleanup_stage::identity(parent)?;
+        let access = windows::cleanup_channel::STAGE_PARENT_ACCESS | SYNCHRONIZE;
+        let authority = windows::cleanup_io::reopen_directory(parent, access | FILE_ADD_FILE)?;
+        if windows::cleanup_stage::identity(&authority)? != expected {
+            return Err(Error::Invalid(
+                "Reopened source parent changed identity.".into(),
+            ));
+        }
+        let mut narrowed = std::ptr::null_mut();
+        if unsafe {
+            DuplicateHandle(
+                GetCurrentProcess(),
+                authority.as_raw_handle(),
+                GetCurrentProcess(),
+                &mut narrowed,
+                access,
+                0,
+                0,
+            )
+        } == 0
+        {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        let narrowed = unsafe { std::fs::File::from_raw_handle(narrowed) };
+        if windows::security::granted_access(&narrowed)? != access {
+            return Err(Error::Invalid("Unexpected source parent authority.".into()));
+        }
+        Ok(narrowed)
+    }
+
     /// Transfers a source acquired with the plan's fixed, non-delete-on-close open flags.
     pub fn offer_source(&self, channel: &mut windows::cleanup_channel::Channel) -> Result<()> {
         self.check_stamp()?;

@@ -18,6 +18,8 @@ use windows_sys::Win32::{
 };
 
 pub const MAX_MESSAGE: usize = 4096;
+pub(crate) const STAGE_PARENT_ACCESS: u32 =
+    FILE_LIST_DIRECTORY | FILE_READ_ATTRIBUTES | FILE_ADD_SUBDIRECTORY | FILE_DELETE_CHILD;
 const TIMEOUT: Duration = Duration::from_secs(5);
 const PREFIX: &str = r"\\.\pipe\voldiq-cleanup-";
 
@@ -128,10 +130,7 @@ fn handle_frame(file: &File, kind: HandleKind) -> io::Result<Vec<u8>> {
         HandleKind::Source => source_access(file)?,
         HandleKind::StageParent => {
             let granted = granted_access(file)?;
-            let required = FILE_LIST_DIRECTORY
-                | FILE_READ_ATTRIBUTES
-                | FILE_ADD_SUBDIRECTORY
-                | FILE_DELETE_CHILD;
+            let required = STAGE_PARENT_ACCESS;
             let allowed = required | SYNCHRONIZE | READ_CONTROL | FILE_TRAVERSE | FILE_READ_EA;
             if granted & required != required || granted & !allowed != 0 {
                 return Err(io::Error::new(
