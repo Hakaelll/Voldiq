@@ -1,0 +1,96 @@
+# Workbench coverage
+
+Scope: [complete user requirements](reference/storage-workbench-requirements.txt). Baseline `fae47a0`, 2026-10-31. Existing means source is present, not that every new acceptance criterion has been verified. All pending rows remain part of the active goal.
+
+Stages: A audit, B shared services, C secure adapters, D visualization, E analysis, F history, G operations, H integrations. Evidence is updated per delivered unit. No new screenshot or scaling acceptance is claimed because the user excludes computer use.
+
+| Reference function | Voldiq adaptation | Current state | Dependencies / stage | Verification | Acceptance criterion |
+|---|---|---|---|---|---|
+| Repository/source/license audit | Preserve stack, identity, local changes; pin research | Implemented | A | Git/source inspection; baseline gate pending | No reference code executed or copied; explicit provenance |
+| Baseline visuals | Existing 0.2.0 release, tokens and assets | Existing; new captures excluded | User instruction | `DESIGN.md`, release evidence | Identity retained; new native comparison manual |
+| Shared GUI/CLI/MCP engine | Core services, adapter-only transports | Partial; desktop-only coordinator | B/C | Shared-service fixtures pending | Same authorization/jobs/index/executor across adapters |
+| Persistent shared index | Existing compact versioned SQLite snapshots; process coordination | Partial | B | Existing snapshot fixture; process lease pending | No duplicate same-root full scans; transactional restart |
+| Provenance/confidence/unknowns | Explicit source/time/coverage for derived values | Partial | B | Accounting fixtures pending | Unknown never shown as zero; inaccessible never empty |
+| Scan roots/progress/cancel | Existing directory and NTFS scanner | Existing | B | Baseline native tests | Folder/drive scans return measured progress and partial state |
+| Incremental/pause/profiles | USN replay; bounded Eco/Balanced/Fast/Auto | Partial; pause/profiles pending | B | NTFS/profile fixtures pending | No unsupported pause or promised CPU percentage |
+| Fast NTFS/elevation/fallback | Existing explicit native path and normal enumeration fallback | Existing; raw-device acceptance hardware-dependent | B | Existing NTFS records | Elevation scoped to helper; main app stays normal |
+| Logical/allocated/physical accounting | Existing hard-link identity dedup and coverage | Existing; provenance extension pending | B | Accounting/overlap fixtures | Path totals distinct from unique physical allocation |
+| Cloud placeholders/reparse points | Existing no-follow metadata and no-recall hash handles | Existing; provider breadth limited | B | Existing owned offline/link fixtures | No content hydration; no cycles or scope escape |
+| Decimal/binary units | Shared formatting/query/export preference | Partial | B/E/H | Unit parser/format fixtures pending | Correct KB versus KiB labels everywhere |
+| Operational dashboard | Extend existing Overview with freshness, scope, budgets and links | Partial | D/E/F | Native overview fixtures; UI manual | Volume occupation distinct from indexed folder totals |
+| Open/retained file diagnosis | Coverage-aware Windows handle reporting; optional normal close | Pending | F | Windows disposable process fixtures | Incomplete query never means unused; no forced close |
+| Treemap | Existing measured custom Canvas hierarchy | Existing; advanced controls partial | D | Existing layout tests | Shared root/filter/selection/metric across views |
+| Sunburst | Measured annular sectors from same frontier | Pending | D | Area/layout fixtures | Bounded hierarchy; accurate legend and navigation |
+| Nested circles | Area-correct circles and explicit packing gaps | Pending | D | Area/layout fixtures | Radius proportional to square root of bytes |
+| Weighted Voronoi | Worker layout with error/aggregation disclosure | Pending | D | Bounded convergence fixtures | Approximation explicitly identified; no blocking UI |
+| Disk City | Existing Skyline Canvas, shared treemap frontier, BSP picking | Existing | D | Existing geometry/occlusion/shadow tests | Pan/zoom, multiselect, drilldown, height legend, table equivalent |
+| Virtual grid/table | Existing 36px virtual list plus grid | Partial; grid pending | D | Virtual window fixtures/UI manual | Bounded DOM and stable shared selection |
+| Treemap zoom/lasso/lens/context/details | Extend existing navigation/details | Partial | D | Selection/geometric fixtures | Lasso only selects; lens redraws geometry |
+| Color modes/depth/legend | Existing category/size/age modes; history/review modes | Partial | D/F | Palette and shared-state tests | Legend states meaning; no incompatible reuse |
+| Global search parser | One strict typed core query language | Partial; structured filters only | E | Parser/adapter fixtures pending | Bad conditions produce errors, never disappear |
+| Search properties | Text/glob/extension/path/size/date/app/cloud/type | Partial | B/E | Literal query fixtures | Only measured/available properties accepted |
+| Offline natural language | Deterministic editable query preview/unparsed words | Pending | E | Translation fixtures | No external LLM or silently ignored intent |
+| Saved views/favorites/palette | Extend existing Ctrl+K and recent roots | Partial | E | Persistence/keyboard checks | Saved queries use same parser and scope |
+| Notes and protection | Plain text, descendant protection, human-only removal | Pending | B/E | Protection precedence/security tests | Agents cannot remove protection or plan beneath it |
+| Budgets/human equivalents | Real limits, occupied bytes, sampled equivalence | Pending | E/F | Measured sample/forecast tests | Forecast only with adequate compatible history |
+| App attribution | Evidence-based install/data/cache/logs/shared/unattributed | Pending | E | Manifest/accounting fixtures | No name-only ownership or double count; scope visible |
+| App scatter/list/explorer/cleanup | Measured bytes/file count and category-specific plans | Pending | E | Aggregate/order fixtures; UI manual | Scales visible; plan only verified categories |
+| Steam/Epic/GOG/itch.io | Read real manifests plus manual libraries | Pending | E | Owned manifest fixtures | Saves/mods/DLC distinct from regenerable shaders |
+| Media libraries | Verified Windows layouts; unknown read-only size | Pending | E | Known/unknown fixture layouts | No invented cleanup recipe or macOS assumption |
+| Assisted cleanup/rules | Extend existing versioned developer and browser-cache evidence | Partial | E | Existing cleanup/developer fixtures | Context required; active/shared/orphan states distinct |
+| Explainable review score | Adjustable contributions/confidence/missing signals | Pending | E | Deterministic scoring fixtures | Score never grants deletion authority |
+| Common cleanup tray/simulation/target | Shared bounded selection, exact plan preview | Partial; common tray pending | D/E | Selection and plan fixtures | No auto-add to hit target; simulation keeps scale |
+| Exact duplicates | Existing sample + complete streaming BLAKE3 and stamp validation | Existing | B/E | Existing hash/cache/cleanup fixtures | Hard-link aliases excluded; retain a verified copy |
+| Similar images | Perceptual hash, explicit threshold, side-by-side manual choice | Pending | E/H | Image fixture corpus | Similar never labeled identical; no automatic deletion |
+| Compact snapshots/retention | Existing interval versions; configurable retention/provenance | Partial | F | Existing reopened snapshot tests | No unlimited full tree per scan; detailed versus summary |
+| Trends/forecast | Extend measured history with compatible confidence-bounded forecast | Partial | F | Growth/coverage/erratic history fixtures | No disk-full date with insufficient evidence |
+| Comparison | Existing paged additions/omissions/changes; coordinated divider | Partial | F | Existing coverage comparisons; UI manual | Differing coverage explicit; no false deletions |
+| History playback | Slider, speed, pause, loop, real snapshot values | Pending | F | State/clock fixtures; UI manual | Interpolation never fabricates measured values |
+| Calendar/diary | Last-modification cohorts and evidence-backed changes | Pending | F | Literal date/change fixtures | Never label cohort bytes as bytes written |
+| Live | Grouped watchers and lost-event recovery | Pending | F | Overflow/cancel/restart fixtures | Show observed net growth; no hidden idle polling |
+| Explain space/residual | Measured volume versus indexed allocation, signed residual | Pending | F | Accounting fixtures | No forced balance or double deductions |
+| Windows system diagnosis | VSS, Docker/WSL/VHDX, old installs, pagefile/hibernation | Partial; Docker size only | F | Read-only capability fixtures | No direct system/VHDX cleanup; official tools when needed |
+| System recovery discovery | Read available Windows backup metadata and safe restore plan | Pending | F/G | Availability/access fixtures | Actual copy required; no overwrite or automatic purge |
+| Verified offload | Exact approved manifest; volume identity; copy/readback/hash | Pending | G | Copy failure/detach/change fixtures | Originals retained until verified authorized phase |
+| External devices/catalogue | Known destination volumes and drag-to-plan | Partial; volume discovery exists | G | Device identity fixtures; UI manual | Drive letter alone never identifies destination |
+| Recovery vault | Per-operation verified copies, quotas/search/retention/conflicts | Partial; bin receipt restore exists | G | Capacity/restart/collision fixtures | No overwrite; unsupported metadata disclosed |
+| Reclamation accounting | Selected/bin/protected/potential/observed free bytes separate | Partial | B/G | Allocation/volume fixtures | Recycle and same-volume backup do not imply freed bytes |
+| Supervised automation | Authorized scheduled scans, prepare-only cleanup policies | Pending | G | Cooldown/scope/edit fixtures | Every modifying batch needs fresh concrete approval |
+| Sensitive metadata detection | Contextual name/location warning without content reads | Pending | B/E | Fixture names and protected roots | No cleanup suggestion or automatic secret relocation |
+| OneDrive/Google Drive/Dropbox | Official opt-in metadata connectors with Windows credentials | Pending | H; external registration/credentials | Provider fixtures + real login pending | No downloads/permanent delete; local/cloud identity separate |
+| LAN summaries | Off by default, authenticated temporary pairing, allowlisted summary | Pending | H | Auth/revocation/attempt-limit fixtures | No full trees, private history, remote delete or IPC exposure |
+| Archive inspection | Bounded read-only ZIP/JAR/TAR/TGZ/ISO virtual entries | Pending | H | Malicious/count/depth fixtures | No extraction or unbounded expansion |
+| Download provenance | Domain-first Windows metadata with explicit URL reveal | Pending | H | ADS metadata fixture | Never visit URL or leak full URL into reports |
+| Safe preview | Bounded text/image/metadata without active content | Pending | H | Oversize/HTML/executable fixtures | No script/HTML execution or cloud hydration |
+| Git analysis | Object/pack/LFS sizes, approved fixed maintenance | Partial; project context exists | H | Owned repository fixtures | Never delete `.git` or run destructive cleanup commands |
+| SMART | Optional measured device reports | Pending | H; supported device/access | Missing-tool/access fixtures | No invented health/lifetime diagnosis |
+| Storage cost | Dated currency/rate assumptions | Pending | H | Literal tariff fixture | Byte reduction not falsely labeled cash saving |
+| Video compression | Optional verified encoder, separate output and comparison | Pending | H; encoder/hardware | Missing encoder/copy fixtures | Original preserved; lossy effect explicit |
+| PNG/SVG export | Export actual render/vector geometry plus scope | Pending | H | Export content fixtures | SVG truly vector; privacy controls |
+| CSV/XLSX/PDF export | Lazy cancellable report/file exports | Pending | H | Formula injection/long path fixtures | Formula-safe cells; readable report; units/coverage included |
+| GIF/WebM history export | Lazy bounded recording when runtime supports it | Pending | H | Capability/cancel fixtures | Real format support, real snapshots, no silent fake export |
+| Tray/notifications/drop/context menu | Optional Windows integration | Partial; native shell actions exist | H | Registration/source checks/UI manual | Explicit opt-in; folder drop prepares scan |
+| Close/startup/update preferences | Clear optional behaviors and verified updates | Pending | H | Preference/update signature checks | No silent activation |
+| Portable/ephemeral/onboarding/help | Real writable-state handling, skippable onboarding | Partial | H | Read-only state fixture/UI manual | No zero-traces promise; no fabricated persistence |
+| VS Code | Lightweight adapter invoking headless binary | Pending | C/H | Adapter protocol fixture | No embedded second engine or Electron app |
+| Real headless CLI | Rust binary for scan/query/stats/history/plan/jobs/export | Pending | B/C | Real subprocess tests | No GUI dependency; versioned JSON, error exit codes |
+| MCP stdio transport | Official maintained Rust SDK, stdout protocol only | Pending | C | Real SDK client subprocess | Schemas, bounded results, supported negotiation, stderr logs |
+| MCP analysis tools | Scoped capabilities/volumes/jobs/query/stats/apps/duplicates/history/audit | Pending | B/C/E/F | Capability/scope tests per tool | Backend authorizes every invocation and result |
+| MCP planning tools | Exact cleanup/transfer/restore manifests and lifecycle | Pending | C/G | Plan lifecycle fixtures | No agent approval, arbitrary shell/path deletion or bin purge |
+| Agent identity/permissions | Human provisioned individual credentials/caps/roots/exclusions/limits | Pending | B/C | Wrong/revoked/scope/rotation tests | Client name/root/scan ID never grants permission |
+| Human approval | Separate desktop channel, immutable hashed manifest, expiry/revoke/consume | Pending | C | Tamper/replay/expiry/concurrent tests | No GUI/independent approver means `needs_human_approval` |
+| Shared safe executor | Extend retained-handle existing executor and journal | Partial | C/G | Existing native safety tests + restart | No bypass from CLI, rules or MCP; uncertain work never retried |
+| Windows hostile paths | Existing native identity/handle checks; explicit agent path boundary | Partial | B/C | UNC/device/ADS/reserved/alias/reparse fixtures | No string-prefix auth or scope escape |
+| Audit/threat model | Durable allowed events, redacted metadata, real guarantee | Partial | B/C | Audit redaction/restart fixtures | Local log not claimed tamper-proof; stdio not data-local guarantee |
+| Performance/resource limits | Existing virtual lists/workers/partial aggregation, add headless metrics | Partial | All | Real synthetic and authorized workload measurements | No copied performance figures; hardware limits recorded |
+| Final 20-class verification | Extend owned fixtures and real MCP client; manual UI/device checks | Pending | All | Full source gate and scoped evidence | Distinguish implemented/configured/connected/verified |
+
+## Reference research
+
+Pinned repository: [TreeMap at a03bf667](https://github.com/Prithvi-Web/TreeMap-Disk-Visualizer/tree/a03bf667daf0d19fcdd2309ea8e89fd93403097a). Its MIT license names Prithvi Vinay, 2026. No code, markup, style, assets or dependencies are copied into Voldiq by this audit.
+
+Inspected paths: `README.md`, `LICENSE`, `src/models/types.ts`, `src/services/appAttribution.ts`, `src/services/offload.ts`, `src/mcp/server.ts`, the repository tree and the related test/module paths. Models distinguish pruned subtrees, optional access dates and hard-link duplicates; Voldiq keeps its compact native-ID index instead of adopting that tree shape. App attribution uses platform-specific container contexts; Voldiq requires verified Windows ownership evidence. Offload code separates copying/readback from original disposal; Voldiq must additionally bind that operation to independent human approval and stable destination identity. MCP imports operational services directly; its presence does not establish Voldiq's required approval boundary.
+
+Relevant further paths identified: `src/ui/app/050-treemap-view.js`, `src/ui/app/080-sunburst-radial-view.js`, `src/ui/app/145-disk-city-the-isometric-view.js`, `src/services/forecast.ts`, `src/services/missingGigabytes.ts`, `src/services/gameLibraryScanner.ts`, `src/services/mediaLibraryScanner.ts`, `src/services/facts/`, `tests/appAttribution.test.ts`, `tests/forecast.test.ts`, `tests/mcp.test.ts`, `tests/mcpAdvisoryScope.test.ts`, `tests/offloadOriginalChanged.test.ts`, `tests/offloadRollbackWords.test.ts`. These are research pointers, not claims that every branch has been verified.
+
+The README's broad statements about safety and portability are not acceptance evidence. Its screenshot dataset is synthetic. Voldiq's own measurements and tested guarantees remain authoritative.
