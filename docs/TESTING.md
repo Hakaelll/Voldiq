@@ -49,3 +49,5 @@ pnpm tauri dev
 Choose a disposable fixture folder. Check scan progress, capacity and size totals, folder navigation, search, file filters, details and Explorer reveal. Check duplicate review, cleanup confirmation and snapshot comparison with known fixture contents. Cancel an active scan and verify the incomplete state. Check inaccessible folders, keyboard navigation, window resizing, hover navigation, both themes and reduced motion.
 
 The browser preview has no filesystem bridge. Native interaction, performance targets and installed-app acceptance remain separate checks in [Product acceptance](ACCEPTANCE.md). Packaging evidence is in [Windows distribution](DISTRIBUTION.md).
+
+The standalone [historical restoration fixture](../benchmarks/run_historical_restore_probe.ps1) verifies ordinary Shell recycling, release/reacquisition of actual bin authority, no-overwrite restoration and durable replay refusal with an owned four-byte file. It adds no declared test and does not exercise protected admission or desktop commands. The [completed receipt](../benchmarks/historical-bin-restore-20261031-112253-343.json) includes source/image hashes and scope.

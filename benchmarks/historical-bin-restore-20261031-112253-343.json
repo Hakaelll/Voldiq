@@ -1,0 +1,50 @@
+{
+  "utc": "2026-10-31T11:22:53.3140801Z",
+  "executableSha256": "27CE328DA25819709BD5A0AC74F8BC4F2F31B5A49403A25315C61F3F3561AB5A",
+  "sources": {
+    "crates/voldiq-core/examples/historical_restore_probe.rs": "404D73EF59EE92B0F49D52602ECB822B2B01F97F73FCE2505585B12FEC2DC257",
+    "crates/voldiq-core/src/cleanup/recycle/historical.rs": "BCD5ED54D75CA933EB1F5175F1A7B77CF72FE769C0E610E8006130CF09D07E84",
+    "crates/voldiq-core/src/cleanup/journal/relocation.rs": "B3A2B73858B30AC79293ABA58D5F60F14FF7AFAF7AC18296D2CF9BD60C689F5A",
+    "crates/voldiq-core/src/windows/cleanup_io.rs": "8E35074EDBB96F355B73A3A244A65B8CAAAA45B438BCC493600DD85989451CFB",
+    "crates/voldiq-core/src/windows/cleanup_stage/admission.rs": "081D1A479002ACBB9A95694A56BDF2BE0AC2CD5B1A1EFB4B80859CC62E74C785",
+    "benchmarks/run_historical_restore_probe.ps1": "1E77BB6440FAE9909745A489772B1C080D080C0DD6A07597DC9982531D620090"
+  },
+  "controllerPid": 11180,
+  "finished": true,
+  "exitCode": 0,
+  "stderr": "Owned fixture preserved on failure: C:\\Users\\yagol\\AppData\\Local\\Temp\\voldiq-historical-bin-wAfitg\nOwned recycled locator: C:\\$Recycle.Bin\\S-1-5-21-790445252-1257609-4004218383-1001\\$R3TOT1D.bin\n",
+  "observation": {
+    "binLocator": "C:\\$Recycle.Bin\\S-1-5-21-790445252-1257609-4004218383-1001\\$R3TOT1D.bin",
+    "collisionPreservedBoth": true,
+    "durableRestorationSurvivedRestart": true,
+    "observedVersionSurvivedRestart": true,
+    "originalIdentityAndBytesRestored": true,
+    "ownedFixtureRemoved": true,
+    "physicalBinMetadataRetirementClaimed": false,
+    "protectedAdmissionExercised": false,
+    "reopenedBinRestored": true,
+    "replayRejected": true,
+    "sourceFile": [
+      107,
+      204,
+      19,
+      0,
+      0,
+      0,
+      47,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    "sourceVolume": 8958353945981825230,
+    "sourceWritesDeniedDuringReview": true,
+    "uac": false
+  },
+  "scope": "One owned temporary four-byte file, ordinary direct Shell recycling, closed source guards and journal, fresh historical review and original-location restoration. No UAC, protected admission, other bin item or service. Physical bin metadata retirement is not claimed."
+}
