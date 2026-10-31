@@ -1,6 +1,8 @@
 # Cleanup previews
 
-The current delivery supports manual, duplicate, indexed user/project temporary-file, old-file and supported browser HTTP cache selections with previews and an explicitly confirmed advanced permanent-removal action. Duplicate execution preserves a verified copy per group throughout removal. Recycling is not exposed, and no destructive operation runs automatically. Preview alone never approves execution.
+The current delivery supports manual, duplicate, indexed user/project temporary-file, old-file and supported browser HTTP cache selections with previews, confirmed recycling and a separate advanced permanent-removal action. Duplicate execution preserves a verified copy per group throughout removal. Compatible recorded recycled items can be reviewed and restored without overwriting existing files. No destructive operation runs automatically. Preview alone never approves execution.
+
+The user accepted the outstanding manual checks and requested final delivery. Recycling is enabled for 0.1.0. The earlier combined privileged diagnostic was not rerun; final acceptance does not turn it into an automated passing result. The investigation sections below retain historical states and experiments. See [current product acceptance](ACCEPTANCE.md).
 
 ## Browser HTTP cache rule
 
@@ -8,7 +10,7 @@ The current delivery supports manual, duplicate, indexed user/project temporary-
 
 The rule excludes shared `data_` blocks, indexes, cookies, sessions, preferences, service workers, Simple Cache streams, nested directories, custom profiles and unsupported filenames. Classification uses the exact indexed location and external-file naming convention, not an assertion that cached contents have been parsed or are unused. The browser must be closed before review; missing cache data can cause read failures and new downloads. Chromium's [external-file naming implementation](https://raw.githubusercontent.com/chromium/chromium/main/net/disk_cache/blockfile/backend_impl.cc) documents the filename convention.
 
-Discovery and preview share the same scope and age predicates. Preview then validates the scanned identity/change time, fresh metadata, exclusions, protected locations and all ancestors through `Plan::manual`. The existing advanced permanent action retains verified handles, rejects writable open files and journals each result. Intended default recycling remains pending. Nothing is preselected or removed automatically.
+Discovery and preview share the same scope and age predicates. Preview then validates the scanned identity/change time, fresh metadata, exclusions, protected locations and all ancestors through `Plan::manual`. Execution retains verified handles, rejects writable open files and journals each result. Recycling is the default reviewed action; permanent removal requires its separate typed confirmation. Nothing is preselected or removed automatically.
 
 Disposable filesystem fixtures cover Chrome and Edge profiles, age boundaries, complete paging totals, nested/outside names, protected-data exclusions, historical captures, changed files and invalid selections. A Windows fixture scans the cache subdirectory itself, proves that an open writer blocks verification, and permanently removes only the selected test payload through the durable executor while preserving its fake cache index and shared block file. These fixtures do not prove recovery by a running real browser, custom-profile support or native visual acceptance.
 
@@ -30,7 +32,7 @@ The earlier [Chrome observation](../benchmarks/chrome-cache-envelope-2026-10-14.
 
 ## Project temporary files
 
-The `old-project-temporary-files` rule lists complete regular `.tmp` and `.temp` files at least seven days old under indexed Cargo, Node.js, CMake and .NET build scopes. Build classification requires a complete project-manifest entry. It shares the Developer view's classifier without its page limit. Age and classification do not establish that a file is unused, so nothing is preselected or removed automatically. Risk is `review`, and intended default recycling remains pending; the existing typed advanced permanent confirmation is separate.
+The `old-project-temporary-files` rule lists complete regular `.tmp` and `.temp` files at least seven days old under indexed Cargo, Node.js, CMake and .NET build scopes. Build classification requires a complete project-manifest entry. It shares the Developer view's classifier without its page limit. Age and classification do not establish that a file is unused, so nothing is preselected or removed automatically. Risk is `review`; recycling requires review and confirmation, and the typed advanced permanent confirmation is separate.
 
 Discovery and preview use the same ancestor predicate. Any recognized dependency or configured cache ancestor excludes the file, even when that location is nested inside an outer build directory. Native code supplies current-user tool locations; client parameters cannot authorize arbitrary cache paths. Developer totals still collapse nested artifacts to their outer candidate, while cleanup keeps raw nested exclusions. Files outside recognized build scopes, configured scan exclusions, protected locations, incomplete entries, unsupported names and historical indexes cannot produce an approved plan. Preview also revalidates age, scanned identity/change time, current metadata and every ancestor through the existing manual-plan boundary.
 
@@ -92,9 +94,9 @@ The Cleanup view exposes Scan user temp, bounded candidate pages and Review sele
 
 Duplicate checkboxes start empty and remain selected across result pages. The frontend and backend both reject selecting every member of a group. The backend rejects selections outside the current analysis and analysis results from an older index. For every touched group it chooses one unselected copy to retain, reads the full content of that copy and every selected file with BLAKE3, and compares the original group digest. These reads bypass the hash cache and check the scanned file identity and native change time. The review can be cancelled during content reads.
 
-The preview shows retained paths under Keep. The confirmed permanent executor repeats retained-copy validation, holds those native handles through the destructive transaction and freshly hashes selected content through its verified removal handle. No recycling command is exposed in this delivery.
+The preview shows retained paths under Keep. Confirmed execution repeats retained-copy validation, holds those native handles through the destructive transaction and freshly hashes selected content through its verified handle. The desktop exposes confirmed recycling and separately confirmed permanent removal.
 
-Additional cleanup rules, official developer tool commands, confirmed recycling and recycling undo integration are still open work.
+Additional cleanup rules and official developer tool commands are outside the supported rules documented here. Confirmed recycling and recorded-item restoration are included in 0.1.0.
 
 ## Retained duplicate-copy authority
 

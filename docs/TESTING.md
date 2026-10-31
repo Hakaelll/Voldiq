@@ -2,6 +2,8 @@
 
 The automated suite contains 8 tests, reduced from 178 on 2026-10-21 at the project owner's request. This retains 4.5% of the original test cases. The other 170 cases and their unused fixtures and modules were deleted.
 
+For 0.1.0 delivery, the user accepted the outstanding manual checks. The final [source verification](../benchmarks/project-verification-release-010.json) and [distribution verification](../benchmarks/distribution-release-010.json) record fresh automated results. Historical notes below retain the scope of their original runs; deferred privileged diagnostics are not reported as newly executed.
+
 ## Automated checks
 
 Run on Windows with the Rust MSVC toolchain, C++ Build Tools and project dependencies installed:

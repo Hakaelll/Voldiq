@@ -1,0 +1,75 @@
+{
+  "checkedUtc": "2026-10-31T19:04:34.7955814Z",
+  "checkoutCommit": "36f90ff3845b1ab0b9d3d5548d0d1eb609646252",
+  "buildCommitVerified": false,
+  "scope": "Native embedded-UI probe and static artifact/generated-source checks; installation and installer payload extraction are not verified.",
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      },
+      {
+        "path": "assets/index-CEyk1Ss2.js",
+        "bytes": 164283,
+        "sha256": "54388B4AE033522F8707A395E34140A4B6EE7F7520BE6DF154E6AE07B024CD83"
+      },
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "63BD6FDA41437D003FFFCAC29B2FC03FEF5FF9E15FAE6B45A5FC0140EAF74BFC"
+      },
+      {
+        "path": "assets/index-DKcM9PYI.css",
+        "bytes": 47456,
+        "sha256": "B1FC4698DDCA6479543A22F5BB59CE0923C916256670F151F30085B95C84B727"
+      }
+    ]
+  },
+  "native": {
+    "name": "voldiq.exe",
+    "bytes": 13644800,
+    "sha256": "0227F1194B1A7F454AED850419D3A698EDC68550D3F41CF0738EECC4E31091D2",
+    "peMachine": "0x8664",
+    "productVersion": "0.1.0",
+    "signature": "NotSigned",
+    "signer": null
+  },
+  "installer": {
+    "name": "Voldiq_0.1.0_x64-setup.exe",
+    "bytes": 221738012,
+    "sha256": "B60393A9058CE67CC47F5717106FC1CF4BDE5F4708D56B0A177F30F5EEB0F4BF",
+    "peMachine": "0x014C",
+    "productVersion": "0.1.0",
+    "signature": "NotSigned",
+    "signer": null
+  },
+  "runtime": {
+    "name": "MicrosoftEdgeWebView2RuntimeInstallerX64.exe",
+    "bytes": 215017168,
+    "sha256": "62863F0F0611A16CCF124B4F15650C3B66624504EBA74D7CDE1E2AE5D951249B",
+    "peMachine": "0x014C",
+    "productVersion": "1.3.307.15",
+    "signature": "Valid",
+    "signer": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US"
+  },
+  "installMode": "currentUser",
+  "webviewMode": "offlineInstaller",
+  "iconSizes": [
+    16,
+    24,
+    32,
+    48,
+    64,
+    128,
+    256
+  ]
+}

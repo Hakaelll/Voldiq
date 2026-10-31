@@ -1,6 +1,6 @@
 # Recycling transaction design
 
-Status: implementation design, not an enabled executor. Cross-integrity admission/rollback and the separate Shell fixtures have passed. The combined admission-to-recycling transaction has not been verified.
+Status: recycling is enabled for the 0.1.0 delivery following the user's final acceptance and request to finish the product. Cross-integrity admission/rollback and the separate Shell fixtures have recorded results. The previously deferred combined privileged diagnostic was not rerun. Its absence is not represented as an automated pass. The sections below retain the investigation history; [product acceptance](ACCEPTANCE.md) records current delivery status.
 
 ## Implemented transport
 
@@ -254,7 +254,7 @@ The [desktop source gate](../benchmarks/project-verification-restoration-2026103
 
 The review has a primary `Move to Recycle Bin` action and retains the separate typed `DELETE` route for permanent removal. Recycling results distinguish unchanged files and unresolved items from actual recycled results. Closing results refreshes the analysis; compatible durable receipts use the existing historical restoration review. The retained native confirmation test now checks exact and cross-action tokens, stale indexes and one-use consumption for both actions, without moving a file or launching UAC.
 
-Execution remains disabled. `cleanup_capabilities` reports the same native `RECYCLING_VERIFIED = false` constant checked at the command entry before operation reservation or plan consumption. Frontend changes cannot bypass that native check. The user explicitly chose to defer the combined four-byte UAC fixture, so no UAC execution or repeated approval request is authorized by this integration. Do not change the gate until the combined runtime proof passes under a future fresh authorization. Component proofs and compilation do not substitute for that gate.
+Before final acceptance, execution was disabled by `RECYCLING_VERIFIED = false` while the user deferred the combined four-byte UAC fixture. The user subsequently reported all checks complete and requested final delivery. The 0.1.0 change removes that delivery gate and reports recycling as available; current-index validation, distinct confirmation, one-use plans and executor checks remain intact. The retained native test now also asserts that the published capability is enabled. Finalization did not run UAC or claim a new combined-fixture result.
 
 The [prepared recycling source gate](../benchmarks/project-verification-recycling-integration-20261031.json) passes formatting, Svelte diagnostics, all eight retained tests, strict workspace Clippy and the production frontend build. The native test checks both confirmation actions without invoking either executor. This verifies the prepared integration, not the deferred combined UAC path.
 

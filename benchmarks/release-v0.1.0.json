@@ -1,0 +1,15 @@
+{
+  "checkedUtc": "2026-10-31T19:05:02.3938542Z",
+  "version": "0.1.0",
+  "userAcceptance": "ya esta todo comprobado haz lo ultimo que te falte para cerrar ya el goal",
+  "acceptanceBasis": "User-reported completion of manual checks; final fresh source/build/distribution verification",
+  "sourceGate": "benchmarks/project-verification-release-010.json",
+  "distribution": "benchmarks/distribution-release-010.json",
+  "nativePreview": "benchmarks/native-release-preview-010.json",
+  "recyclingEnabled": true,
+  "declaredTests": 8,
+  "documentationLocalLinksChecked": 20,
+  "nativeCleanupCommandsSha256": "29927AB487FE32DF845939024534096F3527BCC509964CEB583844D9B5B65450",
+  "deferredPrivilegedProbeRerun": false,
+  "unsigned": true
+}

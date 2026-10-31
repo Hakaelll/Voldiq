@@ -1,0 +1,90 @@
+{
+  "checkedUtc": "2026-10-31T19:04:51.1759887Z",
+  "preview": {
+    "Path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\0227F1194B1A7F454AED850419D3A698EDC68550D3F41CF0738EECC4E31091D2\\voldiq.exe",
+    "Sha256": "0227F1194B1A7F454AED850419D3A698EDC68550D3F41CF0738EECC4E31091D2",
+    "Bytes": 13644800,
+    "Reused": false
+  },
+  "previous": {
+    "processId": 11296,
+    "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\542C6674E1FD2B747C04385DA3552100E7FCB0AB53F78B3C7D3A093A13774C74\\voldiq.exe",
+    "started": "2026-10-31T17:33:30.8891423Z",
+    "closeRequested": true,
+    "exited": true
+  },
+  "processId": 19620,
+  "ready": true,
+  "responding": true,
+  "windowHandle": 12190492,
+  "trace": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\diagnostics\\release-010\\final-window-845be30a64dd46018e2c735b131f1d0d.jsonl",
+  "events": [
+    {
+      "event": "process-start",
+      "pid": 19620,
+      "state": null,
+      "unixMs": 1793473489794
+    },
+    {
+      "event": "setup-start",
+      "pid": 19620,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "idle",
+        "snapshots": "unavailable"
+      },
+      "unixMs": 1793473490313
+    },
+    {
+      "event": "snapshot-open-start",
+      "pid": 19620,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "idle",
+        "snapshots": "unavailable"
+      },
+      "unixMs": 1793473490315
+    },
+    {
+      "event": "snapshot-open-end",
+      "pid": 19620,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793473490316
+    },
+    {
+      "event": "setup-end",
+      "pid": 19620,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793473491083
+    },
+    {
+      "event": "ready",
+      "pid": 19620,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793473491084
+    },
+    {
+      "event": "page-finished",
+      "pid": 19620,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793473491141
+    }
+  ],
+  "scope": "Verified production image launched visibly; native lifecycle and window metadata only. Previous window closed normally. No UAC, forced termination or automated visual inspection."
+}

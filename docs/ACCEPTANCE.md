@@ -1,76 +1,46 @@
 # Product acceptance
 
-This record follows the original [specification](reference/requirements.md#28-criterios-de-aceptación). It distinguishes implemented behavior and automated fixtures from acceptance of the packaged Windows application. The project remains under development.
+Voldiq 0.1.0 implements the original [specification](reference/requirements.md). The user reported that all outstanding checks were complete and requested final delivery and a GitHub release. This closes user-owned manual acceptance; it is not a new machine-generated benchmark or a claim that deferred diagnostic scripts were executed.
 
-Automated fixture references below include historical verification. On 2026-10-21, the suite was reduced from 178 to 8 tests. See [Testing](TESTING.md) for the cases still maintained; earlier fixture results do not imply current automated coverage.
+## Acceptance record
 
-## Required outcomes
-
-| # | Requirement | Current evidence and remaining gate |
+| # | Required outcome | Delivery evidence |
 |---|---|---|
-| 1 | Install and launch without development tools | Offline NSIS packaging is built and statically checked. Clean Windows installation, first launch and uninstall are pending. See [distribution](DISTRIBUTION.md). |
-| 2 | Detect real drives | Native volume discovery supplies actual capacity, filesystem and accessibility. Populated native acceptance remains manual. |
-| 3 | Scan a drive or folder | Real directory fixtures, cancellation and a million-file benchmark exist. Privileged raw NTFS integration remains unverified on this host. See [NTFS](NTFS.md). |
-| 4 | Show measured storage usage | Native volume, logical and unique allocated measurements remain distinct. Fixtures verify aggregation and hard links; presentation remains manual. |
-| 5 | Navigate the treemap | Custom Canvas geometry and bounded descendant queries are fixture verified. Native pointer/keyboard routes and rendering remain manual. |
-| 6 | Select folders and inspect details | Cancellable native details return paths, ancestors and five direct children. Native focus and presentation remain manual. |
-| 7 | Search files | Indexed scope, extension, name and paging fixtures pass. Ctrl+K is connected; native interaction remains manual. |
-| 8 | Find large files | Native file/folder ranking, filters, page paths and full-result size scale are fixture verified. Native interaction remains manual. |
-| 9 | Detect real duplicates | Real BLAKE3 fixtures verify content, changed files, hard links and cancellation. Populated native workflow remains manual. |
-| 10 | Review cleanup candidates | Real temporary/project/old-file fixtures verify scope, age and exclusions. Page selection is bounded to 500. Native review remains manual. |
-| 11 | Execute permitted removal with confirmation | Advanced permanent removal has handle-bound validation and durable result fixtures. Core recycling batches and retained-handle restoration are implemented; fresh historical restoration passes an ordinary actual-bin roundtrip and now has desktop review/confirmation commands. Desktop recycling is wired behind a disabled native verification gate. The user deferred the combined privileged fixture; it and desktop interaction acceptance remain pending. Activity reads both ledgers without treating unknown results as success. See [cleanup](CLEANUP.md). |
-| 12 | Cancel long operations | Scanner, query, duplicate and cleanup fixtures verify cancellation and stale-response isolation. A 100,000-file matrix measures batch-boundary cancellation and a subsequent independent-thread signal, both with consistent partial results. Native stalled-request interruption and whole-app event-delivery latency remain unmeasured. |
-| 13 | Recover from access errors | Partial coverage, issues and error boundaries exist and have fixtures. Native recovery presentation remains manual. |
-| 14 | Save and compare snapshots | SQLite persistence, comparisons, partial coverage and complete file-change totals are fixture verified. Native save/load/compare workflow remains manual. |
-| 15 | Remain usable during analysis | Blocking filesystem work is off the interface thread and results use bounded pages. A real 100,000-file live-index fixture passes 515 concurrent root/search/overview responses; backend lock and response timing are measured. Native event delivery, loaded UI responsiveness and frame timing remain unmeasured. |
-| 16 | Work offline | Application services are local and WebView2 is embedded in the installer. Clean-machine installation and native operation with networking disabled remain pending. |
-| 17 | Use Voldiq artwork | Supplied icons/wordmark are integrated; static ICO and packaging checks exist. Installed icon presentation remains manual. |
-| 18 | Main tests pass | Run [verify_project.ps1](../scripts/verify_project.ps1) for formatting, frontend diagnostics/tests, workspace tests, strict Clippy and frontend build. This gate does not substitute for the other rows. |
-| 19 | Produce a distribution build | The development installer was regenerated on 2026-10-31 from the corrected production-protocol executable, with decoded embedded-UI verification, including historical restoration review and the disabled recycling integration. Static checks pass; the user will check clean offline Windows installation. The final completed-product build remains pending. See [distribution evidence](DISTRIBUTION.md). |
-| 20 | Reproducible documentation and benchmarks | [Architecture](ARCHITECTURE.md), [design](../DESIGN.md), [security](SECURITY.md), [performance](PERFORMANCE.md) and [testing](TESTING.md) document scope and reproduction. Release map composition and serialization are measured on three synthetic million-file shapes; native whole-app targets remain open. |
+| 1 | Install and launch without development tools | Offline current-user NSIS installer; clean Windows checks accepted by the user. |
+| 2 | Detect real drives | Native discovery of volumes, filesystems, capacity and accessibility; manual acceptance. |
+| 3 | Scan a drive or folder | Real filesystem fixtures, directory scanning, NTFS integration and cancellation; manual acceptance. |
+| 4 | Show measured storage usage | Distinct volume, logical and unique allocated sizes; aggregation and hard-link fixtures. |
+| 5 | Navigate the treemap | Custom Canvas geometry, bounded descendant queries, pointer and keyboard navigation; manual acceptance. |
+| 6 | Select folders and inspect details | Indexed paths, ancestors, direct children and cancellable details; manual acceptance. |
+| 7 | Search files | Native filters, sorting, paging, keyboard navigation and Ctrl+K. |
+| 8 | Find large files | Native file/folder rankings and scoped filters; manual acceptance. |
+| 9 | Detect real duplicates | Complete BLAKE3 verification, identity checks, hard-link handling, cancellation and persisted hash reuse. |
+| 10 | Review cleanup candidates | Explicit selections, immutable native previews, supported rules, exclusions and bounded pages. |
+| 11 | Execute permitted removal with confirmation | Recycling and recorded-item restoration enabled for delivery; separate typed permanent removal, retained-handle validation and durable outcomes. |
+| 12 | Cancel long operations | Scan, query, duplicate, cleanup and History cancellation; operation ownership rejects stale results. |
+| 13 | Recover from access errors | Partial coverage, reported issues and error boundaries; manual acceptance. |
+| 14 | Save and compare snapshots | Local SQLite persistence, reopened comparisons, growth and file changes; manual acceptance. |
+| 15 | Remain usable during analysis | Filesystem work outside the UI thread, bounded results and concurrent live-index fixtures; manual acceptance. |
+| 16 | Work offline | Local services and embedded offline WebView2 installer; manual acceptance. |
+| 17 | Use Voldiq artwork | Supplied wordmark and application, installer and uninstaller icons. |
+| 18 | Main tests pass | Final [six-stage source verification](../benchmarks/project-verification-release-010.json), retaining eight tests. |
+| 19 | Produce a distribution build | Final [production distribution verification](../benchmarks/distribution-release-010.json) and [GitHub release](https://github.com/Hakaelll/Voldiq/releases/tag/v0.1.0). |
+| 20 | Reproducible documentation and benchmarks | Architecture, security, testing, performance, subsystem references and archived measurements. |
 
-## Remaining implementation and performance work
+## Evidence boundaries
 
-The [current production-window observation](PERFORMANCE.md#verified-production-window-observation-2026-10-31) records one baseline and five intervals for seven stable native/WebView2 identities, with executable-level production/asset verification and independently checked counters. The median private bytes are 166,952,960 B. View, foreground/minimized and loaded-index states were not inspected; this does not close controlled idle/loaded budgets, startup or FPS acceptance. The earlier development-protocol observation remains withdrawn.
+Manual acceptance is the user's report. The final automation verifies source checks, native production assets and packaging. It does not invent measured frame rates, hardware-independent performance guarantees or a clean-machine report with environment details.
 
-The [pnpm configuration source gate](../benchmarks/project-verification-pnpm-configuration-20261031.json) passes all six stages with eight declared tests. User-wide YAML store and metadata-cache discovery now has a retained real-file query fixture. The [recorded counterexample](../benchmarks/pnpm-cache-protection-counterexample-20261031.json) exposed lost cleanup exclusions when overlapping cache rows were filtered too early; the corrected fixture preserves those exclusions and checks exact category totals. Project/legacy settings, custom virtual-store/per-disk locations, bookkeeping files and populated native acceptance remain open. See [developer configuration limits](DEVELOPER.md).
+The earlier combined privileged recycling diagnostic was deferred and was not rerun during finalization. Its historical records retain that fact. Final activation follows the user's acceptance and instruction to finish delivery; it does not weaken runtime path, identity, confirmation, cancellation or no-overwrite checks.
 
-The [2026-10-31 release source gate](../benchmarks/project-verification-20261031-103904-700.json) passed formatting, Svelte diagnostics, the one frontend test, all seven workspace Rust tests, strict workspace Clippy and the frontend production build on the working tree based on `b78f022`. The updated script records its hash and reuses offline release artifacts. The eight-test inventory remains unchanged. This updates source verification only; the unresolved acceptance rows above remain open.
+The older windowless-process incident remains in the diagnostic history with no established root cause. Later normal exits and final manual acceptance do not retrospectively diagnose that instance. In-use images are never force-deleted as cache cleanup.
 
-The complete source gate passed on 2026-10-14 at checkout `a2dbace`, including all workspace Rust tests and 30 frontend tests. The [verification summary](../benchmarks/project-verification-2026-10-14.json) records all six successful stages. A separate [failure-path check](../benchmarks/project-verification-failure-2026-10-14.json) injected exit code 7 into the first command and proved that no success summary was emitted and the working directory was restored. These records establish the automated source gate, not the remaining native or installer outcomes.
+Performance targets remain hardware-dependent engineering targets. Recorded workloads, limitations and the withdrawn development-protocol observation are documented in [Performance](PERFORMANCE.md). Unsupported tool configurations, browser cache formats and filesystem behavior remain documented subsystem limits, rather than claims of universal support.
 
-The [2026-10-15 source gate](../benchmarks/project-verification-2026-10-15.json) passed all six stages with the browser-cache changes accompanying this record, including workspace Rust tests, 34 frontend tests and strict Clippy. Its checkout reference identifies the base commit of the tested working tree. The browser filename fixture was then corrected to use a distinct uppercase filename on case-insensitive Windows; all three browser rule tests and Rust formatting passed again. Native browser-cache recovery and visual interaction remain separate acceptance gates.
+## Verification references
 
-Default recycling requires a proven namespace handoff, durable per-item results and original-path restoration before Undo can be enabled. Core batch execution, durable intent/results and retained-handle original-location restoration now exist. The combined UAC-to-recycling/restoration fixture is compiled and awaiting fresh authorization; fresh historical recovery now passes an ordinary actual-bin fixture after closing source guards and reopening the journal. Desktop historical review/confirmation is connected with a two-minute lease; manual command/modal acceptance and the combined privileged recycling transaction remain open. The rejected handle/path and staging experiments are recorded in the cleanup document. Advanced permanent removal does not fulfill that default behavior.
-
-Developer analysis recognizes measured projects and supported current-user tool configurations. New captures persist classifications for indexed global-cache roots and historical queries ignore current tool settings. Docker resolves supported local CLI contexts with bounded configuration reads and a real named-pipe fixture. The current Docker decoder matches the published API 1.56 schema and has retained canonical/transitional/legacy coverage. Live Engine acceptance remains open: the selected local Engine pipe was absent in an ordinary read-only connection check outside isolation. Additional tool configuration discovery remains open. Cleanup now includes explicitly selected seven-day-old external Blockfile HTTP cache files in standard Chrome/Edge profiles, with current native identity checks and disposable-file tests. Real-browser cache recovery, custom profiles, other browser/application caches and developer management remain pending. Docker volumes remain persistent data and are not direct-delete candidates.
-
-The performance document separates warm scanner fixtures, query fixtures and process observations. The [2026-10-25 release query run](../benchmarks/query-release-2026-10-25.provenance.json) updates the current core's million-entry baseline with 50 completed queries and five repetitions per query/method. Background load was uncontrolled; this does not establish a speedup or native responsiveness. Warm startup below two seconds, ordinary 60 FPS interaction, loaded memory budgets, cancellation latency and privileged NTFS versus directory scanning remain acceptance targets. The descendant query adds a bounded-candidate linear pass. Its million-entry debug diagnostic records wall/thread CPU cost; release descendant queries now have three synthetic shapes and an interleaved comparison; concurrent and whole-app measurements remain pending.
-
-The user owns visual acceptance and has requested no Computer Use or automated screen inspection. CLI compilation, real fixtures and process/window metadata are allowed and remain separate evidence. No source-level review is described as a completed visual check.
-
-## Remaining acceptance work
-
-The latest six-stage source gate passes. The user confirmed that the standalone window displays the interface. This confirms visible startup only; it does not close the interaction or performance requirements above.
-
-1. Keep default recycling disabled until the deferred combined recycling/restoration fixture passes and desktop review, confirmation and Undo are accepted. The implementation exists; its activation is still pending. Do not repeat the deferred UAC request during automatic continuation.
-2. Measure controlled loaded native responsiveness, cancellation, memory, startup and frame timing. Existing backend fixtures and the production process observation do not close these targets.
-3. Diagnose the older windowless process before accepting shutdown during active work. Later successful exits do not explain that incident.
-4. Use the current verified installer for the user's clean Windows installation, offline launch and uninstall checks. Rebuild only if application source changes.
-5. Complete the user's manual interaction and visual acceptance, including populated scans, treemap navigation, search, duplicates, cleanup and snapshot comparison.
-
-Settings source review confirms persisted appearance, size metric, reduced motion, scan mode, concurrency, default drive, excluded paths and recent paths in `frontend/App.svelte`. Index clearing is available there; snapshot storage management is in History. Destructive confirmations remain mandatory rather than configurable. Search and History have connected native requests and cancellation paths. These source findings do not establish native interaction acceptance or complete support for every optional tool configuration.
-
-The [desktop restoration source gate](../benchmarks/project-verification-restoration-20261031.json) passes all six stages with the unchanged eight-test inventory. The restored-item activity flag is covered by the retained journal regression. This source result does not claim native modal interaction, lease expiry behavior, combined UAC recycling or clean-machine acceptance.
-
-Index-scoped desktop requests now carry their publication identity. Replacement clears index-bound selections and cancels obsolete reads; native validation rejects reused node IDs from a different analysis. The retained native/frontend counterexamples and [source gate](../benchmarks/project-verification-index-ownership-20261031.json) verify this boundary without increasing the eight-test inventory. Native scan/snapshot interaction, combined privileged recycling and clean-machine acceptance remain open.
-
-Duplicate analysis now persists its bounded validated hash cache in snapshot schema 5 and loads it only when analysis starts. The retained real-file regression verifies reuse across reopened connections and invalidation of changed files. Explicit analysis clearing also removes persisted hashes without deleting snapshots. Native end-to-end duplicate interaction and large-cache timing remain separate acceptance checks. See [persistent hash verification](../benchmarks/persistent-hashes-20261031.json).
-
-The [earlier native resource observation](../benchmarks/app-processes-20261031-current.summary.json) is withdrawn as an application-interface baseline because it used the development-protocol executable. Use the production-window observation linked above for current process counters. Neither capture closes controlled idle, populated-index memory, startup or frame targets.
-
-The 2026-10-31 process-only launch records did not prove that the application interface loaded. A user screenshot exposed a development-server connection refusal in the Cargo-built release. The associated resource capture is withdrawn as an application-interface baseline. The fix requires production protocol compilation and an executable-level embedded-asset probe before preview or packaging. Installer configuration alone did not detect this failure.
-
-The [corrected standalone build](../benchmarks/standalone-ui-fix-20261031.json) now passes production-mode native verification and an actual executable probe. The opened preview uses the verified image with no development server listening on port 1420. The [updated installer record](../benchmarks/distribution-2026-10-31-standalone-ui.json) repeats this gate. This corrects the development-server failure; manual native interaction, clean offline installation and the deferred recycling fixture remain open.
-
-The user confirmed that the corrected standalone interface is now visible. Capture and snapshot loading now expose owner-specific cancellation in History. Cancelled publication preserves the prior analysis; retained tests verify unchanged identity/Arc and saved records. This source proof does not establish cancellation latency during an in-flight SQLite call or complete manual History acceptance.
+- [Testing and the retained eight-test inventory](TESTING.md)
+- [Cleanup guarantees and experiments](CLEANUP.md)
+- [Recycling transaction evidence](RECYCLE-TRANSACTION.md)
+- [Windows packaging and release](DISTRIBUTION.md)
+- [Original requirements](reference/requirements.md)

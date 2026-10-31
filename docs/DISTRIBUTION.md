@@ -1,8 +1,8 @@
 # Windows distribution
 
-Voldiq builds an x64 Windows NSIS installer from the supplied artwork. Build artifacts stay in the ignored `target` directory; no download has been published.
+Voldiq ships an x64 Windows NSIS installer with the supplied artwork and an embedded offline Microsoft WebView2 installer. Build artifacts stay in the ignored `target` directory. Published installers and checksums are available from [GitHub releases](https://github.com/Hakaelll/Voldiq/releases).
 
-The executable and offline NSIS installer were refreshed on 2026-10-31 with persistent duplicate hashes, native index ownership, historical restoration review and the gated recycling integration. The [native launch record](../benchmarks/native-snapshot-cancellation-preview-20261031.json) identifies the opened executable, and the [distribution record](../benchmarks/distribution-2026-10-31-snapshot-cancellation.json) identifies the current package. Default recycling remains disabled pending the deferred combined UAC fixture. Clean-machine installation remains pending and will be checked by the user.
+The final 0.1.0 delivery enables recycling following the user's acceptance of the outstanding manual checks. The [final source gate](../benchmarks/project-verification-release-010.json) and [distribution verification](../benchmarks/distribution-release-010.json) identify the delivered build. Application and installer remain unsigned. The dated build records below describe earlier artifacts and do not identify the final release.
 
 ## Build
 
@@ -36,13 +36,13 @@ The script only prepares the executable; it never launches or closes a process. 
 
 `scripts/prepare_assets.py` derives the packaging PNGs and the 16, 24, 32, 48, 64, 128 and 256 pixel ICO frames from the supplied icon. The native executable, installer and uninstaller use this artwork. Original artwork stays in `assets`; the derived PNG metadata records its source. The script requires Pillow.
 
-## Acceptance still required
+## Installation acceptance
 
 Check the produced installer on a clean Windows machine with networking disabled and WebView2 absent. Verify installation, first launch, native filesystem access on a disposable fixture, installed icons, uninstall and retained user data. This check must use the actual installer; a native development build or embedded-runtime configuration cannot substitute for it.
 
-Release signing and a public download are not configured. Packaging does not close the remaining product acceptance checks listed in `NEXT_TODOS.md` and `docs/TESTING.md`.
+The user reported that the outstanding checks were complete and requested final delivery. This is user-reported acceptance, not a machine-generated clean-environment report. The procedure above remains available for future releases. Release signing is not configured; published assets include SHA-256 checksums.
 
-## Latest build, 2026-10-31
+## Earlier build, 2026-10-31 before final acceptance
 
 The pnpm configuration working tree based on `3006df7` passes the [six-stage production source gate](../benchmarks/project-verification-pnpm-configuration-20261031.json) with eight declared tests. `cargo build --offline --release -p voldiq --features production --bin voldiq` completes. The [current preview](../benchmarks/native-pnpm-preview-20261031.json) reaches native Ready and page-load completion with a responding window after decoded embedded-asset verification. This build adds read-only pnpm global YAML and metadata-cache discovery. Complete cache exclusions remain available to cleanup even when Developer totals omit an overlapping aggregate. The user confirmed that the earlier corrected standalone interface displays correctly; detailed interaction acceptance remains manual.
 
@@ -193,3 +193,10 @@ The application at source commit `cbd1728`, with the packaging changes accompany
 Generated `target/release/nsis/x64/installer.nsi` sets `INSTALLMODE` to `currentUser`, `INSTALLWEBVIEW2MODE` to `offlineInstaller` and both icon paths to the supplied ICO. Its active offline branch embeds the standalone runtime using the NSIS `File` instruction. Binary inspection of the committed ICO confirms all seven documented frames. A source-only reviewer checked the corrected configuration and prerequisites. No installation or visual acceptance was performed.
 
 These hashes identify this local build, not every future rebuild. Tauri's runtime download can change; verify and record the downloaded vendor installer again for each release.
+
+## Final 0.1.0 artifacts
+
+| Artifact | Bytes | SHA-256 |
+|---|---:|---|
+| Native executable | 13644800 | `0227F1194B1A7F454AED850419D3A698EDC68550D3F41CF0738EECC4E31091D2` |
+| Offline NSIS installer | 221738012 | `B60393A9058CE67CC47F5717106FC1CF4BDE5F4708D56B0A177F30F5EEB0F4BF` |

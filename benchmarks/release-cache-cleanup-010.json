@@ -1,0 +1,37 @@
+{
+  "checkedUtc": "2026-10-31T18:58:00.1588937Z",
+  "scope": "Six exact regular obsolete native payload/symbol/dependency files; no running image, preview, current test binary, dependency directory or user cache removed.",
+  "files": [
+    {
+      "file": "voldiq-53d76a7cf921ad9f.exe",
+      "bytes": 2919936,
+      "sha256": "325CE8ECA7439F5423D45166EF5199D73C6A337CFD82BA9FCCD8038018E49F37"
+    },
+    {
+      "file": "voldiq-53d76a7cf921ad9f.pdb",
+      "bytes": 4386816,
+      "sha256": "E24D0DE6E4E406449D0110922FF2D1B246A29364A5B90B7146B7B914E7000C44"
+    },
+    {
+      "file": "voldiq-53d76a7cf921ad9f.d",
+      "bytes": 1631,
+      "sha256": "F395A946EC1EDA73D6F01788192E1219BE4C54E808B5ECC9A5B4D903B7ECA414"
+    },
+    {
+      "file": "voldiq-7b86708baaaddb4a.exe",
+      "bytes": 2919936,
+      "sha256": "029D14C1A7FD5C817F514B8FA8487048C36A8B2215669AE2A338EC7F49D17943"
+    },
+    {
+      "file": "voldiq-7b86708baaaddb4a.pdb",
+      "bytes": 4337664,
+      "sha256": "E4D6FDE925469A02D475E24849921731CBD7E378CE2ACAD15B6292E548C6668F"
+    },
+    {
+      "file": "voldiq-7b86708baaaddb4a.d",
+      "bytes": 1631,
+      "sha256": "ABB142E2527F267D66110E83B611A22C5791AE10503D55A6E1ED3F48560BA510"
+    }
+  ],
+  "totalFileBytes": 14567614.0
+}

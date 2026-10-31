@@ -20,6 +20,7 @@ mod execution_tests {
             "Verify the native application with --features voldiq/production."
         );
         crate::embedded_ui::verify(&tauri::generate_context!()).unwrap();
+        assert!(cleanup_capabilities().recycling);
         let fixture = tempfile::tempdir().unwrap();
         std::fs::write(fixture.path().join("selected"), b"original").unwrap();
         let scan = || {
@@ -303,9 +304,6 @@ pub async fn execute_permanent_cleanup(
     .map_err(|error| error.to_string())?
 }
 
-// The combined protected-admission roundtrip is awaiting the user's deferred UAC fixture.
-const RECYCLING_VERIFIED: bool = false;
-
 #[derive(Serialize)]
 pub struct CleanupCapabilities {
     recycling: bool,
@@ -313,9 +311,7 @@ pub struct CleanupCapabilities {
 
 #[tauri::command]
 pub fn cleanup_capabilities() -> CleanupCapabilities {
-    CleanupCapabilities {
-        recycling: RECYCLING_VERIFIED,
-    }
+    CleanupCapabilities { recycling: true }
 }
 
 #[tauri::command]
@@ -327,9 +323,6 @@ pub async fn execute_recycling_cleanup(
     plans: State<'_, CleanupPlans>,
     journal: State<'_, CleanupJournal>,
 ) -> Result<voldiq_core::cleanup::recycle::batch::Report, String> {
-    if !RECYCLING_VERIFIED {
-        return Err("Recycling is not available yet.".into());
-    }
     let engine = engine.inner().clone();
     let (operation_id, cancel) = engine.begin()?;
     let operation = Operation {
