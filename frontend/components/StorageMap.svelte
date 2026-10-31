@@ -337,6 +337,7 @@
         }
       };
       worker.onerror = () => {
+        if (owner !== generation) return;
         worker?.terminate();
         worker = null;
         fallback();
