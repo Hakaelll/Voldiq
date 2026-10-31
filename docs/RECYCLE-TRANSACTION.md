@@ -161,3 +161,13 @@ The optional `-RequestUac` switch launches one elevated helper for a new, owned 
 5. Verify the installed application and refresh the distribution build. Visual interaction remains the user's acceptance task.
 
 The fresh authorization covered one admission/rollback fixture and has now been consumed. A combined privileged admission plus recycling/restoration experiment needs a new, concrete authorization before another UAC launch. Until the remaining gates pass, the application continues to expose the existing advanced permanent action and Windows-owned bin access, with default recycling explicitly unavailable.
+
+### Batch executor
+
+`cleanup::recycle::batch` consumes a confirmed plan on a dedicated STA worker. It verifies duplicate keepers, captures ordinary parent authority, records each intent, creates and checks protected stages, and checks Shell binding before requesting a helper. All admissions finish and the authenticated helper session closes before recycling or ordinary returns begin. Cancellation returns known staged sources without overwriting occupied names. Uncertain admissions or native recycling results remain unresolved and stop further recycling.
+
+Preparation errors retain the original strict source guard for return. A failure before the native recycling call can reacquire strict authority from the retained content guard before releasing that guard. Once the native call has been attempted, the executor does not retry or assume the source stayed in the stage. Results include the read-only journal identifier and, after verified recycling, the exact native UTF-16 bin locator even if recording that receipt fails.
+
+The [ordinary batch receipt](../benchmarks/stage-admission-ordinary-20261031-091442-183.json) exercises production batch preparation and execution with an authenticated ordinary helper. Native admission is denied, the source remains unchanged, the denial survives journal reopening, and the empty protected stage is removed by identity. A second prepared batch is cancelled before any helper launch; its durable state is `cancelled`, with the same original file identity and four bytes. Both cases clean their owned stages and journal. The fixture extends the existing native example and adds no declared tests.
+
+This receipt does not exercise successful batch admission, the new pre-call rollback handoff, Rust recycling, native restoration or the desktop launcher. Those runtime gates remain open. The batch is not wired to the desktop cleanup command yet.

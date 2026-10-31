@@ -78,6 +78,10 @@ try {
     } elseif ($observation.nativeAdmissionSucceeded -or $observation.nativeError -ne 5) {
         throw 'Ordinary admission did not fail with access denied.'
     }
+    if (-not $RequestUac -and (-not $observation.batchOrdinaryDenialVerified -or
+        -not $observation.batchCancellationPreservedSources)) {
+        throw 'Ordinary batch denial and cancellation were not verified.'
+    }
 
     $sources = @(
         'crates/voldiq-core/examples/stage_admission_probe.rs',
@@ -90,6 +94,7 @@ try {
         'crates/voldiq-core/src/cleanup/journal.rs',
         'crates/voldiq-core/src/cleanup/journal/relocation.rs',
         'crates/voldiq-core/src/cleanup/recycle.rs',
+        'crates/voldiq-core/src/cleanup/recycle/batch.rs',
         'crates/voldiq-core/src/cleanup/helper.rs',
         'benchmarks/run_stage_admission_probe.ps1'
     )

@@ -323,6 +323,9 @@ mod probe {
         if let Some(mut child) = ordinary {
             child.wait()?;
         }
+        if !external {
+            batch_scenarios(root, original)?;
+        }
         let (fresh, id) = plan(root)?;
         fresh.verify(id)?.remove_permanently()?;
         let other_name = StageName::generate()?;
@@ -347,9 +350,99 @@ mod probe {
         std::fs::remove_file(&journal_path)?;
         std::fs::remove_dir(root)?;
         Ok(
-            serde_json::json!({"helperElevated":external,"parentAuthorityReopenedAndNarrowed":true,"emptyStageRemovedByVerifiedHandle":true,"wrongCleanupTargetPreserved":true,"productionAdmissionProtocolVerified":true,"helperReleasedStrictSourceWhileLive":true,"unadmittedSourceRejectedForRecycling":true,"shellApartmentInitialized":true,"protectedStageShellBindingVerified":true,"journalIntentAndResultSurvivedRestart":true,"sameUserImageAndRoleVerified":true,"nativeAdmissionSucceeded":reply.admitted,"nativeError":reply.native_error,
+            serde_json::json!({"helperElevated":external,"batchOrdinaryDenialVerified":!external,"batchCancellationPreservedSources":!external,"parentAuthorityReopenedAndNarrowed":true,"emptyStageRemovedByVerifiedHandle":true,"wrongCleanupTargetPreserved":true,"productionAdmissionProtocolVerified":true,"helperReleasedStrictSourceWhileLive":true,"unadmittedSourceRejectedForRecycling":true,"shellApartmentInitialized":true,"protectedStageShellBindingVerified":true,"journalIntentAndResultSurvivedRestart":true,"sameUserImageAndRoleVerified":true,"nativeAdmissionSucceeded":reply.admitted,"nativeError":reply.native_error,
             "reviewedSourceReplayRejected":replay_rejected,"rollbackCollisionPreservedBothFiles":external,"returnedByOrdinaryController":external,"originalIdentityAndContentsVerified":true,"ownedFixtureCleaned":true}),
         )
+    }
+
+    fn batch_scenarios(
+        root: &Path,
+        original: StageIdentity,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use voldiq_core::cleanup::recycle::{
+            ShellApartment,
+            batch::{Batch, Outcome},
+        };
+        let stage_names = || -> io::Result<Vec<std::ffi::OsString>> {
+            let mut names = std::fs::read_dir(root)?
+                .map(|entry| entry.map(|entry| entry.file_name()))
+                .collect::<io::Result<Vec<_>>>()?;
+            names.retain(|name| name.to_string_lossy().starts_with("voldiq-stage-"));
+            names.sort();
+            Ok(names)
+        };
+        let existing_stages = stage_names()?;
+        let database = root.join("batch.sqlite");
+        let mut journal = Journal::open(&database)?;
+        let apartment = ShellApartment::new()?;
+        let cancel = AtomicBool::new(false);
+        let (planned, _) = plan(root)?;
+        let batch = Batch::prepare(planned, &mut journal, &cancel, &apartment)?;
+        let image = std::fs::OpenOptions::new()
+            .read(true)
+            .share_mode(FILE_SHARE_READ)
+            .open(std::env::current_exe()?)?;
+        let server = Server::create()?;
+        let mut child = child(&server)?;
+        let session = Session::connect(server, child.as_handle(), PeerElevation::Ordinary, image)?;
+        let mut completed = 0;
+        let report = batch.execute(&mut journal, &cancel, &apartment, session, |value| {
+            completed = value
+        });
+        child.wait()?;
+        if report.items.len() != 1
+            || completed != 1
+            || report.cancelled
+            || report.journal_error.is_some()
+            || report.helper_error.is_some()
+        {
+            return Err("Ordinary batch did not complete its denial report.".into());
+        }
+        let item = &report.items[0];
+        if item.outcome != Outcome::Unmoved
+            || !item.recorded
+            || item.operation.is_none()
+            || item.bin_path.is_some()
+            || item.error.is_none()
+            || item.cleanup_error.is_some()
+        {
+            return Err("Denied batch did not preserve and record its source.".into());
+        }
+        if stage_names()? != existing_stages {
+            return Err("Denied batch left a protected stage behind.".into());
+        }
+        let (planned, _) = plan(root)?;
+        let batch = Batch::prepare(planned, &mut journal, &cancel, &apartment)?;
+        cancel.store(true, Ordering::Relaxed);
+        let report = batch.abort(&mut journal, &cancel, |value| completed = value);
+        if report.items.len() != 1
+            || completed != 1
+            || !report.cancelled
+            || report.journal_error.is_some()
+            || report.items[0].outcome != Outcome::NotStarted
+            || !report.items[0].recorded
+            || report.items[0].error.is_some()
+            || report.items[0].cleanup_error.is_some()
+            || stage_names()? != existing_stages
+        {
+            return Err("Aborted batch changed a source or left its stage behind.".into());
+        }
+        drop(journal);
+        let journal = Journal::open(&database)?;
+        let rows = journal.relocations(0, 100)?;
+        if rows.len() != 2
+            || rows[0].state != "cancelled"
+            || rows[1].state != "unmoved"
+            || rows.iter().any(|row| row.source != original)
+            || std::fs::read(root.join("owned.bin"))? != [1, 2, 3, 4]
+            || identity(&File::open(root.join("owned.bin"))?)? != original
+        {
+            return Err("Batch journal or original identity did not survive restart.".into());
+        }
+        drop(journal);
+        std::fs::remove_file(database)?;
+        Ok(())
     }
 
     pub fn run() -> Result<(), Box<dyn std::error::Error>> {

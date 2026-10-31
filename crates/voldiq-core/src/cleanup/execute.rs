@@ -29,16 +29,7 @@ pub fn permanent(
     cancel: &AtomicBool,
     mut progress: impl FnMut(usize),
 ) -> Result<Report> {
-    if plan.preview.retained.len() != plan.retained.len()
-        || plan.files.iter().any(|file| match &file.digest {
-            Some(digest) => !plan.retained.iter().any(|(_, keep)| keep == digest),
-            None => !plan.retained.is_empty(),
-        })
-    {
-        return Err(Error::Invalid(
-            "Duplicate execution requires retained-copy authority.".into(),
-        ));
-    }
+    plan.validate_retained()?;
     let mut report = Report {
         items: Vec::new(),
         cancelled: false,

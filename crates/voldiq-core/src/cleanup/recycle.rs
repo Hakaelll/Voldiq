@@ -1,4 +1,5 @@
 //! Single-item Shell recycling from a pinned protected stage with durable intent and result records.
+pub mod batch;
 use super::journal::{Journal, relocation::RelocationId};
 use super::{Stamp, VerifiedFile, validate_file};
 use crate::{
@@ -68,6 +69,7 @@ impl Drop for ShellApartment {
 
 pub struct StagedSource<'stage> {
     guard: File,
+    original_path: PathBuf,
     _ancestors: Vec<File>,
     stage: &'stage StagePin,
     entry: StageEntry,
@@ -84,15 +86,59 @@ pub struct RecycledItem<'a, 'stage> {
     journal_error: Option<String>,
 }
 
+pub struct PreparationError {
+    pub source: VerifiedFile,
+    pub error: Error,
+}
+
 impl VerifiedFile {
     /// Acquire a content guard before releasing the strict source handle. Stage admission must already be verified and logged.
     pub fn prepare_recycling(
         self,
         stage: &StagePin,
         entry: StageEntry,
-    ) -> Result<StagedSource<'_>> {
-        let identity = stage.verify_source(&self.file, &entry)?;
+    ) -> std::result::Result<StagedSource<'_>, Box<PreparationError>> {
+        let prepared = (|| {
+            let identity = stage.verify_source(&self.file, &entry)?;
+            let guard = self.content_guard()?;
+            Ok::<_, Error>((identity, guard))
+        })();
+        let (identity, guard) = match prepared {
+            Ok(value) => value,
+            Err(error) => {
+                return Err(Box::new(PreparationError {
+                    source: self,
+                    error,
+                }));
+            }
+        };
+        let Self {
+            file,
+            parents,
+            stamp,
+            path,
+        } = self;
+        drop(file);
+        Ok(StagedSource {
+            guard,
+            original_path: path,
+            _ancestors: parents,
+            stage,
+            entry,
+            stamp,
+            identity,
+            attempted: false,
+        })
+    }
+
+    fn check_recycling_access(&self) -> Result<()> {
+        self.check_stamp()?;
+        self.content_guard().map(drop)
+    }
+
+    fn content_guard(&self) -> Result<File> {
         check_content(&self.file, &self.stamp)?;
+        let identity = file_identity(&self.file)?;
         let handle = unsafe {
             ReOpenFile(
                 self.file.as_raw_handle(),
@@ -111,26 +157,45 @@ impl VerifiedFile {
             ));
         }
         check_content(&guard, &self.stamp)?;
-        let Self {
-            file,
-            parents,
-            stamp,
-            ..
-        } = self;
-        drop(file);
-        Ok(StagedSource {
-            guard,
-            _ancestors: parents,
-            stage,
-            entry,
-            stamp,
-            identity,
-            attempted: false,
-        })
+        Ok(guard)
     }
 }
 
 impl<'stage> StagedSource<'stage> {
+    /// Restore strict authority only before a native recycling attempt, without releasing the read guard first.
+    fn into_verified(self) -> Result<VerifiedFile> {
+        if self.attempted {
+            return Err(Error::Invalid(
+                "Recycling outcome requires reconciliation.".into(),
+            ));
+        }
+        self.stage.verify_source(&self.guard, &self.entry)?;
+        check_content(&self.guard, &self.stamp)?;
+        let handle = unsafe {
+            ReOpenFile(
+                self.guard.as_raw_handle(),
+                DELETE | FILE_READ_ATTRIBUTES,
+                FILE_SHARE_READ,
+                FILE_FLAG_OPEN_REPARSE_POINT,
+            )
+        };
+        if handle == INVALID_HANDLE_VALUE {
+            return Err(std::io::Error::last_os_error().into());
+        }
+        let file = unsafe { File::from_raw_handle(handle) };
+        if file_identity(&file)? != self.identity {
+            return Err(Error::Invalid("Rollback guard identity changed.".into()));
+        }
+        check_content(&file, &self.stamp)?;
+        drop(self.guard);
+        Ok(VerifiedFile {
+            file,
+            path: self.original_path,
+            parents: self._ancestors,
+            stamp: self.stamp,
+        })
+    }
+
     /// Commits bound intent before Shell. A returned item with a journal error is a partial result; stop the batch.
     pub fn recycle<'a>(
         &'a mut self,

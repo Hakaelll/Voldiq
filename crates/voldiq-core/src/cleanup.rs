@@ -65,6 +65,20 @@ pub struct RetainedCopies {
 }
 
 impl Plan {
+    fn validate_retained(&self) -> Result<()> {
+        if self.preview.retained.len() != self.retained.len()
+            || self.files.iter().any(|file| match &file.digest {
+                Some(digest) => !self.retained.iter().any(|(_, keep)| keep == digest),
+                None => !self.retained.is_empty(),
+            })
+        {
+            return Err(Error::Invalid(
+                "Duplicate execution requires retained-copy authority.".into(),
+            ));
+        }
+        Ok(())
+    }
+
     pub fn duplicates(
         index: &Index,
         analysis: &crate::duplicates::Analysis,

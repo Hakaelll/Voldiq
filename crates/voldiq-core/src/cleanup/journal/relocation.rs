@@ -60,6 +60,13 @@ PRAGMA user_version=3;";
 #[derive(Clone, Copy, Debug)]
 pub struct RelocationId(i64, u64);
 
+impl RelocationId {
+    /// Read-only receipt identifier. This does not convey authority to advance an operation.
+    pub fn value(self) -> i64 {
+        self.0
+    }
+}
+
 #[derive(Debug)]
 pub struct Record {
     pub id: i64,
@@ -76,6 +83,24 @@ pub struct Record {
 }
 
 impl Journal {
+    pub fn cancel_relocation(&mut self, id: RelocationId) -> Result<()> {
+        self.relocation_owner(id)?;
+        let transaction = self.connection.transaction()?;
+        let changed=transaction.execute("UPDATE relocations SET state='cancelled' WHERE id=?1 AND state IN ('prepared','stage_ready')",[id.0])?;
+        require_one(changed)?;
+        transaction.commit()?;
+        Ok(())
+    }
+
+    pub fn unresolved_relocation(&mut self, id: RelocationId, message: &str) -> Result<()> {
+        self.relocation_owner(id)?;
+        let transaction = self.connection.transaction()?;
+        let changed=transaction.execute("UPDATE relocations SET state='unknown',message=?1 WHERE id=?2 AND state IN ('relocating','staged','returning','recycling','restoring')",params![message,id.0])?;
+        require_one(changed)?;
+        transaction.commit()?;
+        Ok(())
+    }
+
     /// Commit before stage creation; caller must retain the verified source and ancestor guards.
     pub fn prepare_relocation(
         &mut self,
