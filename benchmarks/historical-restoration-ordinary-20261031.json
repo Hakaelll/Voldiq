@@ -1,0 +1,67 @@
+{
+  "recordedAt": "2026-10-31T12:20:07.6932896+01:00",
+  "baseCommit": "4f7d1ab7814bfe2385fdacbf3f76c1489f662467",
+  "scope": "Fresh historical restoration using an owned ordinary holding directory. No Shell, Recycle Bin, UAC, desktop UI or clean-machine acceptance.",
+  "checks": [
+    {
+      "command": "cargo test --offline --release -p voldiq-core",
+      "exitCode": 0,
+      "unitTests": 5,
+      "integrationTests": 1,
+      "execution": "ordinary Windows token outside filesystem isolation"
+    },
+    {
+      "command": "cargo clippy --offline --release --workspace --all-targets -- -D warnings",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo fmt --all --check",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ],
+  "sources": [
+    {
+      "path": "crates/voldiq-core/src/cleanup/recycle/historical.rs",
+      "sha256": "BCD5ED54D75CA933EB1F5175F1A7B77CF72FE769C0E610E8006130CF09D07E84"
+    },
+    {
+      "path": "crates/voldiq-core/src/cleanup/recycle/restore.rs",
+      "sha256": "F6836335456DC75630752A96ED0210816AFCFDA31DE9827F2DCAC5FD0F0F1935"
+    },
+    {
+      "path": "crates/voldiq-core/src/cleanup/recycle.rs",
+      "sha256": "C8F7941BDE8AC95799F6A76C72AE051B235F9835E3909BCF6B9BC0D3BF29A05A"
+    },
+    {
+      "path": "crates/voldiq-core/src/cleanup/journal/relocation.rs",
+      "sha256": "B3A2B73858B30AC79293ABA58D5F60F14FF7AFAF7AC18296D2CF9BD60C689F5A"
+    },
+    {
+      "path": "crates/voldiq-core/src/cleanup/journal/tests.rs",
+      "sha256": "C6913B717C74075AD9297A1BFCCAF248303FA7CAC1BA5C85B7F2C4BC868E67C7"
+    }
+  ],
+  "testExecutable": {
+    "path": "target/release/deps/voldiq_core-969df42d8516a996.exe",
+    "sha256": "74162C81EEB7902CCF21A14F1D715EC92479B32B23B5DFA46F1B9DF66AA57A68"
+  },
+  "declaredTestsAdded": 0,
+  "observed": [
+    "reopened receipt restores exact identity and bytes",
+    "replaced original parent rejected",
+    "occupied destination preserves both files",
+    "held source rejects writes",
+    "stale journal session rejected",
+    "failed intent persistence leaves source untouched",
+    "restored receipt refuses replay"
+  ],
+  "pending": [
+    "actual reopened Recycle Bin item",
+    "desktop review and confirmation",
+    "combined privileged recycling roundtrip"
+  ]
+}

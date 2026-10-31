@@ -30,7 +30,7 @@ pnpm build
 |---|---|
 | 1 native command test | Cleanup requires the exact confirmation and live index; a plan can be consumed only once. |
 | 2 cleanup execution tests | Changed retained duplicate copies prevent deletion; cancellation preserves pending files; journal write failure stops further removal and preserves the partial report. |
-| 1 cleanup journal test | Recovery after an interrupted deletion does not retry a replacement file or claim unrecorded success. |
+| 1 cleanup journal test | Interrupted deletion preserves replacements and unrecorded outcomes. Fresh historical restoration checks parent identity, collision, source locking, session ownership, intent persistence and one-use completion with owned ordinary files. |
 | 1 file disposition test | Replaced files and read-only targets are not removed. |
 | 1 Windows handle test | An acquired parent directory cannot be renamed until its handle is released. |
 | 1 snapshot integration test | Saved history survives reopening, compares actual file changes and preserves case-insensitive ASCII/Unicode search results through both query methods. |

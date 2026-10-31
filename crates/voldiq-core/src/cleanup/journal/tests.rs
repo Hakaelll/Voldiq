@@ -75,6 +75,7 @@ fn interruption_after_deletion_never_retries_a_replacement_or_claims_success() {
     handle_bound_return_preserves_occupied_names(&fixture);
     activity_keeps_both_operation_kinds_and_uncertain_results(&fixture);
     version3_receipts_do_not_gain_invented_versions(&fixture);
+    historical_restoration_requires_fresh_authority(&fixture);
 }
 
 fn version3_receipts_do_not_gain_invented_versions(fixture: &tempfile::TempDir) {
@@ -569,4 +570,113 @@ fn recycling_receipts_and_migration(fixture: &tempfile::TempDir) {
         );
     }
     assert!(bin.to_str().is_none());
+}
+
+fn historical_restoration_requires_fresh_authority(fixture: &tempfile::TempDir) {
+    use crate::cleanup::{journal::relocation::RecycledVersion, recycle::RestorationReview};
+    use crate::windows::cleanup_stage::{StageEntry, StageName, restore_to_parent};
+    use std::os::windows::fs::OpenOptionsExt;
+    let root = fixture.path().join("historical-review");
+    std::fs::create_dir(&root).unwrap();
+    let original = root.join("original");
+    let holding = root.join("owned-holding");
+    std::fs::create_dir(&original).unwrap();
+    std::fs::create_dir(&holding).unwrap();
+    let (plan, ids) = fixture_plan(&original, &["owned.bin"]);
+    let database = root.join("history.sqlite");
+    let mut journal = Journal::open(&database).unwrap();
+    let source = plan.verify(ids[0]).unwrap();
+    let id = journal
+        .prepare_relocation(&plan, ids[0], &source, &StageName::generate().unwrap())
+        .unwrap();
+    let record = journal.relocation(id.value()).unwrap().unwrap();
+    assert!(journal.relocation(0).is_err());
+    assert!(journal.relocation(i64::MAX).unwrap().is_none());
+    assert!(RestorationReview::prepare(&journal, id.value()).is_err());
+    let stage = record.parent;
+    journal.relocation_stage_ready(id, stage).unwrap();
+    journal.start_relocation(id).unwrap();
+    journal.record_staged(id).unwrap();
+    journal.start_recycling(id, record.source, stage).unwrap();
+    // An owned holding directory exercises restart authority without invoking Shell or UAC.
+    let directory = std::fs::OpenOptions::new()
+        .read(true)
+        .custom_flags(windows_sys::Win32::Storage::FileSystem::FILE_FLAG_BACKUP_SEMANTICS)
+        .open(&holding)
+        .unwrap();
+    restore_to_parent(
+        &source.file,
+        &directory,
+        &StageEntry::parse("held.bin").unwrap(),
+    )
+    .unwrap();
+    let metadata = source.file.metadata().unwrap();
+    let version = RecycledVersion {
+        change_time: crate::windows::file_identity(&source.file)
+            .unwrap()
+            .change_time,
+        size: metadata.len(),
+        modified: metadata.modified().unwrap(),
+    };
+    let locator = holding.join("held.bin");
+    journal
+        .record_recycled(id, record.source, &locator, version)
+        .unwrap();
+    drop(source);
+    drop(directory);
+    drop(journal);
+    let mut journal = Journal::open(&database).unwrap();
+    let destination = std::path::PathBuf::from(&record.path);
+    let previous_parent = root.join("previous-original");
+    std::fs::rename(&original, &previous_parent).unwrap();
+    std::fs::create_dir(&original).unwrap();
+    assert!(RestorationReview::prepare(&journal, id.value()).is_err());
+    assert!(locator.exists());
+    std::fs::remove_dir(&original).unwrap();
+    std::fs::rename(&previous_parent, &original).unwrap();
+    let review = RestorationReview::prepare(&journal, id.value()).unwrap();
+    assert_eq!(review.destination(), destination);
+    assert_eq!(review.size(), 15);
+    assert!(std::fs::write(&locator, b"changed").is_err());
+    std::fs::write(&destination, b"replacement").unwrap();
+    assert!(review.restore(&mut journal).is_err());
+    assert_eq!(std::fs::read(&destination).unwrap(), b"replacement");
+    assert_eq!(std::fs::read(&locator).unwrap(), b"fixture content");
+    assert_eq!(
+        journal.relocation(id.value()).unwrap().unwrap().state,
+        "recycled"
+    );
+    std::fs::remove_file(&destination).unwrap();
+    let stale = RestorationReview::prepare(&journal, id.value()).unwrap();
+    drop(journal);
+    let mut journal = Journal::open(&database).unwrap();
+    assert!(stale.restore(&mut journal).is_err());
+    assert!(locator.exists());
+    let review = RestorationReview::prepare(&journal, id.value()).unwrap();
+    journal
+        .connection
+        .execute_batch("PRAGMA query_only=ON")
+        .unwrap();
+    assert!(review.restore(&mut journal).is_err());
+    assert!(locator.exists());
+    assert!(!destination.exists());
+    journal
+        .connection
+        .execute_batch("PRAGMA query_only=OFF")
+        .unwrap();
+    let review = RestorationReview::prepare(&journal, id.value()).unwrap();
+    let restored = review.restore(&mut journal).unwrap();
+    assert!(restored.recorded());
+    assert_eq!(restored.identity(), record.source);
+    assert_eq!(restored.path(), destination);
+    assert_eq!(std::fs::read(&destination).unwrap(), b"fixture content");
+    assert!(!locator.exists());
+    assert!(RestorationReview::prepare(&journal, id.value()).is_err());
+    drop(journal);
+    let journal = Journal::open(&database).unwrap();
+    assert_eq!(
+        journal.relocation(id.value()).unwrap().unwrap().state,
+        "restored"
+    );
+    assert!(RestorationReview::prepare(&journal, id.value()).is_err());
 }

@@ -5,7 +5,7 @@ use crate::{
     cleanup::{Plan, VerifiedFile},
     windows::cleanup_stage::{StageEntry, StageIdentity, StageName, identity},
 };
-use rusqlite::params;
+use rusqlite::{OptionalExtension, params};
 use std::{
     os::windows::ffi::{OsStrExt, OsStringExt},
     path::{Path, PathBuf},
@@ -80,7 +80,7 @@ impl RelocationId {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Record {
     pub id: i64,
     pub node: NodeId,
@@ -316,75 +316,47 @@ impl Journal {
 
     /// Read-only evidence, never authorization to reopen or retry an interrupted operation.
     pub fn relocations(&self, offset: usize, limit: usize) -> Result<Vec<Record>> {
-        let mut statement = self.connection.prepare("SELECT id,node,path,source_volume,source_file,parent_file,stage_name,stage_file,state,message,bin_path,restore_path,recycled_change_time,size,modified_seconds,modified_nanos
-            FROM relocations ORDER BY id DESC LIMIT ?1 OFFSET ?2")?;
+        let mut statement = self.connection.prepare(&format!(
+            "SELECT {RECORD_COLUMNS} FROM relocations ORDER BY id DESC LIMIT ?1 OFFSET ?2"
+        ))?;
         let rows = statement.query_map(
             params![
                 limit.clamp(1, 100) as i64,
                 i64::try_from(offset)
                     .map_err(|_| Error::Invalid("Invalid recovery offset.".into()))?
             ],
-            |row| {
-                let volume = u64::from_le_bytes(row.get::<_, [u8; 8]>(3)?);
-                let recycled_version =
-                    if let Some(change_time) = row.get::<_, Option<[u8; 8]>>(12)? {
-                        let seconds = nonnegative(row, 14)?;
-                        let nanos: u32 = row.get(15)?;
-                        if nanos >= 1_000_000_000 {
-                            return Err(rusqlite::Error::IntegralValueOutOfRange(
-                                15,
-                                i64::from(nanos),
-                            ));
-                        }
-                        let modified = UNIX_EPOCH
-                            .checked_add(Duration::new(seconds, nanos))
-                            .ok_or_else(|| {
-                                rusqlite::Error::FromSqlConversionFailure(
-                                    14,
-                                    rusqlite::types::Type::Integer,
-                                    Box::new(std::io::Error::new(
-                                        std::io::ErrorKind::InvalidData,
-                                        "Invalid recorded modification time.",
-                                    )),
-                                )
-                            })?;
-                        Some(RecycledVersion {
-                            change_time: u64::from_le_bytes(change_time),
-                            size: nonnegative(row, 13)?,
-                            modified,
-                        })
-                    } else {
-                        None
-                    };
-                Ok(Record {
-                    id: row.get(0)?,
-                    node: NodeId(row.get(1)?),
-                    path: row.get(2)?,
-                    source: StageIdentity {
-                        volume,
-                        file: row.get(4)?,
-                    },
-                    parent: StageIdentity {
-                        volume,
-                        file: row.get(5)?,
-                    },
-                    stage_name: row.get(6)?,
-                    stage_file: row.get(7)?,
-                    state: row.get(8)?,
-                    message: row.get(9)?,
-                    bin_path: row
-                        .get::<_, Option<Vec<u8>>>(10)?
-                        .map(parse_native_path)
-                        .transpose()?,
-                    restore_path: row
-                        .get::<_, Option<Vec<u8>>>(11)?
-                        .map(parse_native_path)
-                        .transpose()?,
-                    recycled_version,
-                })
-            },
+            decode_record,
         )?;
         Ok(rows.collect::<std::result::Result<_, _>>()?)
+    }
+
+    /// Exact receipt lookup; a displayed identifier alone grants no mutation authority.
+    pub fn relocation(&self, id: i64) -> Result<Option<Record>> {
+        if id <= 0 {
+            return Err(Error::Invalid(
+                "Invalid recycling receipt identifier.".into(),
+            ));
+        }
+        Ok(self
+            .connection
+            .query_row(
+                &format!("SELECT {RECORD_COLUMNS} FROM relocations WHERE id=?1"),
+                [id],
+                decode_record,
+            )
+            .optional()?)
+    }
+
+    pub(in crate::cleanup) fn reviewed_relocation(&self, record: &Record) -> Result<RelocationId> {
+        if record.state != "recycled"
+            || record.recycled_version.is_none()
+            || self.relocation(record.id)?.as_ref() != Some(record)
+        {
+            return Err(Error::Invalid(
+                "Recycling receipt changed or requires reconciliation.".into(),
+            ));
+        }
+        Ok(RelocationId(record.id, self.owner))
     }
 
     fn relocation_owner(&self, id: RelocationId) -> Result<()> {
@@ -471,5 +443,66 @@ fn source_identity(file: &std::fs::File) -> std::io::Result<StageIdentity> {
     Ok(StageIdentity {
         volume: id.VolumeSerialNumber,
         file: id.FileId.Identifier,
+    })
+}
+
+const RECORD_COLUMNS: &str = "id,node,path,source_volume,source_file,parent_file,stage_name,stage_file,state,message,bin_path,restore_path,recycled_change_time,size,modified_seconds,modified_nanos";
+
+fn decode_record(row: &rusqlite::Row<'_>) -> rusqlite::Result<Record> {
+    let volume = u64::from_le_bytes(row.get::<_, [u8; 8]>(3)?);
+    let recycled_version = if let Some(change_time) = row.get::<_, Option<[u8; 8]>>(12)? {
+        let seconds = nonnegative(row, 14)?;
+        let nanos: u32 = row.get(15)?;
+        if nanos >= 1_000_000_000 {
+            return Err(rusqlite::Error::IntegralValueOutOfRange(
+                15,
+                i64::from(nanos),
+            ));
+        }
+        let modified = UNIX_EPOCH
+            .checked_add(Duration::new(seconds, nanos))
+            .ok_or_else(|| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    14,
+                    rusqlite::types::Type::Integer,
+                    Box::new(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "Invalid recorded modification time.",
+                    )),
+                )
+            })?;
+        Some(RecycledVersion {
+            change_time: u64::from_le_bytes(change_time),
+            size: nonnegative(row, 13)?,
+            modified,
+        })
+    } else {
+        None
+    };
+    Ok(Record {
+        id: row.get(0)?,
+        node: NodeId(row.get(1)?),
+        path: row.get(2)?,
+        source: StageIdentity {
+            volume,
+            file: row.get(4)?,
+        },
+        parent: StageIdentity {
+            volume,
+            file: row.get(5)?,
+        },
+        stage_name: row.get(6)?,
+        stage_file: row.get(7)?,
+        state: row.get(8)?,
+        message: row.get(9)?,
+        bin_path: row
+            .get::<_, Option<Vec<u8>>>(10)?
+            .map(parse_native_path)
+            .transpose()?,
+        restore_path: row
+            .get::<_, Option<Vec<u8>>>(11)?
+            .map(parse_native_path)
+            .transpose()?,
+        recycled_version,
     })
 }

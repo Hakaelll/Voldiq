@@ -1,5 +1,6 @@
 //! Single-item Shell recycling from a pinned protected stage with durable intent and result records.
 pub mod batch;
+mod historical;
 mod restore;
 use super::journal::{
     Journal,
@@ -21,6 +22,7 @@ use ::windows::{
     },
     core::PCWSTR,
 };
+pub use historical::RestorationReview;
 pub use restore::RestoredItem;
 use std::{
     fs::{File, OpenOptions},

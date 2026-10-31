@@ -16,9 +16,9 @@ use windows_sys::Win32::Storage::FileSystem::{
 };
 
 pub struct RestoredItem {
-    path: PathBuf,
-    identity: StageIdentity,
-    journal_error: Option<String>,
+    pub(super) path: PathBuf,
+    pub(super) identity: StageIdentity,
+    pub(super) journal_error: Option<String>,
 }
 
 impl RestoredItem {
@@ -103,7 +103,7 @@ impl RecycledItem<'_, '_> {
     }
 }
 
-fn at_parent(parent: &File, name: &StageEntry) -> Result<File> {
+pub(super) fn at_parent(parent: &File, name: &StageEntry) -> Result<File> {
     cleanup_io::open_component(
         parent,
         std::ffi::OsStr::new(name.as_str()),
