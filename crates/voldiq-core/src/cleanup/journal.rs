@@ -94,7 +94,7 @@ impl Journal {
             }
             transaction.execute_batch(SCHEMA)?;
             transaction.execute_batch(&format!("PRAGMA application_id={APPLICATION_ID};"))?;
-        } else if !matches!(version, 1 | 2) || application != APPLICATION_ID {
+        } else if !matches!(version, 1..=3) || application != APPLICATION_ID {
             return Err(Error::Invalid(
                 "Unsupported cleanup journal database.".into(),
             ));
@@ -104,9 +104,12 @@ impl Journal {
             if version < 2 {
                 transaction.execute_batch(relocation::SCHEMA)?;
             }
+            if version < 3 {
+                transaction.execute_batch(relocation::RECYCLING_MIGRATION)?;
+            }
             transaction.execute("UPDATE relocations SET state=CASE state WHEN 'prepared' THEN 'cancelled' ELSE 'unknown' END,
                 message='Interrupted; reconcile identities before any explicit recovery.'
-                WHERE state IN ('prepared','stage_ready','relocating','staged','returning')", [])?;
+                WHERE state IN ('prepared','stage_ready','relocating','staged','returning','recycling','restoring')", [])?;
         }
         transaction.execute("UPDATE items SET state=CASE state WHEN 'prepared' THEN 'cancelled' ELSE 'unknown' END,
             message='Interrupted; not retried automatically.' WHERE state IN ('prepared','in_flight')

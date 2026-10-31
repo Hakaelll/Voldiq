@@ -71,6 +71,7 @@ fn interruption_after_deletion_never_retries_a_replacement_or_claims_success() {
         );
     }
     relocation_migration_and_interruption(&fixture);
+    recycling_receipts_and_migration(&fixture);
 }
 
 fn relocation_migration_and_interruption(fixture: &tempfile::TempDir) {
@@ -94,7 +95,7 @@ fn relocation_migration_and_interruption(fixture: &tempfile::TempDir) {
             .connection
             .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
             .unwrap(),
-        2
+        3
     );
     let history = journal.items(0, 100).unwrap();
     assert_eq!(history.len(), 1);
@@ -183,4 +184,148 @@ fn relocation_migration_and_interruption(fixture: &tempfile::TempDir) {
         }
         assert_eq!(journal.items(0, 100).unwrap()[0].state, "succeeded");
     }
+}
+
+fn recycling_receipts_and_migration(fixture: &tempfile::TempDir) {
+    use crate::windows::cleanup_stage::{StageIdentity, StageName};
+    use std::os::windows::ffi::OsStringExt;
+    let root = fixture.path().join("receipt-fixture");
+    std::fs::create_dir(&root).unwrap();
+    let (plan, nodes) = fixture_plan(
+        &root,
+        &[
+            "in-flight",
+            "recycled",
+            "restoring",
+            "restored",
+            "write-failed",
+        ],
+    );
+    let path = fixture.path().join("version2.sqlite");
+    let legacy = Connection::open(&path).unwrap();
+    legacy.execute_batch(SCHEMA).unwrap();
+    legacy.execute_batch(super::relocation::SCHEMA).unwrap();
+    legacy.execute_batch(&format!("PRAGMA application_id={APPLICATION_ID};
+      INSERT INTO relocations VALUES(19,1,'C:\\legacy.bin',zeroblob(8),zeroblob(16),zeroblob(16),zeroblob(8),4,1,0,'voldiq-stage-00000000000000000000000000000001',zeroblob(16),'returned','preserved',1);
+      INSERT INTO relocations SELECT 50,node,path,source_volume,source_file,parent_file,change_time,size,modified_seconds,modified_nanos,'voldiq-stage-00000000000000000000000000000002',stage_file,state,message,created FROM relocations WHERE id=19;
+      DELETE FROM relocations WHERE id=50;")).unwrap();
+    drop(legacy);
+    let mut journal = Journal::open(&path).unwrap();
+    let history = journal.relocations(0, 100).unwrap();
+    assert_eq!(
+        (
+            history[0].id,
+            history[0].state.as_str(),
+            history[0].message.as_deref()
+        ),
+        (19, "returned", Some("preserved"))
+    );
+    assert!(history[0].bin_path.is_none());
+    let mut units: Vec<u16> = r"C:\$Recycle.Bin\owned-".encode_utf16().collect();
+    units.push(0xd800);
+    let bin: std::path::PathBuf = std::ffi::OsString::from_wide(&units).into();
+    let destination = root.join("explicit-destination");
+    let mut sessions = Vec::new();
+    for (phase, node) in nodes.iter().enumerate() {
+        let source = plan.verify(*node).unwrap();
+        let id = journal
+            .prepare_relocation(&plan, *node, &source, &StageName::generate().unwrap())
+            .unwrap();
+        let record = journal.relocations(0, 1).unwrap().remove(0);
+        assert!(record.id > 50);
+        let stage = StageIdentity {
+            volume: record.source.volume,
+            file: [(phase + 32) as u8; 16],
+        };
+        journal.relocation_stage_ready(id, stage).unwrap();
+        journal.start_relocation(id).unwrap();
+        journal.record_staged(id).unwrap();
+        assert!(
+            journal
+                .start_recycling(
+                    id,
+                    StageIdentity {
+                        volume: stage.volume,
+                        file: [0; 16]
+                    },
+                    stage
+                )
+                .is_err()
+        );
+        journal.start_recycling(id, record.source, stage).unwrap();
+        assert!(journal.start_recycling(id, record.source, stage).is_err());
+        if phase == 0 {
+            sessions.push(id);
+            continue;
+        }
+        assert!(
+            journal
+                .record_recycled(id, record.source, Path::new("relative"))
+                .is_err()
+        );
+        if phase == 4 {
+            journal
+                .connection
+                .execute_batch("PRAGMA query_only=ON;")
+                .unwrap();
+            assert!(journal.record_recycled(id, record.source, &bin).is_err());
+            journal
+                .connection
+                .execute_batch("PRAGMA query_only=OFF;")
+                .unwrap();
+            sessions.push(id);
+            continue;
+        }
+        journal.record_recycled(id, record.source, &bin).unwrap();
+        if phase >= 2 {
+            journal.start_restore(id, &destination).unwrap();
+            if phase == 3 {
+                assert!(
+                    journal
+                        .record_restored(id, record.source, &root.join("wrong-destination"))
+                        .is_err()
+                );
+                journal
+                    .record_restored(id, record.source, &destination)
+                    .unwrap();
+            }
+        }
+        sessions.push(id);
+    }
+    drop(journal);
+    let mut journal = Journal::open(&path).unwrap();
+    let records = journal.relocations(0, 100).unwrap();
+    for (phase, node) in nodes.iter().enumerate() {
+        let record = records
+            .iter()
+            .find(|record| record.node == *node && record.id > 50)
+            .unwrap();
+        assert_eq!(
+            record.state,
+            ["unknown", "recycled", "unknown", "restored", "unknown"][phase]
+        );
+        assert_eq!(
+            record.bin_path,
+            if (1..=3).contains(&phase) {
+                Some(bin.clone())
+            } else {
+                None
+            }
+        );
+        assert_eq!(
+            record.restore_path,
+            if (2..=3).contains(&phase) {
+                Some(destination.clone())
+            } else {
+                None
+            }
+        );
+        assert_eq!(std::fs::read(&record.path).unwrap(), b"fixture content");
+        assert!(
+            journal
+                .start_restore(sessions[phase], &destination)
+                .is_err()
+        );
+    }
+    assert!(bin.to_str().is_none());
 }

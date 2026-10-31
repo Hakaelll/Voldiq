@@ -1,4 +1,5 @@
-//! Single-item Shell recycling from a pinned protected stage. Transaction logging belongs to the caller.
+//! Single-item Shell recycling from a pinned protected stage with durable intent and result records.
+use super::journal::{Journal, relocation::RelocationId};
 use super::{Stamp, VerifiedFile, validate_file};
 use crate::{
     Error, Result,
@@ -80,6 +81,7 @@ pub struct RecycledItem<'a, 'stage> {
     _apartment: &'a ShellApartment,
     source: &'a mut StagedSource<'stage>,
     locator: PathBuf,
+    journal_error: Option<String>,
 }
 
 impl VerifiedFile {
@@ -129,10 +131,12 @@ impl VerifiedFile {
 }
 
 impl<'stage> StagedSource<'stage> {
-    /// Commit recycling intent first. Any error requires reconciliation; this object never retries or permanently deletes.
+    /// Commits bound intent before Shell. A returned item with a journal error is a partial result; stop the batch.
     pub fn recycle<'a>(
         &'a mut self,
         apartment: &'a ShellApartment,
+        journal: &mut Journal,
+        relocation: RelocationId,
     ) -> Result<RecycledItem<'a, 'stage>> {
         if self.attempted {
             return Err(Error::Invalid(
@@ -147,6 +151,7 @@ impl<'stage> StagedSource<'stage> {
             unsafe { SHCreateItemFromRelativeName(&parent, PCWSTR(entry.as_ptr()), None) }
                 .map_err(shell_error)?;
         check_shell_identity(&source, self.identity, false)?;
+        journal.start_recycling(relocation, self.identity, self.stage.identity())?;
         self.attempted = true;
         let item = unsafe { transfer.RecycleItem(&source, &bin, 0) }.map_err(shell_error)?;
         let locator = filesystem_path(&item)?;
@@ -162,11 +167,16 @@ impl<'stage> StagedSource<'stage> {
             ));
         }
         check_content(&self.guard, &self.stamp)?;
+        let journal_error = journal
+            .record_recycled(relocation, self.identity, &locator)
+            .err()
+            .map(|error| error.to_string());
         Ok(RecycledItem {
             _item: item,
             _apartment: apartment,
             source: self,
             locator,
+            journal_error,
         })
     }
 }
@@ -177,6 +187,12 @@ impl RecycledItem<'_, '_> {
     }
     pub fn identity(&self) -> StageIdentity {
         self.source.identity
+    }
+    pub fn recorded(&self) -> bool {
+        self.journal_error.is_none()
+    }
+    pub fn journal_error(&self) -> Option<&str> {
+        self.journal_error.as_deref()
     }
 }
 

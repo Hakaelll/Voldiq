@@ -6,6 +6,10 @@ use crate::{
     windows::cleanup_stage::{StageEntry, StageIdentity, StageName, identity},
 };
 use rusqlite::params;
+use std::{
+    os::windows::ffi::{OsStrExt, OsStringExt},
+    path::{Path, PathBuf},
+};
 
 pub(super) const SCHEMA: &str = "
 CREATE TABLE relocations(
@@ -24,6 +28,35 @@ CREATE UNIQUE INDEX live_relocation_source ON relocations(source_volume,source_f
  WHERE state IN ('prepared','stage_ready','relocating','staged','returning','unknown');
 PRAGMA user_version=2;";
 
+pub(super) const RECYCLING_MIGRATION: &str = "
+DROP INDEX live_relocation_source;
+ALTER TABLE relocations RENAME TO relocations_v2;
+CREATE TABLE relocations(
+ id INTEGER PRIMARY KEY AUTOINCREMENT, node INTEGER NOT NULL, path TEXT NOT NULL,
+ source_volume BLOB NOT NULL CHECK(length(source_volume)=8),
+ source_file BLOB NOT NULL CHECK(length(source_file)=16),
+ parent_file BLOB NOT NULL CHECK(length(parent_file)=16),
+ change_time BLOB NOT NULL CHECK(length(change_time)=8), size INTEGER NOT NULL CHECK(size>=0),
+ modified_seconds INTEGER NOT NULL, modified_nanos INTEGER NOT NULL,
+ stage_name TEXT NOT NULL, stage_file BLOB CHECK(length(stage_file)=16),
+ state TEXT NOT NULL CHECK(state IN ('prepared','stage_ready','relocating','staged','returning','returned','unmoved','unknown','cancelled','recycling','recycled','restoring','restored')),
+ message TEXT, created INTEGER NOT NULL,
+ bin_path BLOB CHECK(bin_path IS NULL OR (length(bin_path) BETWEEN 2 AND 65534 AND length(bin_path)%2=0)),
+ restore_path BLOB CHECK(restore_path IS NULL OR (length(restore_path) BETWEEN 2 AND 65534 AND length(restore_path)%2=0)),
+ CHECK(state IN ('prepared','cancelled','unknown') OR stage_file IS NOT NULL),
+ CHECK(state NOT IN ('recycled','restoring','restored') OR bin_path IS NOT NULL),
+ CHECK(state NOT IN ('restoring','restored') OR restore_path IS NOT NULL),
+ UNIQUE(source_volume,parent_file,stage_name));
+INSERT INTO relocations(id,node,path,source_volume,source_file,parent_file,change_time,size,modified_seconds,modified_nanos,stage_name,stage_file,state,message,created)
+ SELECT id,node,path,source_volume,source_file,parent_file,change_time,size,modified_seconds,modified_nanos,stage_name,stage_file,state,message,created FROM relocations_v2;
+INSERT INTO sqlite_sequence(name,seq) SELECT 'relocations',seq FROM sqlite_sequence WHERE name='relocations_v2'
+ AND NOT EXISTS(SELECT 1 FROM sqlite_sequence WHERE name='relocations');
+UPDATE sqlite_sequence SET seq=max(seq,coalesce((SELECT seq FROM sqlite_sequence WHERE name='relocations_v2'),0)) WHERE name='relocations';
+DROP TABLE relocations_v2;
+CREATE UNIQUE INDEX live_relocation_source ON relocations(source_volume,source_file)
+ WHERE state IN ('prepared','stage_ready','relocating','staged','returning','unknown','recycling','restoring');
+PRAGMA user_version=3;";
+
 #[derive(Clone, Copy, Debug)]
 pub struct RelocationId(i64, u64);
 
@@ -38,6 +71,8 @@ pub struct Record {
     pub stage_file: Option<[u8; 16]>,
     pub state: String,
     pub message: Option<String>,
+    pub bin_path: Option<PathBuf>,
+    pub restore_path: Option<PathBuf>,
 }
 
 impl Journal {
@@ -140,9 +175,97 @@ impl Journal {
         self.relocation_transition(id, "returning", "returned")
     }
 
+    /// Commit before invoking Shell; bind the journal intent to the exact retained source and stage.
+    pub fn start_recycling(
+        &mut self,
+        id: RelocationId,
+        source: StageIdentity,
+        stage: StageIdentity,
+    ) -> Result<()> {
+        self.relocation_owner(id)?;
+        if source.volume != stage.volume {
+            return Err(Error::Invalid("Recycling stage volume mismatch.".into()));
+        }
+        let transaction = self.connection.transaction()?;
+        let changed = transaction.execute(
+            "UPDATE relocations SET state='recycling' WHERE id=?1 AND state='staged'
+            AND source_volume=?2 AND source_file=?3 AND stage_file=?4",
+            params![
+                id.0,
+                source.volume.to_le_bytes().as_slice(),
+                source.file.as_slice(),
+                stage.file.as_slice()
+            ],
+        )?;
+        require_one(changed)?;
+        transaction.commit()?;
+        Ok(())
+    }
+
+    /// Caller must verify the Shell-returned item's native identity before committing its locator.
+    pub fn record_recycled(
+        &mut self,
+        id: RelocationId,
+        source: StageIdentity,
+        locator: &Path,
+    ) -> Result<()> {
+        self.relocation_owner(id)?;
+        let locator = native_path(locator)?;
+        let transaction = self.connection.transaction()?;
+        let changed = transaction.execute(
+            "UPDATE relocations SET state='recycled',bin_path=?1 WHERE id=?2 AND state='recycling'
+            AND source_volume=?3 AND source_file=?4",
+            params![
+                locator,
+                id.0,
+                source.volume.to_le_bytes().as_slice(),
+                source.file.as_slice()
+            ],
+        )?;
+        require_one(changed)?;
+        transaction.commit()?;
+        Ok(())
+    }
+
+    /// Records an explicitly chosen destination, not permission to reopen or move a filesystem object.
+    pub fn start_restore(&mut self, id: RelocationId, destination: &Path) -> Result<()> {
+        self.relocation_owner(id)?;
+        let destination = native_path(destination)?;
+        let transaction = self.connection.transaction()?;
+        let changed=transaction.execute("UPDATE relocations SET state='restoring',restore_path=?1 WHERE id=?2 AND state='recycled'",params![destination,id.0])?;
+        require_one(changed)?;
+        transaction.commit()?;
+        Ok(())
+    }
+
+    /// Caller must verify the original identity at exactly the recorded destination first.
+    pub fn record_restored(
+        &mut self,
+        id: RelocationId,
+        source: StageIdentity,
+        destination: &Path,
+    ) -> Result<()> {
+        self.relocation_owner(id)?;
+        let destination = native_path(destination)?;
+        let transaction = self.connection.transaction()?;
+        let changed = transaction.execute(
+            "UPDATE relocations SET state='restored' WHERE id=?1 AND state='restoring'
+            AND source_volume=?2 AND source_file=?3 AND restore_path=?4",
+            params![
+                id.0,
+                source.volume.to_le_bytes().as_slice(),
+                source.file.as_slice(),
+                destination
+            ],
+        )?;
+        require_one(changed)?;
+        transaction.commit()?;
+        Ok(())
+    }
+
     /// Read-only evidence, never authorization to reopen or retry an interrupted operation.
     pub fn relocations(&self, offset: usize, limit: usize) -> Result<Vec<Record>> {
-        let mut statement = self.connection.prepare("SELECT id,node,path,source_volume,source_file,parent_file,stage_name,stage_file,state,message
+        let mut statement = self.connection.prepare("SELECT id,node,path,source_volume,source_file,parent_file,stage_name,stage_file,state,message,bin_path,restore_path
             FROM relocations ORDER BY id DESC LIMIT ?1 OFFSET ?2")?;
         let rows = statement.query_map(
             params![
@@ -168,6 +291,14 @@ impl Journal {
                     stage_file: row.get(7)?,
                     state: row.get(8)?,
                     message: row.get(9)?,
+                    bin_path: row
+                        .get::<_, Option<Vec<u8>>>(10)?
+                        .map(parse_native_path)
+                        .transpose()?,
+                    restore_path: row
+                        .get::<_, Option<Vec<u8>>>(11)?
+                        .map(parse_native_path)
+                        .transpose()?,
                 })
             },
         )?;
@@ -194,6 +325,34 @@ impl Journal {
         transaction.commit()?;
         Ok(())
     }
+}
+
+fn native_path(path: &Path) -> Result<Vec<u8>> {
+    let units: Vec<u16> = path.as_os_str().encode_wide().collect();
+    if !path.is_absolute() || units.is_empty() || units.len() > 32767 || units.contains(&0) {
+        return Err(Error::Invalid(
+            "Recovery requires an exact absolute native path.".into(),
+        ));
+    }
+    Ok(units.into_iter().flat_map(u16::to_le_bytes).collect())
+}
+
+fn parse_native_path(bytes: Vec<u8>) -> rusqlite::Result<PathBuf> {
+    let result = (|| {
+        if !bytes.len().is_multiple_of(2) {
+            return Err(Error::Invalid("Malformed native recovery path.".into()));
+        }
+        let units: Vec<u16> = bytes
+            .chunks_exact(2)
+            .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
+            .collect();
+        let path: PathBuf = std::ffi::OsString::from_wide(&units).into();
+        native_path(&path)?;
+        Ok(path)
+    })();
+    result.map_err(|error| {
+        rusqlite::Error::FromSqlConversionFailure(0, rusqlite::types::Type::Blob, Box::new(error))
+    })
 }
 
 fn require_one(changed: usize) -> Result<()> {
