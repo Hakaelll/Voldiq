@@ -356,7 +356,8 @@ impl Index {
             return Ok(None);
         }
         self.entry(scope)?;
-        let mut types = std::collections::HashMap::<Option<String>, (u64, u64)>::new();
+        let mut types =
+            std::collections::HashMap::<Option<std::borrow::Cow<'_, str>>, (u64, u64)>::new();
         let mut total_bytes = 0;
         let mut total_files = 0;
         for (position, entry) in self.entries.iter().enumerate() {
@@ -373,7 +374,16 @@ impl Index {
             }
             let ext = std::path::Path::new(&entry.name)
                 .extension()
-                .map(|e| e.to_string_lossy().to_lowercase());
+                .map(|extension| {
+                    let extension = extension.to_string_lossy();
+                    if extension.is_ascii()
+                        && !extension.bytes().any(|byte| byte.is_ascii_uppercase())
+                    {
+                        extension
+                    } else {
+                        std::borrow::Cow::Owned(extension.to_lowercase())
+                    }
+                });
             let total = types.entry(ext).or_default();
             total.0 += entry.logical;
             total.1 += 1;
@@ -389,7 +399,7 @@ impl Index {
                 return Ok(None);
             }
             result.push(FileType {
-                extension,
+                extension: extension.map(std::borrow::Cow::into_owned),
                 bytes,
                 count,
             });

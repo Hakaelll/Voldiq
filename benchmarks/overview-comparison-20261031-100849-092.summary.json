@@ -1,0 +1,321 @@
+{
+  "source": "overview-comparison-20261031-100849-092.provenance.json",
+  "aggregation": "Five process-block medians per side; each block contains five timed calls. Range is across block medians, not all 25 individual calls.",
+  "results": [
+    {
+      "shape": "wide-equal",
+      "method": "overview",
+      "before": {
+        "medianMs": 175.204,
+        "rangeMs": [
+          172.13,
+          198.132
+        ],
+        "processBlockMediansMs": [
+          175.204,
+          172.13,
+          186.096,
+          198.132,
+          172.559
+        ],
+        "medianThreadCpuMs": 171.875
+      },
+      "after": {
+        "medianMs": 110.908,
+        "rangeMs": [
+          93.677,
+          123.96
+        ],
+        "processBlockMediansMs": [
+          123.96,
+          107.616,
+          123.476,
+          110.908,
+          93.677
+        ],
+        "medianThreadCpuMs": 109.375
+      },
+      "reductionPercent": 36.69779228784731
+    },
+    {
+      "shape": "wide-equal",
+      "method": "branches",
+      "before": {
+        "medianMs": 10.784,
+        "rangeMs": [
+          9.815,
+          12.402
+        ],
+        "processBlockMediansMs": [
+          9.815,
+          10.218,
+          10.784,
+          11.183,
+          12.402
+        ],
+        "medianThreadCpuMs": 15.625
+      },
+      "after": {
+        "medianMs": 11.85,
+        "rangeMs": [
+          10.49,
+          13.258
+        ],
+        "processBlockMediansMs": [
+          11.85,
+          13.016,
+          10.49,
+          11.835,
+          13.258
+        ],
+        "medianThreadCpuMs": 15.625
+      },
+      "reductionPercent": -9.885014836795246
+    },
+    {
+      "shape": "wide-equal",
+      "method": "serialize",
+      "before": {
+        "medianMs": 0.069,
+        "rangeMs": [
+          0.06,
+          0.09
+        ],
+        "processBlockMediansMs": [
+          0.06,
+          0.086,
+          0.064,
+          0.069,
+          0.09
+        ],
+        "medianThreadCpuMs": 0.0
+      },
+      "after": {
+        "medianMs": 0.055,
+        "rangeMs": [
+          0.049,
+          0.068
+        ],
+        "processBlockMediansMs": [
+          0.053,
+          0.068,
+          0.056,
+          0.049,
+          0.055
+        ],
+        "medianThreadCpuMs": 0.0
+      },
+      "reductionPercent": 20.28985507246377
+    },
+    {
+      "shape": "wide-varied",
+      "method": "overview",
+      "before": {
+        "medianMs": 160.877,
+        "rangeMs": [
+          114.389,
+          170.501
+        ],
+        "processBlockMediansMs": [
+          170.501,
+          114.389,
+          163.242,
+          148.034,
+          160.877
+        ],
+        "medianThreadCpuMs": 156.25
+      },
+      "after": {
+        "medianMs": 106.337,
+        "rangeMs": [
+          98.863,
+          124.339
+        ],
+        "processBlockMediansMs": [
+          98.863,
+          106.337,
+          102.673,
+          124.339,
+          118.982
+        ],
+        "medianThreadCpuMs": 109.375
+      },
+      "reductionPercent": 33.90167643603499
+    },
+    {
+      "shape": "wide-varied",
+      "method": "branches",
+      "before": {
+        "medianMs": 10.929,
+        "rangeMs": [
+          9.709,
+          11.612
+        ],
+        "processBlockMediansMs": [
+          10.996,
+          9.709,
+          11.612,
+          10.571,
+          10.929
+        ],
+        "medianThreadCpuMs": 15.625
+      },
+      "after": {
+        "medianMs": 11.845,
+        "rangeMs": [
+          10.294,
+          12.345
+        ],
+        "processBlockMediansMs": [
+          10.294,
+          11.845,
+          10.407,
+          12.345,
+          12.162
+        ],
+        "medianThreadCpuMs": 15.625
+      },
+      "reductionPercent": -8.381370665202681
+    },
+    {
+      "shape": "wide-varied",
+      "method": "serialize",
+      "before": {
+        "medianMs": 0.153,
+        "rangeMs": [
+          0.121,
+          0.177
+        ],
+        "processBlockMediansMs": [
+          0.135,
+          0.121,
+          0.166,
+          0.153,
+          0.177
+        ],
+        "medianThreadCpuMs": 0.0
+      },
+      "after": {
+        "medianMs": 0.176,
+        "rangeMs": [
+          0.143,
+          0.192
+        ],
+        "processBlockMediansMs": [
+          0.143,
+          0.183,
+          0.176,
+          0.174,
+          0.192
+        ],
+        "medianThreadCpuMs": 0.0
+      },
+      "reductionPercent": -15.032679738562083
+    },
+    {
+      "shape": "deep-varied",
+      "method": "overview",
+      "before": {
+        "medianMs": 358.436,
+        "rangeMs": [
+          342.742,
+          392.108
+        ],
+        "processBlockMediansMs": [
+          364.25,
+          358.436,
+          392.108,
+          347.152,
+          342.742
+        ],
+        "medianThreadCpuMs": 359.375
+      },
+      "after": {
+        "medianMs": 244.934,
+        "rangeMs": [
+          228.43,
+          285.583
+        ],
+        "processBlockMediansMs": [
+          240.966,
+          261.923,
+          285.583,
+          228.43,
+          244.934
+        ],
+        "medianThreadCpuMs": 250.0
+      },
+      "reductionPercent": 31.6659040944548
+    },
+    {
+      "shape": "deep-varied",
+      "method": "branches",
+      "before": {
+        "medianMs": 9.04,
+        "rangeMs": [
+          8.832,
+          10.538
+        ],
+        "processBlockMediansMs": [
+          8.942,
+          8.832,
+          10.538,
+          9.577,
+          9.04
+        ],
+        "medianThreadCpuMs": 15.625
+      },
+      "after": {
+        "medianMs": 8.555,
+        "rangeMs": [
+          7.973,
+          9.967
+        ],
+        "processBlockMediansMs": [
+          8.555,
+          8.91,
+          9.967,
+          7.973,
+          8.486
+        ],
+        "medianThreadCpuMs": 15.625
+      },
+      "reductionPercent": 5.365044247787609
+    },
+    {
+      "shape": "deep-varied",
+      "method": "serialize",
+      "before": {
+        "medianMs": 0.032,
+        "rangeMs": [
+          0.022,
+          0.033
+        ],
+        "processBlockMediansMs": [
+          0.032,
+          0.033,
+          0.033,
+          0.022,
+          0.025
+        ],
+        "medianThreadCpuMs": 0.0
+      },
+      "after": {
+        "medianMs": 0.029,
+        "rangeMs": [
+          0.023,
+          0.038
+        ],
+        "processBlockMediansMs": [
+          0.023,
+          0.029,
+          0.034,
+          0.038,
+          0.027
+        ],
+        "medianThreadCpuMs": 0.0
+      },
+      "reductionPercent": 9.375
+    }
+  ]
+}

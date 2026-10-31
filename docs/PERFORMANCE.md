@@ -1,5 +1,38 @@
 # Performance measurements
 
+## Extension grouping allocation
+
+Extension grouping borrows lowercase ASCII extensions from the existing index strings instead of allocating a lowercase string for every file. Uppercase and non-ASCII extensions retain the existing Unicode lowercase conversion. Returned groups still own their strings; index layout, grouping, ranking, cancellation checkpoints and JSON fields are unchanged. No persistent normalization cache is introduced.
+
+The [interleaved comparison](../benchmarks/overview-comparison-20261031-100849-092.provenance.json) runs five release processes per version, alternating version order. Each process uses the same harness and performs five calls per method/shape after warmup. The [summary](../benchmarks/overview-comparison-20261031-100849-092.summary.json) reports the median of those five process medians; ranges below are across process medians. All 450 measured calls and the separate 45-row candidate diagnostic completed with exact reference IDs and totals. ASCII/Unicode normalization checks also passed.
+
+| Complete overview, one million files | Before median, range | After median, range |
+|---|---:|---:|
+| 16 sibling folders, equal sizes | 175.204 ms, 172.130–198.132 ms | 110.908 ms, 93.677–123.960 ms |
+| 1,000 sibling folders, varied sizes | 160.877 ms, 114.389–170.501 ms | 106.337 ms, 98.863–124.339 ms |
+| 64 levels, selected depth 32 | 358.436 ms, 342.742–392.108 ms | 244.934 ms, 228.430–285.583 ms |
+
+The equal-size and deep shapes have non-overlapping process-median ranges, with observed median time reductions of 36.7% and 31.7%. The varied-width median is lower but its ranges overlap. Branch-only and serialization ranges also overlap, so no change is established for those paths. Background desktop CPU load was uncontrolled, at 40% before and 51% after; these generated lowercase-extension workloads do not establish a general application speedup.
+
+The candidate diagnostic still identifies extension grouping as the dominant component: 111.331, 91.827 and 241.526 ms respectively. Complete-overview median thread CPU changes from 171.875 to 109.375 ms for the equal-size shape and from 359.375 to 250.000 ms for the deep shape. This supports CPU work on the synchronous scan/grouping path as the remaining limiter. Thread counters are quantized. The full JSON payload stays bounded at 20,190, 66,254 and 7,615 bytes respectively. Native IPC, concurrent indexing, Canvas, total-app memory and interaction latency are unmeasured here.
+
+To reproduce the paired comparison, build baseline revision `f0f9c9b` with the command below, then capture its executable before returning to the optimized revision:
+
+```powershell
+cargo build --offline --release -p voldiq --example overview_benchmark
+New-Item -ItemType Directory -Force target/probes | Out-Null
+[IO.File]::Copy("$PWD/target/release/examples/overview_benchmark.exe", "$PWD/target/probes/overview-before.exe", $false)
+$baseline = @{
+  executableSha256 = (Get-FileHash target/probes/overview-before.exe).Hash
+  coreIndexSha256 = (Get-FileHash crates/voldiq-core/src/index.rs).Hash
+  harnessSha256 = (Get-FileHash src-tauri/examples/overview_benchmark.rs).Hash
+  coreSourceCommit = (git rev-parse HEAD)
+}
+$baseline | ConvertTo-Json | Set-Content -LiteralPath target/probes/overview-before.json
+```
+
+After restoring the optimized source revision, build the same example and run `./benchmarks/run_overview_comparison.ps1`. It checks the baseline and shared harness hashes before running. A failed or incomplete run stops the sequence. Temporary baseline copies can be removed after retaining the reports. The retained core tests and strict workspace Clippy pass; the automated test inventory remains eight cases.
+
 ## Release overview baseline
 
 The production overview composition and bounded branch pass now live in `src-tauri/src/overview.rs`. The native command and `overview_benchmark` example compile that same module. Both function bodies were checked against their previous implementation after whitespace normalization. This separation changes no query algorithm or response fields.
@@ -215,7 +248,7 @@ Baseline and final runs use the same deterministic index, in release builds on t
 
 ## Open performance gates
 
-### Bounded descendant query, debug diagnostic
+### Historical bounded descendant query, debug diagnostic
 
 The diagnostic test formerly run with `cargo test -p voldiq benchmark_million_entry_overview -- --ignored --nocapture` was removed on 2026-10-21. The historical measurements below used a synthetic in-memory index with 16 folders and 1,000,000 one-byte file entries. Construction was outside the timed region. Five runs alternated the complete synchronous overview and its descendant helper. Each result was consumed and checked for exact totals, 12 branches, 96 children and stable retained IDs. No disk scan, IPC, Canvas or whole-app memory is measured.
 
@@ -226,7 +259,7 @@ The diagnostic test formerly run with `cargo test -p voldiq benchmark_million_en
 
 The [current raw runs](../benchmarks/overview-million-debug-after-2026-10-14.txt) use the unoptimized development/test profile. [GetThreadTimes](https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getthreadtimes) supplies kernel/user CPU ticks for the executing thread. Observed counters advance in 15.625 ms steps, so CPU can slightly exceed a short wall interval. Comparable wall and CPU times support CPU work on one synchronous thread as the dominant cost; they do not distinguish instruction execution from memory stalls.
 
-The helper now rejects candidates that cannot beat the weakest of its retained eight before sorting. Logical-size and stable-ID ordering remain unchanged. [Earlier diagnostic runs](../benchmarks/overview-million-debug-before-2026-10-14.txt) measured the same generated shape before this rejection. The two source versions ran in sequential batches rather than randomized interleaving, and complete-overview ranges overlap. These records therefore do not establish a controlled application speedup. Release latency, varied file sizes, deeper scopes, concurrent scanning and native rendering remain open gates.
+The helper now rejects candidates that cannot beat the weakest of its retained eight before sorting. Logical-size and stable-ID ordering remain unchanged. [Earlier diagnostic runs](../benchmarks/overview-million-debug-before-2026-10-14.txt) measured the same generated shape before this rejection. The two source versions ran in sequential batches rather than randomized interleaving, and complete-overview ranges overlap. These records therefore do not establish a controlled application speedup. The release measurements above now cover varied sizes and a deeper scope on generated indexes. Concurrent scanning and native rendering remain open gates.
 
 On 2026-10-12, the updated 10,000-file runner verified 10,101 entries, exact logical totals and zero errors in all three runs. Scan times were 699.856, 658.685 and 1,167.019 ms; root page times were 0.078, 0.062 and 0.072 ms; global search times were 0.788, 0.742 and 0.814 ms. The runner measured the current entry layout as 112 bytes. Fixture creation warmed filesystem state; host background work and cache state were not controlled. The spread and historical changes cannot be attributed to a specific optimization. This updates the small-fixture evidence, not the million-file or whole-drive gates.
 

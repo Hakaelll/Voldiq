@@ -1,0 +1,138 @@
+{
+  "utc": "2026-10-31T10:09:41.3935162Z",
+  "profile": "release",
+  "baseline": {
+    "executableSha256": "E70DF599977F05A6C3C7C42B8B830F579C5B14F97B28AC48C1D741EE7C7ADE06",
+    "coreIndexSha256": "041593F52D085343B88B8B0BA5F10B58ED756A6F00CCFC4EF91CE10C7F139D28",
+    "harnessSha256": "89EABB67EDF839089F550A6F8834A6326057B42E0A45FEFD5056ECDA81EC4D61",
+    "coreSourceCommit": "63b3c9837d89a119650a97535844982ec632cabe"
+  },
+  "candidate": {
+    "coreIndexSha256": "8884884E1B83F13D62C965119CBE134C13B8317E9C682F0DDE9DFA002AF5FDAE",
+    "executableSha256": "7F8D49DD93622DF5426B5484757C622906175EA8D73AF0BF77EE038C2043E4AB"
+  },
+  "overviewModuleSha256": "27FCD062FAE96DB5D78C87F635ABA2EAA5980F35E7F929B817357E41F30B547D",
+  "runnerSha256": "626C90504F87F920D619F1E4ECC37DD28CFEE01FC36BF1D1F9A15E3271A41F29",
+  "cpuBefore": {
+    "Name": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
+    "NumberOfCores": 4,
+    "NumberOfLogicalProcessors": 8,
+    "LoadPercentage": 40
+  },
+  "cpuAfter": {
+    "LoadPercentage": 51
+  },
+  "runs": [
+    {
+      "side": "before",
+      "run": 1,
+      "diagnostic": false,
+      "csv": "overview-comparison-20261031-100849-092-before-1.csv",
+      "exitCode": 0,
+      "rows": 45,
+      "processCpuMilliseconds": 5312.5,
+      "stderr": "Synthetic in-memory index; production overview module. No scan, IPC, Canvas or application latency measured.\n"
+    },
+    {
+      "side": "after",
+      "run": 1,
+      "diagnostic": false,
+      "csv": "overview-comparison-20261031-100849-092-after-1.csv",
+      "exitCode": 0,
+      "rows": 45,
+      "processCpuMilliseconds": 3796.875,
+      "stderr": "Synthetic in-memory index; production overview module. No scan, IPC, Canvas or application latency measured.\n"
+    },
+    {
+      "side": "after",
+      "run": 2,
+      "diagnostic": false,
+      "csv": "overview-comparison-20261031-100849-092-after-2.csv",
+      "exitCode": 0,
+      "rows": 45,
+      "processCpuMilliseconds": 3828.125,
+      "stderr": "Synthetic in-memory index; production overview module. No scan, IPC, Canvas or application latency measured.\n"
+    },
+    {
+      "side": "before",
+      "run": 2,
+      "diagnostic": false,
+      "csv": "overview-comparison-20261031-100849-092-before-2.csv",
+      "exitCode": 0,
+      "rows": 45,
+      "processCpuMilliseconds": 4984.375,
+      "stderr": "Synthetic in-memory index; production overview module. No scan, IPC, Canvas or application latency measured.\n"
+    },
+    {
+      "side": "before",
+      "run": 3,
+      "diagnostic": false,
+      "csv": "overview-comparison-20261031-100849-092-before-3.csv",
+      "exitCode": 0,
+      "rows": 45,
+      "processCpuMilliseconds": 5515.625,
+      "stderr": "Synthetic in-memory index; production overview module. No scan, IPC, Canvas or application latency measured.\n"
+    },
+    {
+      "side": "after",
+      "run": 3,
+      "diagnostic": false,
+      "csv": "overview-comparison-20261031-100849-092-after-3.csv",
+      "exitCode": 0,
+      "rows": 45,
+      "processCpuMilliseconds": 4187.5,
+      "stderr": "Synthetic in-memory index; production overview module. No scan, IPC, Canvas or application latency measured.\n"
+    },
+    {
+      "side": "after",
+      "run": 4,
+      "diagnostic": false,
+      "csv": "overview-comparison-20261031-100849-092-after-4.csv",
+      "exitCode": 0,
+      "rows": 45,
+      "processCpuMilliseconds": 3843.75,
+      "stderr": "Synthetic in-memory index; production overview module. No scan, IPC, Canvas or application latency measured.\n"
+    },
+    {
+      "side": "before",
+      "run": 4,
+      "diagnostic": false,
+      "csv": "overview-comparison-20261031-100849-092-before-4.csv",
+      "exitCode": 0,
+      "rows": 45,
+      "processCpuMilliseconds": 5125.0,
+      "stderr": "Synthetic in-memory index; production overview module. No scan, IPC, Canvas or application latency measured.\n"
+    },
+    {
+      "side": "before",
+      "run": 5,
+      "diagnostic": false,
+      "csv": "overview-comparison-20261031-100849-092-before-5.csv",
+      "exitCode": 0,
+      "rows": 45,
+      "processCpuMilliseconds": 5281.25,
+      "stderr": "Synthetic in-memory index; production overview module. No scan, IPC, Canvas or application latency measured.\n"
+    },
+    {
+      "side": "after",
+      "run": 5,
+      "diagnostic": false,
+      "csv": "overview-comparison-20261031-100849-092-after-5.csv",
+      "exitCode": 0,
+      "rows": 45,
+      "processCpuMilliseconds": 3859.375,
+      "stderr": "Synthetic in-memory index; production overview module. No scan, IPC, Canvas or application latency measured.\n"
+    },
+    {
+      "side": "diagnostic-after",
+      "run": 1,
+      "diagnostic": true,
+      "csv": "overview-comparison-20261031-100849-092-diagnostic-after-1.csv",
+      "exitCode": 0,
+      "rows": 45,
+      "processCpuMilliseconds": 3578.125,
+      "stderr": "Synthetic in-memory index; production overview module. No scan, IPC, Canvas or application latency measured.\n"
+    }
+  ],
+  "scope": "Five paired release-process runs per version, alternating before/after order; each process performs five measured queries per method and shape after warmup. Same harness and synthetic million-file datasets. Independent exact-ID/full-sort and Unicode/ASCII extension checks run outside timers. Report process-block medians rather than treating all inner repetitions as independent. Separate candidate component diagnostic. Desktop background load is uncontrolled. No filesystem scan, IPC, Canvas or whole-app latency is measured."
+}
