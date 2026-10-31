@@ -1,0 +1,32 @@
+{
+  "startedUtc": "2026-10-31T16:09:43.4103098Z",
+  "executable": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\release\\examples\\window_lifecycle_probe.exe",
+  "sha256": "7B8205226B79FEC1B03E053706C3905CFD5B41BD032A7D4DB9894C82DFE67845",
+  "sources": [
+    {
+      "path": "src-tauri/build.rs",
+      "sha256": "67E3C7C75519957F4915406B559C7ABAEF01CBC22AE40D6D378028BEF1A22E80"
+    },
+    {
+      "path": "src-tauri/examples/window_lifecycle_probe.rs",
+      "sha256": "5766876E4844172713856280C101E60A628F27530443B5888D92563CB6C380F3"
+    },
+    {
+      "path": "scripts/probe_window_lifecycle.ps1",
+      "sha256": "C1D5E5EDD293749F40FC316BD24395C298B61BFA85A14026E5AD3E3D9BC12EA5"
+    }
+  ],
+  "processId": 16680,
+  "exited": true,
+  "exitCode": 0,
+  "eventLoop": "run",
+  "profile": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\diagnostics\\lifecycle-557f2db92531456483c6a90a96b7203c\\profile",
+  "profileRemoved": true,
+  "cleanupError": null,
+  "missingEvents": [],
+  "passed": true,
+  "stdout": "PROBE window-created\nPROBE ready\nPROBE requesting-close\nPROBE close-result Ok(())\nPROBE close-requested probe\nPROBE destroyed probe\nPROBE exit-requested\nPROBE exit\n",
+  "stderr": "",
+  "scope": "Hidden about:blank window; isolated owned WebView profile; no Voldiq state or databases. Parent cleans profile only after authoritative child exit.",
+  "limitation": "Does not prove shutdown of the populated application or explain another live process."
+}

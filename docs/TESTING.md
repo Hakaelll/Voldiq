@@ -31,15 +31,34 @@ To isolate the window runtime from application state:
 ```powershell
 cargo build --offline --release -p voldiq --features production --example window_lifecycle_probe
 ./scripts/probe_window_lifecycle.ps1
+./scripts/probe_window_lifecycle.ps1 -ReturningLoop
 ```
 
-The probe opens a hidden `about:blank` window with a temporary WebView profile, requests its normal close and records native lifecycle events. It uses Tauri's returning event loop so it can verify profile removal afterward. It does not open Voldiq's databases or invoke its commands. Windows examples link the same Common Controls v6 activation resource as the application; without it, this probe exits before Rust starts with `0xC0000139`.
+The probe opens a hidden `about:blank` window with an owned WebView profile, requests its normal close and records native lifecycle events. By default it uses `App::run`, matching Voldiq; `-ReturningLoop` selects `App::run_return`. The parent creates the profile in its unique diagnostic directory and removes it only after authoritative process exit. It does not open Voldiq's databases or invoke its commands. Windows examples link the same Common Controls v6 activation resource as the application; without it, this probe exits before Rust starts with `0xC0000139`.
 
 Each invocation writes stdout, stderr, source/image hashes and its result under `target/diagnostics/lifecycle-<id>`. A timeout retains the process for diagnosis instead of terminating it. Passing this isolated probe does not prove shutdown of a populated Voldiq instance or explain a different process that remains active. This is a diagnostic executable, not an additional declared test.
 
-The [2026-10-31 isolated run](../benchmarks/window-lifecycle-20261031.json) completed normal close, window destruction, exit, event-loop return with code 0 and profile removal. The first profile-removal attempt exposed asynchronous WebView file release; the fixture now allows up to five seconds for its owned profile cleanup. The old application process remains a separate unresolved observation.
+The initial [2026-10-31 returning-loop run](../benchmarks/window-lifecycle-20261031.json) completed normal close, window destruction, exit, event-loop return with code 0 and profile removal. Its first cleanup attempt exposed asynchronous WebView file release. Cleanup now runs in the parent with a five-second retry limit, supporting both event-loop modes. The [ordinary run](../benchmarks/window-lifecycle-run-20261031.json) and [returning run](../benchmarks/window-lifecycle-return-20261031.json) both exit with code 0 using the same executable and remove their profiles. This comparison does not support changing Voldiq's event-loop method as a fix for its older stuck process.
 
 The [lifecycle source gate](../benchmarks/project-verification-lifecycle-20261031.json) passes all six stages and preserves eight declared tests. Four Windows file-handle fixtures initially returned access denied inside Codex's filesystem isolation; all seven Rust cases passed when rerun with the ordinary account outside that isolation. No UAC or administrator token was used.
+
+### Application lifecycle trace
+
+The native application accepts `--trace-lifecycle <new absolute JSONL path>`. The parent directory must exist and the file must not exist. Without this flag, tracing is disabled. For example:
+
+```powershell
+$preview = ./scripts/prepare_release_preview.ps1
+$directory = Join-Path $PWD ('target/diagnostics/app-' + [Guid]::NewGuid().ToString('N'))
+New-Item -ItemType Directory -Path $directory | Out-Null
+$trace = Join-Path $directory 'events.jsonl'
+Start-Process -FilePath $preview.Path -ArgumentList @('--trace-lifecycle', ('"' + $trace + '"'))
+```
+
+The trace records setup, page-load completion, native close/destruction and exit events, with PID and timestamp. Operation state and snapshot/journal mutex availability use `try_lock`; a busy mutex is reported without waiting. Mutex availability does not establish database or cleanup capability readiness. No file paths, file contents or SQL records are logged. The callback observes the existing shutdown path and never prevents exit or terminates pending work.
+
+The retained native case verifies ordered trace records, exact event values, no-overwrite creation, disabled tracing and nonblocking idle/active/busy observations. Native process exit remains a separate check; an `exit` trace row is not proof that the process terminated.
+
+The [native lifecycle source gate](../benchmarks/project-verification-native-lifecycle-20261031.json) passes all six stages with eight declared tests. The [actual application observation](../benchmarks/native-application-lifecycle-20261031.json) records normal close of prior PID 17000 and of the new traced PID 10304, whose process terminated with code 0 after all expected close/exit events. PID 22500 was reopened with a fresh trace and reached native Ready plus page-load completion. No pointer/keyboard input, screenshots, UAC or forced termination were used. This verifies an idle native close/reopen, not active-work shutdown, whole-app startup latency or the cause of the older PID 16504 incident.
 
 ## Retained coverage
 

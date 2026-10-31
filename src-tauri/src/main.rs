@@ -21,6 +21,7 @@ mod config_file;
 mod developer_commands;
 mod docker_commands;
 mod embedded_ui;
+mod lifecycle_trace;
 mod overview;
 mod query_commands;
 mod restore_commands;
@@ -677,13 +678,29 @@ fn main() {
         }
         return;
     }
+    let trace = lifecycle_trace::Trace::from_args().unwrap_or_else(|error| {
+        eprintln!("Could not create lifecycle trace: {error}");
+        std::process::exit(2);
+    });
+    trace.record("process-start", None);
+    let setup_trace = trace.clone();
+    let page_trace = trace.clone();
     tauri::Builder::default()
-        .setup(|app| {
+        .setup(move |app| {
+            setup_trace.record("setup-start", Some(app.handle()));
             let directory = app.path().app_local_data_dir()?;
             std::fs::create_dir_all(&directory)?;
+            setup_trace.record("snapshot-open-start", Some(app.handle()));
             app.manage(SnapshotDatabase::open(&directory.join("snapshots.db"))?);
+            setup_trace.record("snapshot-open-end", Some(app.handle()));
             app.manage(CleanupJournal::open(&directory.join("cleanup.db")));
+            setup_trace.record("setup-end", Some(app.handle()));
             Ok(())
+        })
+        .on_page_load(move |webview, payload| {
+            if payload.event() == tauri::webview::PageLoadEvent::Finished {
+                page_trace.record("page-finished", Some(webview.app_handle()));
+            }
         })
         .manage(Arc::new(Engine::default()))
         .manage(CleanupPlans::default())
@@ -730,6 +747,20 @@ fn main() {
             snapshot_storage,
             compact_snapshots
         ])
-        .run(context)
-        .expect("Voldiq could not start");
+        .build(context)
+        .expect("Voldiq could not start")
+        .run(move |app, event| {
+            let name = match event {
+                tauri::RunEvent::Ready => "ready",
+                tauri::RunEvent::WindowEvent { event, .. } => match event {
+                    tauri::WindowEvent::CloseRequested { .. } => "close-requested",
+                    tauri::WindowEvent::Destroyed => "window-destroyed",
+                    _ => return,
+                },
+                tauri::RunEvent::ExitRequested { .. } => "exit-requested",
+                tauri::RunEvent::Exit => "exit",
+                _ => return,
+            };
+            trace.record(name, Some(app));
+        });
 }

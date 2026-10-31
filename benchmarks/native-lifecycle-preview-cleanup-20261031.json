@@ -1,0 +1,7 @@
+{
+  "cleanedUtc": "2026-10-31T16:30:52.7816514Z",
+  "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\A2BB2190BD8FEA26F970E5CEE055B0DD021AC8B8420A02003A57C8943DA6DEE9\\voldiq.exe",
+  "bytes": 13216256,
+  "reason": "Previous PID 17000 exited normally; no running process uses the verified image; removed its regular file and empty directory only.",
+  "retained": "Old PID 16504 image remains in use."
+}

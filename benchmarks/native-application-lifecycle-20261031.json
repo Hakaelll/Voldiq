@@ -1,0 +1,221 @@
+{
+  "observedUtc": "2026-10-31T16:29:52.2131036Z",
+  "preview": {
+    "Path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\05DE0A0493232167C0AD312E67F4FA79D604A413CE531A884580A93927B764F3\\voldiq.exe",
+    "Sha256": "05DE0A0493232167C0AD312E67F4FA79D604A413CE531A884580A93927B764F3",
+    "Bytes": 13240320,
+    "Reused": false
+  },
+  "previous": {
+    "processId": 17000,
+    "path": null,
+    "closeRequested": true,
+    "exited": true,
+    "verifiedImageSha256": "A2BB2190BD8FEA26F970E5CEE055B0DD021AC8B8420A02003A57C8943DA6DEE9",
+    "pathNote": "Image SHA-256 was checked on the live process before normal close; Process.Path was unavailable when the exited-process receipt was written."
+  },
+  "probe": {
+    "processId": 10304,
+    "ready": true,
+    "closeRequested": true,
+    "exited": true,
+    "exitCode": 0,
+    "trace": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\diagnostics\\native-app-09b9afaf708a4d24a95239d9d94a1dec\\closed.jsonl",
+    "events": [
+      {
+        "event": "process-start",
+        "pid": 10304,
+        "state": null,
+        "unixMs": 1793464193527
+      },
+      {
+        "event": "setup-start",
+        "pid": 10304,
+        "state": {
+          "cleanupJournal": "unavailable",
+          "operation": "idle",
+          "snapshots": "unavailable"
+        },
+        "unixMs": 1793464194102
+      },
+      {
+        "event": "snapshot-open-start",
+        "pid": 10304,
+        "state": {
+          "cleanupJournal": "unavailable",
+          "operation": "idle",
+          "snapshots": "unavailable"
+        },
+        "unixMs": 1793464194103
+      },
+      {
+        "event": "snapshot-open-end",
+        "pid": 10304,
+        "state": {
+          "cleanupJournal": "unavailable",
+          "operation": "idle",
+          "snapshots": "available"
+        },
+        "unixMs": 1793464194105
+      },
+      {
+        "event": "setup-end",
+        "pid": 10304,
+        "state": {
+          "cleanupJournal": "available",
+          "operation": "idle",
+          "snapshots": "available"
+        },
+        "unixMs": 1793464194880
+      },
+      {
+        "event": "ready",
+        "pid": 10304,
+        "state": {
+          "cleanupJournal": "available",
+          "operation": "idle",
+          "snapshots": "available"
+        },
+        "unixMs": 1793464194882
+      },
+      {
+        "event": "page-finished",
+        "pid": 10304,
+        "state": {
+          "cleanupJournal": "available",
+          "operation": "idle",
+          "snapshots": "available"
+        },
+        "unixMs": 1793464195017
+      },
+      {
+        "event": "close-requested",
+        "pid": 10304,
+        "state": {
+          "cleanupJournal": "available",
+          "operation": "idle",
+          "snapshots": "available"
+        },
+        "unixMs": 1793464195061
+      },
+      {
+        "event": "window-destroyed",
+        "pid": 10304,
+        "state": {
+          "cleanupJournal": "available",
+          "operation": "idle",
+          "snapshots": "available"
+        },
+        "unixMs": 1793464195066
+      },
+      {
+        "event": "exit-requested",
+        "pid": 10304,
+        "state": {
+          "cleanupJournal": "available",
+          "operation": "idle",
+          "snapshots": "available"
+        },
+        "unixMs": 1793464195093
+      },
+      {
+        "event": "exit",
+        "pid": 10304,
+        "state": {
+          "cleanupJournal": "available",
+          "operation": "idle",
+          "snapshots": "available"
+        },
+        "unixMs": 1793464195094
+      }
+    ],
+    "missingEvents": []
+  },
+  "visible": {
+    "processId": 22500,
+    "ready": true,
+    "windowHandle": 1050742,
+    "responding": true,
+    "trace": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\diagnostics\\native-app-09b9afaf708a4d24a95239d9d94a1dec\\visible.jsonl",
+    "events": [
+      {
+        "event": "process-start",
+        "pid": 22500,
+        "state": null,
+        "unixMs": 1793464195180
+      },
+      {
+        "event": "setup-start",
+        "pid": 22500,
+        "state": {
+          "cleanupJournal": "unavailable",
+          "operation": "idle",
+          "snapshots": "unavailable"
+        },
+        "unixMs": 1793464195748
+      },
+      {
+        "event": "snapshot-open-start",
+        "pid": 22500,
+        "state": {
+          "cleanupJournal": "unavailable",
+          "operation": "idle",
+          "snapshots": "unavailable"
+        },
+        "unixMs": 1793464195750
+      },
+      {
+        "event": "snapshot-open-end",
+        "pid": 22500,
+        "state": {
+          "cleanupJournal": "unavailable",
+          "operation": "idle",
+          "snapshots": "available"
+        },
+        "unixMs": 1793464195753
+      },
+      {
+        "event": "setup-end",
+        "pid": 22500,
+        "state": {
+          "cleanupJournal": "available",
+          "operation": "idle",
+          "snapshots": "available"
+        },
+        "unixMs": 1793464196517
+      },
+      {
+        "event": "ready",
+        "pid": 22500,
+        "state": {
+          "cleanupJournal": "available",
+          "operation": "idle",
+          "snapshots": "available"
+        },
+        "unixMs": 1793464196518
+      },
+      {
+        "event": "page-finished",
+        "pid": 22500,
+        "state": {
+          "cleanupJournal": "available",
+          "operation": "idle",
+          "snapshots": "available"
+        },
+        "unixMs": 1793464196573
+      }
+    ]
+  },
+  "passed": true,
+  "scope": "Actual production application and ordinary user databases; normal window close via CloseMainWindow; no UI input, screenshots, UAC or forced termination.",
+  "sources": [
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "F1A255F09414E614B2639BFC8E6766242034E6B500A56F3DEC4C119A668E2728"
+    },
+    {
+      "path": "src-tauri/src/lifecycle_trace.rs",
+      "sha256": "2227786AEC68EBFD3A6BF060453E0E4775454BC00BD0B3AF731CE961541FA3AC"
+    }
+  ]
+}

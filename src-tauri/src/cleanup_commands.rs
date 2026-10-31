@@ -134,6 +134,7 @@ mod execution_tests {
         assert_ne!(loaded, reinstalled);
         assert!(!Arc::ptr_eq(&engine.index_for(loaded).unwrap(), &retained));
         crate::docker_commands::verify_disk_usage_versions();
+        crate::lifecycle_trace::verify_fixture();
     }
 }
 

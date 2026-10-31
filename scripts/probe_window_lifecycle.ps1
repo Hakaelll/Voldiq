@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param([ValidateRange(1, 60)][int] $TimeoutSeconds = 15)
+param(
+    [ValidateRange(1, 60)][int] $TimeoutSeconds = 15,
+    [switch] $ReturningLoop
+)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -11,17 +14,49 @@ if ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::Reparse
 }
 $directory = Join-Path $repository ('target/diagnostics/lifecycle-' + [Guid]::NewGuid().ToString('N'))
 [IO.Directory]::CreateDirectory($directory) | Out-Null
+$profile = [IO.Path]::GetFullPath((Join-Path $directory 'profile'))
+if ([IO.Path]::GetDirectoryName($profile) -ne [IO.Path]::GetFullPath($directory)) {
+    throw 'Profile must remain directly inside this diagnostic directory.'
+}
+[IO.Directory]::CreateDirectory($profile) | Out-Null
+$mode = if ($ReturningLoop) { 'run_return' } else { 'run' }
 $stdout = Join-Path $directory 'stdout.txt'
 $stderr = Join-Path $directory 'stderr.txt'
 $started = [DateTime]::UtcNow
 $process = Start-Process -FilePath $executable -WindowStyle Hidden -PassThru `
+    -ArgumentList @(('"' + $profile + '"'), $mode) `
     -RedirectStandardOutput $stdout -RedirectStandardError $stderr
 $exited = $process.WaitForExit($TimeoutSeconds * 1000)
 if ($exited) { $process.WaitForExit() }
 $output = [IO.File]::ReadAllText($stdout)
 $errors = [IO.File]::ReadAllText($stderr)
 $exitCode = if ($exited) { $process.ExitCode } else { $null }
-$passed = $exited -and $exitCode -eq 0 -and $output.Contains('PROBE profile-removed')
+$profileRemoved = $false
+$cleanupError = $null
+if ($exited) {
+    # Browser file handles can outlive the native event loop and its parent process.
+    $deadline = [DateTime]::UtcNow.AddSeconds(5)
+    do {
+        try {
+            if (Test-Path -LiteralPath $profile) {
+                $profileItem = Get-Item -LiteralPath $profile -Force
+                if (-not $profileItem.PSIsContainer -or
+                    ($profileItem.Attributes -band [IO.FileAttributes]::ReparsePoint)) {
+                    throw 'Owned profile root changed.'
+                }
+                Remove-Item -LiteralPath $profile -Recurse -Force
+            }
+            $profileRemoved = $true
+            $cleanupError = $null
+        } catch { $cleanupError = $_.Exception.Message }
+        if (-not $profileRemoved) { Start-Sleep -Milliseconds 50 }
+    } while (-not $profileRemoved -and [DateTime]::UtcNow -lt $deadline)
+}
+$lines = $output -split '\r?\n'
+$missingEvents = @(@('PROBE close-requested probe', 'PROBE destroyed probe',
+    'PROBE exit-requested', 'PROBE exit') | Where-Object { $_ -notin $lines })
+$passed = $exited -and $exitCode -eq 0 -and $missingEvents.Count -eq 0 -and $profileRemoved
+if ($ReturningLoop) { $passed = $passed -and ('PROBE run-returned 0' -in $lines) }
 $report = [ordered]@{
     startedUtc = $started.ToString('o')
     executable = $executable
@@ -33,10 +68,15 @@ $report = [ordered]@{
     processId = $process.Id
     exited = $exited
     exitCode = $exitCode
+    eventLoop = $mode
+    profile = $profile
+    profileRemoved = $profileRemoved
+    cleanupError = $cleanupError
+    missingEvents = $missingEvents
     passed = $passed
     stdout = $output
     stderr = $errors
-    scope = 'Hidden about:blank window; isolated temporary WebView profile; run_return event loop; no Voldiq state or databases.'
+    scope = 'Hidden about:blank window; isolated owned WebView profile; no Voldiq state or databases. Parent cleans profile only after authoritative child exit.'
     limitation = 'Does not prove shutdown of the populated application or explain another live process.'
 }
 $reportPath = Join-Path $directory 'report.json'
