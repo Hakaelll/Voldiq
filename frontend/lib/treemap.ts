@@ -5,6 +5,15 @@ export interface WeightedNode {
   directory: boolean;
   children?: WeightedNode[];
   paint?: { fill: string; ink: string };
+  modified?: number | null;
+  files?: number;
+  allocationKnown?: boolean;
+  incomplete?: boolean;
+  represented?: number;
+  category?: string;
+  latestModified?: number | null;
+  modifiedKnown?: number;
+  modifiedTotal?: number;
 }
 export interface Rect extends WeightedNode {
   share?: number;

@@ -1,4 +1,7 @@
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::{
+    collections::HashMap,
+    sync::atomic::{AtomicBool, Ordering},
+};
 use voldiq_core::{
     NodeId,
     index::{Details, FileTypes, Index, Page, Query},
@@ -10,6 +13,23 @@ pub(crate) struct Overview {
     pub(crate) children: Page,
     pub(crate) types: FileTypes,
     pub(crate) branches: Vec<MapBranch>,
+    pub(crate) map_metrics: Vec<MapMetric>,
+}
+
+#[derive(serde::Serialize)]
+pub(crate) struct MapMetric {
+    pub(crate) id: NodeId,
+    pub(crate) latest_modified: Option<u64>,
+    pub(crate) modified_known: u64,
+    pub(crate) modified_total: u64,
+}
+
+impl MapMetric {
+    fn include_file(&mut self, modified: Option<u64>) {
+        self.latest_modified = self.latest_modified.max(modified);
+        self.modified_known += u64::from(modified.is_some());
+        self.modified_total += 1;
+    }
 }
 
 #[derive(serde::Serialize)]
@@ -108,10 +128,97 @@ pub(crate) fn overview(
     let Some(branches) = map_branches(index, &children, cancelled) else {
         return Ok(None);
     };
+    let Some(map_metrics) = map_metrics(index, &directory.entry, &children, &branches, || {
+        cancelled.load(Ordering::Relaxed)
+    }) else {
+        return Ok(None);
+    };
     Ok(Some(Overview {
         directory,
         children,
         types,
         branches,
+        map_metrics,
     }))
 }
+
+fn map_metrics(
+    index: &Index,
+    scope: &voldiq_core::Entry,
+    children: &Page,
+    branches: &[MapBranch],
+    mut cancelled: impl FnMut() -> bool,
+) -> Option<Vec<MapMetric>> {
+    if cancelled() {
+        return None;
+    }
+    let mut positions = HashMap::new();
+    let mut metrics = Vec::new();
+    for entry in std::iter::once(scope)
+        .chain(&children.items)
+        .chain(branches.iter().flat_map(|branch| &branch.items))
+    {
+        if positions.contains_key(&entry.id) {
+            continue;
+        }
+        positions.insert(entry.id, metrics.len());
+        metrics.push(MapMetric {
+            id: entry.id,
+            latest_modified: None,
+            modified_known: 0,
+            modified_total: 0,
+        });
+    }
+    let mut parent_metrics = HashMap::<NodeId, Vec<usize>>::new();
+    for (position, entry) in index.entries.iter().enumerate() {
+        if position % 256 == 0 && cancelled() {
+            return None;
+        }
+        if entry.kind != voldiq_core::Kind::File {
+            continue;
+        }
+        if let Some(&position) = positions.get(&entry.id) {
+            metrics[position].include_file(entry.modified);
+        }
+        let Some(parent) = entry.parent else {
+            continue;
+        };
+        if !parent_metrics.contains_key(&parent) {
+            let mut path = Vec::new();
+            let mut ancestors = Vec::new();
+            let mut next = Some(parent);
+            while let Some(id) = next {
+                if path.len() % 256 == 0 && cancelled() {
+                    return None;
+                }
+                if let Some(cached) = parent_metrics.get(&id) {
+                    ancestors.extend(cached);
+                    break;
+                }
+                path.push(id);
+                next = index.entries[id.0 as usize].parent;
+            }
+            for (depth, id) in path.into_iter().rev().enumerate() {
+                if depth % 256 == 0 && cancelled() {
+                    return None;
+                }
+                if let Some(&position) = positions.get(&id) {
+                    ancestors.push(position);
+                }
+                // Bound cache memory independently of index size while reusing shared ancestry.
+                if parent_metrics.len() == 4096 {
+                    parent_metrics.clear();
+                }
+                parent_metrics.insert(id, ancestors.clone());
+            }
+        }
+        for &position in &parent_metrics[&parent] {
+            metrics[position].include_file(entry.modified);
+        }
+    }
+    if cancelled() { None } else { Some(metrics) }
+}
+
+#[cfg(test)]
+#[path = "overview_tests.rs"]
+mod tests;
