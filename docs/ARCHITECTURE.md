@@ -26,13 +26,15 @@ Svelte owns interaction state, preferences and bounded query results. A custom s
 
 `duplicates` filters unique sizes before content reads, samples the first and last 4 KiB for large files, and fully hashes matching samples with a reusable 64 KiB buffer. Small files are read once. Candidate identities exclude hard-link aliases. Windows content handles allow shared readers while excluding writers and deletion, and do not follow final reparse points. Cache stamps include identity, length, modification time and native change time. Hashing validates the opened handle again after reading. Cancellation is checked between candidates and buffer reads.
 
-Duplicate results retain the exact shared scan index that produced their IDs. Groups and members use bounded pages. One active-operation slot prevents scanning and hashing from competing. The in-memory cache has a 250,000-identity cap; persistence remains a snapshot-store task.
+Duplicate results retain the exact shared scan index that produced their IDs. Groups and members use bounded pages. One active-operation slot prevents scanning and hashing from competing. The cache has a 250,000-identity cap and persists in snapshot database schema 5. Duplicate analysis lazily loads fixed-size identity, stamp and digest fields, then transactionally replaces the bounded table. No paths or file content are stored. It still opens the real file and validates its complete stamp before accepting a hit. Invalid rows are ignored before hashing; database failures become reported analysis issues and ordinary hashing remains available. Cancellation rolls back cache replacement. Cache memory belongs to the operation and is released afterward.
 
 ## Snapshot history
 
 The bundled SQLite database uses WAL, foreign keys and transactional schema initialization. A root key combines the native root path, filesystem identity and exact exclusion coverage. Stable paths store native name bytes and parent IDs. Entry versions use half-open snapshot intervals; unchanged captures do not copy every entry. Snapshot deletion retains versions required by surviving captures, and compaction checkpoints the WAL and vacuums the database.
 
 Schema version 4 adds per-capture developer-cache evidence referencing those stable paths. It stores tool/category labels only for indexed directories, including an indexed root beneath a known cache. Historical queries reconstruct cache scopes from saved node IDs and never resolve current tool settings. Index loading reads entries and cache evidence in one SQLite transaction. Live scan and NTFS replay indexes start without historical cache evidence.
+
+Schema version 5 adds the independent bounded duplicate-hash table. Versions 0 through 4 migrate transactionally without rewriting stored snapshot entries. Older executables that support only schema 4 cannot reopen an upgraded database.
 
 Loading reconstructs the Rust index and validates parent order, node limits, filename components and checked integer conversions. Snapshot comparisons page actual additions, omissions and changed directory totals. Incomplete coverage never confirms missing entries as deleted. Database work runs in blocking tasks. The active-operation gate prevents capture and loading from racing a scan or duplicate analysis.
 
@@ -48,7 +50,7 @@ Default recycling is not implemented. Separate fixtures establish sealed-directo
 
 ## Pending architecture work
 
-Combined safe recycling, persistent hash-cache reuse and whole-application performance acceptance remain open. Large queries can delay index writes while holding their read guard; this is part of the large-workload performance gate. See [current acceptance](ACCEPTANCE.md) rather than treating historical entries in `NEXT_TODOS.md` as current module status. No production behavior is simulated for pending modules.
+Combined safe recycling and whole-application performance acceptance remain open. Large queries can delay index writes while holding their read guard; this is part of the large-workload performance gate. See [current acceptance](ACCEPTANCE.md) rather than treating historical entries in `NEXT_TODOS.md` as current module status. No production behavior is simulated for pending modules.
 
 ## Navigation during scan refresh
 

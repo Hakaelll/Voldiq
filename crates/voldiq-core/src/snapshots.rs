@@ -183,7 +183,7 @@ impl Store {
             "PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;",
         )?;
         let version: u32 = connection.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version <= 3 {
+        if version <= 4 {
             let transaction = connection.transaction()?;
             if version == 0 {
                 transaction.execute_batch(SCHEMA)?;
@@ -194,9 +194,12 @@ impl Store {
             if version <= 2 {
                 transaction.execute_batch(NATIVE_STATE_SCHEMA)?;
             }
-            transaction.execute_batch(cache_evidence::SCHEMA)?;
+            if version <= 3 {
+                transaction.execute_batch(cache_evidence::SCHEMA)?;
+            }
+            transaction.execute_batch(crate::duplicates::persistence::SCHEMA)?;
             transaction.commit()?;
-        } else if version != 4 {
+        } else if version != 5 {
             return Err(Error::Invalid(
                 "Unsupported snapshot database version.".into(),
             ));
@@ -205,6 +208,18 @@ impl Store {
             connection,
             path: path.to_owned(),
         })
+    }
+
+    pub fn load_hash_cache(&self, cancel: &AtomicBool) -> Result<crate::duplicates::HashCache> {
+        crate::duplicates::HashCache::read(&self.connection, cancel)
+    }
+
+    pub fn save_hash_cache(
+        &mut self,
+        cache: &crate::duplicates::HashCache,
+        cancel: &AtomicBool,
+    ) -> Result<()> {
+        cache.write(&mut self.connection, cancel)
     }
 
     pub fn save(

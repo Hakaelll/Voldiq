@@ -36,7 +36,6 @@ struct Engine {
     active: Mutex<Option<(u64, Arc<AtomicBool>)>>,
     sequence: AtomicU64,
     duplicates: Mutex<Option<Arc<DuplicateRun>>>,
-    hash_cache: Mutex<HashCache>,
 }
 
 struct DuplicateRun {
@@ -295,6 +294,7 @@ fn start_duplicates(
     min_size: u64,
     progress: Channel<duplicates::Progress>,
     engine: State<'_, Arc<Engine>>,
+    database: State<'_, SnapshotDatabase>,
 ) -> Result<u64, String> {
     let engine = engine.inner().clone();
     let (id, cancel) = engine.begin()?;
@@ -311,22 +311,75 @@ fn start_duplicates(
     if let Ok(mut result) = engine.duplicates.lock() {
         *result = None;
     }
+    let store = database.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
+        let started = std::time::Instant::now();
         let mut terminal = None;
-        let result = engine
-            .hash_cache
+        let mut cache_issues = Vec::new();
+        let mut cache = match store
             .lock()
-            .map_err(|e| e.to_string())
-            .and_then(|mut cache| {
-                duplicates::find(&index, scope, min_size, &cancel, &mut cache, |update| {
-                    if update.phase == "complete" || update.phase == "cancelled" {
-                        terminal = Some(update);
-                    } else {
-                        let _ = progress.send(update);
-                    }
-                })
-                .map_err(|e| e.to_string())
-            });
+            .map_err(|error| error.to_string())
+            .and_then(|database| {
+                database
+                    .load_hash_cache(&cancel)
+                    .map_err(|error| error.to_string())
+            }) {
+            Ok(cache) => cache,
+            Err(error) => {
+                cache_issues.push(format!("Hash cache could not be loaded: {error}"));
+                HashCache::default()
+            }
+        };
+        let cache_load_ms = started.elapsed().as_millis() as u64;
+        let result = duplicates::find(
+            &index,
+            scope,
+            min_size,
+            &cancel,
+            &mut cache,
+            |mut update| {
+                update.elapsed_ms += cache_load_ms;
+                if update.phase == "complete" || update.phase == "cancelled" {
+                    terminal = Some(update);
+                } else {
+                    let _ = progress.send(update);
+                }
+            },
+        )
+        .map_err(|error| error.to_string())
+        .map(|mut result| {
+            if !result.cancelled
+                && let Err(error) =
+                    store
+                        .lock()
+                        .map_err(|error| error.to_string())
+                        .and_then(|mut database| {
+                            database
+                                .save_hash_cache(&cache, &cancel)
+                                .map_err(|error| error.to_string())
+                        })
+            {
+                cache_issues.push(format!("Hash cache could not be saved: {error}"));
+            }
+            result.cancelled |= cancel.load(Ordering::Relaxed);
+            for message in cache_issues {
+                result.errors += 1;
+                if result.issues.len() < 1000 {
+                    result.issues.push(voldiq_core::Issue {
+                        path: "Hash cache".into(),
+                        message,
+                    });
+                }
+            }
+            if let Some(update) = &mut terminal {
+                update.elapsed_ms = started.elapsed().as_millis() as u64;
+                update.errors = result.errors;
+                if result.cancelled {
+                    update.phase = "cancelled".into();
+                }
+            }
+            result
+        });
         let error = match result {
             Ok(result) => match engine.duplicates.lock() {
                 Ok(mut slot) => {

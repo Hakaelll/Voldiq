@@ -1,4 +1,4 @@
-use crate::{Engine, Operation, analysis_status::IndexId};
+use crate::{Engine, Operation, analysis_status::IndexId, snapshot_commands::SnapshotDatabase};
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
 use tauri::State;
@@ -119,6 +119,7 @@ pub struct CleanupPlans(Arc<Mutex<Option<Session>>>);
 fn clear_loaded_analysis(
     engine: Arc<Engine>,
     plans: &Mutex<Option<Session>>,
+    database: &Mutex<voldiq_core::snapshots::Store>,
 ) -> Result<(), String> {
     let (id, _) = engine.begin()?;
     let _operation = Operation {
@@ -130,15 +131,18 @@ fn clear_loaded_analysis(
         .duplicates
         .lock()
         .map_err(|error| error.to_string())?;
-    let mut cache = engine
-        .hash_cache
-        .lock()
-        .map_err(|error| error.to_string())?;
     let mut plans = plans.lock().map_err(|error| error.to_string())?;
+    database
+        .lock()
+        .map_err(|error| error.to_string())?
+        .save_hash_cache(
+            &voldiq_core::duplicates::HashCache::default(),
+            &std::sync::atomic::AtomicBool::new(false),
+        )
+        .map_err(|error| error.to_string())?;
     *plans = None;
     *duplicates = None;
     *index = None;
-    *cache = voldiq_core::duplicates::HashCache::default();
     Ok(())
 }
 
@@ -146,10 +150,12 @@ fn clear_loaded_analysis(
 pub async fn clear_current_analysis(
     engine: State<'_, Arc<Engine>>,
     plans: State<'_, CleanupPlans>,
+    database: State<'_, SnapshotDatabase>,
 ) -> Result<(), String> {
     let engine = engine.inner().clone();
     let plans = plans.0.clone();
-    tauri::async_runtime::spawn_blocking(move || clear_loaded_analysis(engine, &plans))
+    let database = database.0.clone();
+    tauri::async_runtime::spawn_blocking(move || clear_loaded_analysis(engine, &plans, &database))
         .await
         .map_err(|error| error.to_string())?
 }

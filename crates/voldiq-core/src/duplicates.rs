@@ -1,3 +1,5 @@
+pub(crate) mod persistence;
+
 use crate::{Error, Issue, Kind, NodeId, Result, scanner::SharedIndex, windows};
 use serde::Serialize;
 use std::{
@@ -22,6 +24,8 @@ struct CachedHash {
     sample: blake3::Hash,
     full: Option<blake3::Hash>,
 }
+
+const CACHE_LIMIT: usize = 250_000;
 
 #[derive(Default)]
 pub struct HashCache(HashMap<(u64, u64), CachedHash>);
@@ -380,8 +384,7 @@ fn sample(
             return Err(Error::Invalid("File changed during sampling.".into()));
         }
         let hash = blake3::hash(&bytes);
-        // shortcut: cache at most 250,000 identities in memory; persist validated stamps with the snapshot store later.
-        if cache.0.len() >= 250_000 {
+        if cache.0.len() >= CACHE_LIMIT {
             cache.0.clear();
         }
         cache.0.insert(
@@ -445,7 +448,7 @@ fn full_hash(
         return Err(Error::Invalid("File changed during hashing.".into()));
     }
     let hash = hasher.finalize();
-    if cache.0.len() >= 250_000 {
+    if cache.0.len() >= CACHE_LIMIT {
         cache.0.clear();
     }
     cache.0.insert(

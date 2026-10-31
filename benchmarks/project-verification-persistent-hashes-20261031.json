@@ -1,0 +1,41 @@
+{
+  "checkedUtc": "2026-10-31T13:45:29.4559411Z",
+  "startedUtc": "2026-10-31T13:44:40.2850246Z",
+  "checkoutCommit": "2e770fdf8b61bc821d3578ad01ab37dda96e509e",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "verificationScriptSha256": "4B8A38434F60CF7B63EC8B0D606B0BA75B9D948EE548C292AD2B780143E4722C",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.486
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 4.82
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.665
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 37.177
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 3.269
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 2.739
+    }
+  ]
+}

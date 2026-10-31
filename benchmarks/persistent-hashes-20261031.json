@@ -1,0 +1,62 @@
+{
+  "recordedUtc": "2026-10-31T13:46:13.965603+00:00",
+  "baseCommit": "2e770fdf8b61bc821d3578ad01ab37dda96e509e",
+  "scope": "Persistent cache correctness and counted content reads on owned ordinary fixtures. No native IPC interaction, UI automation, UAC, startup or whole-app performance claim.",
+  "snapshotSchema": 5,
+  "cacheIdentityLimit": 250000,
+  "fixture": {
+    "files": 2,
+    "bytesPerFile": 16384,
+    "expectedDigest": "literal BLAKE3 of 16,384 bytes with value 7",
+    "coldContentBytes": 49152,
+    "reopenedContentBytes": 0,
+    "reopenedFullHashHits": 2,
+    "oneMalformedRecordContentBytes": 24576,
+    "sameSizeEditWithPreservedMtimeContentBytes": 8192,
+    "explicitClearAfterEditContentBytes": 16384
+  },
+  "verifiedBehavior": [
+    "Migration from equivalent schema 4 preserves both saved snapshots and their totals",
+    "Reopened connections reuse complete hashes only after opening and validating the file stamp",
+    "Wrong-sized SQLite digest rows are ignored and ordinary hashing repairs the cache",
+    "Same-size edits with preserved modification time invalidate native change-time evidence",
+    "Cancelled cache replacement rolls back and preserves the previous table",
+    "Explicit cache clearing removes hashes while both snapshots remain readable"
+  ],
+  "counterexample": {
+    "mutation": "Both cache predicates compare size and modification time while omitting native change time.",
+    "command": "cargo test --offline --release -p voldiq-core --test snapshots -- --nocapture",
+    "exitCode": 101,
+    "failure": "changed.groups.is_empty() fails because edited content is grouped using an old hash",
+    "restored": true
+  },
+  "declaredTestsAdded": 0,
+  "declaredTestsTotal": 8,
+  "sourceVerification": "project-verification-persistent-hashes-20261031.json",
+  "sourceVerificationCheckedUtc": "2026-10-31T13:45:29.4559411Z",
+  "sources": {
+    "crates/voldiq-core/src/duplicates.rs": "a6ba404a3c061fd0179eddff316164136abaa9c6658781ca3ed09f21dd291459",
+    "crates/voldiq-core/src/duplicates/persistence.rs": "9ed6d3462b27fb70eaabde310f443e01d86b7506d9991b2f55be0d0e1de62b02",
+    "crates/voldiq-core/src/snapshots.rs": "7b6b38282751a8c7f6bc77f61a30e77ab62ac1d6b449de3191f939177bc27a1d",
+    "crates/voldiq-core/tests/snapshots.rs": "64304aa1540beded4bd4bac9faf8a27c271fe3af77b448b8538740268a674114",
+    "src-tauri/src/main.rs": "5841419428dbc087061df6a562604c01b990bf55527ce224b52b0a2bd9a08d45",
+    "src-tauri/src/cleanup_commands.rs": "3a7aa8dc3dcb46122e5022db056dca5751caf9c25e91454565621ac829b91938"
+  },
+  "sourceReviewedBehavior": [
+    "Native cache failures report issues and fall back to ordinary hashing",
+    "Memory cache is local to duplicate operations; no startup load or retained Engine cache field"
+  ],
+  "nativeBuild": {
+    "command": "cargo build --offline --release -p voldiq --bin voldiq",
+    "exitCode": 0,
+    "singleTarget": "target/release"
+  },
+  "nativePreview": "native-persistent-hashes-preview-20261031.json",
+  "distribution": "distribution-2026-10-31-persistent-hashes.json",
+  "packaging": {
+    "command": "pnpm tauri bundle --bundles nsis",
+    "exitCode": 0,
+    "runtimeDownloadReused": true,
+    "obsoletePreviewBytesRemoved": 12723712
+  }
+}

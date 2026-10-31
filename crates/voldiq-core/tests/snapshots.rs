@@ -111,4 +111,131 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     assert_eq!(page.changes.len(), 1);
     assert_eq!(page.file_changes, comparison.file_changes);
     assert_eq!(store.load(after).unwrap().entries[0].logical, 61);
+    drop(store);
+    let connection = rusqlite::Connection::open(&db).unwrap();
+    connection
+        .execute_batch("DROP TABLE duplicate_hashes; PRAGMA user_version=4;")
+        .unwrap();
+    drop(connection);
+    let mut store = Store::open(&db).unwrap();
+    assert_eq!(store.list(0, 10).unwrap().len(), 2);
+    assert_eq!(store.load(after).unwrap().entries[0].logical, 61);
+    let duplicates = tempfile::tempdir().unwrap();
+    for name in ["first", "second"] {
+        std::fs::write(duplicates.path().join(name), [7_u8; 16_384]).unwrap();
+    }
+    let cancel = AtomicBool::new(false);
+    let index = std::sync::Arc::new(std::sync::RwLock::new(capture(duplicates.path())));
+    let mut cache = store.load_hash_cache(&cancel).unwrap();
+    let cold = voldiq_core::duplicates::find(
+        &index,
+        voldiq_core::NodeId(0),
+        0,
+        &cancel,
+        &mut cache,
+        |_| {},
+    )
+    .unwrap();
+    assert_eq!(cold.errors, 0);
+    assert_eq!(cold.groups.len(), 1);
+    assert_eq!(cold.groups[0].members.len(), 2);
+    assert_eq!(
+        cold.groups[0].digest,
+        blake3::hash(&[7_u8; 16_384]).to_hex().as_str()
+    );
+    assert_eq!(cold.bytes_read, 49_152);
+    assert_eq!(cold.cache_hits, 0);
+    store.save_hash_cache(&cache, &cancel).unwrap();
+    drop(cache);
+    drop(store);
+    let mut store = Store::open(&db).unwrap();
+    store
+        .save_hash_cache(
+            &voldiq_core::duplicates::HashCache::default(),
+            &AtomicBool::new(true),
+        )
+        .unwrap();
+    let mut cache = store.load_hash_cache(&cancel).unwrap();
+    let warm = voldiq_core::duplicates::find(
+        &index,
+        voldiq_core::NodeId(0),
+        0,
+        &cancel,
+        &mut cache,
+        |_| {},
+    )
+    .unwrap();
+    assert_eq!(warm.errors, 0);
+    assert_eq!(warm.groups.len(), 1);
+    assert_eq!(warm.groups[0].digest, cold.groups[0].digest);
+    assert_eq!(warm.groups[0].members.len(), 2);
+    assert_eq!(warm.bytes_read, 0);
+    assert_eq!(warm.cache_hits, 2);
+    drop(cache);
+    drop(store);
+    let connection = rusqlite::Connection::open(&db).unwrap();
+    connection.execute_batch("PRAGMA ignore_check_constraints=ON; UPDATE duplicate_hashes SET sample=x'00' WHERE identity=(SELECT min(identity) FROM duplicate_hashes);").unwrap();
+    drop(connection);
+    let mut store = Store::open(&db).unwrap();
+    let mut cache = store.load_hash_cache(&cancel).unwrap();
+    let repaired = voldiq_core::duplicates::find(
+        &index,
+        voldiq_core::NodeId(0),
+        0,
+        &cancel,
+        &mut cache,
+        |_| {},
+    )
+    .unwrap();
+    assert_eq!(repaired.errors, 0);
+    assert_eq!(repaired.groups.len(), 1);
+    assert_eq!(repaired.groups[0].digest, cold.groups[0].digest);
+    assert_eq!(repaired.bytes_read, 24_576);
+    assert_eq!(repaired.cache_hits, 1);
+    store.save_hash_cache(&cache, &cancel).unwrap();
+    let first_path = duplicates.path().join("first");
+    let modified = std::fs::metadata(&first_path).unwrap().modified().unwrap();
+    std::fs::write(&first_path, [8_u8; 16_384]).unwrap();
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(&first_path)
+        .unwrap()
+        .set_modified(modified)
+        .unwrap();
+    drop(cache);
+    drop(store);
+    let store = Store::open(&db).unwrap();
+    let mut cache = store.load_hash_cache(&cancel).unwrap();
+    let changed = voldiq_core::duplicates::find(
+        &index,
+        voldiq_core::NodeId(0),
+        0,
+        &cancel,
+        &mut cache,
+        |_| {},
+    )
+    .unwrap();
+    assert_eq!(changed.errors, 0);
+    assert!(changed.groups.is_empty());
+    assert_eq!(changed.bytes_read, 8192);
+    drop(cache);
+    drop(store);
+    let mut store = Store::open(&db).unwrap();
+    store
+        .save_hash_cache(&voldiq_core::duplicates::HashCache::default(), &cancel)
+        .unwrap();
+    let mut cache = store.load_hash_cache(&cancel).unwrap();
+    let cleared = voldiq_core::duplicates::find(
+        &index,
+        voldiq_core::NodeId(0),
+        0,
+        &cancel,
+        &mut cache,
+        |_| {},
+    )
+    .unwrap();
+    assert_eq!(cleared.errors, 0);
+    assert!(cleared.groups.is_empty());
+    assert_eq!(cleared.bytes_read, 16_384);
+    assert_eq!(store.list(0, 10).unwrap().len(), 2);
 }
