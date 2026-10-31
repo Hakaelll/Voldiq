@@ -1,0 +1,144 @@
+{
+  "recordedUtc": "2026-10-31T17:54:03.5169975Z",
+  "intendedClaim": "Current verified production native/WebView2 group counters over five intervals; one existing-window observation, not controlled idle/loaded, startup or FPS acceptance.",
+  "checkoutCommit": "33dba4d25dfc2a5aaecdb98a7a5f815549a5d14a",
+  "targetPid": 11296,
+  "targetStartedUtc": "2026-10-31T17:33:30.8891423Z",
+  "executable": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\542C6674E1FD2B747C04385DA3552100E7FCB0AB53F78B3C7D3A093A13774C74\\voldiq.exe",
+  "executableSha256": "542C6674E1FD2B747C04385DA3552100E7FCB0AB53F78B3C7D3A093A13774C74",
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      },
+      {
+        "path": "assets/index-CEyk1Ss2.js",
+        "bytes": 164283,
+        "sha256": "54388B4AE033522F8707A395E34140A4B6EE7F7520BE6DF154E6AE07B024CD83"
+      },
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "63BD6FDA41437D003FFFCAC29B2FC03FEF5FF9E15FAE6B45A5FC0140EAF74BFC"
+      },
+      {
+        "path": "assets/index-DKcM9PYI.css",
+        "bytes": 47456,
+        "sha256": "B1FC4698DDCA6479543A22F5BB59CE0923C916256670F151F30085B95C84B727"
+      }
+    ]
+  },
+  "mainWindowHandle": 395420,
+  "responding": true,
+  "profileWebviewsBefore": [
+    {
+      "pid": 5816,
+      "parent": 11296,
+      "startedUtc": "2026-10-31T17:33:31.156957Z",
+      "role": "browser"
+    },
+    {
+      "pid": 22040,
+      "parent": 5816,
+      "startedUtc": "2026-10-31T17:33:31.227298Z",
+      "role": "crashpad-handler"
+    },
+    {
+      "pid": 14184,
+      "parent": 5816,
+      "startedUtc": "2026-10-31T17:33:32.57546Z",
+      "role": "gpu-process"
+    },
+    {
+      "pid": 20288,
+      "parent": 5816,
+      "startedUtc": "2026-10-31T17:33:32.579782Z",
+      "role": "utility"
+    },
+    {
+      "pid": 16464,
+      "parent": 5816,
+      "startedUtc": "2026-10-31T17:33:32.635972Z",
+      "role": "utility"
+    },
+    {
+      "pid": 11540,
+      "parent": 5816,
+      "startedUtc": "2026-10-31T17:33:32.717925Z",
+      "role": "renderer"
+    }
+  ],
+  "legacyNativeExcluded": {
+    "pid": 16504,
+    "window": 0,
+    "privateBytes": 9117696
+  },
+  "machine": {
+    "cpu": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
+    "logicalProcessors": 8,
+    "physicalMemoryBytes": 16932671488,
+    "operatingSystem": {
+      "caption": "Microsoft Windows 11 Home",
+      "version": "10.0.26200",
+      "build": "26200",
+      "architecture": "64 bits"
+    }
+  },
+  "workload": "Existing window; no requested scan, command or UI input during collection. Loaded-index/view state is not inspected.",
+  "background": "Uncontrolled host load; no compiler processes were present in the preflight inventory. A preceding system CPU counter read was 21%.",
+  "samplerSha256": "AAE5F4536DCB0DC3BFC1F7471E049190899F87E3714EAA0774A9AC1D6E478E03",
+  "profileWebviewsAfter": [
+    {
+      "pid": 5816,
+      "parent": 11296,
+      "startedUtc": "2026-10-31T17:33:31.156957Z",
+      "role": "browser"
+    },
+    {
+      "pid": 22040,
+      "parent": 5816,
+      "startedUtc": "2026-10-31T17:33:31.227298Z",
+      "role": "crashpad-handler"
+    },
+    {
+      "pid": 14184,
+      "parent": 5816,
+      "startedUtc": "2026-10-31T17:33:32.57546Z",
+      "role": "gpu-process"
+    },
+    {
+      "pid": 20288,
+      "parent": 5816,
+      "startedUtc": "2026-10-31T17:33:32.579782Z",
+      "role": "utility"
+    },
+    {
+      "pid": 16464,
+      "parent": 5816,
+      "startedUtc": "2026-10-31T17:33:32.635972Z",
+      "role": "utility"
+    },
+    {
+      "pid": 11540,
+      "parent": 5816,
+      "startedUtc": "2026-10-31T17:33:32.717925Z",
+      "role": "renderer"
+    }
+  ],
+  "installedWebviewVersion": "156.0.4314.50",
+  "completedUtc": "2026-10-31T17:58:02.5341887Z",
+  "finalWindow": {
+    "handle": 395420,
+    "responding": true,
+    "executableUnchanged": true
+  }
+}

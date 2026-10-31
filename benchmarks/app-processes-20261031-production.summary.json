@@ -1,0 +1,47 @@
+{
+  "scope": "Current verified production native/WebView2 group counters over five intervals; one existing-window observation, not controlled idle/loaded, startup or FPS acceptance.",
+  "baselineSamples": 1,
+  "measuredIntervals": 5,
+  "identitiesPerSample": 7,
+  "counterRows": 42,
+  "readErrors": 0,
+  "availabilityChangesAfterBaseline": 0,
+  "summary": {
+    "nativePrivateBytes": {
+      "median": 5332992,
+      "minimum": 5332992,
+      "maximum": 5332992
+    },
+    "webviewPrivateBytes": {
+      "median": 161619968,
+      "minimum": 161619968,
+      "maximum": 161619968
+    },
+    "totalPrivateBytes": {
+      "median": 166952960,
+      "minimum": 166952960,
+      "maximum": 166952960
+    },
+    "summedWorkingSetBytes": {
+      "median": 383995904,
+      "minimum": 383995904,
+      "maximum": 383995904
+    }
+  },
+  "intervalSeconds": {
+    "median": 5.226362700000001,
+    "minimum": 5.214459599999998,
+    "maximum": 5.2862051
+  },
+  "oneCoreCpuPercent": {
+    "median": 0.0,
+    "minimum": 0.0,
+    "maximum": 0.0
+  },
+  "webviewPrivateFraction": 0.9680569185475957,
+  "groupSha256": "2168e3d6a60db305a46ade9da399b6b4bcbd8302e1f0775edd566fcafdd1920c",
+  "processesSha256": "91b7a9720ce68554eb7cfde438d2fa229f5f4d4b2474fd0d775c65e4aaae411a",
+  "provenanceSha256": "afd0d91f7ab6745d30bd5c5682ecd27348b8d1056a0028c3b1628370963d309f",
+  "verifierSha256": "94d64d53fd84b8393f180b8e5335a2c0c629eacedfb5bb378d6e9ae3a2cc6199",
+  "limitations": "One existing-window capture. View, foreground/minimized and loaded-index states were not inspected. Background load was uncontrolled. Summed working sets are not unique physical RAM. No controlled idle/loaded, startup, FPS, speedup or leak claim."
+}

@@ -78,6 +78,8 @@ These cases cover selected data-safety boundaries. Broad scanner, query, resolve
 
 ## Manual application checks
 
+For the recorded production-window counter observation, `python scripts/verify_process_observation.py benchmarks/app-processes-20261031-production.csv` independently checks provenance, process identities/ancestry and all memory/CPU aggregates. The [self-check](../benchmarks/process-observation-verifier-20261031.json) proves that a valid repeat preserves its summary and a one-byte mismatch is rejected. This is an offline observation verifier, not a ninth declared test or a substitute for native workload acceptance.
+
 The [pnpm configuration gate](../benchmarks/project-verification-pnpm-configuration-20261031.json) preserves the eight-test inventory. Its existing native case now verifies real store/cache/dependency totals, global YAML and environment precedence, malformed/oversized inputs and project-temp protection for an overlapping configured cache. The no-exclusion control finds one owned fourteen-day-old temporary file; the configured-cache query returns zero. The [initial failing reproduction](../benchmarks/pnpm-cache-protection-counterexample-20261031.json) and [corrected evidence](../benchmarks/pnpm-configuration-20261031.json) distinguish cleanup exclusions from display aggregation. This adds no declared test or pnpm process.
 
 ```powershell

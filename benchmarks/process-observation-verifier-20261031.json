@@ -1,0 +1,11 @@
+{
+  "positiveExitCode": 0,
+  "repeatPreservedSummarySha256": "aee9d438111c6a1da2bea40cef4b73255264d9fb128cdb2252fb3f6f9bd47d65",
+  "negativeMutation": "Add one byte to measured sample 1 totalPrivateBytes in an owned copy.",
+  "negativeExitCode": 1,
+  "negativeGuard": "assert int(row[\"totalPrivateBytes\"]) == native + webview",
+  "invalidSummaryCreated": false,
+  "ownedCopyDirectoryRemoved": true,
+  "verifierSha256": "94d64d53fd84b8393f180b8e5335a2c0c629eacedfb5bb378d6e9ae3a2cc6199",
+  "scope": "Verifier self-check only; no application interaction or additional declared test."
+}

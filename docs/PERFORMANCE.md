@@ -87,9 +87,35 @@ This updates the query baseline for the current core. It measures neither filesy
 
 ## Native application process observation
 
+### Verified production window observation, 2026-10-31
+
+The current standalone image, SHA-256 `542C6674E1FD2B747C04385DA3552100E7FCB0AB53F78B3C7D3A093A13774C74`, passed the executable's production-mode and decoded embedded-asset checks before collection. One baseline and five intervals retain seven stable identities: one native process and six WebView2 processes. The profile census before/after matches every measured WebView and its ancestry. All 42 per-process rows independently reproduce the aggregate sums and CPU deltas, with zero read errors or availability changes. See [group counters](../benchmarks/app-processes-20261031-production.csv), [process counters](../benchmarks/app-processes-20261031-production.processes.csv), [checked summary](../benchmarks/app-processes-20261031-production.summary.json) and [provenance](../benchmarks/app-processes-20261031-production.provenance.json).
+
+| Counter | Median of five intervals | Range |
+|---|---:|---:|
+| Total private bytes | 166,952,960 B, or 159.22 MiB | 166,952,960–166,952,960 B |
+| Native private bytes | 5,332,992 B | 5,332,992–5,332,992 B |
+| WebView2 private bytes | 161,619,968 B | 161,619,968–161,619,968 B |
+| Summed working sets | 383,995,904 B | 383,995,904–383,995,904 B |
+| Interval duration | 5.226 s | 5.214–5.286 s |
+
+WebView2 accounts for 96.8% of the observed private bytes. CPU counters did not increase over these intervals; this is not proof of continuous zero CPU. Private bytes and summed working sets describe different things, and adding working sets can count shared pages repeatedly. The latter is not unique physical RAM.
+
+The host is Windows 11 Home build 26200, i7-1165G7, eight logical processors and 16,932,671,488 bytes of physical memory. The installed WebView runtime reports `156.0.4314.50`. No compiler was active in preflight; other host activity was uncontrolled, with a preceding system CPU read of 21%. The separate older native PID 16504 was excluded; it had no window and none of the profile-associated WebViews belonged to its tree. Its preflight private bytes are retained in provenance.
+
+This is one existing-window resource observation. No scan, command or UI input was injected. The current view, foreground/minimized state and loaded index were not inspected. Short-lived children between samples are not captured. It establishes neither controlled idle/loaded budgets nor startup, frame rate, speedup or leak behavior. It is not compared with the withdrawn capture below.
+
+Recheck the recorded arithmetic and captured provenance with Python 3.11 or newer:
+
+```powershell
+python scripts/verify_process_observation.py benchmarks/app-processes-20261031-production.csv
+```
+
+The verifier checks captured production evidence, identities, profile membership/ancestry and each memory/CPU aggregate. It checks the image hash when that archived image remains available; routine cache cleanup may remove it later. A valid repeat preserves the existing summary. Capture files retain their original line endings through `.gitattributes` so recorded checksums survive checkout; indexed bytes were checked against the originals. The [verifier self-check](../benchmarks/process-observation-verifier-20261031.json) changes one byte in an owned copy of a total, confirms rejection before summary creation, and removes the temporary copy. No declared test was added.
+
 ### Withdrawn interface baseline, 2026-10-31
 
-This capture is withdrawn as an application-interface baseline. A subsequent user screenshot showed a refused development-server connection, and the build investigation found that the executable omitted Tauri's production protocol feature. The process counters below remain real, but the frontend workload may have been an error page. Do not use this result to assess Voldiq's idle or loaded-interface memory target. The corrected executable requires a new capture.
+This capture is withdrawn as an application-interface baseline. A subsequent user screenshot showed a refused development-server connection, and the build investigation found that the executable omitted Tauri's production protocol feature. The process counters below remain real, but the frontend workload may have been an error page. Do not use this result to assess Voldiq's idle or loaded-interface memory target. The verified production observation above is separate evidence; this capture remains withdrawn.
 
 The executable with persistent duplicate hashes, SHA-256 `8A0921EB496CE6EF5A93E77664149C75695A072DCB001B0D18EB51278C3E5F0E`, was observed at checkout `c98a680` through the unchanged read-only process observer. One baseline and five five-second intervals retain seven stable native/WebView2 process identities. All 42 per-process rows independently reproduce the aggregate memory sums and surviving CPU deltas, with zero read errors or availability changes. See [raw group counters](../benchmarks/app-processes-20261031-current.csv), [per-process counters](../benchmarks/app-processes-20261031-current.processes.csv), [checked summary](../benchmarks/app-processes-20261031-current.summary.json) and [provenance](../benchmarks/app-processes-20261031-current.provenance.json).
 

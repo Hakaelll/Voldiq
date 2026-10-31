@@ -84,7 +84,7 @@ The status strip shows the native analysis date for completed scans and retained
 
 Five scans of a real million-file fixture verified exact counts and sizes with zero errors. See [performance measurements](docs/PERFORMANCE.md#large-real-filesystem-fixture) for raw results, reproduction commands and the limits of this warm-cache scanner baseline.
 
-The earlier [native/WebView2 resource observation](docs/PERFORMANCE.md#native-application-process-observation) retains real counters but is withdrawn as an interface baseline after a development-protocol build error was found. The corrected standalone interface needs a new controlled resource capture. Scanner benchmarks remain separate evidence.
+The [current standalone resource observation](docs/PERFORMANCE.md#verified-production-window-observation-2026-10-31) includes production-mode verification and independently checked native/WebView2 counters. Controlled idle/loaded workloads, startup and frame-rate acceptance remain open. The earlier development-protocol capture remains withdrawn as an interface baseline. Scanner benchmarks remain separate evidence.
 
 ## Duplicate analysis
 

@@ -1,3 +1,6 @@
 * text=auto eol=lf
 *.png binary
 *.ico binary
+# Keep original capture bytes consistent with their recorded checksums.
+benchmarks/app-processes-*-production.* -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+benchmarks/process-observation-verifier-*.json -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
