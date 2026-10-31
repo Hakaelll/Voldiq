@@ -185,6 +185,24 @@ A separate workload in the same executable cancels five scans per setting from a
 
 Build with `cargo build --offline --release -p voldiq-core --example concurrency_benchmark`, then run `./benchmarks/run_concurrency_benchmark.ps1 -FileCount 100000`. The wrapper preserves raw CSV, source/image hashes and host observations, validates all 50 rows and does not kill or restart a timed-out process. The executable checks a disk-space safety reserve before fixture creation and explicitly verifies removal of its owned temporary directory. No declared test was added.
 
+## Independent scanner cancellation
+
+The subsequent [raw samples](../benchmarks/concurrency-auto-20261031-115443-329.csv), [summary](../benchmarks/concurrency-auto-20261031-115443-329.summary.json) and [provenance](../benchmarks/concurrency-auto-20261031-115443-329.provenance.json) cover a cancellation signal sent by a separate thread. A progress callback notifies that thread after at least 10,000 published files. The callback returns, the scanner continues, and the signalling thread waits one millisecond before writing the shared cancellation flag. The measured interval starts at that independent request and ends when the scanner returns after joining metadata workers. Joining the signalling thread is outside that interval.
+
+Five rotating samples per setting use 100,000 newly written real files. All 25 return `Cancelled`, with zero errors, a nonempty incomplete index, fewer than 100,000 published files and exact logical totals for the retained files. The fixture directory is explicitly removed and its absence checked. This run does not repeat the full-scan matrix.
+
+| Setting | Request-to-return median ms | Range ms |
+|---|---:|---:|
+| 1 | 0.343 | 0.129–0.437 |
+| 2 | 0.485 | 0.268–1.432 |
+| 4 | 0.438 | 0.423–0.640 |
+| 8 | 0.710 | 0.500–0.828 |
+| Automatic | 0.450 | 0.366–0.634 |
+
+The Automatic preflight uses the same canonical path form as the scanner and reports two workers. Host CPU load was uncontrolled at 59% before and 51% after. These are warm local metadata requests. The run does not instrument individual native syscalls, prove interruption of a stalled driver request, measure frontend event delivery or establish whole-app cancellation latency. It is not a speed comparison between worker settings.
+
+Reproduce with `cargo build --offline --release -p voldiq-core --example concurrency_benchmark`, then `./benchmarks/run_concurrency_benchmark.ps1 -FileCount 100000 -CancelOnly`. The current default runs the full matrix followed by independent cancellation. The earlier callback-boundary dataset remains valid for its recorded source revision and scope. No production scanner policy or declared test count changed; example Clippy, release compilation and fixture assertions pass.
+
 ## Bounded scan concurrency
 
 The current UI adds Automatic while preserving saved numeric limits. Before conventional enumeration, Automatic queries the local fixed volume's [seek-penalty descriptor](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ns-winioctl-device_seek_penalty_descriptor) through a zero-access handle and read-only storage property IOCTL. Relative, UNC and non-fixed paths are unclassified. Unavailable or malformed descriptors and reported seek penalties select one worker. A valid no-penalty descriptor selects at most two, bounded by available processors. It is a device capability hint, not an SSD brand/type or speed measurement. No file contents are read by this probe; driver latency and cancellation of the synchronous IOCTL have not been measured.
@@ -195,7 +213,7 @@ An already cancelled scan skips automatic device resolution and enters the exist
 
 Settings now saves a real metadata-concurrency limit from 1 to 8. One worker runs directly on the scanning thread; higher values use a persistent scoped pool. Job and result channels each hold at most `workers × 16` items, with batches constrained by remaining index capacity. Directory iteration and index publication stay on the coordinator, and metadata results are applied in enumeration order. This retains exact limits, hard-link allocation deduplication and consistent live queries. Cancellation stops scheduling and publication, drains already started metadata work and joins workers before returning. NTFS enumeration and journal replay keep their existing execution model. No file content is read by this pool.
 
-The historical 2026-10-13 `concurrency_benchmark -- 10000` run created 10,000 actual 128-byte files in 100 owned temporary folders. Five rounds rotated the order of 1, 2, 4 and 8 workers. The current example also includes Automatic and a separate batch-boundary cancellation workload, described above. Timing excludes fixture creation and validates exact entry, logical-byte and file totals, known allocation, complete coverage and zero errors after every scan. Windows CPU milliseconds include process user and kernel time; unavailable CPU measurement on other platforms is reported as NaN. [Raw results](../benchmarks/concurrency-2026-10-13.csv) were collected on 2026-10-13 with the i7-1165G7 (4 cores, 8 logical processors), Windows 11, Rust 1.97.1/MSVC and an NVMe CA5-8D256 SSD.
+The historical 2026-10-13 `concurrency_benchmark -- 10000` run created 10,000 actual 128-byte files in 100 owned temporary folders. Five rounds rotated the order of 1, 2, 4 and 8 workers. The current example also includes Automatic and a separate independent cancellation workload. The earlier callback-boundary run and its successor are described above. Timing excludes fixture creation and validates exact entry, logical-byte and file totals, known allocation, complete coverage and zero errors after every scan. Windows CPU milliseconds include process user and kernel time; unavailable CPU measurement on other platforms is reported as NaN. [Raw results](../benchmarks/concurrency-2026-10-13.csv) were collected on 2026-10-13 with the i7-1165G7 (4 cores, 8 logical processors), Windows 11, Rust 1.97.1/MSVC and an NVMe CA5-8D256 SSD.
 
 | Workers | Median wall time | Wall range | Median process CPU |
 |---:|---:|---:|---:|

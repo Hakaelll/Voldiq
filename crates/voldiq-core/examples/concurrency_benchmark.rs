@@ -12,8 +12,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if !(100..=100_000).contains(&count) {
         return Err("Fixture requires 100 to 100,000 files.".into());
     }
+    let cancel_only = match std::env::args().nth(2).as_deref() {
+        None => false,
+        Some("--cancel-only") => true,
+        Some(_) => return Err("Expected optional --cancel-only.".into()),
+    };
     let fixture = tempfile::tempdir()?;
     check_space(fixture.path(), count)?;
+    let canonical_root = std::fs::canonicalize(fixture.path())?;
     eprintln!("Owned fixture: {}", fixture.path().display());
     for directory in 0..100 {
         std::fs::create_dir(fixture.path().join(format!("folder-{directory:03}")))?;
@@ -33,52 +39,54 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     eprintln!(
         "Seek penalty: {:?}; automatic preflight workers: {}.",
         voldiq_core::windows::storage_seek_penalty(fixture.path()),
-        ScanConcurrency::automatic().for_path(fixture.path())
+        ScanConcurrency::automatic().for_path(&canonical_root)
     );
     println!(
         "round,phase,setting,preflight_workers,fixture_files,files,entries,logical,allocated,errors,wall_ms,cpu_ms,cancel_ms"
     );
     let cancel = AtomicBool::new(false);
-    for round in 0..5 {
-        let mut order = [Some(1), Some(2), Some(4), Some(8), None];
-        order.rotate_left(round % 5);
-        for requested in order {
-            let concurrency = requested
-                .map(ScanConcurrency::try_from)
-                .transpose()?
-                .unwrap_or(ScanConcurrency::automatic());
-            let setting =
-                requested.map_or_else(|| "auto".to_owned(), |workers| workers.to_string());
-            let workers = concurrency.for_path(fixture.path());
-            let options = ScanOptions {
-                mode: ScanMode::Directory,
-                concurrency,
-                ..ScanOptions::default()
-            };
-            let cpu = cpu_ms()?;
-            let start = Instant::now();
-            let index = scan(fixture.path(), &options, &cancel, |_| {})?;
-            let elapsed = start.elapsed().as_secs_f64() * 1000.0;
-            let cpu = cpu_ms()? - cpu;
-            let root = &index.entries[0];
-            if index.entries.len() != count + 101
-                || root.files != count as u64
-                || root.logical != (count * 128) as u64
-                || !root.allocation_known
-                || root.incomplete
-                || index.error_count != 0
-            {
-                return Err("Measured scan does not match fixture contents.".into());
+    if !cancel_only {
+        for round in 0..5 {
+            let mut order = [Some(1), Some(2), Some(4), Some(8), None];
+            order.rotate_left(round % 5);
+            for requested in order {
+                let concurrency = requested
+                    .map(ScanConcurrency::try_from)
+                    .transpose()?
+                    .unwrap_or(ScanConcurrency::automatic());
+                let setting =
+                    requested.map_or_else(|| "auto".to_owned(), |workers| workers.to_string());
+                let workers = concurrency.for_path(&canonical_root);
+                let options = ScanOptions {
+                    mode: ScanMode::Directory,
+                    concurrency,
+                    ..ScanOptions::default()
+                };
+                let cpu = cpu_ms()?;
+                let start = Instant::now();
+                let index = scan(fixture.path(), &options, &cancel, |_| {})?;
+                let elapsed = start.elapsed().as_secs_f64() * 1000.0;
+                let cpu = cpu_ms()? - cpu;
+                let root = &index.entries[0];
+                if index.entries.len() != count + 101
+                    || root.files != count as u64
+                    || root.logical != (count * 128) as u64
+                    || !root.allocation_known
+                    || root.incomplete
+                    || index.error_count != 0
+                {
+                    return Err("Measured scan does not match fixture contents.".into());
+                }
+                println!(
+                    "{},full,{setting},{workers},{count},{},{},{},{},{},{elapsed:.3},{cpu:.3},",
+                    round + 1,
+                    root.files,
+                    index.entries.len(),
+                    root.logical,
+                    root.allocated,
+                    index.error_count
+                );
             }
-            println!(
-                "{},full,{setting},{workers},{count},{},{},{},{},{},{elapsed:.3},{cpu:.3},",
-                round + 1,
-                root.files,
-                index.entries.len(),
-                root.logical,
-                root.allocated,
-                index.error_count
-            );
         }
     }
     // Cancellation is a separate workload, so it does not contaminate full-scan timings.
@@ -93,28 +101,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .unwrap_or(ScanConcurrency::automatic());
                 let setting =
                     requested.map_or_else(|| "auto".to_owned(), |workers| workers.to_string());
-                let workers = concurrency.for_path(fixture.path());
+                let workers = concurrency.for_path(&canonical_root);
                 let options = ScanOptions {
                     mode: ScanMode::Directory,
                     concurrency,
                     ..ScanOptions::default()
                 };
                 cancel.store(false, Ordering::Relaxed);
-                let mut requested_at = None;
                 let mut phase = ScanPhase::Scanning;
                 let cpu = cpu_ms()?;
                 let start = Instant::now();
-                let index = scan(fixture.path(), &options, &cancel, |update| {
-                    phase = update.phase;
-                    if update.phase == ScanPhase::Scanning
-                        && update.files >= (count / 4).min(10_000) as u64
-                        && requested_at.is_none()
-                    {
-                        requested_at = Some(Instant::now());
-                        cancel.store(true, Ordering::Relaxed);
-                    }
+                let (index, stopped, requested_at) = std::thread::scope(|scope| {
+                    let (signal, notification) = std::sync::mpsc::channel();
+                    let flag = &cancel;
+                    let trigger = scope.spawn(move || {
+                        notification.recv().ok()?;
+                        std::thread::sleep(std::time::Duration::from_millis(1));
+                        let requested = Instant::now();
+                        flag.store(true, Ordering::Relaxed);
+                        Some(requested)
+                    });
+                    let mut notified = false;
+                    let index = scan(fixture.path(), &options, &cancel, |update| {
+                        phase = update.phase;
+                        if update.phase == ScanPhase::Scanning
+                            && update.files >= (count / 4).min(10_000) as u64
+                            && !notified
+                        {
+                            notified = signal.send(()).is_ok();
+                        }
+                    });
+                    let stopped = Instant::now();
+                    drop(signal);
+                    let requested_at = trigger
+                        .join()
+                        .map_err(|_| "Cancellation trigger panicked.")?;
+                    Ok::<_, Box<dyn std::error::Error>>((index?, stopped, requested_at))
                 })?;
-                let stopped = Instant::now();
                 let cpu = cpu_ms()? - cpu;
                 let cancel_ms = stopped.duration_since(requested_at.ok_or("Fixture completed before a live cancellation request; use a larger fixture.")?).as_secs_f64() * 1000.0;
                 let elapsed = stopped.duration_since(start).as_secs_f64() * 1000.0;
@@ -129,7 +152,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     return Err("Cancellation did not preserve a consistent partial scan.".into());
                 }
                 println!(
-                    "{},cancel,{setting},{workers},{count},{},{},{},{},{},{elapsed:.3},{cpu:.3},{cancel_ms:.3}",
+                    "{},cancel_external,{setting},{workers},{count},{},{},{},{},{},{elapsed:.3},{cpu:.3},{cancel_ms:.3}",
                     round + 1,
                     root.files,
                     index.entries.len(),

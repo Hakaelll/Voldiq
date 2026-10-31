@@ -1,0 +1,137 @@
+{
+  "sourceCsv": "concurrency-auto-20261031-115443-329.csv",
+  "rows": 25,
+  "summary": [
+    {
+      "setting": "1",
+      "samples": 5,
+      "preflightWorkers": [
+        1
+      ],
+      "publishedFilesRange": [
+        10056,
+        10526
+      ],
+      "cancel_ms": {
+        "median": 0.343,
+        "min": 0.129,
+        "max": 0.437
+      },
+      "wall_ms": {
+        "median": 1903.966,
+        "min": 1603.695,
+        "max": 2004.904
+      },
+      "cpu_ms": {
+        "median": 1843.75,
+        "min": 1609.375,
+        "max": 1890.625
+      }
+    },
+    {
+      "setting": "2",
+      "samples": 5,
+      "preflightWorkers": [
+        2
+      ],
+      "publishedFilesRange": [
+        10064,
+        10512
+      ],
+      "cancel_ms": {
+        "median": 0.485,
+        "min": 0.268,
+        "max": 1.432
+      },
+      "wall_ms": {
+        "median": 1121.163,
+        "min": 1020.385,
+        "max": 1230.695
+      },
+      "cpu_ms": {
+        "median": 2046.875,
+        "min": 1953.125,
+        "max": 2281.25
+      }
+    },
+    {
+      "setting": "4",
+      "samples": 5,
+      "preflightWorkers": [
+        4
+      ],
+      "publishedFilesRange": [
+        10256,
+        11640
+      ],
+      "cancel_ms": {
+        "median": 0.438,
+        "min": 0.423,
+        "max": 0.64
+      },
+      "wall_ms": {
+        "median": 615.28,
+        "min": 613.005,
+        "max": 724.654
+      },
+      "cpu_ms": {
+        "median": 2453.125,
+        "min": 2000.0,
+        "max": 2453.125
+      }
+    },
+    {
+      "setting": "8",
+      "samples": 5,
+      "preflightWorkers": [
+        8
+      ],
+      "publishedFilesRange": [
+        10256,
+        12768
+      ],
+      "cancel_ms": {
+        "median": 0.71,
+        "min": 0.5,
+        "max": 0.828
+      },
+      "wall_ms": {
+        "median": 521.833,
+        "min": 416.108,
+        "max": 624.245
+      },
+      "cpu_ms": {
+        "median": 2515.625,
+        "min": 2093.75,
+        "max": 2859.375
+      }
+    },
+    {
+      "setting": "auto",
+      "samples": 5,
+      "preflightWorkers": [
+        2
+      ],
+      "publishedFilesRange": [
+        10288,
+        10896
+      ],
+      "cancel_ms": {
+        "median": 0.45,
+        "min": 0.366,
+        "max": 0.634
+      },
+      "wall_ms": {
+        "median": 1127.941,
+        "min": 1125.37,
+        "max": 1334.48
+      },
+      "cpu_ms": {
+        "median": 2218.75,
+        "min": 2109.375,
+        "max": 2359.375
+      }
+    }
+  ],
+  "scope": "Five rotating samples per setting. Independent cancellation thread receives a progress notification after at least 10,000 published files, delays one millisecond while the scanner proceeds, then writes the shared flag. Measured from that request until scanner return after metadata-worker joining. No individual native syscall instrumentation or GUI event-delivery measurement."
+}
