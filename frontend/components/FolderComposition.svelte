@@ -1,6 +1,6 @@
 <script lang="ts">
   import { bytes, type Entry } from '../lib/types';
-  import { rankColor } from '../lib/treemap';
+  import { categoryPaint } from '../lib/storage-map';
   let { children, logical }: { children: Entry[]; logical: number } = $props();
   const childBytes = $derived(children.reduce((total, child) => total + child.logical, 0));
   const remaining = $derived(logical - childBytes);
@@ -18,8 +18,18 @@
       {#if child.logical > 0}
         <span
           style:flex-grow={child.logical}
-          style:background={rankColor(position).fill}
-          style:color={rankColor(position).ink}
+          style:background={categoryPaint({
+            id: child.id,
+            name: child.name,
+            value: child.logical,
+            directory: child.kind === 'directory',
+          }).fill}
+          style:color={categoryPaint({
+            id: child.id,
+            name: child.name,
+            value: child.logical,
+            directory: child.kind === 'directory',
+          }).ink}
           title={`${child.name}: ${bytes(child.logical)}`}
           >{#if child.logical / logical >= 0.2}{child.name}{/if}</span
         >

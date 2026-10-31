@@ -142,6 +142,12 @@ export interface Overview {
   children: Page;
   types: FileTypes;
   branches: { parent: NodeId; items: Entry[] }[];
+  map_metrics: {
+    id: NodeId;
+    latest_modified: number | null;
+    modified_known: number;
+    modified_total: number;
+  }[];
 }
 export interface Issue {
   path: string;

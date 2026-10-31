@@ -20,6 +20,8 @@
     disk: 'M5 4h14l3 12v4H2v-4z M2 16h20 M16 18h1 M19 18h1',
     warning: 'M12 3l10 18H2z M12 9v5 M12 17v1',
     close: 'M6 6l12 12 M18 6L6 18',
+    plus: 'M12 5v14 M5 12h14',
+    minus: 'M5 12h14',
     copy: 'M8 8h13v13H8z M16 8V3H3v13h5',
     external: 'M14 3h7v7 M21 3l-11 11 M10 3H3v18h18v-7',
     list: 'M8 6h13 M8 12h13 M8 18h13 M3 6h1 M3 12h1 M3 18h1',

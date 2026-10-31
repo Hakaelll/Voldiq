@@ -1,5 +1,5 @@
 <script lang="ts">
-  import Treemap from './Treemap.svelte';
+  import StorageMap from './StorageMap.svelte';
   import {
     bytes,
     type Details,
@@ -8,7 +8,8 @@
     type Page,
     type Volume,
   } from '../lib/types';
-  import { color, mapColor, type WeightedNode } from '../lib/treemap';
+  import type { WeightedNode } from '../lib/treemap';
+  import { categoryPaint, type ColorMode } from '../lib/storage-map';
   import { visibleFileTypes } from '../lib/file-types';
 
   let {
@@ -26,6 +27,14 @@
     onopen,
     onlist,
     ontype,
+    mapMode,
+    colorMode = $bindable<ColorMode>('type'),
+    mapIdentity,
+    search,
+    extension,
+    withoutExtension,
+    onmode,
+    onback,
   }: {
     volume: Volume | null | undefined;
     directory: Details | null;
@@ -41,6 +50,14 @@
     onopen: (id: number, pointer?: boolean) => void;
     onlist: () => void;
     ontype: (item: FileType) => void;
+    mapMode: 'treemap' | 'city';
+    colorMode?: ColorMode;
+    mapIdentity: string;
+    search: string;
+    extension: string;
+    withoutExtension: boolean;
+    onmode: (mode: 'treemap' | 'city') => void;
+    onback: () => void;
   } = $props();
   const distribution = $derived(visibleFileTypes(types));
   const usedPercent = $derived(
@@ -113,7 +130,12 @@
           class="ranking-row"
           class:active={selected?.entry.id === entry.id}
           aria-pressed={selected?.entry.id === entry.id}
-          style:--item-color={nodes[position]?.paint?.fill ?? color(entry.name)}
+          style:--item-color={categoryPaint({
+            id: entry.id,
+            name: entry.name,
+            value: entry.logical,
+            directory: entry.kind === 'directory',
+          }).fill}
           onclick={() => onselect(entry.id)}
           ondblclick={() => onopen(entry.id, true)}
         >
@@ -132,23 +154,23 @@
   </aside>
   <div class="overview-main">
     <section class="map-panel" aria-busy={!directory}>
-      <div class="panel-heading">
-        <h2>Storage map</h2>
-        <div class="map-controls">
-          <select
-            aria-label="Treemap size metric"
-            value={sizeMode}
-            onchange={(event) => onmetric(event.currentTarget.value)}
-          >
-            <option value="logical">Logical size</option><option value="allocated"
-              >Unique allocation</option
-            >
-          </select>
-          <span class="map-mode" aria-current="true">Map</span><button onclick={onlist}>List</button
-          >
-        </div>
-      </div>
-      {#if directory}<Treemap {nodes} scope={directory.entry.id} {reduceMotion} {animateNavigation} selected={selected?.entry.id ?? null} {onselect} onopen={(id) => onopen(id, true)} />
+      {#if directory}<StorageMap
+          {nodes}
+          identity={mapIdentity}
+          mode={mapMode}
+          bind:colorMode
+          {search}
+          {extension}
+          {withoutExtension}
+          {sizeMode}
+          {onmetric}
+          {onmode}
+          {onback}
+          {onlist}
+          selected={selected?.entry.id ?? null}
+          {onselect}
+          onopen={(id) => onopen(id, true)}
+        />
       {:else}<div class="overview-loading" role="status">Loading…</div>{/if}
       {#if directory}<div class="map-caption">
           <span title={selected?.path || directory.path}>{selected?.path || directory.path}</span>
@@ -175,8 +197,18 @@
         {#each distribution.items as item}{#if item.bytes > 0}<button
               onclick={() => ontype(item)}
               style:flex-grow={item.bytes}
-              style:background={color(item.extension ?? '<no-extension>')}
-              style:color={mapColor(item.extension ?? '<no-extension>').ink}
+              style:background={categoryPaint({
+                id: 0,
+                name: `file.${item.extension ?? ''}`,
+                value: item.bytes,
+                directory: false,
+              }).fill}
+              style:color={categoryPaint({
+                id: 0,
+                name: `file.${item.extension ?? ''}`,
+                value: item.bytes,
+                directory: false,
+              }).ink}
               aria-label={`${item.extension === null ? 'No extension' : `.${item.extension}`}: ${bytes(item.bytes)}, ${((item.bytes / types.total_bytes) * 100).toFixed(1)}%. Show files`}
               title={`${item.extension === null ? 'No extension' : `.${item.extension}`}: ${bytes(item.bytes)}`}
               >{#if item.bytes / types.total_bytes >= 0.12}<span
@@ -192,7 +224,14 @@
       </div>
       <div class="type-legend">
         {#each distribution.items as item}<button onclick={() => ontype(item)}>
-            <span class="item-swatch" style:background={color(item.extension ?? '<no-extension>')}
+            <span
+              class="item-swatch"
+              style:background={categoryPaint({
+                id: 0,
+                name: `file.${item.extension ?? ''}`,
+                value: item.bytes,
+                directory: false,
+              }).fill}
             ></span>
             <strong title={item.extension === null ? 'No extension' : `.${item.extension}`}
               >{item.extension === null ? 'No extension' : `.${item.extension}`}</strong

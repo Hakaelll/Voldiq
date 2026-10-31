@@ -11,6 +11,7 @@
   } from '../lib/virtual-list';
   import { bytes, date, type Entry, type Query } from '../lib/types';
   import Icon from './Icon.svelte';
+  import { categoryPaint } from '../lib/storage-map';
   let {
     query,
     revision,
@@ -23,6 +24,7 @@
     manageable = false,
     oncheck,
     ranked = false,
+    paint,
   }: {
     query: Query;
     revision: number;
@@ -35,6 +37,7 @@
     manageable?: boolean;
     oncheck?: (id: number, checked: boolean) => void;
     ranked?: boolean;
+    paint?: (entry: Entry) => { fill: string; ink: string };
   } = $props();
   const indexId = untrack(getIndexContext);
   let scrollTop = $state(0),
@@ -225,7 +228,16 @@
                   onopen(entry);
                 } else navigate(event, offset + i);
               }}
-              ><Icon name={entry.kind === 'directory' ? 'folder' : 'file'} /><span
+              ><span
+                class="item-swatch"
+                style:background={paint?.(entry).fill ??
+                  categoryPaint({
+                    id: entry.id,
+                    name: entry.name,
+                    value: entry.logical,
+                    directory: entry.kind === 'directory',
+                  }).fill}
+              ></span><Icon name={entry.kind === 'directory' ? 'folder' : 'file'} /><span
                 >{entry.name}{#if ranked}<small>{paths[i] ?? ''}</small>{/if}</span
               >{#if entry.incomplete}<Icon name="warning" size={14} />{/if}</button
             ></span

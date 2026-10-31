@@ -102,7 +102,9 @@ export function buildCity(
   faces: Face[];
   bounds: Bounds;
   fragments: number;
+  timings: { projectionMs: number; orderingMs: number };
 } {
+  const started = performance.now();
   const input: Polygon[] = [];
   for (const node of rects) {
     const { x, y, width, height: depth } = node;
@@ -148,6 +150,7 @@ export function buildCity(
       maxY = Math.max(maxY, point.y);
     }
   }
+  const projected = performance.now();
   const faces: Face[] = [];
   let fragments = input.length;
   const limit = Math.min(150_000, Math.max(12_000, input.length * 32));
@@ -193,6 +196,7 @@ export function buildCity(
       ? { x: minX, y: minY, width: maxX - minX, height: maxY - minY }
       : { x: 0, y: 0, width: 0, height: 0 },
     fragments,
+    timings: { projectionMs: projected - started, orderingMs: performance.now() - projected },
   };
 }
 

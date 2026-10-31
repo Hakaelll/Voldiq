@@ -6,14 +6,14 @@ colors:
   accent-fill: "#0057d9"
   accent-hover: "#173784"
   selected: "#e9edf2"
-  canvas: "#fff"
-  surface: "#f7f8fa"
-  paper: "#edf0f5"
-  border: "#e5eaf1"
-  strong: "#d4d4d4"
-  text: "#151c36"
-  secondary: "#4f5d7b"
-  muted: "#5c6984"
+  canvas: "#fcfcf9"
+  surface: "#f3f4f0"
+  paper: "#e9ece7"
+  border: "#dce1d9"
+  strong: "#a7b2a8"
+  text: "#242c29"
+  secondary: "#505c54"
+  muted: "#59675e"
   error: "#a32424"
   dark-canvas: "#181b20"
   dark-surface: "#1e2228"
@@ -64,7 +64,7 @@ typography:
     fontWeight: 600
     letterSpacing: "-0.02em"
 rounded:
-  radius: "3px"
+  radius: "6px"
   inset: "3px"
   dialog: "8px"
 spacing:
@@ -332,3 +332,11 @@ History captures include a 16px comparison checkbox. A pair contains at most two
 
 
 Folder navigation in the map uses a finite 160 ms ease-out transition when a measured source or destination rectangle is visible. Pointer entry expands from that rectangle; returning to the parent contracts into it. The previous and current bounded layouts crossfade without bitmap capture. Keyboard navigation, ordinary data refreshes, metric changes, resizing, first render and movement-reduced settings stay immediate. Input interrupts outstanding frames before hit testing, and hidden or unmounted maps cancel their frame. Native presentation and frame-rate acceptance remain manual.
+
+## Skyline, version 0.2.0
+
+Skyline extends the existing storage explorer with a Canvas 2D architectural view. This section supersedes the earlier rank-colored nested-map description. Treemap and Skyline consume one byte-conserving frontier in fixed coordinates. File-category colors are amber, terracotta, olive, teal, violet and neutral; size and age use sequential teal scales. The default height is descendant modification age with explicit coverage, never last access. The small rooftop equipment and facade windows are deterministic decoration, clipped to their building and removed at small pixel sizes.
+
+The shared light surfaces now use warm whites and graphite text, while the existing blue accent and supplied artwork retain the product identity. Dark tokens stay intact. Controls share a six-pixel radius. Storage representations use a compact segmented control; camera controls remain on the viewport. Page headings use a local 24px size and the visual explorer tightens heading, scan-status and breadcrumb spacing. The rail remains integrated and collapsible. The existing 300px inspector becomes an overlay below1200px, and the paged file list remains available below the map or as a full view. No ambient animation is introduced.
+
+The canonical implementation is frontend/styles.css, frontend/components/StorageMap.svelte and frontend/lib/storage-map.ts. Technical details and evidence are documented in docs/SKYLINE.md; that file does not define a second visual system.

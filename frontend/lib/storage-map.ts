@@ -21,7 +21,9 @@ function count(node: WeightedNode): number {
 
 function modification(node: WeightedNode): number | null {
   const value = node.directory
-    ? (node.modifiedKnown ?? 0) > 0 ? node.latestModified : null
+    ? (node.modifiedKnown ?? 0) > 0
+      ? node.latestModified
+      : null
     : node.modified;
   return value != null && Number.isFinite(value) && value >= 0 ? value : null;
 }
@@ -48,7 +50,8 @@ export function createStorageLayout(nodes: WeightedNode[]): {
   zeroBytes: number;
   revision: string;
 } {
-  const roots = nodes.filter((node) => Number.isFinite(node.value) && node.value > 0)
+  const roots = nodes
+    .filter((node) => Number.isFinite(node.value) && node.value > 0)
     .sort((a, b) => b.value - a.value || a.id - b.id);
   const total = roots.reduce((sum, node) => sum + node.value, 0);
   const rects: Rect[] = [];
@@ -70,20 +73,34 @@ export function createStorageLayout(nodes: WeightedNode[]): {
     const childTotal = children.reduce((sum, node) => sum + node.value, 0);
     const remainder = placed.value - childTotal;
     const nextCount = frontierCount - 1 + children.length + (remainder > 0 ? 1 : 0);
-    if (!placed.directory || !children.length || remainder < 0 || depth >= 6 ||
-      placed.width < 90 || placed.height < 65 || placed.width * placed.height < 11000 ||
-      nextCount > MAX_RECTS) {
+    if (
+      !placed.directory ||
+      !children.length ||
+      remainder < 0 ||
+      depth >= 6 ||
+      placed.width < 90 ||
+      placed.height < 65 ||
+      placed.width * placed.height < 11000 ||
+      nextCount > MAX_RECTS
+    ) {
       rects.push(parent);
       return;
     }
     if (remainder > 0) {
-      const represented = Math.max(0, count(placed) - children.reduce((sum, child) => sum + count(child), 0));
+      const represented = Math.max(
+        0,
+        count(placed) - children.reduce((sum, child) => sum + count(child), 0),
+      );
       children.push({
         id: -(placed.id + 2),
         name: placed.incomplete ? 'Unscanned or unlisted contents' : 'Other contents',
         value: remainder,
         directory: true,
-        files: Math.max(0, parent.files - children.reduce((sum, child) => sum + (child.files ?? (child.directory ? 0 : 1)), 0)),
+        files: Math.max(
+          0,
+          parent.files -
+            children.reduce((sum, child) => sum + (child.files ?? (child.directory ? 0 : 1)), 0),
+        ),
         represented,
         allocationKnown: placed.allocationKnown,
         incomplete: placed.incomplete,
@@ -97,18 +114,42 @@ export function createStorageLayout(nodes: WeightedNode[]): {
       visit({ ...child, x: child.x + placed.x, y: child.y + placed.y }, depth + 1);
     }
   };
-  for (const root of layout(roots, STORAGE_WIDTH, STORAGE_HEIGHT)) visit(root, 0);
-  const revision = JSON.stringify(rects.map((rect) => [rect.id, rect.value, rect.x, rect.y,
-    rect.width, rect.height, rect.depth, rect.modified, rect.files, rect.allocation_known,
-    rect.modifiedKnown, rect.modifiedTotal, rect.category]));
-  return { rects, boundaries, total, represented: roots.reduce((sum, node) => sum + count(node), 0), zeroBytes, revision };
+  for (const root of layout(roots, STORAGE_WIDTH, STORAGE_HEIGHT)) visit(root, 1);
+  const revision = JSON.stringify(
+    rects.map((rect) => [
+      rect.id,
+      rect.value,
+      rect.x,
+      rect.y,
+      rect.width,
+      rect.height,
+      rect.depth,
+      rect.modified,
+      rect.files,
+      rect.allocation_known,
+      rect.modifiedKnown,
+      rect.modifiedTotal,
+      rect.category,
+    ]),
+  );
+  return {
+    rects,
+    boundaries,
+    total,
+    represented: roots.reduce((sum, node) => sum + count(node), 0),
+    zeroBytes,
+    revision,
+  };
 }
 
 export function metricValue(rect: Rect, mode: HeightMode, now: number): number | null {
   switch (mode) {
-    case 'modified': return rect.modified === null ? null : Math.max(0, now - rect.modified);
-    case 'files': return rect.files;
-    case 'depth': return rect.depth;
+    case 'modified':
+      return rect.modified === null ? null : Math.max(0, now - rect.modified);
+    case 'files':
+      return rect.files;
+    case 'depth':
+      return rect.depth;
   }
 }
 
@@ -119,25 +160,35 @@ export function metricMaximum(rects: Rect[], mode: HeightMode, now: number): num
 export function metricHeight(rect: Rect, mode: HeightMode, now: number, maximum: number): number {
   const value = metricValue(rect, mode, now);
   if (value === null) return 5;
-  const fraction = mode === 'modified'
-    ? Math.log1p(Math.min(value / 86400, 3652.5)) / Math.log1p(3652.5)
-    : maximum <= 0 ? 0 : mode === 'files'
-      ? Math.log1p(Math.max(0, value)) / Math.log1p(maximum)
-      : value / maximum;
+  const fraction =
+    mode === 'modified'
+      ? Math.log1p(Math.min(value / 86400, 3652.5)) / Math.log1p(3652.5)
+      : maximum <= 0
+        ? 0
+        : mode === 'files'
+          ? Math.log1p(Math.max(0, value)) / Math.log1p(maximum)
+          : value / maximum;
   return 5 + 125 * Math.min(1, Math.max(0, fraction));
 }
 
 export function heightDescription(rect: Rect, mode: HeightMode, now: number): string {
   switch (mode) {
     case 'modified': {
-      if (rect.modified === null) return rect.directory ? 'Descendant modification time unknown' : 'Modification time unknown';
+      if (rect.modified === null)
+        return rect.directory
+          ? 'Descendant modification time unknown'
+          : 'Modification time unknown';
       const days = Math.floor(Math.max(0, now - rect.modified) / 86400);
-      const coverage = rect.directory && rect.modifiedTotal
-        ? ` (${rect.modifiedKnown ?? 0}/${rect.modifiedTotal} known)` : '';
+      const coverage =
+        rect.directory && rect.modifiedTotal
+          ? ` (${rect.modifiedKnown ?? 0}/${rect.modifiedTotal} known)`
+          : '';
       return `${rect.directory ? 'Latest known descendant modification' : 'Modified'} ${days} days ago${coverage}`;
     }
-    case 'files': return `${rect.files.toLocaleString()} ${rect.directory ? 'descendant files' : 'file'}`;
-    case 'depth': return `Depth ${rect.depth} from this folder`;
+    case 'files':
+      return `${rect.files.toLocaleString()} ${rect.directory ? 'descendant files' : 'file'}`;
+    case 'depth':
+      return `Depth ${rect.depth} from this folder`;
   }
 }
 
@@ -156,24 +207,53 @@ export function categoryLabel(node: WeightedNode): string {
   if (node.directory) return 'Folder';
   const extension = node.name.toLowerCase().split('.').at(-1) ?? '';
   const category = node.category?.toLowerCase() ?? '';
-  if (category === 'image' || category === 'images' || /^(png|jpe?g|gif|webp|heic|svg|avif|raw)$/.test(extension)) return 'Image';
-  if (category === 'video' || category === 'videos' || /^(mp4|mkv|mov|avi|webm)$/.test(extension)) return 'Video';
+  if (
+    category === 'image' ||
+    category === 'images' ||
+    /^(png|jpe?g|gif|webp|heic|svg|avif|raw)$/.test(extension)
+  )
+    return 'Image';
+  if (category === 'video' || category === 'videos' || /^(mp4|mkv|mov|avi|webm)$/.test(extension))
+    return 'Video';
   if (category === 'audio' || /^(mp3|wav|flac|ogg|m4a|aac)$/.test(extension)) return 'Audio';
-  if (category === 'code' || /^(ts|tsx|js|jsx|rs|py|go|css|html|json|c|cpp|h|java|swift)$/.test(extension)) return 'Code';
-  if (category === 'archive' || category === 'archives' || /^(zip|7z|rar|gz|tar|bz2|xz|iso)$/.test(extension)) return 'Archive';
-  if (category === 'document' || category === 'documents' || /^(pdf|docx?|xlsx?|pptx?|txt|md|csv)$/.test(extension)) return 'Document';
+  if (
+    category === 'code' ||
+    /^(ts|tsx|js|jsx|rs|py|go|css|html|json|c|cpp|h|java|swift)$/.test(extension)
+  )
+    return 'Code';
+  if (
+    category === 'archive' ||
+    category === 'archives' ||
+    /^(zip|7z|rar|gz|tar|bz2|xz|iso)$/.test(extension)
+  )
+    return 'Archive';
+  if (
+    category === 'document' ||
+    category === 'documents' ||
+    /^(pdf|docx?|xlsx?|pptx?|txt|md|csv)$/.test(extension)
+  )
+    return 'Document';
   return 'Other file';
 }
 
 export function categoryPaint(node: WeightedNode): { fill: string; ink: string } {
   switch (categoryLabel(node)) {
-    case 'Folder': case 'Image': return paints.amber;
-    case 'Video': return paints.terracotta;
-    case 'Audio': case 'Document': return paints.olive;
-    case 'Code': return paints.teal;
-    case 'Archive': return paints.violet;
-    case 'Other contents': return paints.unknown;
-    default: return paints.neutral;
+    case 'Folder':
+    case 'Image':
+      return paints.amber;
+    case 'Video':
+      return paints.terracotta;
+    case 'Audio':
+    case 'Document':
+      return paints.olive;
+    case 'Code':
+      return paints.teal;
+    case 'Archive':
+      return paints.violet;
+    case 'Other contents':
+      return paints.unknown;
+    default:
+      return paints.neutral;
   }
 }
 
@@ -185,7 +265,12 @@ const sequentialPaints = [
   { fill: '#23625f', ink: '#ffffff' },
 ];
 
-export function visualPaint(rect: Rect, mode: ColorMode, maximum: number, now: number): { fill: string; ink: string } {
+export function visualPaint(
+  rect: WeightedNode & { modified: number | null },
+  mode: ColorMode,
+  maximum: number,
+  now: number,
+): { fill: string; ink: string } {
   if (mode === 'type') return categoryPaint(rect);
   if (mode === 'age') {
     if (rect.modified === null) return paints.unknown;

@@ -220,10 +220,9 @@ test('full elevated geometry fits the viewport and zoom keeps the cursor anchore
 });
 
 test('empty geometry, roof and both facade interiors have predictable picks', () => {
-  assert.deepEqual(
-    buildCity([], () => 10),
-    { faces: [], bounds: { x: 0, y: 0, width: 0, height: 0 }, fragments: 0 },
-  );
+  const { timings, ...empty } = buildCity([], () => 10);
+  assert.deepEqual(empty, { faces: [], bounds: { x: 0, y: 0, width: 0, height: 0 }, fragments: 0 });
+  assert.ok(timings.projectionMs >= 0 && timings.orderingMs >= 0);
   assert.equal(createPicker([])({ x: 0, y: 0 }), null);
   assert.equal(pickFace([], { x: 0, y: 0 }), null);
   assert.equal(pointInPolygon({ x: 0, y: 0 }, []), false);

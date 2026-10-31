@@ -10,7 +10,7 @@ Voldiq is a Windows storage explorer with a native Rust indexing engine and a co
 ## What you can do
 
 - Scan a drive or folder and explore results while analysis continues.
-- Navigate a proportional Canvas treemap, folder details and virtual file lists.
+- Explore the same proportional layout as a Canvas treemap or an isometric Skyline, with synchronized folder details and virtual file lists.
 - Search the current index with **Ctrl+K**, filters, sorting and keyboard navigation.
 - Find large files and verify duplicates with complete BLAKE3 hashes.
 - Review cleanup candidates, move selected files to the Recycle Bin and restore compatible recorded items.
@@ -22,7 +22,7 @@ No account, cloud service, advertising or telemetry. The application uses actual
 
 ## Install
 
-Download **Voldiq_0.1.0_x64-setup.exe** from the [latest release](https://github.com/Hakaelll/Voldiq/releases/latest). The current-user installer includes the offline Microsoft WebView2 runtime. Development tools are not required.
+Download **Voldiq_0.2.0_x64-setup.exe** from the [latest release](https://github.com/Hakaelll/Voldiq/releases/latest). The current-user installer includes the offline Microsoft WebView2 runtime. Development tools are not required.
 
 The application and installer are unsigned.
 
@@ -55,7 +55,7 @@ pnpm tauri build --bundles nsis
 ./scripts/verify_distribution.ps1
 ```
 
-The source gate runs formatting, Svelte diagnostics, the eight retained tests, the frontend production build and strict Clippy. It reuses the release target and offline Cargo dependencies. Output installers are in `target/release/bundle/nsis`.
+The source gate runs formatting, Svelte diagnostics, frontend and Rust behavior tests, the frontend production build and strict Clippy. It reuses the release target and offline Cargo dependencies. Output installers are in `target/release/bundle/nsis`.
 
 A direct native build must use `cargo build --offline --release -p voldiq --features production --bin voldiq`. Release optimization alone does not enable Tauri's embedded interface. Preview and distribution checks execute the embedded-asset probe to verify production mode and the bundled frontend.
 
