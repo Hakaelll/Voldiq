@@ -1,5 +1,6 @@
 //! Human provisioning is separate from agent authentication and per-call authorization.
 mod scope;
+pub(crate) use scope::pin_directory;
 
 use crate::{Error, Result};
 use rusqlite::{Connection, OptionalExtension, params};
@@ -159,10 +160,29 @@ pub struct ConnectionInfo {
 
 pub struct Registry {
     connection: Connection,
+    directory: AuthorizedPath,
 }
 
 impl Registry {
+    pub fn plan_context<'a>(
+        &'a self,
+        principal: &'a Principal,
+        capability: Capability,
+    ) -> Result<PlanContext<'a>> {
+        self.policy(principal, capability)?;
+        Ok(PlanContext {
+            registry: self,
+            principal,
+            capability,
+        })
+    }
+
     pub fn open(path: &Path) -> Result<Self> {
+        let parent = path
+            .parent()
+            .filter(|path| !path.as_os_str().is_empty())
+            .unwrap_or(Path::new("."));
+        let directory = pin_directory(&std::fs::canonicalize(parent)?)?;
         let mut connection = Connection::open(path)?;
         crate::database::configure(&connection)?;
         let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
@@ -176,7 +196,10 @@ impl Registry {
             return Err(Error::Invalid("Unsupported agent registry schema.".into()));
         }
         tx.commit()?;
-        Ok(Self { connection })
+        Ok(Self {
+            connection,
+            directory,
+        })
     }
 
     /// Call only from the human desktop channel, never from CLI/MCP tool dispatch.
@@ -398,6 +421,53 @@ impl Registry {
             });
         }
         Ok(items)
+    }
+}
+
+/// Opaque per-call authority. Every use rechecks the current credential and policy.
+pub struct PlanContext<'a> {
+    registry: &'a Registry,
+    principal: &'a Principal,
+    capability: Capability,
+}
+
+impl PlanContext<'_> {
+    pub(crate) fn check_directory(&self, identity: (u64, u64)) -> Result<()> {
+        if self.registry.directory.identity() != identity {
+            return Err(denied());
+        }
+        Ok(())
+    }
+    pub(crate) fn check(&self, capability: Capability) -> Result<Policy> {
+        if capability != self.capability {
+            return Err(denied());
+        }
+        self.registry.policy(self.principal, capability)
+    }
+
+    pub(crate) fn owner(&self) -> i64 {
+        self.principal.id
+    }
+
+    pub(crate) fn binding(&self) -> Result<String> {
+        let policy = self.registry.policy(self.principal, self.capability)?;
+        let key = blake3::hash(self.principal.credential_hash.as_bytes());
+        let bytes = serde_json::to_vec(&policy).map_err(|_| denied())?;
+        Ok(blake3::keyed_hash(key.as_bytes(), &bytes)
+            .to_hex()
+            .to_string())
+    }
+
+    pub(crate) fn snapshot(&self, scope: &crate::snapshots::Scope) -> Result<AuthorizedPath> {
+        self.registry.authorize_snapshot(self.principal, scope)
+    }
+
+    pub(crate) fn path(&self, path: &Path) -> Result<AuthorizedPath> {
+        self.registry.authorize(
+            self.principal,
+            self.capability,
+            &scope::ordinary_path(path)?,
+        )
     }
 }
 

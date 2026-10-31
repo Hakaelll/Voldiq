@@ -6,6 +6,7 @@ pub mod duplicates;
 pub mod index;
 pub mod jobs;
 pub mod ntfs;
+pub mod plans;
 pub mod scanner;
 pub mod service;
 pub mod snapshots;
@@ -15,6 +16,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error("needs_human_approval")]
+    NeedsHumanApproval,
     #[error("{0}")]
     Invalid(String),
     #[error(transparent)]

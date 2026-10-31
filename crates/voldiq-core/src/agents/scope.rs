@@ -112,6 +112,14 @@ pub(crate) fn ordinary_path(path: &Path) -> Result<PathBuf> {
     Ok(path.to_owned())
 }
 
+pub(crate) fn pin_directory(path: &Path) -> Result<AuthorizedPath> {
+    let pin = AuthorizedPath::open(&ordinary_path(path)?)?;
+    if !pin.handles.last().ok_or_else(denied)?.metadata()?.is_dir() {
+        return Err(denied());
+    }
+    Ok(pin)
+}
+
 pub(super) fn authorize(
     roots: &[Root],
     exclusions: &[Root],

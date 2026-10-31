@@ -1,5 +1,5 @@
 use crate::{Error, Kind, NodeId, Result, index::Index, windows};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 #[cfg(all(test, windows))]
 mod disposition_tests;
 #[cfg(windows)]
@@ -7,6 +7,7 @@ pub mod execute;
 #[cfg(windows)]
 pub mod helper;
 pub mod journal;
+pub(crate) mod record;
 #[cfg(windows)]
 pub mod recycle;
 pub mod rules;
@@ -37,7 +38,7 @@ pub struct Preview {
     pub retained: Vec<String>,
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq, Deserialize, Serialize)]
 struct Stamp {
     identity: (u64, u64),
     size: u64,
@@ -45,12 +46,15 @@ struct Stamp {
     change_time: u64,
 }
 
+#[derive(Clone, Deserialize, Serialize)]
 struct PlannedFile {
     id: NodeId,
     path: PathBuf,
     stamp: Stamp,
     parents: Vec<(PathBuf, (u64, u64))>,
     digest: Option<String>,
+    allocated: u64,
+    links: u32,
 }
 
 pub struct Plan {
@@ -129,6 +133,15 @@ impl Plan {
                 "Rescan before managing historical files.".into(),
             ));
         }
+        Self::prepare_verified(index, selection, cancel)
+    }
+
+    fn prepare_verified(
+        index: &Index,
+        selection: &[NodeId],
+        cancel: &std::sync::atomic::AtomicBool,
+    ) -> Result<Self> {
+        check_cancelled(cancel)?;
         if selection.is_empty() || selection.len() > 500 {
             return Err(Error::Invalid("Select between 1 and 500 files.".into()));
         }
@@ -228,6 +241,8 @@ impl Plan {
                 },
                 parents,
                 digest: None,
+                allocated: identity.allocated,
+                links: identity.links,
             });
         }
         check_cancelled(cancel)?;
