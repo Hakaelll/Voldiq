@@ -94,3 +94,11 @@ The [2026-10-15 verification](../benchmarks/docker-context-verification-2026-10-
 On 2026-10-12, seven native tests passed, including four Docker tests covering current/legacy accounting, version and endpoint validation, HTTP framing, and an actual Windows named-pipe GET exchange plus silent-server timeout. Svelte checks, production frontend build and strict workspace Clippy passed. Source-only review found and corrected legacy shared-cache overcounting. The default local Docker pipe was unavailable in a read-only connection probe; acceptance with a running Docker Engine remains pending. No visual automation was used.
 
 The Docker fixtures described above are historical verification evidence. They were removed on 2026-10-21; see [Testing](TESTING.md) for the remaining automated suite.
+
+## Current Docker schema conformance
+
+The [published API 1.56 schema](https://docs.docker.com/reference/api/engine/version/v1.56.yaml) and [Moby response type](https://github.com/moby/moby/blob/master/api/types/system/disk_usage.go) use singular `ImageUsage`, `ContainerUsage` and `VolumeUsage`, alongside `BuildCacheUsage`. The API version-history page describes plural names, so that changelog alone must not drive a decoder rename. The existing production decoder matches the published schema and remains unchanged.
+
+The [2026-10-31 conformance record](../benchmarks/docker-schema-conformance-20261031.json) stores the downloaded schema hash and exact field references. The existing native boundary test now covers canonical summaries, transitional replies containing both summary and legacy fields, legacy accounting, known zero and unknown sizes. A temporary plural-field mutation failed against the canonical fixture and was discarded. No declared test was added.
+
+The local CLI is installed and selects `desktop-linux`, but a read-only server-version request outside isolation failed because its local Engine pipe was absent. No engine or service was started. Running-Engine acceptance remains pending. The temporary schema download was removed after recording its hash.

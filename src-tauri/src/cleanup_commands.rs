@@ -72,6 +72,7 @@ mod execution_tests {
             std::fs::read(fixture.path().join("selected")).unwrap(),
             b"original"
         );
+        crate::docker_commands::verify_disk_usage_versions();
     }
 }
 

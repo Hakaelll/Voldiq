@@ -366,3 +366,46 @@ pub async fn query_docker_storage(app: tauri::AppHandle) -> Result<DockerStorage
     #[cfg(not(windows))]
     Err("Docker named pipe analysis is available on Windows.".into())
 }
+
+#[cfg(test)]
+pub(crate) fn verify_disk_usage_versions() {
+    let values = |body: &[u8]| {
+        parse_usage(body)
+            .unwrap()
+            .into_iter()
+            .map(|item| (item.category, item.count, item.size))
+            .collect::<Vec<_>>()
+    };
+    let current = serde_json::json!({
+        "ImageUsage": { "TotalCount": 7, "TotalSize": 4096 },
+        "ContainerUsage": { "TotalCount": 3, "TotalSize": 2048 },
+        "VolumeUsage": { "TotalCount": 2, "TotalSize": -1 },
+        "BuildCacheUsage": { "TotalCount": 4, "TotalSize": 0 }
+    });
+    let expected = vec![
+        ("images", Some(7), Some(4096)),
+        ("containers", Some(3), Some(2048)),
+        ("volumes", Some(2), None),
+        ("build_cache", Some(4), Some(0)),
+    ];
+    assert_eq!(values(&serde_json::to_vec(&current).unwrap()), expected);
+    let mut transitional = current;
+    transitional["Images"] = serde_json::json!([]);
+    transitional["LayersSize"] = serde_json::json!(1);
+    transitional["Containers"] = serde_json::json!([]);
+    transitional["Volumes"] = serde_json::json!([]);
+    assert_eq!(
+        values(&serde_json::to_vec(&transitional).unwrap()),
+        expected
+    );
+    let legacy = br#"{"Images":[{}],"LayersSize":16,"Containers":[{"SizeRw":32}],"Volumes":[{"UsageData":{"Size":-1}}],"BuildCache":[]}"#;
+    assert_eq!(
+        values(legacy),
+        vec![
+            ("images", Some(1), Some(16)),
+            ("containers", Some(1), Some(32)),
+            ("volumes", Some(1), None),
+            ("build_cache", Some(0), Some(0))
+        ]
+    );
+}

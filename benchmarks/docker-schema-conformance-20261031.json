@@ -1,0 +1,71 @@
+{
+  "recordedUtc": "2026-10-31T12:22:22.774298+00:00",
+  "baseCommit": "3bd5fc2a1edf96a6ad19c139ab975a4a27148ead",
+  "schema": {
+    "url": "https://docs.docker.com/reference/api/engine/version/v1.56.yaml",
+    "sha256": "00ccd7d2e6e0b7a943ac0067007d181d723b2513ef1f6af3b6b54145314a6fa7",
+    "bytes": 475262,
+    "fields": {
+      "ImageUsage": "#/definitions/ImagesDiskUsage",
+      "ContainerUsage": "#/definitions/ContainersDiskUsage",
+      "VolumeUsage": "#/definitions/VolumesDiskUsage",
+      "BuildCacheUsage": "#/definitions/BuildCacheDiskUsage"
+    }
+  },
+  "supportingSource": "https://raw.githubusercontent.com/moby/moby/master/api/types/system/disk_usage.go",
+  "conflictingChangelog": "https://docs.docker.com/reference/api/engine/version-history/",
+  "productionImplementationUnchanged": true,
+  "retainedCoverage": [
+    "Current singular-field summary counts and sizes",
+    "Transitional response prefers summary over conflicting legacy values",
+    "Legacy counts and sizes",
+    "Unknown volume bytes remain null",
+    "Known zero build cache bytes remain zero"
+  ],
+  "counterexample": {
+    "temporaryMutation": [
+      "image_usage -> images_usage",
+      "container_usage -> containers_usage",
+      "volume_usage -> volumes_usage"
+    ],
+    "command": "cargo test --offline --release -p voldiq --bin voldiq confirmation_requires -- --nocapture",
+    "exitCode": 1,
+    "observation": "Canonical payload lost the first three category counts and sizes. Mutation discarded before commit."
+  },
+  "verifiedWorkspaceRustTests": {
+    "command": "cargo test --offline --release --workspace",
+    "exitCode": 0,
+    "native": 1,
+    "coreUnit": 5,
+    "integration": 1
+  },
+  "liveEngine": {
+    "cliCommand": "docker version --format {{json .Server}}",
+    "exitCode": 1,
+    "endpoint": "npipe:////./pipe/dockerDesktopLinuxEngine",
+    "error": "The system cannot find the file specified.",
+    "checkedOutsideIsolation": true,
+    "serviceStarted": false,
+    "acceptanceEstablished": false
+  },
+  "declaredTestsAdded": 0,
+  "schemaDownloadRemovedAfterRecording": true,
+  "sources": {
+    "src-tauri/src/docker_commands.rs": "c393e3fee369ef38d3c4799bfcedaf1a3df0ff8425151f73ddb338967ffad3f3",
+    "src-tauri/src/cleanup_commands.rs": "a90cfabe4407ca5d64dc16cfe9a87bf463e3e1896fce5112f4075b2ccbe9424e"
+  },
+  "sourceChecks": [
+    {
+      "command": "cargo clippy --offline --release --workspace --all-targets -- -D warnings",
+      "exitCode": 0
+    },
+    {
+      "command": "cargo fmt --all --check",
+      "exitCode": 0
+    },
+    {
+      "command": "git diff --check",
+      "exitCode": 0
+    }
+  ]
+}
