@@ -1,5 +1,8 @@
-use std::{sync::atomic::AtomicBool, time::Instant};
-use voldiq_core::{ScanConcurrency, ScanMode, ScanOptions, scanner::scan};
+use std::{
+    sync::atomic::{AtomicBool, Ordering},
+    time::Instant,
+};
+use voldiq_core::{ScanConcurrency, ScanMode, ScanOptions, ScanPhase, scanner::scan};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let count: usize = std::env::args()
@@ -10,6 +13,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Err("Fixture requires 100 to 100,000 files.".into());
     }
     let fixture = tempfile::tempdir()?;
+    check_space(fixture.path(), count)?;
+    eprintln!("Owned fixture: {}", fixture.path().display());
     for directory in 0..100 {
         std::fs::create_dir(fixture.path().join(format!("folder-{directory:03}")))?;
     }
@@ -25,15 +30,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "Newly created fixture; warm metadata, no content reads. Logical CPUs: {}. Directory mode only.",
         std::thread::available_parallelism()?.get()
     );
-    println!("round,workers,files,entries,logical,allocated,errors,wall_ms,cpu_ms");
+    eprintln!(
+        "Seek penalty: {:?}; automatic preflight workers: {}.",
+        voldiq_core::windows::storage_seek_penalty(fixture.path()),
+        ScanConcurrency::automatic().for_path(fixture.path())
+    );
+    println!(
+        "round,phase,setting,preflight_workers,fixture_files,files,entries,logical,allocated,errors,wall_ms,cpu_ms,cancel_ms"
+    );
     let cancel = AtomicBool::new(false);
     for round in 0..5 {
-        let mut order = [1, 2, 4, 8];
-        order.rotate_left(round % 4);
-        for workers in order {
+        let mut order = [Some(1), Some(2), Some(4), Some(8), None];
+        order.rotate_left(round % 5);
+        for requested in order {
+            let concurrency = requested
+                .map(ScanConcurrency::try_from)
+                .transpose()?
+                .unwrap_or(ScanConcurrency::automatic());
+            let setting =
+                requested.map_or_else(|| "auto".to_owned(), |workers| workers.to_string());
+            let workers = concurrency.for_path(fixture.path());
             let options = ScanOptions {
                 mode: ScanMode::Directory,
-                concurrency: ScanConcurrency::try_from(workers)?,
+                concurrency,
                 ..ScanOptions::default()
             };
             let cpu = cpu_ms()?;
@@ -52,8 +71,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 return Err("Measured scan does not match fixture contents.".into());
             }
             println!(
-                "{},{workers},{count},{},{},{},{},{elapsed:.3},{cpu:.3}",
+                "{},full,{setting},{workers},{count},{},{},{},{},{},{elapsed:.3},{cpu:.3},",
                 round + 1,
+                root.files,
                 index.entries.len(),
                 root.logical,
                 root.allocated,
@@ -61,6 +81,71 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
         }
     }
+    // Cancellation is a separate workload, so it does not contaminate full-scan timings.
+    if count >= 10_000 {
+        for round in 0..5 {
+            let mut order = [Some(1), Some(2), Some(4), Some(8), None];
+            order.rotate_left(round % 5);
+            for requested in order {
+                let concurrency = requested
+                    .map(ScanConcurrency::try_from)
+                    .transpose()?
+                    .unwrap_or(ScanConcurrency::automatic());
+                let setting =
+                    requested.map_or_else(|| "auto".to_owned(), |workers| workers.to_string());
+                let workers = concurrency.for_path(fixture.path());
+                let options = ScanOptions {
+                    mode: ScanMode::Directory,
+                    concurrency,
+                    ..ScanOptions::default()
+                };
+                cancel.store(false, Ordering::Relaxed);
+                let mut requested_at = None;
+                let mut phase = ScanPhase::Scanning;
+                let cpu = cpu_ms()?;
+                let start = Instant::now();
+                let index = scan(fixture.path(), &options, &cancel, |update| {
+                    phase = update.phase;
+                    if update.phase == ScanPhase::Scanning
+                        && update.files >= (count / 4).min(10_000) as u64
+                        && requested_at.is_none()
+                    {
+                        requested_at = Some(Instant::now());
+                        cancel.store(true, Ordering::Relaxed);
+                    }
+                })?;
+                let stopped = Instant::now();
+                let cpu = cpu_ms()? - cpu;
+                let cancel_ms = stopped.duration_since(requested_at.ok_or("Fixture completed before a live cancellation request; use a larger fixture.")?).as_secs_f64() * 1000.0;
+                let elapsed = stopped.duration_since(start).as_secs_f64() * 1000.0;
+                let root = &index.entries[0];
+                if phase != ScanPhase::Cancelled
+                    || !root.incomplete
+                    || root.files == 0
+                    || root.files >= count as u64
+                    || root.logical != root.files * 128
+                    || index.error_count != 0
+                {
+                    return Err("Cancellation did not preserve a consistent partial scan.".into());
+                }
+                println!(
+                    "{},cancel,{setting},{workers},{count},{},{},{},{},{},{elapsed:.3},{cpu:.3},{cancel_ms:.3}",
+                    round + 1,
+                    root.files,
+                    index.entries.len(),
+                    root.logical,
+                    root.allocated,
+                    index.error_count
+                );
+            }
+        }
+    }
+    let path = fixture.path().to_owned();
+    fixture.close()?;
+    if path.exists() {
+        return Err("Owned fixture remains after cleanup.".into());
+    }
+    eprintln!("Owned fixture removed: {}", path.display());
     Ok(())
 }
 
@@ -86,4 +171,38 @@ fn cpu_ms() -> std::io::Result<f64> {
 #[cfg(not(windows))]
 fn cpu_ms() -> std::io::Result<f64> {
     Ok(f64::NAN)
+}
+
+#[cfg(windows)]
+fn check_space(path: &std::path::Path, count: usize) -> std::io::Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW;
+    let path: Vec<u16> = path.as_os_str().encode_wide().chain(Some(0)).collect();
+    let mut available = 0;
+    if unsafe {
+        GetDiskFreeSpaceExW(
+            path.as_ptr(),
+            &mut available,
+            std::ptr::null_mut(),
+            std::ptr::null_mut(),
+        )
+    } == 0
+    {
+        return Err(std::io::Error::last_os_error());
+    }
+    // Reserve is a safety allowance, not a prediction of NTFS fixture allocation.
+    let reserve = count as u64 * 8192 + 512 * 1024 * 1024;
+    if available < reserve {
+        return Err(std::io::Error::other(
+            "Insufficient space for the fixture safety reserve",
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn check_space(_: &std::path::Path, _: usize) -> std::io::Result<()> {
+    Err(std::io::Error::other(
+        "Run this fixture on Windows for allocation and memory measurements",
+    ))
 }

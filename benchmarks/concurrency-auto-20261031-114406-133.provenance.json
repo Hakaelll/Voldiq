@@ -1,0 +1,40 @@
+{
+  "utc": "2026-10-31T11:50:29.7038824Z",
+  "checkoutCommit": "6aea18ce9fc4d5cb5d1fbbace62281e510a350ae",
+  "executableSha256": "6E3EE45E694535494D96BD648FBD1F7DCC9213E89457182DC8EA208FFDA60E31",
+  "sources": {
+    "crates/voldiq-core/examples/concurrency_benchmark.rs": "0CC3C7122486C8504AF1B04EE6E88C1B3BFF792729020D493EB3E06C685456EC",
+    "crates/voldiq-core/src/lib.rs": "656BC77D43611525B0DF6DB11CC74E453361ABF0756E14C4F2D378DE50A49D28",
+    "crates/voldiq-core/src/scanner.rs": "79F7F7B73433E759829AF720A42E61233C2D170ABF7F619B14AC5EAEC1FC8059",
+    "crates/voldiq-core/src/scanner/directory.rs": "1FBBEECE8B208AA8FBC231A960D650F50F68D9E2C9FAF556C0AB77AA6897DABE",
+    "crates/voldiq-core/src/windows/storage.rs": "2672B47ABFDD27C380320FA5935DCC750D0531BEFD65E664BC9E043F84A195F4",
+    "benchmarks/run_concurrency_benchmark.ps1": "C662958EDE43AA9B2139784C12B87F506AB9CBA80399A8AEF4DC260CE1351602"
+  },
+  "profile": "release",
+  "fixtureFiles": 100000,
+  "pid": 16148,
+  "finished": true,
+  "exitCode": 0,
+  "rows": 50,
+  "csv": "concurrency-auto-20261031-114406-133.csv",
+  "stderr": "Owned fixture: C:\\Users\\yagol\\AppData\\Local\\Temp\\.tmpDw8lNd\nNewly created fixture; warm metadata, no content reads. Logical CPUs: 8. Directory mode only.\nSeek penalty: Some(false); automatic preflight workers: 2.\nOwned fixture removed: C:\\Users\\yagol\\AppData\\Local\\Temp\\.tmpDw8lNd\n",
+  "cpuBefore": [
+    {
+      "Name": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
+      "NumberOfCores": 4,
+      "NumberOfLogicalProcessors": 8,
+      "LoadPercentage": 60
+    }
+  ],
+  "cpuAfter": [
+    {
+      "LoadPercentage": 57
+    }
+  ],
+  "operatingSystem": {
+    "Caption": "Microsoft Windows 11 Home",
+    "Version": "10.0.26200",
+    "TotalVisibleMemorySize": 16535812
+  },
+  "scope": "Production directory enumeration with automatic and fixed 1/2/4/8 concurrency, five rotating repetitions each. A separate workload measures cancellation from a live progress callback through return after worker joining. Newly written real files warm metadata. Creation, validation and cleanup are outside scan timers. Preflight worker counts are separate device resolutions, not scanner telemetry. CPU is this process only. No raw NTFS scan, cold cache, physical disk bandwidth, HDD/network comparison, native UI, concurrent query or whole-app acceptance."
+}

@@ -1,0 +1,212 @@
+{
+  "sourceCsv": "concurrency-auto-20261031-114406-133.csv",
+  "rows": 50,
+  "summary": [
+    {
+      "phase": "full",
+      "setting": "1",
+      "samples": 5,
+      "preflightWorkers": [
+        1
+      ],
+      "wall_ms": {
+        "median": 16291.779,
+        "min": 15650.718,
+        "max": 19711.802
+      },
+      "cpu_ms": {
+        "median": 16109.375,
+        "min": 15437.5,
+        "max": 18562.5
+      }
+    },
+    {
+      "phase": "full",
+      "setting": "2",
+      "samples": 5,
+      "preflightWorkers": [
+        2
+      ],
+      "wall_ms": {
+        "median": 10017.676,
+        "min": 9479.703,
+        "max": 10987.595
+      },
+      "cpu_ms": {
+        "median": 19609.375,
+        "min": 18625.0,
+        "max": 21000.0
+      }
+    },
+    {
+      "phase": "full",
+      "setting": "4",
+      "samples": 5,
+      "preflightWorkers": [
+        4
+      ],
+      "wall_ms": {
+        "median": 5780.052,
+        "min": 5613.171,
+        "max": 6745.765
+      },
+      "cpu_ms": {
+        "median": 20921.875,
+        "min": 20468.75,
+        "max": 21640.625
+      }
+    },
+    {
+      "phase": "full",
+      "setting": "8",
+      "samples": 5,
+      "preflightWorkers": [
+        8
+      ],
+      "wall_ms": {
+        "median": 4306.039,
+        "min": 4100.044,
+        "max": 4563.832
+      },
+      "cpu_ms": {
+        "median": 21359.375,
+        "min": 19984.375,
+        "max": 21828.125
+      }
+    },
+    {
+      "phase": "full",
+      "setting": "auto",
+      "samples": 5,
+      "preflightWorkers": [
+        2
+      ],
+      "wall_ms": {
+        "median": 9806.502,
+        "min": 9471.246,
+        "max": 10629.044
+      },
+      "cpu_ms": {
+        "median": 19156.25,
+        "min": 18281.25,
+        "max": 20750.0
+      }
+    },
+    {
+      "phase": "cancel",
+      "setting": "1",
+      "samples": 5,
+      "preflightWorkers": [
+        1
+      ],
+      "wall_ms": {
+        "median": 1802.691,
+        "min": 1601.958,
+        "max": 1802.92
+      },
+      "cpu_ms": {
+        "median": 1765.625,
+        "min": 1578.125,
+        "max": 1812.5
+      },
+      "cancel_ms": {
+        "median": 0.1,
+        "min": 0.049,
+        "max": 0.481
+      }
+    },
+    {
+      "phase": "cancel",
+      "setting": "2",
+      "samples": 5,
+      "preflightWorkers": [
+        2
+      ],
+      "wall_ms": {
+        "median": 1021.274,
+        "min": 812.195,
+        "max": 1127.779
+      },
+      "cpu_ms": {
+        "median": 1984.375,
+        "min": 1562.5,
+        "max": 2187.5
+      },
+      "cancel_ms": {
+        "median": 0.32,
+        "min": 0.293,
+        "max": 0.621
+      }
+    },
+    {
+      "phase": "cancel",
+      "setting": "4",
+      "samples": 5,
+      "preflightWorkers": [
+        4
+      ],
+      "wall_ms": {
+        "median": 615.775,
+        "min": 612.514,
+        "max": 619.528
+      },
+      "cpu_ms": {
+        "median": 2203.125,
+        "min": 2171.875,
+        "max": 2328.125
+      },
+      "cancel_ms": {
+        "median": 0.416,
+        "min": 0.362,
+        "max": 0.896
+      }
+    },
+    {
+      "phase": "cancel",
+      "setting": "8",
+      "samples": 5,
+      "preflightWorkers": [
+        8
+      ],
+      "wall_ms": {
+        "median": 413.417,
+        "min": 410.884,
+        "max": 523.018
+      },
+      "cpu_ms": {
+        "median": 2296.875,
+        "min": 1890.625,
+        "max": 2578.125
+      },
+      "cancel_ms": {
+        "median": 0.296,
+        "min": 0.211,
+        "max": 0.319
+      }
+    },
+    {
+      "phase": "cancel",
+      "setting": "auto",
+      "samples": 5,
+      "preflightWorkers": [
+        2
+      ],
+      "wall_ms": {
+        "median": 1020.233,
+        "min": 1019.213,
+        "max": 1224.891
+      },
+      "cpu_ms": {
+        "median": 2015.625,
+        "min": 1984.375,
+        "max": 2359.375
+      },
+      "cancel_ms": {
+        "median": 0.314,
+        "min": 0.264,
+        "max": 0.521
+      }
+    }
+  ],
+  "scope": "Five rotating samples per setting and workload on 100,000 freshly written real files. Warm directory metadata. Cancellation covers request through scanner return/worker join. Preflight workers are separate device resolution, not scanner telemetry. No universal fastest policy, cold/HDD comparison or whole-app/UI latency claim."
+}
