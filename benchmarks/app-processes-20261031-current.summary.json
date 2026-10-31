@@ -1,0 +1,45 @@
+{
+  "recordedUtc": "2026-10-31T13:55:01.033534+00:00",
+  "measuredIntervals": 5,
+  "baselineSamples": 1,
+  "identitiesPerSample": 7,
+  "counterRows": 42,
+  "readErrors": 0,
+  "availabilityChangesAfterBaseline": 0,
+  "summary": {
+    "totalPrivateBytes": {
+      "median": 161210368.0,
+      "minimum": 161148928.0,
+      "maximum": 161210368.0
+    },
+    "nativePrivateBytes": {
+      "median": 4186112.0,
+      "minimum": 4124672.0,
+      "maximum": 4186112.0
+    },
+    "webviewPrivateBytes": {
+      "median": 157024256.0,
+      "minimum": 157024256.0,
+      "maximum": 157028352.0
+    },
+    "summedWorkingSetBytes": {
+      "median": 375713792.0,
+      "minimum": 375681024.0,
+      "maximum": 375713792.0
+    },
+    "intervalSeconds": {
+      "median": 5.1765583,
+      "minimum": 5.1311845,
+      "maximum": 5.1832949
+    },
+    "survivingOneCoreCpuPercent": {
+      "median": 0.0,
+      "minimum": 0.0,
+      "maximum": 0.0
+    }
+  },
+  "rawGroupSha256": "cd7f6168b95dece0c7f70a1dec507efae746a7629cfdaf870f3cad302851ba07",
+  "rawProcessesSha256": "de2849409ea0aceb0bb6eae4520b2a84d6a0d89342253321ebdcf6a468792a49",
+  "invariants": "All per-process memory sums and surviving CPU deltas independently match every aggregate sample. Process identities are stable across all six samples.",
+  "limitations": "One existing-window capture with uninspected workload and uncontrolled background load. No controlled idle/index workload, startup/FPS guarantee, speedup or unique physical-memory claim."
+}

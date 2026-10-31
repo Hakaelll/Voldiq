@@ -87,6 +87,23 @@ This updates the query baseline for the current core. It measures neither filesy
 
 ## Native application process observation
 
+### Current release, 2026-10-31
+
+The executable with persistent duplicate hashes, SHA-256 `8A0921EB496CE6EF5A93E77664149C75695A072DCB001B0D18EB51278C3E5F0E`, was observed at checkout `c98a680` through the unchanged read-only process observer. One baseline and five five-second intervals retain seven stable native/WebView2 process identities. All 42 per-process rows independently reproduce the aggregate memory sums and surviving CPU deltas, with zero read errors or availability changes. See [raw group counters](../benchmarks/app-processes-20261031-current.csv), [per-process counters](../benchmarks/app-processes-20261031-current.processes.csv), [checked summary](../benchmarks/app-processes-20261031-current.summary.json) and [provenance](../benchmarks/app-processes-20261031-current.provenance.json).
+
+| Counter | Median of five | Range |
+|---|---:|---:|
+| Total private bytes | 161,210,368 B | 161,148,928–161,210,368 B |
+| Native private bytes | 4,186,112 B | 4,124,672–4,186,112 B |
+| WebView2 private bytes | 157,024,256 B | 157,024,256–157,028,352 B |
+| Summed working sets | 375,713,792 B | 375,681,024–375,713,792 B |
+
+Intervals lasted 5.131–5.183 seconds. None of the surviving CPU counters advanced during this capture. This does not prove continuous zero CPU. The native process accounts for about 2.6% of median private bytes; WebView2 accounts for the rest. Summed working sets can count shared pages repeatedly and are not unique physical memory.
+
+The application workload and user input were not inspected or controlled. No build, scan benchmark or automated UI input was initiated during capture. Host CPU load was 10% before and 50% after, and the runtime was WebView2 156.0.4314.50. These observations establish current process counters, not controlled idle or loaded-index budgets, a comparison with the older runtime, startup latency or 60 FPS. The private-byte result falls within the specification's approximate 150–200 MB target for this observation only. Controlled workload acceptance remains open.
+
+### Historical observation, 2026-10-13
+
 The release executable built from application sources at `87aa6cb` was opened on 2026-10-13. A read-only observer collected Voldiq and associated WebView2 descendants over one baseline and five intervals of 5.162–5.192 seconds. Seven process identities remained measurable in every sample, with zero counter-read errors. No compilation, scan benchmark or automated UI input ran during capture. User interaction, current UI state and host background load were not inspected, so this is an observed release-process baseline rather than a controlled idle or populated-analysis acceptance test.
 
 ```powershell

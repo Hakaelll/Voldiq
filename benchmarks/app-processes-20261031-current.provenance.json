@@ -1,0 +1,28 @@
+{
+  "sourceCheckoutCommit": "c98a6807f60f5b4ae7ba1dbbfc3b178298d554b2",
+  "nativeProcessId": 5088,
+  "nativeStartedUtc": "2026-10-31T13:49:11.1836477Z",
+  "nativeExecutableSha256": "8A0921EB496CE6EF5A93E77664149C75695A072DCB001B0D18EB51278C3E5F0E",
+  "observerSha256": "AAE5F4536DCB0DC3BFC1F7471E049190899F87E3714EAA0774A9AC1D6E478E03",
+  "webviewProductVersions": [
+    "156.0.4314.50"
+  ],
+  "logicalProcessors": 8.0,
+  "hostCpuBeforePercent": 10.0,
+  "hostCpuAfterPercent": 50.0,
+  "workload": "Existing release window, observed without input or screen inspection. User interaction and loaded-index state were not controlled or inspected. No build or benchmark was initiated during capture.",
+  "scope": "Native Voldiq and associated WebView2 descendants. Summed private bytes and overlapping working sets. CPU includes successfully observed surviving process identities only.",
+  "samples": 5,
+  "baselineSamples": 1,
+  "readErrors": 0.0,
+  "churnAfterBaseline": [
+    {
+      "Property": "newlyMeasuredProcesses",
+      "Sum": 0.0
+    },
+    {
+      "Property": "noLongerMeasuredProcesses",
+      "Sum": 0.0
+    }
+  ]
+}
