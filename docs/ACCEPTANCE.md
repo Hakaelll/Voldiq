@@ -49,13 +49,17 @@ The performance document separates warm scanner fixtures, query fixtures and pro
 
 The user owns visual acceptance and has requested no Computer Use or automated screen inspection. CLI compilation, real fixtures and process/window metadata are allowed and remain separate evidence. No source-level review is described as a completed visual check.
 
-## Next verification order
+## Remaining acceptance work
 
-1. Run the complete source verification and fix failures before adding functionality.
-2. Resolve and implement default recycling/Undo with disposable fixtures.
-3. Measure loaded native behavior and the new map query without changing filesystem accuracy.
-4. Build the final installer and verify clean offline installation, native operation and uninstall.
-5. Complete the user's manual visual and interaction acceptance.
+The latest six-stage source gate passes. The user confirmed that the standalone window displays the interface. This confirms visible startup only; it does not close the interaction or performance requirements above.
+
+1. Keep default recycling disabled until the deferred combined recycling/restoration fixture passes and desktop review, confirmation and Undo are accepted. The implementation exists; its activation is still pending. Do not repeat the deferred UAC request during automatic continuation.
+2. Measure controlled loaded native responsiveness, cancellation, memory, startup and frame timing. Existing backend fixtures and the production process observation do not close these targets.
+3. Diagnose the older windowless process before accepting shutdown during active work. Later successful exits do not explain that incident.
+4. Use the current verified installer for the user's clean Windows installation, offline launch and uninstall checks. Rebuild only if application source changes.
+5. Complete the user's manual interaction and visual acceptance, including populated scans, treemap navigation, search, duplicates, cleanup and snapshot comparison.
+
+Settings source review confirms persisted appearance, size metric, reduced motion, scan mode, concurrency, default drive, excluded paths and recent paths in `frontend/App.svelte`. Index clearing is available there; snapshot storage management is in History. Destructive confirmations remain mandatory rather than configurable. Search and History have connected native requests and cancellation paths. These source findings do not establish native interaction acceptance or complete support for every optional tool configuration.
 
 The [desktop restoration source gate](../benchmarks/project-verification-restoration-20261031.json) passes all six stages with the unchanged eight-test inventory. The restored-item activity flag is covered by the retained journal regression. This source result does not claim native modal interaction, lease expiry behavior, combined UAC recycling or clean-machine acceptance.
 
@@ -63,7 +67,7 @@ Index-scoped desktop requests now carry their publication identity. Replacement 
 
 Duplicate analysis now persists its bounded validated hash cache in snapshot schema 5 and loads it only when analysis starts. The retained real-file regression verifies reuse across reopened connections and invalidation of changed files. Explicit analysis clearing also removes persisted hashes without deleting snapshots. Native end-to-end duplicate interaction and large-cache timing remain separate acceptance checks. See [persistent hash verification](../benchmarks/persistent-hashes-20261031.json).
 
-The [current native resource observation](../benchmarks/app-processes-20261031-current.summary.json) has seven stable processes, no read errors and independently reconciled counters. It updates the executable/runtime evidence while leaving controlled idle, populated-index memory, startup and frame targets unproven. The capture used no UI automation or new build.
+The [earlier native resource observation](../benchmarks/app-processes-20261031-current.summary.json) is withdrawn as an application-interface baseline because it used the development-protocol executable. Use the production-window observation linked above for current process counters. Neither capture closes controlled idle, populated-index memory, startup or frame targets.
 
 The 2026-10-31 process-only launch records did not prove that the application interface loaded. A user screenshot exposed a development-server connection refusal in the Cargo-built release. The associated resource capture is withdrawn as an application-interface baseline. The fix requires production protocol compilation and an executable-level embedded-asset probe before preview or packaging. Installer configuration alone did not detect this failure.
 
