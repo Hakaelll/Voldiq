@@ -16,6 +16,7 @@
   import RestorationDialog from './components/RestorationDialog.svelte';
   import { readRecentPaths, rememberPath } from './lib/recent-paths';
   import { overviewQueries, detailQueries } from './lib/queries';
+  import { createNavigationRefresh } from './lib/navigation-refresh';
   import { scopedFileQuery } from './lib/file-query';
   import { rankColor, type WeightedNode } from './lib/treemap';
   import {
@@ -92,6 +93,7 @@
   let search: HTMLInputElement;
   let refreshToken = 0;
   let interactionToken = 0;
+  const navigationRefresh = createNavigationRefresh();
   let analysisBusy = $state(false);
   let historical = $state<Snapshot | null>(null);
   let selection = $state(new Set<number>());
@@ -179,15 +181,16 @@
     overviewQueries.cancel();
   }
   function invalidateInteraction(): number {
+    navigationRefresh.reset();
     detailQueries.cancel();
     return ++interactionToken;
   }
-  async function refresh(id = scope): Promise<void> {
+  async function refresh(id = scope, navigationOwner: number | null = null): Promise<void> {
     const token = ++refreshToken;
     const overviewRequest = overviewQueries.request({ id });
     try {
       const result = await overviewRequest.result;
-      if (token !== refreshToken || result === null) return;
+      if (token !== refreshToken || result === null || (navigationOwner !== null && navigationOwner !== interactionToken)) return;
       directory = result.directory;
       children = result.children;
       branches = result.branches ?? [];
@@ -196,7 +199,7 @@
       revision += 1;
     } catch (problem) {
       overviewRequest.cancel();
-      if (token === refreshToken) report(problem);
+      if (token === refreshToken && (navigationOwner === null || navigationOwner === interactionToken)) report(problem);
     }
   }
   async function select(id: number): Promise<void> {
@@ -243,18 +246,21 @@
       view = 'explorer';
       return;
     }
+    navigationRefresh.begin(token);
     try {
       const item = await detailQueries.request({ id }).result;
       if (!item || token !== interactionToken || !ready) return;
       if (item.entry.kind === 'directory') {
         text = '';
         details = null;
-        await refresh(id);
+        await refresh(id, token);
       } else {
         details = item;
       }
     } catch (problem) {
       if (token === interactionToken) report(problem);
+    } finally {
+      if (navigationRefresh.finish(token) && ready) void refresh(scope);
     }
   }
   async function start(path: string): Promise<void> {
@@ -291,7 +297,7 @@
         ready = true;
         if (update.elapsed_ms === 0 || update.elapsed_ms - lastRefresh >= 1000) {
           lastRefresh = update.elapsed_ms;
-          void refresh(scope);
+          if (navigationRefresh.request()) void refresh(scope);
         }
       }
       if (update.phase === 'failed') {

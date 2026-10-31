@@ -49,3 +49,11 @@ Default recycling is not implemented. Separate fixtures establish sealed-directo
 ## Pending architecture work
 
 Combined safe recycling, persistent hash-cache reuse and whole-application performance acceptance remain open. Large queries can delay index writes while holding their read guard; this is part of the large-workload performance gate. See [current acceptance](ACCEPTANCE.md) rather than treating historical entries in `NEXT_TODOS.md` as current module status. No production behavior is simulated for pending modules.
+
+## Navigation during scan refresh
+
+The overview queue normally keeps only the latest request. Explicit folder navigation now owns a short frontend refresh interval while its details and overview are pending. Scan-progress refreshes defer during that interval and coalesce into one refresh of the committed destination afterward. A stale navigation completion cannot release a newer owner, and obsolete navigation overview replies or errors cannot commit after another interaction. Interaction invalidation clears abandoned ownership.
+
+This prevents a progress update for the old committed scope from superseding a pending folder transition. It adds no polling or visible copy. Terminal scan/index-replacement invalidation retains its existing behavior; this frontend ownership rule does not establish native index-generation ownership. The retained frontend regression covers deferral, coalescing, stale completion and reset, while native pointer/keyboard acceptance remains manual. See [the source verification](../benchmarks/live-navigation-refresh-20261031.json).
+
+The [rebuilt native preview](../benchmarks/native-live-navigation-preview-20261031-124936-267.json) has a responding Voldiq window and records the executable/frontend hashes. The previous owned preview was closed normally and its 12,699,648-byte executable removed. This metadata does not establish pointer/keyboard interaction acceptance.

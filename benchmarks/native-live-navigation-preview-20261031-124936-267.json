@@ -1,0 +1,27 @@
+{
+  "utc": "2026-10-31T12:49:36.0334900Z",
+  "baseCommit": "b85e774f6ec65ef223b4826478b9a5147c8e7272",
+  "executable": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\8D2CA31C36292EB758197125DEB3DF289BF91D574975681833EF7787F5A482D0\\voldiq.exe",
+  "sha256": "8D2CA31C36292EB758197125DEB3DF289BF91D574975681833EF7787F5A482D0",
+  "processId": 6664,
+  "windowTitle": "Voldiq",
+  "responding": true,
+  "windowHandlePresent": true,
+  "obsoletePreviewBytesRemoved": 12699648,
+  "frontendAssets": [
+    {
+      "name": "index-BVOH2Z6I.js",
+      "sha256": "FBCFAE7EF24B1314AC8A69B495BA3CBD5A4BA7639E55491D0C330D0DACF3E6BB"
+    },
+    {
+      "name": "index-DKcM9PYI.css",
+      "sha256": "B1FC4698DDCA6479543A22F5BB59CE0923C916256670F151F30085B95C84B727"
+    }
+  ],
+  "sources": {
+    "frontend/App.svelte": "CD19965E3DF1125C82BC7EFA14994A6168FFDFB299BB689836D62E83B5BCB28D",
+    "frontend/lib/navigation-refresh.ts": "5A1C2B0BADD496BB4BE07EF7648D9EE5EC91DF678F53FEAFFAEEB3951D1E4F02",
+    "frontend/lib/cleanup-selection.test.ts": "5109D9463347BBA313B84A796A31E7FB840E99D958025D24EBF966F2F6FBC64F"
+  },
+  "scope": "Native launch/window metadata only. No Computer Use, screenshots, navigation interaction, UAC or recycling execution."
+}

@@ -1,0 +1,46 @@
+{
+  "recordedUtc": "2026-10-31T12:43:57.509451+00:00",
+  "baseCommit": "b85e774f6ec65ef223b4826478b9a5147c8e7272",
+  "scope": "Source ownership and scheduling regression. No Computer Use, screenshots or native pointer/keyboard acceptance. Native scan completion/index-replacement invalidation remains unchanged.",
+  "originalFailure": "Progress refresh could request the old committed scope while explicit folder navigation awaited details or overview, superseding its response token.",
+  "behavior": [
+    "Background requests defer during explicit folder navigation",
+    "Multiple deferred updates coalesce into one refresh of the committed destination",
+    "Stale navigation completion cannot release the current owner",
+    "Interaction invalidation discards abandoned navigation ownership",
+    "An overview reply/error from an obsolete navigation owner cannot commit"
+  ],
+  "counterexample": {
+    "mutation": "Navigation refresh request always returns true, reproducing unconditional background scheduling.",
+    "command": "pnpm test",
+    "exitCode": 1
+  },
+  "checks": [
+    {
+      "command": "pnpm test",
+      "exitCode": 0,
+      "declaredFrontendTests": 1
+    },
+    {
+      "command": "pnpm check",
+      "exitCode": 0,
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "command": "pnpm build",
+      "exitCode": 0
+    }
+  ],
+  "declaredTestsAdded": 0,
+  "sources": {
+    "frontend/App.svelte": "cd19965e3df1125c82bc7efa14994a6168ffdfb299bb689836d62e83b5bcb28d",
+    "frontend/lib/navigation-refresh.ts": "5a1c2b0badd496bb4be07ef7648d9ee5ec91df678f53feaffaeeb3951d1e4f02",
+    "frontend/lib/cleanup-selection.test.ts": "5109d9463347bba313b84a796a31e7fb840e99d958025d24ebf966f2f6fbc64f"
+  },
+  "nativeBuild": {
+    "command": "cargo build --offline --release -p voldiq --bin voldiq",
+    "exitCode": 0
+  },
+  "nativePreview": "native-live-navigation-preview-20261031-124936-267.json"
+}
