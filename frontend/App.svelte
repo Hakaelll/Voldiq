@@ -17,6 +17,7 @@
   import CleanupActivity from './components/CleanupActivity.svelte';
   import RestorationDialog from './components/RestorationDialog.svelte';
   import AgentConnections from './components/AgentConnections.svelte';
+  import AgentPlanReview from './components/AgentPlanReview.svelte';
   import { readRecentPaths, rememberPath } from './lib/recent-paths';
   import { overviewQueries, detailQueries } from './lib/queries';
   import { createNavigationRefresh } from './lib/navigation-refresh';
@@ -898,6 +899,7 @@
               >
             </div>
           </section>
+          <AgentPlanReview />
           <AgentConnections />
         </section>
       {:else if view === 'developer'}

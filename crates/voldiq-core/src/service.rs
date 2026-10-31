@@ -49,6 +49,47 @@ pub struct Stats {
 }
 
 impl AgentService {
+    pub fn plan_prepare(
+        &self,
+        snapshot: i64,
+        selection: &[crate::NodeId],
+    ) -> Result<crate::plans::View> {
+        let registry = self.registry()?;
+        let context = registry.plan_context(&self.principal, Capability::PreparePlans)?;
+        let index = self.index(snapshot)?;
+        crate::plans::Store::open(&self.directory)?.create(
+            &context,
+            snapshot,
+            &index,
+            selection,
+            crate::plans::now()?,
+        )
+    }
+
+    pub fn plan_get(&self, id: &str) -> Result<crate::plans::View> {
+        let registry = self.registry()?;
+        let context = registry.plan_context(&self.principal, Capability::Metadata)?;
+        crate::plans::Store::open(&self.directory)?.get(&context, id, crate::plans::now()?)
+    }
+
+    pub fn plan_request(&self, id: &str) -> Result<crate::plans::View> {
+        let registry = self.registry()?;
+        let context = registry.plan_context(&self.principal, Capability::RequestApproval)?;
+        crate::plans::Store::open(&self.directory)?.request(&context, id, crate::plans::now()?)?;
+        Err(Error::NeedsHumanApproval)
+    }
+
+    pub fn plan_audit(
+        &self,
+        id: &str,
+        after: i64,
+        limit: usize,
+    ) -> Result<Vec<crate::plans::AuditEvent>> {
+        let registry = self.registry()?;
+        let context = registry.plan_context(&self.principal, Capability::Metadata)?;
+        crate::plans::Store::open(&self.directory)?.audit(&context, id, after, limit)
+    }
+
     pub fn new(directory: PathBuf, principal: Principal) -> Self {
         Self {
             directory,
@@ -67,7 +108,7 @@ impl AgentService {
             .policy(&self.principal, Capability::Metadata)?;
         Ok(
             serde_json::json!({"schema_version":1,"capabilities":policy.capabilities(),"limits":policy.limits(),
-            "transport":"local_stdio","approval":"independent_human_required","execution_available":false,
+            "transport":"local_stdio","approval":"independent_human_required","plan_preparation_available":true,"execution_available":false,
             "scope":"Stored snapshots whose native root identity and exclusion coverage satisfy this connection's current policy."}),
         )
     }
@@ -170,7 +211,7 @@ impl AgentService {
                 let _guard = registry.authorize_snapshot(&self.principal, &scope)?;
                 let index = Arc::new(
                     store
-                        .load(snapshot, &AtomicBool::new(false))
+                        .load_evidence(snapshot, &AtomicBool::new(false))
                         .map_err(|_| denied())?,
                 );
                 *cache = Some(CachedIndex {

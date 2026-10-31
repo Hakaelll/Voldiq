@@ -3,7 +3,15 @@ use crate::{
     Error, Result,
     agents::{AuthorizedPath, pin_directory},
 };
-use std::{collections::HashMap, fs::File, path::Path, sync::Mutex};
+use std::{
+    collections::HashMap,
+    fs::File,
+    path::Path,
+    sync::{
+        Mutex,
+        atomic::{AtomicBool, Ordering},
+    },
+};
 
 struct Grant {
     hash: String,
@@ -18,6 +26,7 @@ pub struct HumanAuthority {
     directory: AuthorizedPath,
     issuer: String,
     grants: Mutex<HashMap<String, Grant>>,
+    closed: AtomicBool,
 }
 
 impl HumanAuthority {
@@ -48,6 +57,7 @@ impl HumanAuthority {
             directory,
             issuer: random_id()?,
             grants: Mutex::new(HashMap::new()),
+            closed: AtomicBool::new(false),
         })
     }
 
@@ -56,7 +66,7 @@ impl HumanAuthority {
     }
 
     pub(super) fn check_directory(&self, expected: (u64, u64)) -> Result<()> {
-        if self.directory.identity() != expected {
+        if self.closed.load(Ordering::Acquire) || self.directory.identity() != expected {
             return Err(invalid());
         }
         Ok(())
@@ -71,6 +81,9 @@ impl HumanAuthority {
         now: i64,
         expires: i64,
     ) -> Result<()> {
+        if self.closed.load(Ordering::Acquire) {
+            return Err(Error::NeedsHumanApproval);
+        }
         let mut grants = self.grants.lock().map_err(|_| invalid())?;
         grants.retain(|_, grant| grant.expires > now);
         if grants.len() >= 500 {
@@ -96,6 +109,9 @@ impl HumanAuthority {
         binding: &str,
         now: i64,
     ) -> Result<()> {
+        if self.closed.load(Ordering::Acquire) {
+            return Err(Error::NeedsHumanApproval);
+        }
         let grant = self
             .grants
             .lock()
@@ -115,6 +131,13 @@ impl HumanAuthority {
     pub(super) fn forget(&self, id: &str) -> Result<()> {
         self.grants.lock().map_err(|_| invalid())?.remove(id);
         Ok(())
+    }
+
+    pub(super) fn close(&self) {
+        self.closed.store(true, Ordering::Release);
+        if let Ok(mut grants) = self.grants.lock() {
+            grants.clear();
+        }
     }
 }
 

@@ -36,7 +36,7 @@ type CliError = (&'static str, String, i32);
 async fn run(args: &mut Vec<String>) -> Result<Option<Value>, CliError> {
     if args.is_empty() || args == &["--help"] {
         return Ok(Some(success(
-            json!({"commands":["capabilities","scan <root> [--wait]","query <snapshot_id> [JSON filters]","stats <snapshot_id>","history [offset] [limit]","details <snapshot_id> <node_id>","jobs <job_id>","cancel <job_id>","mcp serve --stdio"],"state":"--state <directory> before command (default: Voldiq local application data)","authentication":"Human-provisioned VOLDIQ_AGENT_TOKEN environment variable. No credential arguments or approval bypass."}),
+            json!({"commands":["capabilities","scan <root> [--wait]","query <snapshot_id> [JSON filters]","stats <snapshot_id>","history [offset] [limit]","details <snapshot_id> <node_id>","jobs <job_id>","cancel <job_id>","plan prepare <snapshot_id> <JSON node IDs>","plan get <plan_id>","plan request <plan_id>","plan audit <plan_id> [after_sequence] [limit]","mcp serve --stdio"],"state":"--state <directory> before command (default: Voldiq local application data)","authentication":"Human-provisioned VOLDIQ_AGENT_TOKEN environment variable. No credential arguments or approval bypass."}),
         )));
     }
     let directory = if args.first().is_some_and(|arg| arg == "--state") {
@@ -149,6 +149,47 @@ async fn run(args: &mut Vec<String>) -> Result<Option<Value>, CliError> {
             service.cancel(number(&args[1])?).map_err(|_| operation())?;
             json!({"cancel_requested":true})
         }
+        ("plan", 4) if args[1] == "prepare" => {
+            if args[3].len() > 16_384 {
+                return Err(arguments());
+            }
+            let selection = serde_json::from_str::<Vec<voldiq_core::NodeId>>(&args[3])
+                .map_err(|_| arguments())?;
+            serde_json::to_value(
+                service
+                    .plan_prepare(number(&args[2])?, &selection)
+                    .map_err(plan_operation)?,
+            )
+            .map_err(|_| operation())?
+        }
+        ("plan", 3) if args[1] == "get" => {
+            serde_json::to_value(service.plan_get(&args[2]).map_err(plan_operation)?)
+                .map_err(|_| operation())?
+        }
+        ("plan", 3) if args[1] == "request" => {
+            serde_json::to_value(service.plan_request(&args[2]).map_err(plan_operation)?)
+                .map_err(|_| operation())?
+        }
+        ("plan", 3..=5) if args[1] == "audit" => {
+            let after = args
+                .get(3)
+                .map(|value| value.parse::<i64>())
+                .transpose()
+                .map_err(|_| arguments())?
+                .unwrap_or(0);
+            let limit = args
+                .get(4)
+                .map(|value| value.parse::<usize>())
+                .transpose()
+                .map_err(|_| arguments())?
+                .unwrap_or(100);
+            serde_json::to_value(
+                service
+                    .plan_audit(&args[2], after, limit)
+                    .map_err(plan_operation)?,
+            )
+            .map_err(|_| operation())?
+        }
         _ => return Err(arguments()),
     };
     Ok(Some(success(value)))
@@ -177,6 +218,13 @@ fn unauthorized() -> CliError {
 }
 fn operation() -> CliError {
     ("operation_failed", "Operation unavailable or outside this connection's scope. Check capability and job status.".into(), 4)
+}
+
+fn plan_operation(error: voldiq_core::Error) -> CliError {
+    match error {
+        voldiq_core::Error::NeedsHumanApproval => ("needs_human_approval", "Request recorded. Review the exact plan in Voldiq; use plan get to check its status. No files have been changed.".into(), 5),
+        _ => operation(),
+    }
 }
 
 fn default_directory() -> voldiq_core::Result<PathBuf> {

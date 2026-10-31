@@ -1,8 +1,10 @@
 //! Exact immutable manifests and single-use human grants. No file mutation is performed here.
+mod desktop;
 mod human;
 mod store;
 pub use crate::cleanup::record::FileEvidence;
 use crate::{Error, Result};
+pub use desktop::{Desktop, Review, ReviewPage};
 pub use human::{Begin, HumanAuthority};
 use serde::{Deserialize, Serialize};
 pub use store::Store;
@@ -126,4 +128,12 @@ fn current_user() -> Result<String> {
 
 fn digest(value: &[u8]) -> String {
     blake3::hash(value).to_hex().to_string()
+}
+
+pub(crate) fn now() -> Result<i64> {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .and_then(|time| i64::try_from(time.as_secs()).ok())
+        .ok_or_else(invalid)
 }

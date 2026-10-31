@@ -1,6 +1,6 @@
-# Local agent analysis
+# Local agent analysis and plans
 
-The current adapter implements authenticated **analysis only**. Plan creation, independent approval and approved execution remain pending. No delete, shell, approval or bin-purge tool is registered.
+The adapter implements authenticated analysis and exact recycling-plan preparation. Humans review and approve plans in Voldiq; approved execution is still pending. No delete, shell, approval-granting or bin-purge tool is registered.
 
 ## Build and verify
 
@@ -11,7 +11,7 @@ cargo test -p voldiq-headless
 
 The executable is `target/release/voldiq-cli.exe`, separate from the desktop `voldiq.exe`. Its normal dependency tree includes `voldiq-core` and the official [`rmcp` Rust SDK](https://github.com/modelcontextprotocol/rust-sdk), locked to 3.8.0. It has no Tauri, WebView or production Node dependency. The SDK handles standard MCP negotiation; the retained SDK-client fixture verifies a real stdio handshake and tool calls against the executable. Broader client-version compatibility is not yet certified.
 
-In the desktop application, open Settings, then Agents and permissions. Enter a connection name, allowed existing folders, optional exclusions and limits. Review the separate native confirmation dialog. Voldiq reveals the credential once for you to save in the client environment. The section lists connections and their last use, and provides rotation and revocation. This UI is source-checked; native interaction acceptance remains manual. The CLI and MCP do not expose provisioning, rotation or approval. Do not create credentials by editing a database or configuration file.
+In the desktop application, open Settings, then Agents and permissions. Enter a connection name, allowed existing folders, optional exclusions and limits. Scanning and plan preparation/review requests are separate permissions; planning is off by default. Review the separate native confirmation dialog. Voldiq reveals the credential once for you to save in the client environment. The section lists connections and their last use, and provides rotation and revocation. This UI is source-checked; native interaction acceptance remains manual. The CLI and MCP do not expose provisioning, rotation or approval grants. Do not create credentials by editing a database or configuration file.
 
 ## Connect a stdio client
 
@@ -50,10 +50,14 @@ This example forwards an environment variable by name, without embedding its val
 | `voldiq_query` | Metadata | Bounded page with explicit structured filters |
 | `voldiq_details` | Metadata | One indexed entry, path and ancestor metadata |
 | `voldiq_history` | Metadata | Paged compatible snapshots, including desktop captures |
+| `voldiq_plan_prepare` | PreparePlans + Metadata | Immutable manifest from exact snapshot node IDs, freshly checked against disk |
+| `voldiq_plan_get` | Metadata | Owned manifest, lifecycle state and bounded result summary |
+| `voldiq_plan_request_approval` | RequestApproval + Metadata | Records a pending request, then returns `needs_human_approval` |
+| `voldiq_plan_audit` | Metadata | Owned events paged after a sequence number |
 
 All calls authorize in the backend. A client name, root announcement or snapshot ID grants no permission. Query pages use `query.offset` and `query.limit`; `total` and `largest` refer only to the authorized indexed dataset. Unknown fields and unsupported sort names are rejected. The advanced text query parser is still pending; `query.text` currently means literal name search.
 
-Incoming protocol lines are bounded to 64 KiB, tool arguments to 16 KiB and structured responses to 512 KiB. The fixed eight-tool catalogue fits one page. At most four tool workers execute concurrently; their permits remain held even if a request disconnects before its blocking worker finishes. Query pages respect the connection limit, at most 500 entries. The service caches one loaded index, never serializes the entire tree, and rejects snapshots whose exclusion coverage no longer satisfies the current policy.
+Incoming protocol lines are bounded to 64 KiB, tool arguments to 16 KiB and structured responses to 512 KiB. The fixed twelve-tool catalogue fits one page. At most four tool workers execute concurrently; their permits remain held even if a request disconnects before its blocking worker finishes. Query pages respect the connection limit, at most 500 entries. The service caches one loaded index, never serializes the entire tree, and rejects snapshots whose exclusion coverage no longer satisfies the current policy.
 
 Connections can query saved snapshots from the desktop or another connection only when the current native root identity and exclusion coverage satisfy their own policy. The service checks small scope metadata before loading the index. Broader captures are rejected as a whole, not silently filtered into misleading totals. A snapshot ID grants no authority. Jobs remain private to their initiating connection.
 
@@ -61,7 +65,17 @@ Connections can query saved snapshots from the desktop or another connection onl
 
 Scan results persist in the existing compact snapshot database. The GUI and agents acquire the same OS scan lease; they cannot start competing full scans. Durable job history retains at most 10,000 scan records. It is not the security audit ledger for future file operations.
 
-CLI commands are listed by `voldiq-cli --help`. JSON envelopes have `schema_version: 1`. Exit codes are 0 success, 2 invalid arguments, 3 missing/invalid credential, 4 unavailable/failed operation and 130 cancelled foreground scan. CLI scans remain in the foreground; `--wait` is accepted explicitly. Initial job identity goes to stderr, final JSON to stdout. Ctrl+C requests cancellation and waits for the worker to finish. MCP reserves stdout entirely for the protocol.
+CLI commands are listed by `voldiq-cli --help`. JSON envelopes have `schema_version: 1`. Exit codes are 0 success, 2 invalid arguments, 3 missing/invalid credential, 4 unavailable/failed operation, 5 independent human approval required and 130 cancelled foreground scan. CLI scans remain in the foreground; `--wait` is accepted explicitly. Initial job identity goes to stderr, final JSON to stdout. Ctrl+C requests cancellation and waits for the worker to finish. MCP reserves stdout entirely for the protocol.
+
+## Plan review
+
+Use `plan prepare <snapshot_id> <JSON node IDs>` with file IDs returned by a query on that same snapshot. For example, the selection argument has the shape `[4,9]`. The backend requires complete regular files, persisted native identities and unchanged live evidence. A legacy snapshot without native evidence needs a rescan; it is never promoted to live authority. The manifest preserves the source snapshot flag and passes the same root, exclusion and protection checks.
+
+`plan request <plan_id>` records the exact request and returns exit 5, `needs_human_approval`. This is an accepted request awaiting a human, not an approval or file operation. MCP returns that same code as a structured tool error. Use `plan get <plan_id>` or `voldiq_plan_get` for subsequent state. `plan audit <plan_id> [after_sequence] [limit]` reads bounded lifecycle events.
+
+Settings contains Agent plan review, with 25 requests per page, connection identity, exact paths and file identities, byte strings, source scope, manifest hash and expiry. Approval requires a separate native Yes/No dialog and revalidation after it. Rejection revokes the live grant. Closing the window ends the review session and discards its grants, including while a confirmation is pending. A later session requires renewed approval. Human review does not change the connection's last-agent-use time.
+
+Approval lasts at most two minutes and is bound to one exact manifest, credential, policy and user. The public manifest is at most 440 KiB, leaving room for the bounded result and envelope. Private native evidence is not returned through MCP. An approved status row is never sufficient authority. Agent execution remains unavailable, including for approved plans; transfer and restore planning are also pending. See [the core boundary](AGENT-PLANS.md).
 
 Jobs belong to the process doing the work, independently of a particular tool request. If a client kills its stdio server, the OS releases the lease. A job-status query reconciles that owner's unfinished records as interrupted when it can acquire the free lease; a new agent scan also reconciles stale records before starting. A busy lease never proves interruption. There is no resident daemon and no automatic retry. SQLite transactions preserve committed snapshots. Cooperative cancellation cannot interrupt a blocked operating-system call.
 
@@ -71,4 +85,4 @@ Metadata stays local until the client receives it. An AI client may send it to i
 
 These checks control operations through Voldiq. They do not sandbox an agent that independently has filesystem access under the same Windows account. Local SQLite state and hashes are not claimed tamper-proof against such a process. No tool treats file names, notes or other indexed text as instructions.
 
-Verification status: transport and eight analysis tools implemented; connected and verified with the real official SDK client on owned fixtures; not configured in the user's clients. Human provisioning UI is implemented with native dialogs but still awaits manual interaction acceptance. The required immutable-plan approval/execution lifecycle remains pending.
+Verification status: transport, eight analysis tools and four plan tools are implemented and checked with the real official SDK client on owned fixtures. CLI subprocesses prove request status, rejection of `--yes`/approval commands and unchanged source files. Core fixtures exercise the separate human facade, exact hashes, rejection, closed sessions, restart, legacy evidence and revocation. Native provisioning and review UI await manual interaction acceptance. User clients are not configured. Shared approved execution remains pending.

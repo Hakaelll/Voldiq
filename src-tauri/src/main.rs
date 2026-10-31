@@ -24,6 +24,7 @@ mod docker_commands;
 mod embedded_ui;
 mod lifecycle_trace;
 mod overview;
+mod plan_commands;
 mod query_commands;
 mod restore_commands;
 mod snapshot_commands;
@@ -703,12 +704,20 @@ fn main() {
             app.manage(SnapshotDatabase::open(&directory.join("snapshots.db"))?);
             setup_trace.record("snapshot-open-end", Some(app.handle()));
             app.manage(CleanupJournal::open(&directory.join("cleanup.db")));
+            app.manage(plan_commands::PlanReviews::open(&directory));
             setup_trace.record("setup-end", Some(app.handle()));
             Ok(())
         })
         .on_page_load(move |webview, payload| {
             if payload.event() == tauri::webview::PageLoadEvent::Finished {
                 page_trace.record("page-finished", Some(webview.app_handle()));
+            }
+        })
+        .on_window_event(|window, event| {
+            if matches!(event, tauri::WindowEvent::Destroyed)
+                && let Some(reviews) = window.try_state::<plan_commands::PlanReviews>()
+            {
+                reviews.close();
             }
         })
         .manage(Arc::new(Engine::default()))
@@ -719,6 +728,10 @@ fn main() {
             agent_commands::create_agent_connection,
             agent_commands::rotate_agent_credential,
             agent_commands::revoke_agent_connection,
+            plan_commands::list_agent_plans,
+            plan_commands::get_agent_plan,
+            plan_commands::approve_agent_plan,
+            plan_commands::reject_agent_plan,
             get_volumes,
             choose_folder,
             start_scan,

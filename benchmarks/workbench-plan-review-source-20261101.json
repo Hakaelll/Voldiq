@@ -1,0 +1,66 @@
+{
+  "checkedUtc": "2026-10-31T23:26:24.0240802Z",
+  "startedUtc": "2026-10-31T23:19:21.2725579Z",
+  "checkoutCommit": "f899849ea318a0080453dd7225f16ece55800d7d",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.51
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 5.131
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1.219
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 3.013
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 275.675
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 137.143
+    }
+  ],
+  "followupFrontend": {
+    "checkedUtc": "2026-10-31T23:29:07.3785576Z",
+    "reason": "After the six-stage gate, selected-review refresh guards, generic busy copy and long-name wrapping were refined.",
+    "checks": [
+      "pnpm check: 0 errors, 0 warnings",
+      "pnpm test: 20 passed",
+      "pnpm build: passed"
+    ],
+    "files": [
+      {
+        "path": "frontend/components/AgentPlanReview.svelte",
+        "sha256": "920D80C792D8A5E2760D0C51833791963D379909387DF615748E0270A8A6039E"
+      },
+      {
+        "path": "frontend/components/AgentConnections.svelte",
+        "sha256": "BD803D1799FF77EA18A517F61F02F0C3FE68715501B453C228BF44222059DC77"
+      },
+      {
+        "path": "frontend/App.svelte",
+        "sha256": "315A351DCBC4153396356935DA64BCFD5690E98D5030AD599B6EF3081AA8FF8A"
+      }
+    ],
+    "scope": "Source checks and frontend build; no new native UI interaction, screenshot or scaling acceptance."
+  }
+}

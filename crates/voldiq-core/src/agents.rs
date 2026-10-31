@@ -140,6 +140,7 @@ pub struct Provisioned {
 pub struct Principal {
     id: i64,
     credential_hash: String,
+    record_activity: bool,
 }
 
 impl Principal {
@@ -183,7 +184,8 @@ impl Registry {
             .filter(|path| !path.as_os_str().is_empty())
             .unwrap_or(Path::new("."));
         let directory = pin_directory(&std::fs::canonicalize(parent)?)?;
-        let mut connection = Connection::open(path)?;
+        let name = path.file_name().ok_or_else(denied)?;
+        let mut connection = Connection::open(directory.path().join(name))?;
         crate::database::configure(&connection)?;
         let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let version: u32 = tx.query_row("PRAGMA user_version", [], |row| row.get(0))?;
@@ -254,6 +256,7 @@ impl Registry {
         Ok(Principal {
             id,
             credential_hash: hash,
+            record_activity: true,
         })
     }
 
@@ -276,11 +279,30 @@ impl Registry {
         if !policy.capabilities.contains(&capability) {
             return Err(denied());
         }
-        self.connection.execute(
-            "UPDATE agents SET last_used=?1 WHERE id=?2",
-            params![now()?, principal.id],
-        )?;
+        if principal.record_activity {
+            self.connection.execute(
+                "UPDATE agents SET last_used=?1 WHERE id=?2",
+                params![now()?, principal.id],
+            )?;
+        }
         Ok(policy)
+    }
+
+    pub(crate) fn human_principal(&self, id: i64) -> Result<Principal> {
+        let hash = self
+            .connection
+            .query_row(
+                "SELECT credential_hash FROM agents WHERE id=?1 AND revoked=0",
+                [id],
+                |row| row.get(0),
+            )
+            .optional()?
+            .ok_or_else(denied)?;
+        Ok(Principal {
+            id,
+            credential_hash: hash,
+            record_activity: false,
+        })
     }
 
     pub fn authorize(

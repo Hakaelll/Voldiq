@@ -36,12 +36,13 @@ Execution is inline, without subagents or computer use, as the user requested. T
 ## C. Plans, headless and MCP
 
 - [ ] Extend the existing cleanup preview/executor with immutable serializable manifests and explicit lifecycle states. Persist hash, principal, exact identities, policy version, expiry and audit. No agent approval endpoint.
-  Core manifests and lifecycle are implemented with live single-use human grants and durable audit. Adapter dispatch, desktop review and exact executor integration remain open.
+  Core manifests, lifecycle, CLI/MCP dispatch and desktop review are implemented with live single-use human grants and durable audit. Exact executor integration remains open.
 - [ ] Add a separate headless crate and CLI for scan/query/stats/history/plan/jobs/export, with JSON envelopes, structured errors and a read-only default.
-  Scan/query/stats/history/details/jobs/cancel and versioned errors are implemented and subprocess-tested. Plan/export remain open.
+  Scan/query/stats/history/details/jobs/cancel, plan preparation/status/request/audit and versioned errors are implemented and subprocess-tested. Execution/export remain open.
 - [ ] Add official `rmcp` stdio transport, bounded schemas/results and tools that route through authorization and shared services. Verify protocol behavior with the SDK client against the real executable.
-  Transport plus eight analysis tools are implemented and verified with `rmcp` 3.8.0's real client. The broader catalogue remains open.
+  Transport plus eight analysis and four recycling-plan tools are implemented and verified with `rmcp` 3.8.0's real client. The broader catalogue remains open.
 - [ ] Add desktop connection management, separate human approval and revocation. Unavailable independent approval returns `needs_human_approval` without changing user data.
+  Native management/review and separate confirmation are implemented. Human facade and request behavior are fixture-tested; actual dialog/keyboard/visual acceptance remains manual.
 - [ ] Test mutation, expiry, replay, concurrent execution and restart in temporary fixtures. Document generic stdio and current Codex configuration. Commit and push.
 
 ## D. Dashboard and explorer

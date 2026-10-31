@@ -476,6 +476,11 @@ impl Store {
         self.load_index(id, false, Some(cancel), None)
     }
 
+    /// Retains historical native evidence and snapshot_id; grants no live file authority.
+    pub(crate) fn load_evidence(&self, id: i64, cancel: &AtomicBool) -> Result<Index> {
+        self.load_index(id, true, Some(cancel), None)
+    }
+
     fn load_index(
         &self,
         id: i64,

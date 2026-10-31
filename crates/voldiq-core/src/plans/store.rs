@@ -8,7 +8,8 @@ use crate::{
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use std::path::Path;
 
-const MANIFEST_LIMIT: usize = 512 * 1024;
+// Leave room for the result summary and envelope inside the 512 KiB transport limit.
+const MANIFEST_LIMIT: usize = 440 * 1024;
 const RECORD_LIMIT: usize = 2 * 1024 * 1024;
 
 pub struct Store {
@@ -23,6 +24,37 @@ struct Stored {
 }
 
 impl Store {
+    pub(super) fn review_refs(
+        &self,
+        human: &HumanAuthority,
+        offset: usize,
+        limit: usize,
+    ) -> Result<Vec<(String, i64)>> {
+        human.check_directory(self.directory.identity())?;
+        if offset > 10_000 || !(1..=100).contains(&limit) {
+            return Err(invalid());
+        }
+        let mut statement = self.connection.prepare("SELECT id,owner FROM agent_plans WHERE state!='draft' ORDER BY rowid DESC LIMIT ?1 OFFSET ?2")?;
+        Ok(statement
+            .query_map(params![(limit + 1) as i64, offset as i64], |row| {
+                Ok((row.get(0)?, row.get(1)?))
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?)
+    }
+
+    pub(super) fn review_owner(&self, human: &HumanAuthority, id: &str) -> Result<i64> {
+        human.check_directory(self.directory.identity())?;
+        if id.len() != 64 || !id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err(invalid());
+        }
+        self.connection
+            .query_row("SELECT owner FROM agent_plans WHERE id=?1", [id], |row| {
+                row.get(0)
+            })
+            .optional()?
+            .ok_or_else(invalid)
+    }
+
     pub fn open(directory: &Path) -> Result<Self> {
         let directory = pin_directory(directory)?;
         let mut connection = Connection::open(directory.path().join("agent-plans.db"))?;
@@ -357,7 +389,7 @@ impl Store {
         if id.len() != 64 || !id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             return Err(denied());
         }
-        let values = self.connection.query_row("SELECT manifest,hash,native_record,binding,state,approval_expires,result FROM agent_plans WHERE id=?1 AND owner=?2 AND length(manifest)<=?3 AND length(native_record)<=?4 AND (result IS NULL OR length(result)<=65536)",
+        let values = self.connection.query_row("SELECT manifest,hash,native_record,binding,state,approval_expires,result FROM agent_plans WHERE id=?1 AND owner=?2 AND length(manifest)<=?3 AND length(native_record)<=?4 AND length(hash)=64 AND length(binding)=64 AND length(state)<=32 AND (result IS NULL OR length(result)<=65536)",
             params![id,context.owner(),MANIFEST_LIMIT as i64,RECORD_LIMIT as i64], |row| Ok((row.get::<_,String>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,String>(3)?,row.get::<_,String>(4)?,row.get::<_,Option<i64>>(5)?,row.get::<_,Option<String>>(6)?))).optional()?.ok_or_else(denied)?;
         let (json, hash, native, binding, state, approval_expires, result) = values;
         let manifest: Manifest = serde_json::from_str(&json).map_err(|_| invalid())?;

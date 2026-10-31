@@ -1,6 +1,6 @@
 # Agent plan boundary
 
-The core now stores exact recycling manifests. Desktop review, the local approval broker and executor integration are pending. No new agent file mutation endpoint is enabled by this unit.
+The core stores exact recycling manifests. CLI/MCP prepare and inspect them; the desktop owns separate human review and live grants. Executor integration is pending. No agent file mutation endpoint is enabled.
 
 A manifest identifies its connection, Windows user, source snapshot, root identity, selected file identities, bytes, timestamps, risk, action and expiry. Byte quantities and native identities are strings, preserving exact values in JavaScript clients. Recycling reports zero immediate freed bytes; potential allocation recovery is a separate value and excludes multiply linked files.
 
@@ -12,6 +12,8 @@ Plans expire after 15 minutes. A human approval lasts at most two minutes, bound
 
 The lifecycle is `draft`, `awaiting_approval`, `approved`, `executing`, then a terminal result. Rejection, expiry and changed material evidence are terminal. Transactions allow one opaque execution ticket; concurrent or repeated calls report the existing operation. Finishing requires that ticket and its private nonce. Starting a new human session discards old grants. Explicit recovery returns old approvals to review and marks abandoned execution `failed` with `recovery_required`, without repeating uncertain I/O.
 
-The store does not execute files. Before executor integration, the entire selection must pass native preflight under retained handles, and journal entries must be linked to the plan before original files move. The existing desktop executor's ability to proceed with a valid subset must not be reused for an immutable agent selection.
+The store does not execute files. SQLite requests/status coordinate the clients and desktop; they never prove approval. The desktop facade owns the only live human grants, uses current connection policy without credentials in IPC, and invalidates the session when the native window is destroyed. Before executor integration, the entire selection must pass native preflight under retained handles, and journal entries must be linked to the plan before original files move. The existing desktop executor's ability to proceed with a valid subset must not be reused for an immutable agent selection.
 
 Six owned-fixture tests cover forged database approval, wrong hashes, expiry, restart, changed files, changed hard-link count, principal isolation, rotation, limits, rejection, protected selections and eight competing requests. These tests issue and consume execution tickets without cleaning any user data. They do not establish native UI acceptance or actual approved recycling through CLI/MCP.
+
+An additional service fixture uses persisted snapshot evidence and the separate desktop facade to prove review, rejection, session closure and renewal, unavailable revoked connections and rejection of legacy or changed evidence. Real CLI and MCP fixtures cannot grant approval or modify source files. The UI retains a named, focusable overflow region for keyboard access to the full file selection, following [MDN's overflow accessibility guidance](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/overflow#accessibility); interaction and scaling acceptance remain manual.

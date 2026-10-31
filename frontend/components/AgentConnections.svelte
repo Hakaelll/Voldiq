@@ -6,7 +6,7 @@
   interface Connection {
     id: number;
     name: string;
-    policy: { roots: { path: string }[]; exclusions: { path: string }[]; capabilities: string[]; limits: { page_size: number; scan_entries: number } };
+    policy: { roots: { path: string }[]; exclusions: { path: string }[]; capabilities: string[]; limits: { page_size: number; scan_entries: number; plan_files: number; plan_bytes: number } };
     revoked: boolean;
     created: number;
     last_used: number | null;
@@ -16,6 +16,7 @@
   let loading = $state(true), saving = $state(false), error = $state(''), notice = $state('');
   let name = $state(''), roots = $state(''), exclusions = $state(''), allowScan = $state(true);
   let pageSize = $state(100), scanEntries = $state(1_000_000);
+  let allowPlans = $state(false), planFiles = $state(100), planBytes = $state(10_000_000_000);
   let credential = $state<Credential | null>(null), revealed = $state(false);
   let alive = true;
   const native = isTauri();
@@ -40,7 +41,7 @@
     event.preventDefault();
     saving = true; error = ''; notice = '';
     try {
-      const result = await invoke<Credential | null>('create_agent_connection', { request: { name, roots: lines(roots), exclusions: lines(exclusions), scan: allowScan, page_size: pageSize, scan_entries: scanEntries } });
+      const result = await invoke<Credential | null>('create_agent_connection', { request: { name, roots: lines(roots), exclusions: lines(exclusions), scan: allowScan, plan: allowPlans, page_size: pageSize, scan_entries: scanEntries, plan_files: planFiles, plan_bytes: planBytes } });
       if (!alive) return;
       if (result) { credential = result; revealed = false; name = ''; notice = 'Connection created. Save its credential before dismissing it.'; }
       await refresh();
@@ -92,7 +93,7 @@
           <div class="agent-identity"><strong>{connection.name}</strong><span>{connection.revoked ? 'Revoked' : 'Authorized'} · #{connection.id}</span></div>
           <div class="agent-paths">{#each connection.policy.roots as root}<span>{root.path}</span>{/each}</div>
           <small>{connection.policy.capabilities.join(', ')} · Last used: {connection.last_used === null ? 'Never' : date(connection.last_used)}</small>
-          <details><summary>Scope and limits</summary><p>Page: {connection.policy.limits.page_size} entries · Scan: {connection.policy.limits.scan_entries.toLocaleString()} entries</p>{#if connection.policy.exclusions.length}<p>Excluded folders</p>{#each connection.policy.exclusions as root}<p class="agent-paths">{root.path}</p>{/each}{:else}<p>No folder exclusions.</p>{/if}</details>
+          <details><summary>Scope and limits</summary><p>Page: {connection.policy.limits.page_size} entries · Scan: {connection.policy.limits.scan_entries.toLocaleString()} entries</p><p>Plan: {connection.policy.limits.plan_files} files · {connection.policy.limits.plan_bytes.toLocaleString()} logical bytes</p>{#if connection.policy.exclusions.length}<p>Excluded folders</p>{#each connection.policy.exclusions as root}<p class="agent-paths">{root.path}</p>{/each}{:else}<p>No folder exclusions.</p>{/if}</details>
           <div class="agent-actions"><button onclick={() => manage(connection.id, 'rotate')} disabled={connection.revoked || saving}>Rotate credential</button><button onclick={() => manage(connection.id, 'revoke')} disabled={connection.revoked || saving}>Revoke</button></div>
         </li>
       {/each}
@@ -107,7 +108,10 @@
       <label for="agent-exclusions">Excluded folders<textarea id="agent-exclusions" bind:value={exclusions} rows="2" spellcheck="false"></textarea></label>
       <label class="agent-check"><input type="checkbox" checked disabled />Read indexed metadata</label>
       <label class="agent-check"><input type="checkbox" bind:checked={allowScan} />Scan allowed folders</label>
+      <label class="agent-check"><input type="checkbox" bind:checked={allowPlans} />Prepare recycling plans and request human review</label>
+      <small>Each plan needs separate approval in Voldiq. This connection cannot execute file changes.</small>
       <div class="agent-limits"><label for="agent-page">Entries per page<input id="agent-page" type="number" min="1" max="500" step="1" bind:value={pageSize} required /></label><label for="agent-scan-limit">Entries per scan<input id="agent-scan-limit" type="number" min="1" max="5000000" step="1" bind:value={scanEntries} required /></label></div>
+      {#if allowPlans}<div class="agent-limits"><label for="agent-plan-files">Files per plan<input id="agent-plan-files" type="number" min="1" max="500" step="1" bind:value={planFiles} required /></label><label for="agent-plan-bytes">Logical bytes per plan<input id="agent-plan-bytes" type="number" min="1" max="1000000000000" step="1" bind:value={planBytes} required /></label></div>{/if}
       <button class="primary" type="submit">{saving ? 'Waiting for confirmation…' : 'Review and create connection'}</button>
     </fieldset>
   </form>

@@ -10,8 +10,11 @@ pub struct ConnectionRequest {
     roots: Vec<PathBuf>,
     exclusions: Vec<PathBuf>,
     scan: bool,
+    plan: bool,
     page_size: usize,
     scan_entries: usize,
+    plan_files: usize,
+    plan_bytes: u64,
 }
 
 #[derive(Serialize)]
@@ -60,10 +63,12 @@ pub async fn create_agent_connection(
         }
         let mut capabilities = vec![Capability::Metadata];
         if request.scan { capabilities.push(Capability::Scan); }
-        let policy = Policy::new(request.roots.clone(), request.exclusions.clone(), capabilities, Limits { page_size: request.page_size, scan_entries: request.scan_entries, ..Default::default() }).map_err(|error| error.to_string())?;
+        if request.plan { capabilities.extend([Capability::PreparePlans, Capability::RequestApproval]); }
+        let permission_names = capabilities.iter().map(|capability| match capability { Capability::Metadata => "metadata", Capability::Scan => "scanning", Capability::PreparePlans => "prepare recycling plans", Capability::RequestApproval => "request human review", Capability::ReadContent => "read file content", Capability::ExecuteApproved => "execute human-approved plans", Capability::Export => "export metadata" }).collect::<Vec<_>>().join(", ");
+        let policy = Policy::new(request.roots.clone(), request.exclusions.clone(), capabilities, Limits { page_size: request.page_size, scan_entries: request.scan_entries, plan_files: request.plan_files, plan_bytes: request.plan_bytes }).map_err(|error| error.to_string())?;
         let roots = request.roots.iter().map(|path| path.to_string_lossy()).collect::<Vec<_>>().join("\n");
         let exclusions = request.exclusions.iter().map(|path| path.to_string_lossy()).collect::<Vec<_>>().join("\n");
-        let message = format!("Create connection: {}\n\nAllowed folders:\n{}\n\nExcluded folders:\n{}\n\nPermissions: metadata{}\nPage limit: {} entries\nScan limit: {} entries\n\nThe client may send file metadata to its AI provider. File modification is not enabled.", request.name, roots, if exclusions.is_empty() { "None" } else { &exclusions }, if request.scan { " and scanning" } else { " only" }, request.page_size, request.scan_entries);
+        let message = format!("Create connection: {}\n\nAllowed folders:\n{}\n\nExcluded folders:\n{}\n\nPermissions: {}\nPage limit: {} entries\nScan limit: {} entries\nPlan limit: {} files / {} logical bytes\n\nThe client may send file metadata to its AI provider. Creating this connection does not approve any plan. File execution is not enabled.", request.name, roots, if exclusions.is_empty() { "None" } else { &exclusions }, permission_names, request.page_size, request.scan_entries, request.plan_files, request.plan_bytes);
         if !confirm(&message) { return Ok(None); }
         let result = registry(&app)?.provision(&request.name, policy).map_err(|error| error.to_string())?;
         Ok(Some(RevealedCredential { id: result.id, credential: result.credential.expose().to_owned() }))
