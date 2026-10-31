@@ -42,9 +42,17 @@ fn durable_jobs_are_owner_scoped_cancelable_bounded_and_never_retried_after_inte
     assert!(jobs.finish(7, id, JobState::Completed, Some(123)).is_err());
     assert!(jobs.cancel(7, id).is_err());
     let interrupted = jobs.begin(&lease, 7, fixture.path()).unwrap();
+    assert_eq!(Jobs::reconcile_abandoned(fixture.path(), 7).unwrap(), 0);
+    assert_eq!(jobs.get(7, interrupted).unwrap().state, JobState::Running);
     drop(jobs);
     drop(lease);
     let mut jobs = Jobs::open(fixture.path()).unwrap();
+    assert_eq!(Jobs::reconcile_abandoned(fixture.path(), 8).unwrap(), 0);
+    assert_eq!(Jobs::reconcile_abandoned(fixture.path(), 7).unwrap(), 1);
+    assert_eq!(
+        jobs.get(7, interrupted).unwrap().state,
+        JobState::Interrupted
+    );
     let lease = ScanLease::acquire(fixture.path()).unwrap();
     let next = jobs.begin(&lease, 8, fixture.path()).unwrap();
     assert!(next > interrupted);

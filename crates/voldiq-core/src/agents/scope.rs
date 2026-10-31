@@ -14,6 +14,13 @@ pub(super) struct Root {
 }
 
 impl Root {
+    pub(super) fn reopen(&self) -> Result<AuthorizedPath> {
+        let current = AuthorizedPath::open(&self.path)?;
+        if current.identity != self.identity {
+            return Err(denied());
+        }
+        Ok(current)
+    }
     pub(super) fn capture(path: &Path) -> Result<Self> {
         let checked = AuthorizedPath::open(path)?;
         if !checked
@@ -70,22 +77,8 @@ impl AuthorizedPath {
         let identity = windows::file_identity(file)?.key;
         #[cfg(windows)]
         let canonical = {
-            use std::path::Prefix;
             let final_path = windows::final_path(file)?;
-            let mut components = final_path.components();
-            let Some(Component::Prefix(prefix)) = components.next() else {
-                return Err(denied());
-            };
-            let Prefix::VerbatimDisk(drive) = prefix.kind() else {
-                return Err(denied());
-            };
-            let mut canonical = PathBuf::from(format!("{}:\\", char::from(drive)));
-            canonical.extend(
-                components
-                    .filter(|part| !matches!(part, Component::RootDir))
-                    .map(|part| part.as_os_str()),
-            );
-            canonical
+            ordinary_path(&final_path)?
         };
         #[cfg(not(windows))]
         let canonical = std::fs::canonicalize(path)?;
@@ -95,6 +88,28 @@ impl AuthorizedPath {
             handles,
         })
     }
+}
+
+pub(crate) fn ordinary_path(path: &Path) -> Result<PathBuf> {
+    #[cfg(windows)]
+    {
+        use std::path::Prefix;
+        let mut components = path.components();
+        if let Some(Component::Prefix(prefix)) = components.next()
+            && let Prefix::VerbatimDisk(drive) = prefix.kind()
+        {
+            let mut ordinary = PathBuf::from(format!("{}:\\", char::from(drive)));
+            ordinary.extend(
+                components
+                    .filter(|part| !matches!(part, Component::RootDir))
+                    .map(|part| part.as_os_str()),
+            );
+            validate_path(&ordinary)?;
+            return Ok(ordinary);
+        }
+    }
+    validate_path(path)?;
+    Ok(path.to_owned())
 }
 
 pub(super) fn authorize(

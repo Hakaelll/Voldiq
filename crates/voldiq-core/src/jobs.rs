@@ -6,7 +6,7 @@ use std::{
     cell::Cell,
     fs::File,
     path::{Path, PathBuf},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 pub struct ScanLease {
@@ -17,19 +17,27 @@ pub struct ScanLease {
 
 impl ScanLease {
     pub fn acquire(directory: &Path) -> Result<Self> {
+        Self::try_acquire(directory)?
+            .ok_or_else(|| Error::Invalid("Another Voldiq process owns the active scan.".into()))
+    }
+
+    fn try_acquire(directory: &Path) -> Result<Option<Self>> {
         let file = std::fs::OpenOptions::new()
             .read(true)
             .write(true)
             .create(true)
             .truncate(false)
             .open(directory.join("scan.lock"))?;
-        file.try_lock()
-            .map_err(|_| Error::Invalid("Another Voldiq process owns the active scan.".into()))?;
-        Ok(Self {
+        match file.try_lock() {
+            Ok(()) => {}
+            Err(std::fs::TryLockError::WouldBlock) => return Ok(None),
+            Err(std::fs::TryLockError::Error(error)) => return Err(error.into()),
+        }
+        Ok(Some(Self {
             _file: file,
             directory_identity: windows::identity(directory)?.key,
             recovered: Cell::new(false),
-        })
+        }))
     }
 }
 
@@ -83,10 +91,17 @@ pub struct Jobs {
 }
 
 impl Jobs {
+    pub fn reconcile_abandoned(directory: &Path, owner: i64) -> Result<usize> {
+        let Some(_lease) = ScanLease::try_acquire(directory)? else {
+            return Ok(0);
+        };
+        let jobs = Self::open(directory)?;
+        Ok(jobs.connection.execute("UPDATE scan_jobs SET state='interrupted',finished=?1 WHERE owner=?2 AND state='running'", params![now()?,owner])?)
+    }
+
     pub fn open(directory: &Path) -> Result<Self> {
         let mut connection = Connection::open(directory.join("jobs.db"))?;
-        connection.busy_timeout(Duration::from_secs(5))?;
-        connection.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;")?;
+        crate::database::configure(&connection)?;
         let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let version: u32 = tx.query_row("PRAGMA user_version", [], |row| row.get(0))?;
         if version == 0 {
@@ -211,6 +226,10 @@ impl Jobs {
             jobs.push(decode(row)?);
         }
         Ok(jobs)
+    }
+
+    pub fn owns_snapshot(&self, owner: i64, snapshot: i64) -> Result<bool> {
+        Ok(self.connection.query_row("SELECT EXISTS(SELECT 1 FROM scan_jobs WHERE owner=?1 AND snapshot_id=?2 AND state='completed')", params![owner,snapshot], |row| row.get(0))?)
     }
 }
 

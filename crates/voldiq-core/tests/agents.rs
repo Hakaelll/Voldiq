@@ -162,21 +162,24 @@ fn scopes_reject_siblings_exclusions_missing_paths_and_changed_roots_without_dis
 #[test]
 fn registry_migrations_serialize_and_reject_future_schemas() {
     let fixture = tempfile::tempdir().unwrap();
-    let db = fixture.path().join("agents.db");
-    let gate = std::sync::Barrier::new(2);
-    std::thread::scope(|scope| {
-        let runs: Vec<_> = (0..2)
-            .map(|_| {
-                scope.spawn(|| {
-                    gate.wait();
-                    Registry::open(&db).unwrap();
+    for attempt in 0..16 {
+        let db = fixture.path().join(format!("agents-{attempt}.db"));
+        let gate = std::sync::Barrier::new(2);
+        std::thread::scope(|scope| {
+            let runs: Vec<_> = (0..2)
+                .map(|_| {
+                    scope.spawn(|| {
+                        gate.wait();
+                        Registry::open(&db).unwrap();
+                    })
                 })
-            })
-            .collect();
-        for run in runs {
-            run.join().unwrap();
-        }
-    });
+                .collect();
+            for run in runs {
+                run.join().unwrap();
+            }
+        });
+    }
+    let db = fixture.path().join("agents-15.db");
     let connection = rusqlite::Connection::open(&db).unwrap();
     connection.execute_batch("PRAGMA user_version=999").unwrap();
     assert!(Registry::open(&db).is_err());

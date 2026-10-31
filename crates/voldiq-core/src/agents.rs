@@ -8,7 +8,7 @@ use scope::Root;
 use serde::{Deserialize, Serialize};
 use std::{
     path::{Path, PathBuf},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -135,6 +135,7 @@ pub struct Provisioned {
     pub credential: Credential,
 }
 
+#[derive(Clone)]
 pub struct Principal {
     id: i64,
     credential_hash: String,
@@ -163,8 +164,7 @@ pub struct Registry {
 impl Registry {
     pub fn open(path: &Path) -> Result<Self> {
         let mut connection = Connection::open(path)?;
-        connection.busy_timeout(Duration::from_secs(5))?;
-        connection.execute_batch("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;")?;
+        crate::database::configure(&connection)?;
         let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
         let version: u32 = tx.query_row("PRAGMA user_version", [], |row| row.get(0))?;
         if version == 0 {
@@ -270,6 +270,58 @@ impl Registry {
         scope::authorize(&policy.roots, &policy.exclusions, path).map_err(|_| denied())
     }
 
+    pub fn scan_permit(&self, principal: &Principal, path: &Path) -> Result<ScanPermit> {
+        let policy = self.policy(principal, Capability::Scan)?;
+        let root =
+            scope::authorize(&policy.roots, &policy.exclusions, path).map_err(|_| denied())?;
+        let mut exclusions = Vec::new();
+        for excluded in &policy.exclusions {
+            if excluded.path.starts_with(root.path()) {
+                exclusions.push(excluded.reopen().map_err(|_| denied())?);
+            }
+        }
+        let options = crate::ScanOptions {
+            exclusions: exclusions
+                .iter()
+                .map(|path| path.path().to_string_lossy().into_owned())
+                .collect(),
+            max_entries: Some(policy.limits.scan_entries),
+            concurrency: crate::ScanConcurrency::automatic(),
+            ..Default::default()
+        };
+        Ok(ScanPermit {
+            root,
+            options,
+            _exclusions: exclusions,
+        })
+    }
+
+    pub fn authorize_index(
+        &self,
+        principal: &Principal,
+        index: &crate::index::Index,
+    ) -> Result<AuthorizedPath> {
+        let policy = self.policy(principal, Capability::Metadata)?;
+        let root = scope::authorize(
+            &policy.roots,
+            &policy.exclusions,
+            &scope::ordinary_path(&index.root)?,
+        )
+        .map_err(|_| denied())?;
+        for excluded in &policy.exclusions {
+            if excluded.path.starts_with(root.path()) {
+                excluded.reopen().map_err(|_| denied())?;
+                let covered = index.exclusions.iter().any(|path| {
+                    scope::ordinary_path(path).is_ok_and(|path| excluded.path.starts_with(path))
+                });
+                if !covered {
+                    return Err(denied());
+                }
+            }
+        }
+        Ok(root)
+    }
+
     pub fn revoke(&mut self, id: i64) -> Result<()> {
         if self
             .connection
@@ -316,6 +368,12 @@ impl Registry {
         }
         Ok(items)
     }
+}
+
+pub struct ScanPermit {
+    pub root: AuthorizedPath,
+    pub options: crate::ScanOptions,
+    _exclusions: Vec<AuthorizedPath>,
 }
 
 fn credential() -> Result<Credential> {

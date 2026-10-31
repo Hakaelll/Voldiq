@@ -17,7 +17,7 @@ pub struct Index {
 }
 
 #[derive(Debug, Clone, Deserialize)]
-#[serde(default)]
+#[serde(default, deny_unknown_fields)]
 pub struct Query {
     pub parent: Option<NodeId>,
     pub scope: Option<NodeId>,

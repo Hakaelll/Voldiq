@@ -10,7 +10,7 @@ use std::{
     ffi::{OsStr, OsString},
     path::{Component, Path, PathBuf},
     sync::atomic::{AtomicBool, Ordering},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{SystemTime, UNIX_EPOCH},
 };
 
 pub struct Store {
@@ -178,10 +178,7 @@ PRAGMA user_version=3;";
 impl Store {
     pub fn open(path: &Path) -> Result<Self> {
         let mut connection = Connection::open(path)?;
-        connection.busy_timeout(Duration::from_secs(5))?;
-        connection.execute_batch(
-            "PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;",
-        )?;
+        crate::database::configure(&connection)?;
         let version: u32 = connection.query_row("PRAGMA user_version", [], |r| r.get(0))?;
         if version <= 4 {
             let transaction = connection.transaction()?;
