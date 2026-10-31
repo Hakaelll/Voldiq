@@ -31,6 +31,8 @@ Automated fixture references below include historical verification. On 2026-10-2
 
 ## Remaining implementation and performance work
 
+The [2026-10-31 release source gate](../benchmarks/project-verification-20261031-103904-700.json) passed formatting, Svelte diagnostics, the one frontend test, all seven workspace Rust tests, strict workspace Clippy and the frontend production build on the working tree based on `b78f022`. The updated script records its hash and reuses offline release artifacts. The eight-test inventory remains unchanged. This updates source verification only; the unresolved acceptance rows above remain open.
+
 The complete source gate passed on 2026-10-14 at checkout `a2dbace`, including all workspace Rust tests and 30 frontend tests. The [verification summary](../benchmarks/project-verification-2026-10-14.json) records all six successful stages. A separate [failure-path check](../benchmarks/project-verification-failure-2026-10-14.json) injected exit code 7 into the first command and proved that no success summary was emitted and the working directory was restored. These records establish the automated source gate, not the remaining native or installer outcomes.
 
 The [2026-10-15 source gate](../benchmarks/project-verification-2026-10-15.json) passed all six stages with the browser-cache changes accompanying this record, including workspace Rust tests, 34 frontend tests and strict Clippy. Its checkout reference identifies the base commit of the tested working tree. The browser filename fixture was then corrected to use a distinct uppercase filename on case-insensitive Windows; all three browser rule tests and Rust formatting passed again. Native browser-cache recovery and visual interaction remain separate acceptance gates.

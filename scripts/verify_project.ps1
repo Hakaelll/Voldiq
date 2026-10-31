@@ -14,8 +14,8 @@ try {
         @{ Name = 'Rust formatting'; Program = 'cargo'; Arguments = @('fmt', '--all', '--', '--check') },
         @{ Name = 'Frontend types and accessibility diagnostics'; Program = 'pnpm'; Arguments = @('check') },
         @{ Name = 'Frontend behavior tests'; Program = 'pnpm'; Arguments = @('test') },
-        @{ Name = 'Workspace Rust tests'; Program = 'cargo'; Arguments = @('test', '--workspace') },
-        @{ Name = 'Strict workspace Clippy'; Program = 'cargo'; Arguments = @('clippy', '--workspace', '--all-targets', '--', '-D', 'warnings') },
+        @{ Name = 'Workspace Rust tests'; Program = 'cargo'; Arguments = @('test', '--offline', '--release', '--workspace') },
+        @{ Name = 'Strict workspace Clippy'; Program = 'cargo'; Arguments = @('clippy', '--offline', '--release', '--workspace', '--all-targets', '--', '-D', 'warnings') },
         @{ Name = 'Production frontend build'; Program = 'pnpm'; Arguments = @('build') }
     )) {
         Write-Host $check.Name
@@ -31,6 +31,9 @@ try {
         checkedUtc = [DateTime]::UtcNow.ToString('o')
         startedUtc = $started.ToString('o')
         checkoutCommit = $commit
+        rustProfile = 'release'
+        cargoOffline = $true
+        verificationScriptSha256 = (Get-FileHash -LiteralPath $PSCommandPath -Algorithm SHA256).Hash
         scope = 'Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.'
         checks = $checks.ToArray()
     } | ConvertTo-Json -Depth 4

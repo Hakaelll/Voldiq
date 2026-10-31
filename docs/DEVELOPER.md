@@ -63,8 +63,8 @@ Earlier real-filesystem fixtures covered configured paths, unrelated namesakes, 
 
 ```powershell
 cargo fmt --all
-cargo test --workspace
-cargo clippy --workspace --all-targets -- -D warnings
+cargo test --offline --release --workspace
+cargo clippy --offline --release --workspace --all-targets -- -D warnings
 ```
 
 On 2026-10-13, seven native developer resolver tests passed, including four npm configuration tests. Real fixtures verify precedence and measured totals, literal escaped variables versus existing expanded namesakes, comments/quotes/Unicode, bounded reads, invalid UTF-8 and unresolved/relative paths. Workspace tests passed before the final escape correction; the seven resolver tests and strict workspace Clippy then verified that correction. Source review found the escaped-variable misclassification and checked the fix. Native populated acceptance remains pending.

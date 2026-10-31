@@ -10,15 +10,17 @@ Run on Windows with the Rust MSVC toolchain, C++ Build Tools and project depende
 ./scripts/verify_project.ps1
 ```
 
-The script checks Rust formatting, Svelte and TypeScript diagnostics, the frontend test, all workspace Rust tests, strict Clippy and the production frontend build. It stops on failure and reports success only after all six stages pass.
+The script checks Rust formatting, Svelte and TypeScript diagnostics, the frontend test, all workspace Rust tests, strict Clippy and the production frontend build. It reuses release artifacts and offline Cargo dependencies. On a fresh checkout, run `cargo fetch --locked` once while online to populate the dependency cache. The gate stops on failure and reports success only after all six stages pass; its report records the profile and script hash.
+
+The [2026-10-31 release verification](../benchmarks/project-verification-20261031-103904-700.json) passed all six stages on the working tree based on `b78f022`: one frontend test and seven Rust tests, with zero Svelte diagnostics or Clippy warnings. The production frontend build also passed. This verifies the retained source gate, not the remaining native, UAC or installer acceptance requirements.
 
 For individual checks:
 
 ```powershell
 pnpm test
-cargo test --workspace
+cargo test --offline --release --workspace
 pnpm check
-cargo clippy --workspace --all-targets -- -D warnings
+cargo clippy --offline --release --workspace --all-targets -- -D warnings
 pnpm build
 ```
 

@@ -10,10 +10,11 @@ Use Windows with the Rust MSVC toolchain, Visual Studio C++ Build Tools, Node.js
 
 ```powershell
 pnpm install --frozen-lockfile
+cargo fetch --locked
 pnpm check
 pnpm test
 cargo test -p voldiq-core
-cargo clippy --workspace --all-targets -- -D warnings
+cargo clippy --offline --release --workspace --all-targets -- -D warnings
 pnpm tauri build --bundles nsis
 ./scripts/verify_distribution.ps1
 ```

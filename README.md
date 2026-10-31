@@ -23,18 +23,19 @@ Install the stable Rust MSVC toolchain, Visual Studio C++ Build Tools with the W
 
 ```powershell
 pnpm install
+cargo fetch --locked
 pnpm tauri dev
 ```
 
 The browser-only preview, `pnpm dev`, intentionally cannot scan your computer. Run the native app for filesystem access.
 
-Development and test builds use limited debug information and disable incremental compilation to reduce disk cache growth. Release settings are unchanged. Build artifacts still accumulate under `target`; remove `target/debug` only after development builds and the development app have stopped. Keep `target/release` when retaining a built app or installer.
+The complete source gate reuses release artifacts and offline Cargo dependencies by default. Development builds use limited debug information and disable incremental compilation to reduce disk cache growth. Build artifacts still accumulate under `target`; remove `target/debug` only after development builds and the development app have stopped. Keep `target/release` when retaining a built app or installer.
 
 ```powershell
 pnpm check
 pnpm test
-cargo test -p voldiq-core
-cargo clippy --workspace --all-targets -- -D warnings
+cargo test --offline --release --workspace
+cargo clippy --offline --release --workspace --all-targets -- -D warnings
 pnpm tauri build
 ```
 
