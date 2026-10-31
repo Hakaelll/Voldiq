@@ -1,0 +1,51 @@
+{
+  "utc": "2026-10-31T10:04:24.2025601Z",
+  "executableSha256": "21394EE7F279AC996976AD9876E6865657C6D250B9885AB219F4144C5E5DA586",
+  "checkoutCommit": "63b3c9837d89a119650a97535844982ec632cabe",
+  "profile": "release",
+  "sources": {
+    "src-tauri/src/overview.rs": "27FCD062FAE96DB5D78C87F635ABA2EAA5980F35E7F929B817357E41F30B547D",
+    "src-tauri/src/query_commands.rs": "F7634EB2CD615F7415830E002DDD3D81F87D384BC6DB6609B7C653AE364ABBB5",
+    "src-tauri/examples/overview_benchmark.rs": "36144627D41D9019B808567849C6131CD304CB7C4E90B6F2D3AA1A708A6CE097",
+    "crates/voldiq-core/src/index.rs": "041593F52D085343B88B8B0BA5F10B58ED756A6F00CCFC4EF91CE10C7F139D28",
+    "crates/voldiq-core/src/index/rank.rs": "A29A60AC2E42E26853E743CA3A446E1536ACBF14C95408400C8090305B5D9DE9",
+    "benchmarks/run_overview_benchmark.ps1": "BF3607524B97935B98C409EF71B1A9E556D8432BF49C4E22C147A6FB94B174E5"
+  },
+  "cpuBefore": {
+    "Name": "11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz",
+    "NumberOfCores": 4,
+    "NumberOfLogicalProcessors": 8,
+    "LoadPercentage": 34
+  },
+  "cpuAfter": {
+    "LoadPercentage": 29
+  },
+  "operatingSystem": {
+    "Caption": "Microsoft Windows 11 Home",
+    "Version": "10.0.26200",
+    "TotalVisibleMemorySize": 16535812,
+    "FreePhysicalMemory": 6480620
+  },
+  "runs": [
+    {
+      "mode": "measurement",
+      "pid": 6960,
+      "exitCode": 0,
+      "rows": 45,
+      "csv": "overview-release-20261031-100410-322-measurement.csv",
+      "stderr": "Synthetic in-memory index; production overview module. No scan, IPC, Canvas or application latency measured.\n",
+      "processCpuMilliseconds": 5265.625
+    },
+    {
+      "mode": "diagnostic",
+      "pid": 20748,
+      "exitCode": 0,
+      "rows": 45,
+      "csv": "overview-release-20261031-100410-322-diagnostic.csv",
+      "stderr": "Synthetic in-memory index; production overview module. No scan, IPC, Canvas or application latency measured.\n",
+      "processCpuMilliseconds": 5140.625
+    }
+  ],
+  "claim": "Release latency baseline for the production synchronous overview composition, bounded branch pass and JSON serialization on three synthetic million-file index shapes. No before/after optimization claim.",
+  "scope": "One million in-memory files per shape: 16 equal-sized sibling folders, 1000 siblings with varied sizes, and a 64-level chain queried at depth 32. Construction, full-sort reference verification and warmup are outside query timers. Five repetitions per method, alternating overview/branch order. Component diagnostics run in a separate process. No disk scan, native IPC, concurrent indexing, Canvas or total-app responsiveness is measured. Desktop background load is uncontrolled. Thread CPU counters may be quantized."
+}

@@ -1,5 +1,26 @@
 # Performance measurements
 
+## Release overview baseline
+
+The production overview composition and bounded branch pass now live in `src-tauri/src/overview.rs`. The native command and `overview_benchmark` example compile that same module. Both function bodies were checked against their previous implementation after whitespace normalization. This separation changes no query algorithm or response fields.
+
+Build and run on Windows:
+
+```powershell
+cargo build --offline --release -p voldiq --example overview_benchmark
+./benchmarks/run_overview_benchmark.ps1
+```
+
+The [initial release record](../benchmarks/overview-release-20261031-100410-322.provenance.json) links 45 measured rows and a separate 45-row component diagnostic. Each shape contains one million generated in-memory files. Construction, an independent full-sort reference and warmup occur outside query timers. Five repetitions alternate complete overview and branch-only order. Exact returned IDs, byte/file totals, page bounds and decoded serialization results are checked. The current harness additionally checks uppercase ASCII, Unicode, missing and empty extensions outside the timers. No declared test was added.
+
+| Shape | Overview median, range | Branch pass median | JSON bytes |
+|---|---:|---:|---:|
+| 16 sibling folders, equal sizes | 160.876 ms, 130.369–203.750 ms | 11.410 ms | 20,190 |
+| 1,000 sibling folders, varied sizes | 169.459 ms, 138.716–208.790 ms | 12.512 ms | 66,254 |
+| 64 levels, selected depth 32 | 344.137 ms, 238.349–437.709 ms | 8.700 ms | 7,615 |
+
+Component diagnostics identify extension grouping as the dominant synchronous component, with medians of 183.513, 161.591 and 294.920 ms respectively. They run separately and must not be summed against another process's overview sample. Thread CPU is close to wall time for the complete overview and extension grouping, supporting CPU work on one thread as the limiter. Short counters advance in roughly 15.625 ms steps; zero CPU samples do not mean zero work. Desktop CPU load was uncontrolled, at 34% before and 29% after. This is a Rust query/serialization baseline, not a filesystem scan, native IPC, concurrent indexing, Canvas, startup or whole-app result.
+
 ## Filename search normalization
 
 Filename filtering now searches the original string when its name is already lowercase ASCII. It retains the existing Unicode lowercase conversion for uppercase or non-ASCII names. Query normalization, matching semantics, ranking, page bounds and cancellation checkpoints are unchanged. This avoids constructing a temporary lowercase string for the common lowercase ASCII case without caching a second filename for every indexed entry.

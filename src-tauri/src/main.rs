@@ -15,6 +15,7 @@ mod cleanup_commands;
 mod config_file;
 mod developer_commands;
 mod docker_commands;
+mod overview;
 mod query_commands;
 mod snapshot_commands;
 use cleanup_commands::*;
