@@ -1,0 +1,14 @@
+{
+  "checkedUtc": "2026-10-31T23:03:36.9685656Z",
+  "command": "cargo clean --offline --profile dev --target-dir C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target",
+  "validatedTarget": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\debug",
+  "filesBefore": 7126,
+  "logicalBytesBefore": 3995424807.0,
+  "cargoOutput": [
+    "     Removed 7126 files, 3.7GiB total"
+  ],
+  "developmentCacheExistsAfter": false,
+  "productionSha256": "48C64D4DC45114DB4D0A1AA6290974A336BBED0C0AB17C4ED92718B4B17198C8",
+  "productionUnchanged": true,
+  "scope": "Development and debug test artifacts only; production build, previews and application state retained."
+}

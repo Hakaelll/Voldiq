@@ -1,0 +1,12 @@
+{
+  "checkedUtc": "2026-10-31T22:56:09.2933222Z",
+  "checkoutCommit": "96e42d5dd85e6625113618f1a0fd0d3eeb6dda80",
+  "dirtySource": true,
+  "buildCommand": "cargo build --offline --release -p voldiq --features production --bin voldiq",
+  "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\48C64D4DC45114DB4D0A1AA6290974A336BBED0C0AB17C4ED92718B4B17198C8\\voldiq.exe",
+  "sha256": "48C64D4DC45114DB4D0A1AA6290974A336BBED0C0AB17C4ED92718B4B17198C8",
+  "processId": 9860,
+  "aliveAfterTwoSeconds": true,
+  "embeddedAssetProbe": "Passed by scripts/prepare_release_preview.ps1 before copying and opening",
+  "scope": "Native process launched at user request. No UI interaction, screenshot or visual acceptance check."
+}

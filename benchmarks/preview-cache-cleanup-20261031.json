@@ -1,0 +1,24 @@
+{
+  "checkedUtc": "2026-10-31T22:59:25.4958966Z",
+  "scriptSha256": "90D6CAB950FE80986D405F40D5E81B9FB329603E7E4FA843AA8017700F4F7B31",
+  "firstApplyRemovedBytes": 54502912,
+  "firstApplyRemovedImages": 4,
+  "firstApplyRetainedRunningImages": 1,
+  "evidence": "First apply console result, followed by the stored idempotence recheck",
+  "idempotenceRecheck": {
+    "applied": true,
+    "removedBytes": 0,
+    "previews": [
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\48C64D4DC45114DB4D0A1AA6290974A336BBED0C0AB17C4ED92718B4B17198C8",
+        "bytes": 13943296,
+        "status": "KeptCurrent"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\ABE628085159BDDB345991A50931437F53116FB247A6D859CBF4094FCDB2430A",
+        "bytes": 13210624,
+        "status": "KeptRunning"
+      }
+    ]
+  }
+}

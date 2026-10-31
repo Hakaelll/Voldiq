@@ -30,6 +30,8 @@ Start-Process -FilePath $preview.Path
 
 The script only prepares the executable; it never launches or closes a process. It stores one verified copy per SHA-256 in ignored `target/preview`, reuses matching copies, and refuses to overwrite a mismatched executable. This keeps the release path available to the bundler. Remove obsolete preview directories only after their application instances have closed; retain the current preview while it is running.
 
+`powershell -NoProfile -ExecutionPolicy Bypass -File scripts/clean_obsolete_previews.ps1` lists obsolete preview candidates. Add `-Apply` to remove them. It verifies each executable against its hash-named directory, retains the current release and running images, and removes only that file and its empty directory. Unknown contents and reparse points are skipped. It does not clear build dependencies, application state or system caches.
+
 `src-tauri/tauri.conf.json` selects `offlineInstaller` for WebView2. The bundler downloads Microsoft's standalone runtime installer during the build and embeds it in the setup executable. Installation therefore does not need to download that runtime. Tauri's default NSIS mode installs for the current user. See the [official Windows installer documentation](https://v2.tauri.app/distribute/windows-installer/).
 
 ## Artwork

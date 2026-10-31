@@ -14,6 +14,7 @@ The user requests no subagents and no computer use. Use source checks and dispos
 - Revalidate identities, permissions, protections and destination before execution. Changed evidence invalidates approval. Retry and crash recovery must not repeat an uncertain destructive operation.
 - Keep protected user paths, system paths, Voldiq state, credentials, bin and recovery storage outside suggestions and execution.
 - Tests that modify files use owned temporary fixtures only. Never clean real user data as verification.
+- The user authorizes cache cleanup only for Voldiq build and test artifacts. Preserve active builds, running previews, application state and caches of Windows or other applications.
 
 ## Delivery
 
