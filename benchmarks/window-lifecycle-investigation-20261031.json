@@ -1,0 +1,41 @@
+{
+  "observedUtc": "2026-10-31T16:00:37.8800677Z",
+  "isolatedProof": "benchmarks/window-lifecycle-20261031.json",
+  "conclusion": "The isolated production runtime completes normal window teardown. The existing application shutdown delay remains unexplained; trace the actual application lifecycle and pending work next.",
+  "oldApplication": {
+    "processId": 16504,
+    "started": "2026-10-31T15:26:16.7360134+01:00",
+    "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\ABE628085159BDDB345991A50931437F53116FB247A6D859CBF4094FCDB2430A\\voldiq.exe",
+    "sha256": "ABE628085159BDDB345991A50931437F53116FB247A6D859CBF4094FCDB2430A",
+    "windowHandle": 0,
+    "cpuSeconds": 2.453125,
+    "threads": 12,
+    "forciblyTerminated": false,
+    "executableDeleted": false
+  },
+  "currentApplication": {
+    "processId": 17000,
+    "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\A2BB2190BD8FEA26F970E5CEE055B0DD021AC8B8420A02003A57C8943DA6DEE9\\voldiq.exe",
+    "windowHandle": 4851218,
+    "responding": true
+  },
+  "temporaryCleanup": {
+    "path": "C:/Users/yagol/AppData/Local/Temp/.tmpJW6rI5",
+    "absent": true,
+    "scope": "Owned profile from exited probe PID 8272; absolute parent/root validated before removal."
+  },
+  "limitations": [
+    "No screenshot or interaction inspection.",
+    "No shutdown fix or populated-app shutdown acceptance.",
+    "No force termination of either application process.",
+    "Combined UAC recycling fixture remains deferred."
+  ],
+  "sourceGate": "benchmarks/project-verification-lifecycle-20261031.json",
+  "sourceVerificationEnvironment": {
+    "filesystemIsolation": "outside",
+    "administratorToken": false,
+    "uac": false,
+    "retainedTests": 8,
+    "initialIsolatedRun": "Four Windows handle fixtures returned access denied; no assertions were weakened."
+  }
+}

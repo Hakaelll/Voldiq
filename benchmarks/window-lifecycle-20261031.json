@@ -1,0 +1,27 @@
+{
+  "startedUtc": "2026-10-31T15:58:32.6507365Z",
+  "executable": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\release\\examples\\window_lifecycle_probe.exe",
+  "sha256": "9863D89B4902B354AF86F77F251354822805DF8B756665A0E14DFADE0BCB043D",
+  "sources": [
+    {
+      "path": "src-tauri/build.rs",
+      "sha256": "67E3C7C75519957F4915406B559C7ABAEF01CBC22AE40D6D378028BEF1A22E80"
+    },
+    {
+      "path": "src-tauri/examples/window_lifecycle_probe.rs",
+      "sha256": "99022E86FCB71DFA654E392012287D2259E344C4B590B458CDA81D5FD1401130"
+    },
+    {
+      "path": "scripts/probe_window_lifecycle.ps1",
+      "sha256": "E3F2EE6216042DA1568DD74853256427FF72C6557D63BE477A8B0BED22B018A3"
+    }
+  ],
+  "processId": 548,
+  "exited": true,
+  "exitCode": 0,
+  "passed": true,
+  "stdout": "PROBE window-created\nPROBE ready\nPROBE requesting-close\nPROBE close-result Ok(())\nPROBE close-requested probe\nPROBE destroyed probe\nPROBE exit-requested\nPROBE exit\nPROBE run-returned 0\nPROBE profile-removed\n",
+  "stderr": "",
+  "scope": "Hidden about:blank window; isolated temporary WebView profile; run_return event loop; no Voldiq state or databases.",
+  "limitation": "Does not prove shutdown of the populated application or explain another live process."
+}

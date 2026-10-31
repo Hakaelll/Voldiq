@@ -56,6 +56,8 @@ The snapshot cancellation working tree based on `ae36963` passes the [six-stage 
 
 The previous window accepted a normal close request, but PID 16504 remained running with no main-window handle. Its in-use preview executable is retained until that process exits. No forced termination or deletion of its image was performed. The cause of this shutdown delay is not established. See the current launch record for exact process and image identities.
 
+The user confirmed that the corrected standalone window displays the interface. This confirms visible startup after the development-URL fix; it does not establish acceptance of every interaction, final visual design or a clean-machine installation.
+
 ### User-owned clean-machine check
 
 1. Copy the installer to a clean x64 Windows environment and verify its SHA-256 above. Record the Windows version and whether WebView2 is initially present. Test the absent-runtime case to verify the embedded runtime installer.

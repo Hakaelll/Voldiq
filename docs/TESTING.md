@@ -24,6 +24,23 @@ cargo clippy --offline --release --workspace --all-targets --features voldiq/pro
 pnpm build
 ```
 
+## Native shutdown isolation
+
+To isolate the window runtime from application state:
+
+```powershell
+cargo build --offline --release -p voldiq --features production --example window_lifecycle_probe
+./scripts/probe_window_lifecycle.ps1
+```
+
+The probe opens a hidden `about:blank` window with a temporary WebView profile, requests its normal close and records native lifecycle events. It uses Tauri's returning event loop so it can verify profile removal afterward. It does not open Voldiq's databases or invoke its commands. Windows examples link the same Common Controls v6 activation resource as the application; without it, this probe exits before Rust starts with `0xC0000139`.
+
+Each invocation writes stdout, stderr, source/image hashes and its result under `target/diagnostics/lifecycle-<id>`. A timeout retains the process for diagnosis instead of terminating it. Passing this isolated probe does not prove shutdown of a populated Voldiq instance or explain a different process that remains active. This is a diagnostic executable, not an additional declared test.
+
+The [2026-10-31 isolated run](../benchmarks/window-lifecycle-20261031.json) completed normal close, window destruction, exit, event-loop return with code 0 and profile removal. The first profile-removal attempt exposed asynchronous WebView file release; the fixture now allows up to five seconds for its owned profile cleanup. The old application process remains a separate unresolved observation.
+
+The [lifecycle source gate](../benchmarks/project-verification-lifecycle-20261031.json) passes all six stages and preserves eight declared tests. Four Windows file-handle fixtures initially returned access denied inside Codex's filesystem isolation; all seven Rust cases passed when rerun with the ordinary account outside that isolation. No UAC or administrator token was used.
+
 ## Retained coverage
 
 | Cases | Behavior |
