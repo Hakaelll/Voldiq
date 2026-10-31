@@ -3,6 +3,7 @@ pub mod cleanup;
 pub mod developer;
 pub mod duplicates;
 pub mod index;
+pub mod jobs;
 pub mod ntfs;
 pub mod scanner;
 pub mod snapshots;

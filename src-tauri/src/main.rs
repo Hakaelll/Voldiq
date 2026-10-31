@@ -147,12 +147,15 @@ async fn choose_folder() -> Result<Option<String>, String> {
 
 #[tauri::command]
 fn start_scan(
+    app: tauri::AppHandle,
     path: String,
     options: ScanOptions,
     progress: Channel<analysis_status::ScanProgress>,
     engine: State<'_, Arc<Engine>>,
     database: State<'_, SnapshotDatabase>,
 ) -> Result<u64, String> {
+    let directory = app.path().app_local_data_dir().map_err(|error| error.to_string())?;
+    let scan_lease = voldiq_core::jobs::ScanLease::acquire(&directory).map_err(|error| error.to_string())?;
     let engine = engine.inner().clone();
     let (id, cancel) = engine.begin()?;
     let operation = Operation {
@@ -167,6 +170,7 @@ fn start_scan(
     let store = database.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = operation;
+        let _scan_lease = scan_lease;
         let mut final_progress = None;
         let path = PathBuf::from(path);
         let start = std::time::Instant::now();

@@ -9,7 +9,7 @@ Stages: A audit, B shared services, C secure adapters, D visualization, E analys
 | Repository/source/license audit | Preserve stack, identity, local changes; pin research | Implemented | A | Git/source inspection; baseline gate pending | No reference code executed or copied; explicit provenance |
 | Baseline visuals | Existing 0.2.0 release, tokens and assets | Existing; new captures excluded | User instruction | `DESIGN.md`, release evidence | Identity retained; new native comparison manual |
 | Shared GUI/CLI/MCP engine | Core services, adapter-only transports | Partial; desktop-only coordinator | B/C | Shared-service fixtures pending | Same authorization/jobs/index/executor across adapters |
-| Persistent shared index | Existing compact versioned SQLite snapshots; process coordination | Partial | B | Existing snapshot fixture; process lease pending | No duplicate same-root full scans; transactional restart |
+| Persistent shared index | Existing compact versioned SQLite snapshots; shared process scan lease | Partial; lease implemented | B | Existing snapshot fixture; real second-process lease test passes | No duplicate same-root full scans; transactional restart |
 | Provenance/confidence/unknowns | Explicit source/time/coverage for derived values | Partial | B | Accounting fixtures pending | Unknown never shown as zero; inaccessible never empty |
 | Scan roots/progress/cancel | Existing directory and NTFS scanner | Existing | B | Baseline native tests | Folder/drive scans return measured progress and partial state |
 | Incremental/pause/profiles | USN replay; bounded Eco/Balanced/Fast/Auto | Partial; pause/profiles pending | B | NTFS/profile fixtures pending | No unsupported pause or promised CPU percentage |
