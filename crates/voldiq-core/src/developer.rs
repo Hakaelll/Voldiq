@@ -155,7 +155,11 @@ pub fn query(index: &Index, query: &Query) -> Result<Page> {
     query_with_caches(index, query, &[])
 }
 
-fn classified(index: &Index, scope: NodeId, caches: &[CacheLocation]) -> Result<Vec<Item>> {
+fn classified(
+    index: &Index,
+    scope: NodeId,
+    caches: &[CacheLocation],
+) -> Result<(Vec<Item>, Vec<NodeId>)> {
     index.entry(scope)?;
     let captured;
     let caches = if index.snapshot_id.is_some() {
@@ -201,6 +205,7 @@ fn classified(index: &Index, scope: NodeId, caches: &[CacheLocation]) -> Result<
         }
     }
     let mut candidates = Vec::new();
+    let mut configured_dependencies = Vec::new();
     for entry in &index.entries {
         if entry.kind != Kind::Directory || !index.in_scope(entry.id, scope) {
             continue;
@@ -245,6 +250,10 @@ fn classified(index: &Index, scope: NodeId, caches: &[CacheLocation]) -> Result<
             _ => None,
         });
         if let Some((tool, category)) = classification {
+            if cache_classification.is_some_and(|(_, category)| category == Category::Dependencies)
+            {
+                configured_dependencies.push(entry.id);
+            }
             candidates.push(Item {
                 id: entry.id,
                 path: String::new(),
@@ -258,7 +267,7 @@ fn classified(index: &Index, scope: NodeId, caches: &[CacheLocation]) -> Result<
             });
         }
     }
-    Ok(candidates)
+    Ok((candidates, configured_dependencies))
 }
 
 #[derive(Default)]
@@ -284,7 +293,8 @@ impl BuildScopes {
 
 pub(crate) fn project_build_scopes(index: &Index, caches: &[CacheLocation]) -> Result<BuildScopes> {
     let mut scopes = BuildScopes::default();
-    for item in classified(index, NodeId(0), caches)? {
+    let (candidates, _) = classified(index, NodeId(0), caches)?;
+    for item in candidates {
         if item.category == Category::Build {
             scopes.builds.insert(item.id);
         } else {
@@ -295,7 +305,21 @@ pub(crate) fn project_build_scopes(index: &Index, caches: &[CacheLocation]) -> R
 }
 
 pub fn query_with_caches(index: &Index, query: &Query, caches: &[CacheLocation]) -> Result<Page> {
-    let mut candidates = classified(index, query.scope, caches)?;
+    let (mut candidates, configured_dependencies) = classified(index, query.scope, caches)?;
+    // Omit ambiguous aggregate cache rows from totals, retaining their full cleanup exclusions.
+    let mut dependency_ancestors = HashSet::new();
+    for dependency in configured_dependencies {
+        let mut parent = index.entries[dependency.0 as usize].parent;
+        while let Some(id) = parent {
+            if !dependency_ancestors.insert(id) {
+                break;
+            }
+            parent = index.entries[id.0 as usize].parent;
+        }
+    }
+    candidates.retain(|item| {
+        item.category != Category::Cache || !dependency_ancestors.contains(&item.id)
+    });
     // Nested artifacts belong to the outer candidate so totals never double-count a subtree.
     let ids: HashSet<_> = candidates.iter().map(|item| item.id).collect();
     candidates.retain(|item| {

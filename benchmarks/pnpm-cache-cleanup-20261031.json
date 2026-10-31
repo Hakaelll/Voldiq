@@ -1,0 +1,48 @@
+{
+  "cleanedUtc": "2026-10-31T17:34:29.3067131Z",
+  "files": [
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\05DE0A0493232167C0AD312E67F4FA79D604A413CE531A884580A93927B764F3\\voldiq.exe",
+      "bytes": 13240320,
+      "sha256": "05DE0A0493232167C0AD312E67F4FA79D604A413CE531A884580A93927B764F3"
+    },
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\release\\deps\\voldiq-b0d591aba6c54308.exe",
+      "bytes": 4888064,
+      "sha256": "5D974A5C5D912ADFCCDD66EA766170098DE6AA7AC7A52827637C8B10517339D1"
+    },
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\release\\deps\\voldiq-b0d591aba6c54308.pdb",
+      "bytes": 4517888,
+      "sha256": "91A69B1E867696362E96BC9BC457876389042599BF9E545496F5217065735042"
+    },
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\release\\deps\\voldiq-b0d591aba6c54308.d",
+      "bytes": 5672,
+      "sha256": "611CCF23C7482E46BBE834FD22D9DBE9015B37FE6373241F4B51826137444553"
+    },
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\51C5105074ABD9714E1ADE063E0B7DF720EA6BC109B93DFBFD87CF399192B544\\voldiq.exe",
+      "bytes": 13520384,
+      "sha256": "51C5105074ABD9714E1ADE063E0B7DF720EA6BC109B93DFBFD87CF399192B544"
+    },
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\release\\deps\\voldiq-a26fa39dc6ceecc3.exe",
+      "bytes": 5383168,
+      "sha256": "E0703DAE6CD1E4976EE86E68B5A274B2A235E23BF40F3E4A408EC8B8ED697B77"
+    },
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\release\\deps\\voldiq-a26fa39dc6ceecc3.pdb",
+      "bytes": 4435968,
+      "sha256": "B88C793456653938F03D4C9DCDF7F4AAC0D1A16451E8DBD5874235DDD5827C5A"
+    },
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\release\\deps\\voldiq-a26fa39dc6ceecc3.d",
+      "bytes": 5817,
+      "sha256": "4A1B3C83689648CC68D2D2F45F73462A41B08DF9640B16C422C8F4BA1114D3A2"
+    }
+  ],
+  "totalFileBytes": 45997281,
+  "scope": "Normally exited previews and obsolete pre-YAML/failed-reproduction test payloads; current positive test image retained. Exact regular files and empty preview directories only.",
+  "retained": "Old PID 16504 image and current PID 11296 image retained."
+}

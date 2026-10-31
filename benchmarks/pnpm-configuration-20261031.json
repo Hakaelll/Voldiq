@@ -1,0 +1,88 @@
+{
+  "verifiedUtc": "2026-10-31T17:03:30.3103575Z",
+  "baseCommit": "3006df756b5c55cce6b018bc40432f2b9a44c5ec",
+  "sourceGate": "benchmarks/project-verification-pnpm-configuration-20261031.json",
+  "retainedTests": 8,
+  "fixture": "Existing native command case calls developer_commands::verify_pnpm_configuration; owned real files are scanned and queried through the core developer API.",
+  "assertedResults": {
+    "globalYaml": {
+      "dependencyBytes": 31,
+      "directories": 4,
+      "cacheBytes": 73
+    },
+    "environmentOverrides": {
+      "dependencyBytes": 0,
+      "directories": 2,
+      "cacheBytes": 36
+    },
+    "overlappingCache": {
+      "dependencyBytes": 31,
+      "directories": 3,
+      "cacheBytes": 32
+    },
+    "explicitStoreWithMalformedYaml": {
+      "dependencyBytes": 0,
+      "directories": 1,
+      "cacheBytes": 17
+    },
+    "noConfiguration": {
+      "dependencyBytes": 0,
+      "directories": 2,
+      "cacheBytes": 36
+    },
+    "projectTemporaryProtection": {
+      "unprotectedControlCandidates": 1,
+      "protectedCandidates": 0,
+      "scope": "Owned fourteen-day-old .tmp file under a Cargo target configured as overlapping pnpm store/metadata cache."
+    }
+  },
+  "otherAssertions": [
+    "Configuration unchanged after discovery",
+    "Malformed/oversized YAML omits fallback roots",
+    "XDG configuration precedes local YAML",
+    "Relative XDG location does not fall back",
+    "Aliases, merges, duplicate keys, non-scalar paths and excessive depth rejected",
+    "Variable fallback and home expansion",
+    "All declared cache roots retained for cleanup exclusions and snapshot capture; ambiguous aggregate rows omitted only from Developer totals"
+  ],
+  "sources": [
+    {
+      "path": "src-tauri/src/developer_commands.rs",
+      "sha256": "5B9889A226FB95CEAEF5032033BEDF33ACEF24A00F9B00AD0B716A865CF25650"
+    },
+    {
+      "path": "src-tauri/src/developer_commands/pnpm_config.rs",
+      "sha256": "F1AE9287BFA8735ACED3B427430AA81784E2FAB50B76196EF24B018B402471D3"
+    },
+    {
+      "path": "src-tauri/src/cleanup_commands.rs",
+      "sha256": "31EF54D2B06914F54EDA1AAEC6278BF29E7674CC9BBFF1E2680148B3C006665F"
+    },
+    {
+      "path": "crates/voldiq-core/src/developer.rs",
+      "sha256": "9DD04515C437010AACA3C41ABD48A784461FC66F37050C8E6F3ACE18DE8218B9"
+    },
+    {
+      "path": "src-tauri/Cargo.toml",
+      "sha256": "65CCD22D2FD760C6E28F48A10462E4C1B91A272B762B58DC662F78CEF447F574"
+    },
+    {
+      "path": "Cargo.lock",
+      "sha256": "D2A7ED099D10B7CEA8368F2B0B9F8A9B96432BB8CC870593819597A019984CE9"
+    }
+  ],
+  "scope": "Native path discovery and real indexed classification fixture; no pnpm execution, personal configuration changes, personal-file deletion, UAC or visual inspection.",
+  "limitations": [
+    "No installed pnpm command equivalence or populated native UI acceptance.",
+    "Project/legacy configuration, aliases/merges, per-disk stores and custom virtual-store locations remain unsupported.",
+    "Standalone store bookkeeping files such as index.db remain outside developer categories."
+  ],
+  "references": [
+    "https://pnpm.io/cli/config",
+    "https://pnpm.io/settings/store",
+    "https://github.com/pnpm/pnpm/blob/main/pnpm11/config/reader/src/getConfig/globalConfigYaml.ts",
+    "https://github.com/pnpm/pnpm/blob/main/pnpm11/config/reader/src/dirs.ts",
+    "https://github.com/pnpm/pnpm/blob/main/pnpm11/config/env-replace/src/env-replace.ts"
+  ],
+  "protectionCounterexample": "benchmarks/pnpm-cache-protection-counterexample-20261031.json"
+}

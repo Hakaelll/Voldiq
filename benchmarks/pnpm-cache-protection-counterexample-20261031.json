@@ -1,0 +1,18 @@
+{
+  "observedFailure": true,
+  "command": "cargo test --offline --release -p voldiq --features production",
+  "shellExitCode": 1,
+  "scope": "Existing native test; owned project, cache/dependency directories and one fourteen-day-old temporary file. Candidate enumeration only; no personal-file deletion or UAC.",
+  "assertion": "Project-temp cleanup must return zero candidates inside the configured cache, but returned one. The no-cache control returned one as expected.",
+  "sources": [
+    {
+      "path": "src-tauri/src/developer_commands/pnpm_config.rs",
+      "sha256": "1047B2EEAEB34025C242125C6AE9A7A431C9A64558981193DFEA0968813C330C"
+    },
+    {
+      "path": "crates/voldiq-core/src/developer.rs",
+      "sha256": "2A390605FE10C7D9009ADBB770234222D8090754AAD4F37368F8F5777A514170"
+    }
+  ],
+  "output": "    Finished `release` profile [optimized] target(s) in 2m 21s\n     Running unittests src\\main.rs (target\\release\\deps\\voldiq-a26fa39dc6ceecc3.exe)\n\nrunning 1 test\ntest cleanup_commands::execution_tests::confirmation_requires_the_same_live_index_and_consumes_the_plan_once ... FAILED\n\nfailures:\n\n---- cleanup_commands::execution_tests::confirmation_requires_the_same_live_index_and_consumes_the_plan_once stdout ----\n\nthread 'cleanup_commands::execution_tests::confirmation_requires_the_same_live_index_and_consumes_the_plan_once' (15712) panicked at src-tauri\\src\\developer_commands\\pnpm_config.rs:458:5:\nassertion `left == right` failed\n  left: 1\n right: 0\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n\nfailures:\n    cleanup_commands::execution_tests::confirmation_requires_the_same_live_index_and_consumes_the_plan_once\n\ntest result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s\n\nerror: test failed, to rerun pass `-p voldiq --bin voldiq`\n"
+}

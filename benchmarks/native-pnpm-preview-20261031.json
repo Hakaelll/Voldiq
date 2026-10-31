@@ -1,0 +1,92 @@
+{
+  "observedUtc": "2026-10-31T17:33:34.0743927Z",
+  "preview": {
+    "Path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\542C6674E1FD2B747C04385DA3552100E7FCB0AB53F78B3C7D3A093A13774C74\\voldiq.exe",
+    "Sha256": "542C6674E1FD2B747C04385DA3552100E7FCB0AB53F78B3C7D3A093A13774C74",
+    "Bytes": 13521408,
+    "Reused": false
+  },
+  "previous": {
+    "processId": 22104,
+    "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\51C5105074ABD9714E1ADE063E0B7DF720EA6BC109B93DFBFD87CF399192B544\\voldiq.exe",
+    "started": "2026-10-31T18:06:12.3388219+01:00",
+    "sha256": "51C5105074ABD9714E1ADE063E0B7DF720EA6BC109B93DFBFD87CF399192B544",
+    "closeRequested": true,
+    "exited": true
+  },
+  "processId": 11296,
+  "ready": true,
+  "windowHandle": 395420,
+  "responding": true,
+  "trace": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\diagnostics\\pnpm-final-6596fa1239504be1bb3f42f02115a8cd\\events.jsonl",
+  "events": [
+    {
+      "event": "process-start",
+      "pid": 11296,
+      "state": null,
+      "unixMs": 1793468011060
+    },
+    {
+      "event": "setup-start",
+      "pid": 11296,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "idle",
+        "snapshots": "unavailable"
+      },
+      "unixMs": 1793468013034
+    },
+    {
+      "event": "snapshot-open-start",
+      "pid": 11296,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "idle",
+        "snapshots": "unavailable"
+      },
+      "unixMs": 1793468013036
+    },
+    {
+      "event": "snapshot-open-end",
+      "pid": 11296,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793468013040
+    },
+    {
+      "event": "setup-end",
+      "pid": 11296,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793468013804
+    },
+    {
+      "event": "ready",
+      "pid": 11296,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793468013805
+    },
+    {
+      "event": "page-finished",
+      "pid": 11296,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793468013955
+    }
+  ],
+  "scope": "Final production preview and native process/window metadata; no visual inspection, UI input, UAC or forced termination.",
+  "sourceGate": "benchmarks/project-verification-pnpm-configuration-20261031.json"
+}

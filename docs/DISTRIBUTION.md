@@ -44,19 +44,19 @@ Release signing and a public download are not configured. Packaging does not clo
 
 ## Latest build, 2026-10-31
 
-The native lifecycle working tree based on `caf391a` passes the [six-stage production source gate](../benchmarks/project-verification-native-lifecycle-20261031.json) with eight declared tests. `cargo build --offline --release -p voldiq --features production --bin voldiq` completes. The [actual application observation](../benchmarks/native-application-lifecycle-20261031.json) verifies embedded assets, normal close with exit code 0 and a reopened responding window. The optional lifecycle trace observes the existing shutdown path; it does not change that behavior. History retains cancellation for native capture/loading. The user confirmed that the earlier corrected standalone interface displays correctly; detailed interaction acceptance remains manual.
+The pnpm configuration working tree based on `3006df7` passes the [six-stage production source gate](../benchmarks/project-verification-pnpm-configuration-20261031.json) with eight declared tests. `cargo build --offline --release -p voldiq --features production --bin voldiq` completes. The [current preview](../benchmarks/native-pnpm-preview-20261031.json) reaches native Ready and page-load completion with a responding window after decoded embedded-asset verification. This build adds read-only pnpm global YAML and metadata-cache discovery. Complete cache exclusions remain available to cleanup even when Developer totals omit an overlapping aggregate. The user confirmed that the earlier corrected standalone interface displays correctly; detailed interaction acceptance remains manual.
 
-`pnpm tauri bundle --bundles nsis` replaces the installer from that verified production executable. The [distribution record](../benchmarks/distribution-2026-10-31-native-lifecycle.json) passes executable-level decoded JS/CSS matching plus architecture, version, offline/current-user settings, vendor signature and icon checks. The runtime download was reused. Native image and setup remain unsigned. Installation and installer payload extraction remain unverified.
+`pnpm tauri bundle --bundles nsis` replaces the installer from that verified production executable. The [distribution record](../benchmarks/distribution-2026-10-31-pnpm-configuration.json) passes executable-level decoded JS/CSS matching plus architecture, version, offline/current-user settings, vendor signature and icon checks. The runtime download was reused. Native image and setup remain unsigned. Installation and installer payload extraction remain unverified.
 
 | Artifact | Bytes | SHA-256 |
 |---|---:|---|
-| Native x64 executable, version 0.1.0 | 13,240,320 | `05DE0A0493232167C0AD312E67F4FA79D604A413CE531A884580A93927B764F3` |
-| NSIS installer, version 0.1.0 | 221,638,136 | `DF85A82ABD226212A1FF7FB1A04C6D6F206188FB2AE7D6D1CAA9D35263816257` |
+| Native x64 executable, version 0.1.0 | 13,521,408 | `542C6674E1FD2B747C04385DA3552100E7FCB0AB53F78B3C7D3A093A13774C74` |
+| NSIS installer, version 0.1.0 | 221,705,618 | `2C401CB21224C763D87B240DF467D3EAC6D4147B9493AD679DA5610DA6524AA0` |
 | Microsoft offline runtime source, version 1.3.307.15 | 215,017,168 | `62863F0F0611A16CCF124B4F15650C3B66624504EBA74D7CDE1E2AE5D951249B` |
 
 The previous window accepted a normal close request, but PID 16504 remained running with no main-window handle. Its in-use preview executable is retained until that process exits. No forced termination or deletion of its image was performed. The cause of this shutdown delay is not established. See the current launch record for exact process and image identities.
 
-The later PID 17000 and traced PID 10304 both terminated after normal window close. PID 22500 is the reopened current preview. This does not reproduce or explain PID 16504's delay, and does not establish shutdown under active work. The exited PID 17000's 13,216,256-byte [verified obsolete preview](../benchmarks/native-lifecycle-preview-cleanup-20261031.json) was removed; the two in-use previews remain retained.
+Later PIDs 17000, 10304, 22500 and 22104 terminated after normal window close. The current launch record identifies PID 11296. This does not reproduce or explain PID 16504's delay, and does not establish shutdown under active work. The [bounded cleanup](../benchmarks/pnpm-cache-cleanup-20261031.json) removes exited previews and obsolete native-test payloads; the two in-use previews remain retained.
 
 The user confirmed that the corrected standalone window displays the interface. This confirms visible startup after the development-URL fix; it does not establish acceptance of every interaction, final visual design or a clean-machine installation.
 

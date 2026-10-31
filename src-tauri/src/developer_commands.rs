@@ -3,11 +3,7 @@ use tauri::Manager;
 use voldiq_core::developer::{CacheLocation, Category};
 mod npm_config;
 mod pip_config;
-
-enum PnpmLocation {
-    Configured(PathBuf),
-    Conventional(PathBuf),
-}
+mod pnpm_config;
 
 pub(super) fn cache_locations(app: &tauri::AppHandle) -> Vec<CacheLocation> {
     #[cfg(windows)]
@@ -33,7 +29,6 @@ fn resolve_cache_locations_with_pip(
         home.as_ref().map(|path| path.join(".cargo")),
     );
     let npm = npm_config::cache_location(home.as_ref(), local.as_ref(), &environment);
-    let pnpm = pnpm_store_location(local.as_ref(), &environment);
     let pip = pip_config::cache_locations(
         home.as_ref(),
         local.as_ref(),
@@ -95,54 +90,12 @@ fn resolve_cache_locations_with_pip(
             });
         }
     }
-    if let Some(location) = pnpm {
-        let (base, versions): (PathBuf, &[&str]) = match location {
-            PnpmLocation::Configured(base) => (base, &["v11"]),
-            PnpmLocation::Conventional(base) => (base, &["v3", "v10", "v11"]),
-        };
-        let roots: Vec<_> = if base
-            .file_name()
-            .is_some_and(|name| versions.iter().any(|version| name == *version))
-        {
-            vec![base]
-        } else {
-            versions.iter().map(|version| base.join(version)).collect()
-        };
-        for root in roots {
-            for (directory, category) in [
-                ("files", Category::Cache),
-                ("index", Category::Cache),
-                ("links", Category::Dependencies),
-            ] {
-                if let Ok(path) = root.join(directory).canonicalize() {
-                    locations.push(CacheLocation {
-                        path,
-                        tool: "pnpm",
-                        category,
-                    });
-                }
-            }
-        }
-    }
+    locations.extend(pnpm_config::cache_locations(
+        home.as_ref(),
+        local.as_ref(),
+        &environment,
+    ));
     locations
-}
-
-fn pnpm_store_location(
-    local: Option<&PathBuf>,
-    environment: &impl Fn(&str) -> Option<OsString>,
-) -> Option<PnpmLocation> {
-    if let Some(value) = environment("PNPM_CONFIG_STORE_DIR").filter(|value| !value.is_empty()) {
-        return configured_path(Some(value), None).map(PnpmLocation::Configured);
-    }
-    if let Some(value) = environment("PNPM_HOME").filter(|value| !value.is_empty()) {
-        return configured_path(Some(value), None)
-            .map(|path| PnpmLocation::Conventional(path.join("store")));
-    }
-    if let Some(value) = environment("XDG_DATA_HOME").filter(|value| !value.is_empty()) {
-        return configured_path(Some(value), None)
-            .map(|path| PnpmLocation::Conventional(path.join("pnpm/store")));
-    }
-    local.map(|path| PnpmLocation::Conventional(path.join("pnpm/store")))
 }
 
 fn configured_path(value: Option<OsString>, default: Option<PathBuf>) -> Option<PathBuf> {
@@ -153,4 +106,9 @@ fn configured_path(value: Option<OsString>, default: Option<PathBuf>) -> Option<
         }
         None => default,
     }
+}
+
+#[cfg(test)]
+pub(crate) fn verify_pnpm_configuration() {
+    pnpm_config::verify_fixture();
 }
