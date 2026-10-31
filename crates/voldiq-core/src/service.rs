@@ -30,6 +30,13 @@ struct CachedIndex {
 }
 
 #[derive(Serialize)]
+pub struct HistoryPage {
+    pub items: Vec<crate::snapshots::Snapshot>,
+    pub next_offset: Option<usize>,
+    pub limited: bool,
+}
+
+#[derive(Serialize)]
 pub struct Stats {
     pub snapshot_id: i64,
     pub root: PathBuf,
@@ -61,7 +68,7 @@ impl AgentService {
         Ok(
             serde_json::json!({"schema_version":1,"capabilities":policy.capabilities(),"limits":policy.limits(),
             "transport":"local_stdio","approval":"independent_human_required","execution_available":false,
-            "scope":"Only this connection's completed scan snapshots are queryable."}),
+            "scope":"Stored snapshots whose native root identity and exclusion coverage satisfy this connection's current policy."}),
         )
     }
 
@@ -153,16 +160,16 @@ impl AgentService {
     fn index(&self, snapshot: i64) -> Result<Arc<Index>> {
         let registry = self.registry()?;
         registry.policy(&self.principal, Capability::Metadata)?;
-        if !Jobs::open(&self.directory)?.owns_snapshot(self.principal.id(), snapshot)? {
-            return Err(denied());
-        }
         let mut cache = self.cache.lock().map_err(|_| denied())?;
         let index =
             if let Some(cached) = cache.as_ref().filter(|cached| cached.snapshot == snapshot) {
                 cached.index.clone()
             } else {
+                let store = Store::open(&self.directory.join("snapshots.db"))?;
+                let scope = store.scope(snapshot).map_err(|_| denied())?;
+                let _guard = registry.authorize_snapshot(&self.principal, &scope)?;
                 let index = Arc::new(
-                    Store::open(&self.directory.join("snapshots.db"))?
+                    store
                         .load(snapshot, &AtomicBool::new(false))
                         .map_err(|_| denied())?,
                 );
@@ -197,6 +204,61 @@ impl AgentService {
 
     pub fn details(&self, snapshot: i64, node: crate::NodeId) -> Result<Details> {
         self.index(snapshot)?.details(node).map_err(|_| denied())
+    }
+
+    pub fn history(&self, offset: usize, limit: usize) -> Result<HistoryPage> {
+        let registry = self.registry()?;
+        let policy = registry.policy(&self.principal, Capability::Metadata)?;
+        if offset > 10_000 || !(1..=100).contains(&limit) {
+            return Err(Error::Invalid(
+                "History requires an offset up to 10000 and a page size from 1 to 100.".into(),
+            ));
+        }
+        let limit = limit.clamp(1, policy.limits().page_size.min(100));
+        let store = Store::open(&self.directory.join("snapshots.db"))?;
+        let _read_view = store.history_read()?;
+        let mut scopes = std::collections::HashMap::new();
+        let mut seen = 0;
+        let mut items = Vec::new();
+        let mut has_more = false;
+        let mut limited = true;
+        for batch in 0..100 {
+            let snapshots = store.list(batch * 100, 100)?;
+            let exhausted = snapshots.len() < 100;
+            for snapshot in snapshots {
+                let allowed = match scopes.get(&snapshot.root_key) {
+                    Some(allowed) => *allowed,
+                    None => {
+                        let scope = store.scope(snapshot.id).map_err(|_| denied())?;
+                        let allowed = registry.authorize_snapshot(&self.principal, &scope).is_ok();
+                        scopes.insert(snapshot.root_key, allowed);
+                        allowed
+                    }
+                };
+                if !allowed {
+                    continue;
+                }
+                if seen < offset {
+                    seen += 1;
+                    continue;
+                }
+                if items.len() == limit {
+                    has_more = true;
+                    break;
+                }
+                items.push(snapshot);
+            }
+            if exhausted || has_more {
+                limited = false;
+                break;
+            }
+        }
+        registry.policy(&self.principal, Capability::Metadata)?;
+        Ok(HistoryPage {
+            next_offset: has_more.then_some(offset + items.len()),
+            items,
+            limited,
+        })
     }
 
     pub fn stats(&self, snapshot: i64) -> Result<Stats> {

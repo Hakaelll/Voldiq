@@ -71,7 +71,55 @@ fn authorized_service_scans_once_persists_and_queries_only_the_current_scope() {
         state.path().to_owned(),
         registry.authenticate(other.credential.expose()).unwrap(),
     );
-    assert!(other.stats(snapshot).is_err());
+    assert_eq!(other.stats(snapshot).unwrap().logical, 7);
+    assert!(other.job(job).is_err());
+    let broad = voldiq_core::scanner::scan(
+        source.path(),
+        &Default::default(),
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    let mut store =
+        voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db")).unwrap();
+    let desktop_snapshot = store.save(&broad, &AtomicBool::new(false), &[]).unwrap();
+    assert!(service.stats(desktop_snapshot).is_err());
+    assert_eq!(other.stats(desktop_snapshot).unwrap().logical, 26);
+    let restricted_history = service.history(0, 100).unwrap();
+    assert_eq!(
+        restricted_history
+            .items
+            .iter()
+            .map(|snapshot| snapshot.id)
+            .collect::<Vec<_>>(),
+        vec![snapshot]
+    );
+    assert!(!restricted_history.limited);
+    let page = other.history(0, 1).unwrap();
+    assert_eq!(page.items[0].id, desktop_snapshot);
+    assert_eq!(page.next_offset, Some(1));
+    assert_eq!(other.history(1, 1).unwrap().items[0].id, snapshot);
+    let forbidden = registry
+        .provision(
+            "Outside scope",
+            Policy::new(
+                vec![state.path().to_owned()],
+                vec![],
+                vec![Capability::Metadata],
+                Limits::default(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let forbidden = AgentService::new(
+        state.path().to_owned(),
+        registry
+            .authenticate(forbidden.credential.expose())
+            .unwrap(),
+    );
+    assert!(forbidden.stats(snapshot).is_err());
+    assert!(forbidden.details(snapshot, voldiq_core::NodeId(0)).is_err());
+    assert!(forbidden.history(0, 100).unwrap().items.is_empty());
     registry.revoke(provisioned.id).unwrap();
     assert!(service.query(snapshot, &Query::default()).is_err());
     assert!(service.job(job).is_err());

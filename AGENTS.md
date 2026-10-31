@@ -17,6 +17,6 @@ The user requests no subagents and no computer use. Use source checks and dispos
 
 ## Delivery
 
-Implement the staged [workbench plan](docs/plans/storage-workbench.md), update [coverage](docs/WORKBENCH-COVERAGE.md), and keep the application buildable. Preserve pre-existing changes. Stage explicit paths, verify each unit, commit and push to the task branch as requested. Do not mark the full scope complete while coverage has pending rows.
+Implement the staged [workbench plan](docs/plans/storage-workbench.md), update [coverage](docs/WORKBENCH-COVERAGE.md), and keep the application buildable. Preserve pre-existing changes. The user explicitly requests all changes on `main` and removal of the other branches after their commits are preserved there. Continue directly on `main`; stage explicit paths, verify each unit, commit and push. Do not create additional branches or mark the full scope complete while coverage has pending rows.
 
 Run relevant behavior tests, then `scripts/verify_project.ps1` for integration. Compilation does not prove visual acceptance or device-specific performance. Record actual evidence and limitations in `docs/WORKBENCH-STATUS.md`.

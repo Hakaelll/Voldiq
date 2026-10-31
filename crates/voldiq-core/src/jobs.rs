@@ -227,10 +227,6 @@ impl Jobs {
         }
         Ok(jobs)
     }
-
-    pub fn owns_snapshot(&self, owner: i64, snapshot: i64) -> Result<bool> {
-        Ok(self.connection.query_row("SELECT EXISTS(SELECT 1 FROM scan_jobs WHERE owner=?1 AND snapshot_id=?2 AND state='completed')", params![owner,snapshot], |row| row.get(0))?)
-    }
 }
 
 fn decode(row: &rusqlite::Row<'_>) -> Result<Job> {

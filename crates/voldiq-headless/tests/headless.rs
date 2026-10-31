@@ -50,6 +50,15 @@ fn cli_scans_real_data_without_a_renderer_and_rejects_missing_credentials() {
     let run = Command::new(env!("CARGO_BIN_EXE_voldiq-cli"))
         .arg("--state")
         .arg(state.path())
+        .arg("history")
+        .env("VOLDIQ_AGENT_TOKEN", provisioned.credential.expose())
+        .output()
+        .unwrap();
+    let data: Value = serde_json::from_slice(&run.stdout).unwrap();
+    assert_eq!(data["result"]["items"][0]["id"], snapshot);
+    let run = Command::new(env!("CARGO_BIN_EXE_voldiq-cli"))
+        .arg("--state")
+        .arg(state.path())
         .args(["stats", &snapshot.to_string()])
         .env_remove("VOLDIQ_AGENT_TOKEN")
         .output()

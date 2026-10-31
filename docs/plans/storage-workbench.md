@@ -11,6 +11,7 @@ Execution is inline, without subagents or computer use, as the user requested. T
 ## Constraints and review focus
 
 - Preserve untracked `interface/prompts.json` and `output/`.
+- The user subsequently requests all commits on `main`, with other branches removed after integration. Continue on `main` without new branches.
 - Agent scope applies to queries, errors, aggregates, exports, history and operations, not only scans.
 - Directory rename/reparse races and Windows aliases must fail closed.
 - Disconnects, competing clients, crashes and retries must never repeat uncertain changes.
@@ -36,9 +37,9 @@ Execution is inline, without subagents or computer use, as the user requested. T
 
 - [ ] Extend the existing cleanup preview/executor with immutable serializable manifests and explicit lifecycle states. Persist hash, principal, exact identities, policy version, expiry and audit. No agent approval endpoint.
 - [ ] Add a separate headless crate and CLI for scan/query/stats/history/plan/jobs/export, with JSON envelopes, structured errors and a read-only default.
-  Scan/query/stats/details/jobs/cancel and versioned errors are implemented and subprocess-tested. History/plan/export remain open.
+  Scan/query/stats/history/details/jobs/cancel and versioned errors are implemented and subprocess-tested. Plan/export remain open.
 - [ ] Add official `rmcp` stdio transport, bounded schemas/results and tools that route through authorization and shared services. Verify protocol behavior with the SDK client against the real executable.
-  Transport plus seven analysis tools are implemented and verified with `rmcp` 3.8.0's real client. The broader catalogue remains open.
+  Transport plus eight analysis tools are implemented and verified with `rmcp` 3.8.0's real client. The broader catalogue remains open.
 - [ ] Add desktop connection management, separate human approval and revocation. Unavailable independent approval returns `needs_human_approval` without changing user data.
 - [ ] Test mutation, expiry, replay, concurrent execution and restart in temporary fixtures. Document generic stdio and current Codex configuration. Commit and push.
 

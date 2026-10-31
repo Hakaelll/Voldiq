@@ -18,6 +18,12 @@ pub struct Store {
     path: PathBuf,
 }
 
+pub struct Scope {
+    pub root: PathBuf,
+    pub identity: (u64, u64),
+    pub exclusions: Vec<PathBuf>,
+}
+
 #[derive(Debug, Serialize)]
 pub struct Snapshot {
     pub id: i64,
@@ -176,6 +182,29 @@ ALTER TABLE snapshot_versions ADD COLUMN native_state BLOB CHECK(native_state IS
 PRAGMA user_version=3;";
 
 impl Store {
+    pub(crate) fn history_read(&self) -> Result<rusqlite::Transaction<'_>> {
+        Ok(self.connection.unchecked_transaction()?)
+    }
+
+    pub fn scope(&self, id: i64) -> Result<Scope> {
+        let (path, identity, coverage) = self.connection.query_row(
+            "SELECT r.path,r.identity,r.coverage FROM snapshots s JOIN snapshot_roots r ON r.id=s.root_id WHERE s.id=?1",
+            [id], |row| Ok((row.get::<_,Vec<u8>>(0)?,row.get::<_,Vec<u8>>(1)?,row.get::<_,Vec<u8>>(2)?)))?;
+        if identity.len() != 16 {
+            return Err(Error::Invalid("Invalid snapshot root identity.".into()));
+        }
+        let number = |bytes: &[u8]| -> Result<u64> {
+            Ok(u64::from_le_bytes(bytes.try_into().map_err(|_| {
+                Error::Invalid("Invalid snapshot identity.".into())
+            })?))
+        };
+        Ok(Scope {
+            root: PathBuf::from(decode(&path)?),
+            identity: (number(&identity[..8])?, number(&identity[8..])?),
+            exclusions: decode_paths(&coverage)?,
+        })
+    }
+
     pub fn open(path: &Path) -> Result<Self> {
         let mut connection = Connection::open(path)?;
         crate::database::configure(&connection)?;

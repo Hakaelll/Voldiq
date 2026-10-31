@@ -41,6 +41,17 @@ struct SnapshotArgs {
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct HistoryArgs {
+    #[serde(default)]
+    offset: usize,
+    #[serde(default = "history_limit")]
+    limit: usize,
+}
+fn history_limit() -> usize {
+    100
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct DetailsArgs {
     snapshot_id: i64,
     node_id: voldiq_core::NodeId,
@@ -93,6 +104,15 @@ fn invoke(service: &AgentService, name: &str, args: Value) -> Result<Value, Valu
             let args: JobArgs = parse(args)?;
             service.cancel(args.job_id).map_err(unavailable)?;
             Ok(json!({"cancel_requested":true}))
+        }
+        "voldiq_history" => {
+            let args: HistoryArgs = parse(args)?;
+            serde_json::to_value(
+                service
+                    .history(args.offset, args.limit)
+                    .map_err(unavailable)?,
+            )
+            .map_err(unavailable)
         }
         "voldiq_stats" => {
             let args: SnapshotArgs = parse(args)?;
@@ -209,6 +229,7 @@ fn tools() -> Vec<Tool> {
         ("voldiq_stats", "Read logical path bytes and unique known allocation from an authorized snapshot. Unknown allocation is null.", json!({"snapshot_id":integer}), json!(["snapshot_id"])),
         ("voldiq_query", "Page an authorized indexed snapshot using explicit structured filters; changing view does not scan.", json!({"snapshot_id":integer,"query":query}), json!(["snapshot_id"])),
         ("voldiq_details", "Read indexed metadata and ancestors for one authorized snapshot item.", json!({"snapshot_id":integer,"node_id":{"type":"integer","minimum":0}}), json!(["snapshot_id","node_id"])),
+        ("voldiq_history", "List only snapshots with authorized native identity and exclusion coverage, including desktop captures. Offsets count visible captures; limited indicates a metadata work cap.", json!({"offset":{"type":"integer","minimum":0,"maximum":10000},"limit":{"type":"integer","minimum":1,"maximum":100}}), json!([])),
     ].into_iter().map(|(name, description, properties, required)| {
         let schema = json!({"type":"object","properties":properties,"required":required,"additionalProperties":false});
         Tool::new(name, description, schema.as_object().expect("Tool schemas are objects").clone())

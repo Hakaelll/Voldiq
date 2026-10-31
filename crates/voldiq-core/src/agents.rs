@@ -301,17 +301,48 @@ impl Registry {
         principal: &Principal,
         index: &crate::index::Index,
     ) -> Result<AuthorizedPath> {
+        self.authorize_snapshot_scope(
+            principal,
+            &index.root,
+            index.root_identity.ok_or_else(denied)?,
+            &index.exclusions,
+        )
+    }
+
+    pub fn authorize_snapshot(
+        &self,
+        principal: &Principal,
+        snapshot: &crate::snapshots::Scope,
+    ) -> Result<AuthorizedPath> {
+        self.authorize_snapshot_scope(
+            principal,
+            &snapshot.root,
+            snapshot.identity,
+            &snapshot.exclusions,
+        )
+    }
+
+    fn authorize_snapshot_scope(
+        &self,
+        principal: &Principal,
+        path: &Path,
+        identity: (u64, u64),
+        exclusions: &[PathBuf],
+    ) -> Result<AuthorizedPath> {
         let policy = self.policy(principal, Capability::Metadata)?;
         let root = scope::authorize(
             &policy.roots,
             &policy.exclusions,
-            &scope::ordinary_path(&index.root)?,
+            &scope::ordinary_path(path)?,
         )
         .map_err(|_| denied())?;
+        if root.identity() != identity {
+            return Err(denied());
+        }
         for excluded in &policy.exclusions {
             if excluded.path.starts_with(root.path()) {
                 excluded.reopen().map_err(|_| denied())?;
-                let covered = index.exclusions.iter().any(|path| {
+                let covered = exclusions.iter().any(|path| {
                     scope::ordinary_path(path).is_ok_and(|path| excluded.path.starts_with(path))
                 });
                 if !covered {

@@ -1,6 +1,6 @@
 # Storage workbench status
 
-Task branch: `codex/storage-workbench`, starting at `fae47a0` (also the fetched `origin/main` at audit time).
+Delivery branch: `main`, as the user explicitly requested during implementation. Work started on `codex/storage-workbench` at `fae47a0`. All task commits are to be consolidated into `main` before removing the other branches.
 
 The complete task remains active. See the [coverage matrix](WORKBENCH-COVERAGE.md) and [execution plan](plans/storage-workbench.md). This status does not declare pending capabilities implemented.
 
@@ -28,7 +28,7 @@ Core authorization has five passing real-fixture cases. It provides OS-random in
 
 Durable scan jobs now have bounded owner-scoped status, progress, cancellation requests, terminal-state protection and restart interruption instead of auto-retry. A shared OS file lease serializes scans across processes and is released automatically when its process exits. The desktop scan command acquires the same lease. Two job fixtures pass, including a real second process; the native production adapter compiles and strict core Clippy passes. GUI jobs are not yet mirrored into the durable job table.
 
-The authorized service and separate `voldiq-cli` crate are now implemented. CLI and seven stdio MCP tools call the same core scanner/index/snapshot store. Real subprocess fixtures verify scanning, query/stat scope, no-credential rejection, SDK negotiation and per-call revocation. Connection-owned completed snapshots are cached one at a time; broader desktop-snapshot sharing is pending. Unknown query fields fail parsing instead of disappearing. See [MCP setup and boundaries](MCP.md).
+The authorized service and separate `voldiq-cli` crate are now implemented. CLI and eight stdio MCP tools call the same core scanner/index/snapshot store. Real subprocess fixtures verify scanning, query/stat scope, history, no-credential rejection, SDK negotiation and per-call revocation. Shared snapshots from the GUI or another connection now pass native identity and exclusion checks before loading; broader or unauthorized captures fail closed. The retained service fixture proves metadata-only shared reading, rejection of insufficient exclusion coverage and foreign roots, filtered history pagination and private job status. Unknown query fields fail parsing instead of disappearing. See [MCP setup and boundaries](MCP.md).
 
 Settings now contains Agents and permissions: connection/root/exclusion/limit input, separate native creation/rotation confirmation, one-session credential reveal, last-use listing and revocation. Svelte diagnostics report no errors/warnings and the production frontend builds. Native production checking passes; interaction/visual acceptance remains manual, as requested.
 
@@ -36,6 +36,6 @@ The first release integration gate exposed a concurrent first-open SQLite journa
 
 The corrected [six-stage integration gate](../benchmarks/workbench-source-20261031.json) passes on the working tree based on `913510c`: formatting, Svelte diagnostics with zero errors/warnings, 20 frontend cases, production frontend build, 20 workspace Rust cases and strict Clippy across all targets. The Rust cases include the real official SDK client. A separate default-state CLI probe without a credential returns structured `not_authorized` and exit 3 without opening a renderer or creating a connection. These are source/fixture checks, not runtime performance or new native visual acceptance.
 
-The unit was reviewed inline by its author, following the user's no-subagent instruction. Review found and fixed the first-open WAL race and abandoned-job status. Remaining limitations are explicit: connection-owned snapshots only, GUI jobs not yet mirrored to the persistent table, no agent plan execution, no user-client configuration and no new UI interaction/scaling checks.
+The unit was reviewed inline by its author, following the user's no-subagent instruction. Review found and fixed the first-open WAL race and abandoned-job status. The following shared-history unit passes 16 core/headless Rust cases and strict Clippy for those packages. Remaining limitations are explicit: GUI jobs not yet mirrored to the persistent table, no agent plan execution, no user-client configuration and no new UI interaction/scaling checks.
 
-Next: immutable agent manifests, human-only approval, lifecycle/idempotency and approved execution through the existing safe executor. CLI history/export/plan commands and the broader MCP analysis catalogue remain pending, along with the uncompleted matrix rows. No new destructive entry points are exposed. The complete goal remains open.
+Next: immutable agent manifests, human-only approval, lifecycle/idempotency and approved execution through the existing safe executor. CLI export/plan commands and the broader MCP analysis catalogue remain pending, along with the uncompleted matrix rows. No new destructive entry points are exposed. The complete goal remains open.
