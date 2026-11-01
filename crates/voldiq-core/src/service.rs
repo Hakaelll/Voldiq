@@ -4,7 +4,7 @@ use crate::{
     agents::{Capability, Principal, Registry, denied},
     index::{Details, Index, Page, Query},
     jobs::{Job, JobState, Jobs},
-    operations::Lease,
+    operations::Coordinator,
     scanner,
     snapshots::Store,
 };
@@ -20,7 +20,7 @@ use std::{
 
 #[derive(Clone)]
 pub struct AgentService {
-    directory: PathBuf,
+    directory: Coordinator,
     principal: Principal,
     cache: Arc<Mutex<Option<CachedIndex>>>,
 }
@@ -58,7 +58,7 @@ impl AgentService {
         let registry = self.registry()?;
         let context = registry.plan_context(&self.principal, Capability::PreparePlans)?;
         let index = self.index(snapshot)?;
-        crate::plans::Store::open(&self.directory)?.create(
+        crate::plans::Store::open(self.directory.directory())?.create(
             &context,
             snapshot,
             &index,
@@ -70,13 +70,21 @@ impl AgentService {
     pub fn plan_get(&self, id: &str) -> Result<crate::plans::View> {
         let registry = self.registry()?;
         let context = registry.plan_context(&self.principal, Capability::Metadata)?;
-        crate::plans::Store::open(&self.directory)?.get(&context, id, crate::plans::now()?)
+        crate::plans::Store::open(self.directory.directory())?.get(
+            &context,
+            id,
+            crate::plans::now()?,
+        )
     }
 
     pub fn plan_request(&self, id: &str) -> Result<crate::plans::View> {
         let registry = self.registry()?;
         let context = registry.plan_context(&self.principal, Capability::RequestApproval)?;
-        crate::plans::Store::open(&self.directory)?.request(&context, id, crate::plans::now()?)?;
+        crate::plans::Store::open(self.directory.directory())?.request(
+            &context,
+            id,
+            crate::plans::now()?,
+        )?;
         Err(Error::NeedsHumanApproval)
     }
 
@@ -88,19 +96,19 @@ impl AgentService {
     ) -> Result<Vec<crate::plans::AuditEvent>> {
         let registry = self.registry()?;
         let context = registry.plan_context(&self.principal, Capability::Metadata)?;
-        crate::plans::Store::open(&self.directory)?.audit(&context, id, after, limit)
+        crate::plans::Store::open(self.directory.directory())?.audit(&context, id, after, limit)
     }
 
-    pub fn new(directory: PathBuf, principal: Principal) -> Self {
-        Self {
-            directory,
+    pub fn new(directory: PathBuf, principal: Principal) -> Result<Self> {
+        Ok(Self {
+            directory: Coordinator::open(&directory)?,
             principal,
             cache: Arc::new(Mutex::new(None)),
-        }
+        })
     }
 
     fn registry(&self) -> Result<Registry> {
-        Registry::open(&self.directory.join("agents.db"))
+        Registry::open(&self.directory.directory().join("agents.db"))
     }
 
     pub fn capabilities(&self) -> Result<serde_json::Value> {
@@ -116,8 +124,8 @@ impl AgentService {
 
     pub fn start_scan(&self, root: &Path) -> Result<i64> {
         let permit = self.registry()?.scan_permit(&self.principal, root)?;
-        let lease = Lease::acquire(&self.directory)?;
-        let mut jobs = Jobs::open(&self.directory)?;
+        let lease = self.directory.acquire()?;
+        let mut jobs = Jobs::open(self.directory.directory())?;
         let id = jobs.begin(&lease, self.principal.id(), permit.root.path())?;
         let service = self.clone();
         let worker = std::thread::Builder::new()
@@ -130,7 +138,12 @@ impl AgentService {
                 }
             });
         if worker.is_err() {
-            Jobs::open(&self.directory)?.finish(self.principal.id(), id, JobState::Failed, None)?;
+            Jobs::open(self.directory.directory())?.finish(
+                self.principal.id(),
+                id,
+                JobState::Failed,
+                None,
+            )?;
             return Err(Error::Invalid("Unable to start scan worker.".into()));
         }
         Ok(id)
@@ -163,7 +176,7 @@ impl AgentService {
             return jobs.finish(self.principal.id(), id, JobState::Cancelled, None);
         }
         registry.authorize_index(&self.principal, &index)?;
-        let mut store = Store::open(&self.directory.join("snapshots.db"))?;
+        let mut store = Store::open(&self.directory.directory().join("snapshots.db"))?;
         let snapshot = store.save(&index, &cancel, &[])?;
         jobs.finish(self.principal.id(), id, JobState::Completed, Some(snapshot))
     }
@@ -171,18 +184,18 @@ impl AgentService {
     pub fn job(&self, id: i64) -> Result<Job> {
         let registry = self.registry()?;
         registry.policy(&self.principal, Capability::Metadata)?;
-        let job = Jobs::open(&self.directory)?.get(self.principal.id(), id)?;
+        let job = Jobs::open(self.directory.directory())?.get(self.principal.id(), id)?;
         registry.authorize(&self.principal, Capability::Metadata, &job.root)?;
         if job.state == JobState::Running {
-            Jobs::reconcile_abandoned(&self.directory, self.principal.id())?;
-            return Jobs::open(&self.directory)?.get(self.principal.id(), id);
+            Jobs::reconcile_abandoned(self.directory.directory(), self.principal.id())?;
+            return Jobs::open(self.directory.directory())?.get(self.principal.id(), id);
         }
         Ok(job)
     }
 
     pub fn cancel(&self, id: i64) -> Result<()> {
         self.registry()?.policy(&self.principal, Capability::Scan)?;
-        let jobs = Jobs::open(&self.directory)?;
+        let jobs = Jobs::open(self.directory.directory())?;
         let job = jobs.get(self.principal.id(), id)?;
         self.registry()?
             .authorize(&self.principal, Capability::Scan, &job.root)?;
@@ -207,7 +220,7 @@ impl AgentService {
             if let Some(cached) = cache.as_ref().filter(|cached| cached.snapshot == snapshot) {
                 cached.index.clone()
             } else {
-                let store = Store::open(&self.directory.join("snapshots.db"))?;
+                let store = Store::open(&self.directory.directory().join("snapshots.db"))?;
                 let scope = store.scope(snapshot).map_err(|_| denied())?;
                 let _guard = registry.authorize_snapshot(&self.principal, &scope)?;
                 let index = Arc::new(
@@ -257,7 +270,7 @@ impl AgentService {
             ));
         }
         let limit = limit.clamp(1, policy.limits().page_size.min(100));
-        let store = Store::open(&self.directory.join("snapshots.db"))?;
+        let store = Store::open(&self.directory.directory().join("snapshots.db"))?;
         let _read_view = store.history_read()?;
         let mut scopes = std::collections::HashMap::new();
         let mut seen = 0;

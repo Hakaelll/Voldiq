@@ -51,7 +51,8 @@ fn saved_snapshot_selection_is_queued_for_separate_human_review_without_file_cha
         registry
             .authenticate(provisioned.credential.expose())
             .unwrap(),
-    );
+    )
+    .unwrap();
     let plan = service.plan_prepare(snapshot, &[selected]).unwrap();
     assert_eq!(plan.state, State::Draft);
     assert_eq!(plan.manifest.entries[0].logical_bytes, "16");
@@ -138,7 +139,8 @@ fn saved_snapshot_selection_is_queued_for_separate_human_review_without_file_cha
     let other = AgentService::new(
         state.path().to_owned(),
         registry.authenticate(other.credential.expose()).unwrap(),
-    );
+    )
+    .unwrap();
     assert!(other.plan_get(id).is_err());
     assert!(other.plan_audit(id, 0, 100).is_err());
     assert!(other.plan_prepare(snapshot, &[selected]).is_err());

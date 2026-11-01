@@ -31,7 +31,7 @@ Execution is inline, without subagents or computer use, as the user requested. T
 - [x] Add `crates/voldiq-core/src/agents.rs` and focused fixtures for explicit capabilities, canonical root authorization, exclusions, revocation, bounded policies and non-disclosing errors. Actual query/result filtering remains in the shared-service task.
 - [x] Add durable SQLite agent/job state with transactional migrations, human provisioning, credential rotation and a single cross-process scan lease. Reuse the existing snapshot store for indexes.
 - [ ] Extract reusable operation coordination from desktop ownership without dropping current `IndexId` guarantees. Add provenance, cloud state and unknown metric contracts where the existing index lacks them.
-  Core coordination and all twelve native operation guards now share one OS lease with headless scans, retaining it until worker exit. Model/provenance extensions and GUI durable-job/index mirroring remain open.
+  Core coordination and all twelve native operation guards now share one OS lease with headless scans, retaining it until worker exit. The headless service retains its canonical state coordinator across cached queries and clones; Windows directory-name pins use directory access rather than attribute-only handles. Model/provenance extensions and GUI durable-job/index mirroring remain open.
 - [ ] Verify wrong/revoked credentials, sibling paths, links, overlapping roots, concurrency, cancellation and restart. Commit and push.
 
 ## C. Plans, headless and MCP

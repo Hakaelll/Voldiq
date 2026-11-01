@@ -53,7 +53,7 @@ async fn run(args: &mut Vec<String>) -> Result<Option<Value>, CliError> {
     let principal = Registry::open(&directory.join("agents.db"))
         .and_then(|mut registry| registry.authenticate(&token))
         .map_err(|_| unauthorized())?;
-    let service = AgentService::new(directory, principal);
+    let service = AgentService::new(directory, principal).map_err(|_| operation())?;
     if args == &["mcp", "serve", "--stdio"] {
         mcp::serve(service).await.map_err(|_| operation())?;
         return Ok(None);

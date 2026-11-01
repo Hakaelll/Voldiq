@@ -90,10 +90,24 @@ impl AuthorizedPath {
         validate_path(path)?;
         let mut handles = Vec::new();
         for ancestor in path.ancestors().collect::<Vec<_>>().into_iter().rev() {
-            let file = open_metadata(ancestor)?;
+            let mut file = open_metadata(ancestor, ancestor != path)?;
             let metadata = file.metadata()?;
             if windows::is_reparse(&metadata) || (ancestor != path && !metadata.is_dir()) {
                 return Err(denied());
+            }
+            if ancestor == path && metadata.is_dir() {
+                #[cfg(windows)]
+                let pinned = windows::cleanup_io::reopen_directory(
+                    &file,
+                    windows_sys::Win32::Storage::FileSystem::FILE_READ_ATTRIBUTES
+                        | windows_sys::Win32::Storage::FileSystem::FILE_LIST_DIRECTORY,
+                )?;
+                #[cfg(not(windows))]
+                let pinned = open_metadata(ancestor, true)?;
+                if windows::file_identity(&pinned)?.key != windows::file_identity(&file)?.key {
+                    return Err(denied());
+                }
+                file = pinned;
             }
             handles.push(file);
         }
@@ -230,14 +244,16 @@ fn validate_path(path: &Path) -> Result<()> {
     Ok(())
 }
 
-fn open_metadata(path: &Path) -> Result<File> {
+fn open_metadata(path: &Path, directory: bool) -> Result<File> {
     let mut options = std::fs::OpenOptions::new();
     #[cfg(windows)]
     {
         use std::os::windows::fs::OpenOptionsExt;
         use windows_sys::Win32::Storage::FileSystem::*;
         options
-            .access_mode(FILE_READ_ATTRIBUTES)
+            // Attribute-only handles do not retain namespace sharing authority on Windows.
+            // Request directory access without enumerating or reading any file content.
+            .access_mode(FILE_READ_ATTRIBUTES | if directory { FILE_LIST_DIRECTORY } else { 0 })
             .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
             .custom_flags(
                 FILE_FLAG_BACKUP_SEMANTICS
@@ -248,7 +264,9 @@ fn open_metadata(path: &Path) -> Result<File> {
     #[cfg(unix)]
     {
         use std::os::unix::fs::OpenOptionsExt;
-        options.read(true).custom_flags(libc::O_NOFOLLOW);
+        options
+            .read(true)
+            .custom_flags(libc::O_NOFOLLOW | if directory { libc::O_DIRECTORY } else { 0 });
     }
     Ok(options.open(path)?)
 }

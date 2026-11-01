@@ -6,6 +6,71 @@ use voldiq_core::{
     service::AgentService,
 };
 
+#[cfg(windows)]
+#[test]
+fn the_service_and_its_clones_pin_the_state_directory_for_their_entire_lifetime() {
+    let owner = tempfile::tempdir().unwrap();
+    let source = tempfile::tempdir().unwrap();
+    let state = owner.path().join("state");
+    let moved = owner.path().join("moved-state");
+    std::fs::create_dir(&state).unwrap();
+    let mut registry = Registry::open(&state.join("agents.db")).unwrap();
+    let created = registry
+        .provision(
+            "Pinned fixture",
+            Policy::new(
+                vec![source.path().to_owned()],
+                vec![],
+                vec![Capability::Metadata],
+                Limits::default(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let principal = registry.authenticate(created.credential.expose()).unwrap();
+    let service = AgentService::new(state.clone(), principal).unwrap();
+    let connection = service.clone();
+    drop(registry);
+    assert!(std::fs::rename(&state, &moved).is_err());
+    drop(service);
+    assert!(std::fs::rename(&state, &moved).is_err());
+    drop(connection);
+    std::fs::rename(&state, &moved).unwrap();
+    assert!(moved.join("agents.db").is_file());
+}
+
+#[cfg(windows)]
+#[test]
+fn metadata_authorization_pins_directory_names_and_ancestors_without_reading_contents() {
+    let state = tempfile::tempdir().unwrap();
+    let source = tempfile::tempdir().unwrap();
+    let root = source.path().join("root");
+    let folder = root.join("folder");
+    std::fs::create_dir_all(&folder).unwrap();
+    let mut registry = Registry::open(&state.path().join("agents.db")).unwrap();
+    let created = registry
+        .provision(
+            "Metadata fixture",
+            Policy::new(
+                vec![root.clone()],
+                vec![],
+                vec![Capability::Metadata],
+                Limits::default(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let principal = registry.authenticate(created.credential.expose()).unwrap();
+    let pin = registry
+        .authorize(&principal, Capability::Metadata, &folder)
+        .unwrap();
+    assert!(std::fs::rename(&folder, root.join("moved-folder")).is_err());
+    assert!(std::fs::rename(&root, source.path().join("moved-root")).is_err());
+    drop(pin);
+    std::fs::rename(&folder, root.join("moved-folder")).unwrap();
+    std::fs::rename(&root, source.path().join("moved-root")).unwrap();
+}
+
 #[test]
 fn authorized_service_scans_once_persists_and_queries_only_the_current_scope() {
     let state = tempfile::tempdir().unwrap();
@@ -26,7 +91,7 @@ fn authorized_service_scans_once_persists_and_queries_only_the_current_scope() {
     let principal = registry
         .authenticate(provisioned.credential.expose())
         .unwrap();
-    let service = AgentService::new(state.path().to_owned(), principal);
+    let service = AgentService::new(state.path().to_owned(), principal).unwrap();
     let job = service.start_scan(source.path()).unwrap();
     let result = service.wait(job).unwrap();
     assert_eq!(result.state, JobState::Completed);
@@ -70,7 +135,8 @@ fn authorized_service_scans_once_persists_and_queries_only_the_current_scope() {
     let other = AgentService::new(
         state.path().to_owned(),
         registry.authenticate(other.credential.expose()).unwrap(),
-    );
+    )
+    .unwrap();
     assert_eq!(other.stats(snapshot).unwrap().logical, 7);
     assert!(other.job(job).is_err());
     let broad = voldiq_core::scanner::scan(
@@ -116,7 +182,8 @@ fn authorized_service_scans_once_persists_and_queries_only_the_current_scope() {
         registry
             .authenticate(forbidden.credential.expose())
             .unwrap(),
-    );
+    )
+    .unwrap();
     assert!(forbidden.stats(snapshot).is_err());
     assert!(forbidden.details(snapshot, voldiq_core::NodeId(0)).is_err());
     assert!(forbidden.history(0, 100).unwrap().items.is_empty());
