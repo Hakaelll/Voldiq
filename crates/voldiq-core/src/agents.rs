@@ -354,6 +354,21 @@ impl Registry {
         )
     }
 
+    pub(crate) fn authorize_index_entry(
+        &self,
+        principal: &Principal,
+        capability: Capability,
+        index: &crate::index::Index,
+        node: crate::NodeId,
+    ) -> Result<AuthorizedPath> {
+        let _root = self.authorize_index(principal, index)?;
+        self.authorize(
+            principal,
+            capability,
+            &scope::ordinary_path(&index.path(node)?)?,
+        )
+    }
+
     pub fn authorize_snapshot(
         &self,
         principal: &Principal,

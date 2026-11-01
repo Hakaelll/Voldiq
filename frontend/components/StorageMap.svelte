@@ -34,6 +34,8 @@
   import type { WeightedNode } from '../lib/treemap';
   import { bytes } from '../lib/types';
   import Icon from './Icon.svelte';
+  import FolderNotePreview from './FolderNotePreview.svelte';
+  import { getIndexContext } from '../lib/index-context';
 
   let {
     nodes,
@@ -78,6 +80,8 @@
   let relief = $state(1);
   let detail = $state(true);
   let hovered = $state<Rect | null>(null);
+  const noteIndexId = untrack(getIndexContext);
+  let tooltipHeight = $state(112);
   let tooltip = $state({ x: 0, y: 0 });
   let preparing = $state(false),
     failure = $state('');
@@ -622,8 +626,11 @@
       </div>{/if}
     {#if hovered && !preparing}<div
         class="map-tooltip"
+        bind:clientHeight={tooltipHeight}
+        style:max-height={`${Math.max(80, height - 16)}px`}
+        style:overflow="hidden"
         style:left={`${tooltip.x}px`}
-        style:top={`${tooltip.y}px`}
+        style:top={`${Math.max(8, Math.min(tooltip.y, height - tooltipHeight - 8))}px`}
       >
         <strong>{hovered.name}</strong><span
           >{bytes(hovered.value)} · {((hovered.share ?? 0) * 100).toFixed(1)}%</span
@@ -634,6 +641,9 @@
           >{/if}{#if hovered.aggregated}<span
             >{hovered.represented.toLocaleString()} files represented · Open to inspect</span
           >{/if}
+        {#if hovered.directory && !hovered.aggregated && hovered.id >= 0}
+          {#key hovered.id}<FolderNotePreview nodeId={hovered.id} indexId={noteIndexId} />{/key}
+        {/if}
       </div>{/if}
   </div>
   <div class="map-encoding">

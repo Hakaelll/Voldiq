@@ -11,7 +11,7 @@ cargo test -p voldiq-headless
 
 The executable is `target/release/voldiq-cli.exe`, separate from the desktop `voldiq.exe`. Its normal dependency tree includes `voldiq-core` and the official [`rmcp` Rust SDK](https://github.com/modelcontextprotocol/rust-sdk), locked to 3.8.0. It has no Tauri, WebView or production Node dependency. The SDK handles standard MCP negotiation; the retained SDK-client fixture verifies a real stdio handshake and tool calls against the executable. Broader client-version compatibility is not yet certified.
 
-In the desktop application, open Settings, then Agents and permissions. Enter a connection name, allowed existing folders, optional exclusions and limits. Scanning and plan preparation/review requests are separate permissions; planning is off by default. Review the separate native confirmation dialog. Voldiq reveals the credential once for you to save in the client environment. The section lists connections and their last use, and provides rotation and revocation. This UI is source-checked; native interaction acceptance remains manual. The CLI and MCP do not expose provisioning, rotation or approval grants. Do not create credentials by editing a database or configuration file.
+In the desktop application, open Settings, then Agents and permissions. Enter a connection name, allowed existing folders, optional exclusions and limits. Scanning, content reading and plan preparation/review requests are separate permissions. Content and planning are off by default. Review the separate native confirmation dialog. Voldiq reveals the credential once for you to save in the client environment. The section lists connections and their last use, and provides rotation and revocation. This UI is source-checked; native interaction acceptance remains manual. The CLI and MCP do not expose provisioning, rotation or approval grants. Do not create credentials by editing a database or configuration file.
 
 ## Connect a stdio client
 
@@ -49,6 +49,7 @@ This example forwards an environment variable by name, without embedding its val
 | `voldiq_stats` | Metadata | Indexed logical bytes, unique known allocation or null, counts and coverage |
 | `voldiq_query` | Metadata | Bounded page with explicit structured filters |
 | `voldiq_details` | Metadata | One indexed entry, path and ancestor metadata |
+| `voldiq_folder_metadata` | Metadata; ReadContent to include note text | Current protection status and optional plain-text note for the exact indexed directory identity |
 | `voldiq_history` | Metadata | Paged compatible snapshots, including desktop captures |
 | `voldiq_plan_prepare` | PreparePlans + Metadata | Immutable manifest from exact snapshot node IDs, freshly checked against disk |
 | `voldiq_plan_get` | Metadata | Owned manifest, lifecycle state and bounded result summary |
@@ -57,7 +58,7 @@ This example forwards an environment variable by name, without embedding its val
 
 All calls authorize in the backend. A client name, root announcement or snapshot ID grants no permission. Query pages use `query.offset` and `query.limit`; `total` and `largest` refer only to the authorized indexed dataset. Unknown fields and unsupported sort names are rejected. The advanced text query parser is still pending; `query.text` currently means literal name search.
 
-Incoming protocol lines are bounded to 64 KiB, tool arguments to 16 KiB and structured responses to 512 KiB. The fixed twelve-tool catalogue fits one page. At most four tool workers execute concurrently; their permits remain held even if a request disconnects before its blocking worker finishes. Query pages respect the connection limit, at most 500 entries. The service caches one loaded index, never serializes the entire tree, and rejects snapshots whose exclusion coverage no longer satisfies the current policy.
+Incoming protocol lines are bounded to 64 KiB, tool arguments to 16 KiB and structured responses to 512 KiB. The fixed thirteen-tool catalogue fits one page. At most four tool workers execute concurrently; their permits remain held even if a request disconnects before its blocking worker finishes. Query pages respect the connection limit, at most 500 entries. The service caches one loaded index, never serializes the entire tree, and rejects snapshots whose exclusion coverage no longer satisfies the current policy.
 
 Connections can query saved snapshots from the desktop or another connection only when the current native root identity and exclusion coverage satisfy their own policy. The service checks small scope metadata before loading the index. Broader captures are rejected as a whole, not silently filtered into misleading totals. A snapshot ID grants no authority. Jobs remain private to their initiating connection.
 
@@ -66,6 +67,8 @@ Connections can query saved snapshots from the desktop or another connection onl
 Agent scan results persist in the existing compact snapshot database. Desktop scans, duplicate verification, cleanup, restoration and snapshot work now use the same core OS operation lease as headless scans. A native guard retains it until the worker exits, including after cancellation or local completion acknowledgement. The existing `scan.lock` filename is retained for compatibility with earlier scan clients; it is not approval proof. Durable job history retains at most 10,000 agent scan records. GUI job mirroring and automatic shared-index persistence remain pending. The job table is not the file-operation security audit ledger.
 
 CLI commands are listed by `voldiq-cli --help`. JSON envelopes have `schema_version: 1`. Exit codes are 0 success, 2 invalid arguments, 3 missing/invalid credential, 4 unavailable/failed operation, 5 independent human approval required and 130 cancelled foreground scan. CLI scans remain in the foreground; `--wait` is accepted explicitly. Initial job identity goes to stderr, final JSON to stdout. Ctrl+C requests cancellation and waits for the worker to finish. MCP reserves stdout entirely for the protocol.
+
+CLI `folder <snapshot_id> <node_id> [--note]` and MCP `voldiq_folder_metadata` with `include_note` omitted or false never read note text. Their `not_requested` value does not mean an empty note. Requesting text requires `ReadContent`; the human-only connection screen grants it explicitly. Notes remain literal untrusted text and cannot grant permissions or approve work. Reads verify the current native directory against scan evidence, so replacement or missing legacy evidence requires a rescan. A returned note is current; `source_snapshot` identifies folder evidence rather than a historical note. See [folder metadata](FOLDER-METADATA.md).
 
 ## Plan review
 
@@ -81,8 +84,8 @@ Jobs belong to the process doing the work, independently of a particular tool re
 
 ## Boundaries
 
-Metadata stays local until the client receives it. An AI client may send it to its provider. Stdio is a transport, not a promise that nothing leaves the device.
+Metadata and explicitly permitted note content stay local until the client receives them. An AI client may send them to its provider. Stdio is a transport, not a promise that nothing leaves the device.
 
 These checks control operations through Voldiq. They do not sandbox an agent that independently has filesystem access under the same Windows account. Local SQLite state and hashes are not claimed tamper-proof against such a process. No tool treats file names, notes or other indexed text as instructions.
 
-Verification status: transport, eight analysis tools and four plan tools are implemented and checked with the real official SDK client on owned fixtures. CLI subprocesses prove request status, rejection of `--yes`/approval commands and unchanged source files. Core fixtures exercise the separate human facade, exact hashes, rejection, closed sessions, restart, legacy evidence and revocation. Native provisioning and review UI await manual interaction acceptance. User clients are not configured. Shared approved execution remains pending.
+Verification status: transport, nine analysis tools and four plan tools are implemented and checked with the real official SDK client on owned fixtures. CLI subprocesses prove request status, content permission checks, rejection of `--yes`/approval commands and unchanged source files. Core fixtures exercise the separate human facade, exact hashes, rejection, closed sessions, restart, legacy evidence and revocation. Native provisioning and review UI await manual interaction acceptance. User clients are not configured. Shared approved execution remains pending.

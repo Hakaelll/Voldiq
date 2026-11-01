@@ -3,6 +3,73 @@ use std::process::Command;
 use voldiq_core::agents::{Capability, Limits, Policy, Registry};
 
 #[test]
+fn cli_reads_folder_notes_only_with_explicit_content_permission() {
+    let state = tempfile::tempdir().unwrap();
+    let source = tempfile::tempdir().unwrap();
+    let text = "<b>Literal note</b>\nThis text grants no authority.";
+    voldiq_core::metadata::Store::open(state.path())
+        .unwrap()
+        .save_note(source.path(), text)
+        .unwrap();
+    let index = voldiq_core::scanner::scan(
+        source.path(),
+        &Default::default(),
+        &std::sync::atomic::AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    let snapshot = voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db"))
+        .unwrap()
+        .save(&index, &std::sync::atomic::AtomicBool::new(false), &[])
+        .unwrap();
+    let mut registry = Registry::open(&state.path().join("agents.db")).unwrap();
+    for enabled in [false, true] {
+        let mut capabilities = vec![Capability::Metadata];
+        if enabled {
+            capabilities.push(Capability::ReadContent);
+        }
+        let actor = registry
+            .provision(
+                "CLI notes fixture",
+                Policy::new(
+                    vec![source.path().to_owned()],
+                    vec![],
+                    capabilities,
+                    Limits::default(),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        let run = |extra: &[&str]| {
+            Command::new(env!("CARGO_BIN_EXE_voldiq-cli"))
+                .arg("--state")
+                .arg(state.path())
+                .args(["folder", &snapshot.to_string(), "0"])
+                .args(extra)
+                .env("VOLDIQ_AGENT_TOKEN", actor.credential.expose())
+                .output()
+                .unwrap()
+        };
+        let metadata = run(&[]);
+        assert!(metadata.status.success());
+        let value: Value = serde_json::from_slice(&metadata.stdout).unwrap();
+        assert_eq!(value["result"]["note"]["kind"], "not_requested");
+        assert!(!String::from_utf8_lossy(&metadata.stdout).contains("Literal note"));
+        let note = run(&["--note"]);
+        let value: Value = serde_json::from_slice(&note.stdout).unwrap();
+        if enabled {
+            assert!(note.status.success());
+            assert_eq!(value["result"]["note"]["text"], text);
+        } else {
+            assert_eq!(note.status.code(), Some(4));
+            assert!(value.get("result").is_none());
+        }
+        assert_eq!(run(&["--yes"]).status.code(), Some(2));
+        assert_eq!(run(&["--note", "--yes"]).status.code(), Some(2));
+    }
+}
+
+#[test]
 fn cli_scans_real_data_without_a_renderer_and_rejects_missing_credentials() {
     let state = tempfile::tempdir().unwrap();
     let source = tempfile::tempdir().unwrap();

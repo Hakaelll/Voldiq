@@ -41,7 +41,7 @@ Execution is inline, without subagents or computer use, as the user requested. T
 - [ ] Add a separate headless crate and CLI for scan/query/stats/history/plan/jobs/export, with JSON envelopes, structured errors and a read-only default.
   Scan/query/stats/history/details/jobs/cancel, plan preparation/status/request/audit and versioned errors are implemented and subprocess-tested. Execution/export remain open.
 - [ ] Add official `rmcp` stdio transport, bounded schemas/results and tools that route through authorization and shared services. Verify protocol behavior with the SDK client against the real executable.
-  Transport plus eight analysis and four recycling-plan tools are implemented and verified with `rmcp` 3.8.0's real client. The broader catalogue remains open.
+  Transport plus nine analysis and four recycling-plan tools are implemented and verified with `rmcp` 3.8.0's real client. The broader catalogue remains open.
 - [ ] Add desktop connection management, separate human approval and revocation. Unavailable independent approval returns `needs_human_approval` without changing user data.
   Native management/review and separate confirmation are implemented. Human facade and request behavior are fixture-tested; actual dialog/keyboard/visual acceptance remains manual.
 - [ ] Test mutation, expiry, replay, concurrent execution and restart in temporary fixtures. Document generic stdio and current Codex configuration. Commit and push.
@@ -56,7 +56,7 @@ Execution is inline, without subagents or computer use, as the user requested. T
 
 - [ ] Add one strict core search parser and deterministic offline translation; connect GUI, CLI, MCP, saved views and policies.
 - [ ] Add notes/protections, budgets and favorites to shared persistence. User-only protection removal.
-  Folder notes, descendant protection, exact-version human removal, native/agent plan enforcement and rule/duplicate candidate filtering are implemented. Scoped agent note reads, tooltips, budgets and favorites remain open; native UI acceptance remains manual.
+  Folder notes, descendant protection, exact-version human removal, native/agent plan enforcement, rule/duplicate filtering, scoped content-gated note reads and tooltip previews are implemented. Budgets and favorites remain open; native UI acceptance remains manual.
 - [ ] Add evidence-based app/game/media attribution, shared/unattributed buckets, review scoring and common cleanup tray. Preserve existing verified developer rules.
 - [ ] Extend duplicate review with perceptual image comparison, explicit similarity and manual selection; do not weaken exact duplicate retention.
 - [ ] Verify parser failures, protection precedence, accounting and unsafe suggestions. Commit and push.

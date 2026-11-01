@@ -261,6 +261,27 @@ impl AgentService {
         self.index(snapshot)?.details(node).map_err(|_| denied())
     }
 
+    pub fn folder_metadata(
+        &self,
+        snapshot: i64,
+        node: crate::NodeId,
+        include_note: bool,
+    ) -> Result<crate::metadata::FolderRead> {
+        let index = self.index(snapshot)?;
+        let registry = self.registry()?;
+        let capability = if include_note {
+            Capability::ReadContent
+        } else {
+            Capability::Metadata
+        };
+        let _folder = registry.authorize_index_entry(&self.principal, capability, &index, node)?;
+        crate::metadata::Store::open(self.directory.directory())?.read_indexed(
+            &index,
+            node,
+            include_note,
+        )
+    }
+
     pub fn history(&self, offset: usize, limit: usize) -> Result<HistoryPage> {
         let registry = self.registry()?;
         let policy = registry.policy(&self.principal, Capability::Metadata)?;

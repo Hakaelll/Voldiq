@@ -1,4 +1,5 @@
 use crate::Engine;
+use crate::analysis_status::IndexId;
 use serde::{Deserialize, Serialize};
 use std::{path::PathBuf, sync::Arc};
 use tauri::State;
@@ -44,6 +45,24 @@ pub async fn get_folder_metadata(
     .await
     .map_err(|error| error.to_string())?
     .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn get_indexed_folder_metadata(
+    engine: State<'_, Arc<Engine>>,
+    index_id: IndexId,
+    node_id: voldiq_core::NodeId,
+) -> Result<voldiq_core::metadata::FolderRead, String> {
+    let index = engine.index_for(index_id)?;
+    let directory = engine.operations.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let index = index.read().map_err(|error| error.to_string())?;
+        Store::open(directory.directory())
+            .and_then(|mut store| store.read_indexed(&index, node_id, true))
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]

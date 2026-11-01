@@ -767,6 +767,7 @@ fn main() {
         .manage(restore_commands::RestorationReviews::default())
         .invoke_handler(tauri::generate_handler![
             metadata_commands::get_folder_metadata,
+            metadata_commands::get_indexed_folder_metadata,
             metadata_commands::save_folder_note,
             metadata_commands::protect_folder,
             metadata_commands::list_protected_folders,

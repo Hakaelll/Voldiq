@@ -1,10 +1,12 @@
 //! Human-maintained folder notes and protections shared by every adapter.
+mod read;
 mod suggestions;
 use crate::{
     Error, Result,
     agents::{pin_directory, pin_path},
     operations::Coordinator,
 };
+pub use read::{FolderRead, NoteContent};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::Serialize;
 use std::{

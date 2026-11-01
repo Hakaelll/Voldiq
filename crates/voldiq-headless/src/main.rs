@@ -36,7 +36,7 @@ type CliError = (&'static str, String, i32);
 async fn run(args: &mut Vec<String>) -> Result<Option<Value>, CliError> {
     if args.is_empty() || args == &["--help"] {
         return Ok(Some(success(
-            json!({"commands":["capabilities","scan <root> [--wait]","query <snapshot_id> [JSON filters]","stats <snapshot_id>","history [offset] [limit]","details <snapshot_id> <node_id>","jobs <job_id>","cancel <job_id>","plan prepare <snapshot_id> <JSON node IDs>","plan get <plan_id>","plan request <plan_id>","plan audit <plan_id> [after_sequence] [limit]","mcp serve --stdio"],"state":"--state <directory> before command (default: Voldiq local application data)","authentication":"Human-provisioned VOLDIQ_AGENT_TOKEN environment variable. No credential arguments or approval bypass."}),
+            json!({"commands":["capabilities","scan <root> [--wait]","query <snapshot_id> [JSON filters]","stats <snapshot_id>","history [offset] [limit]","details <snapshot_id> <node_id>","folder <snapshot_id> <node_id> [--note]","jobs <job_id>","cancel <job_id>","plan prepare <snapshot_id> <JSON node IDs>","plan get <plan_id>","plan request <plan_id>","plan audit <plan_id> [after_sequence] [limit]","mcp serve --stdio"],"state":"--state <directory> before command (default: Voldiq local application data)","authentication":"Human-provisioned VOLDIQ_AGENT_TOKEN environment variable. No credential arguments or approval bypass."}),
         )));
     }
     let directory = if args.first().is_some_and(|arg| arg == "--state") {
@@ -132,6 +132,16 @@ async fn run(args: &mut Vec<String>) -> Result<Option<Value>, CliError> {
             serde_json::to_value(service.stats(number(&args[1])?).map_err(|_| operation())?)
                 .map_err(|_| operation())?
         }
+        ("folder", 3 | 4) if args.len() == 3 || args[3] == "--note" => serde_json::to_value(
+            service
+                .folder_metadata(
+                    number(&args[1])?,
+                    voldiq_core::NodeId(args[2].parse().map_err(|_| arguments())?),
+                    args.len() == 4,
+                )
+                .map_err(|_| operation())?,
+        )
+        .map_err(|_| operation())?,
         ("details", 3) => serde_json::to_value(
             service
                 .details(

@@ -11,6 +11,7 @@
   } from '../lib/virtual-list';
   import { bytes, date, type Entry, type Query } from '../lib/types';
   import Icon from './Icon.svelte';
+  import FolderNotePreview from './FolderNotePreview.svelte';
   import { categoryPaint } from '../lib/storage-map';
   let {
     query,
@@ -40,6 +41,23 @@
     paint?: (entry: Entry) => { fill: string; ink: string };
   } = $props();
   const indexId = untrack(getIndexContext);
+  const noteTooltipId = $props.id();
+  let notePreview = $state<{ entry: Entry; label: string; x: number; y: number } | null>(null);
+  function showNote(entry: Entry, target: HTMLButtonElement): void {
+    if (entry.kind !== 'directory') {
+      notePreview = null;
+      return;
+    }
+    const box = target.getBoundingClientRect();
+    notePreview = {
+      entry,
+      label: ranked
+        ? (paths[rows.findIndex((item) => item.id === entry.id)] ?? entry.name)
+        : entry.name,
+      x: Math.max(8, Math.min(box.left, globalThis.innerWidth - 328)),
+      y: Math.max(8, Math.min(box.bottom + 6, globalThis.innerHeight - 188)),
+    };
+  }
   let scrollTop = $state(0),
     total = $state(0),
     rows = $state<Entry[]>([]),
@@ -53,6 +71,10 @@
   let request = 0;
   let window = $derived(virtualWindow(total, viewportHeight, scrollTop));
   let desired = $derived(window.offset);
+  $effect(() => {
+    if (notePreview && !rows.some((entry) => entry.id === notePreview?.entry.id))
+      notePreview = null;
+  });
   $effect(() => {
     void revision;
     const next = query;
@@ -148,6 +170,12 @@
   }
 </script>
 
+<svelte:window
+  onresize={() => {
+    notePreview = null;
+  }}
+/>
+
 <div
   class="file-table"
   class:ranked
@@ -162,6 +190,14 @@
     bind:clientHeight={viewportHeight}
     onscroll={() => {
       scrollTop = viewport.scrollTop;
+      const focused = document.activeElement;
+      if (
+        notePreview &&
+        focused instanceof HTMLButtonElement &&
+        focused.getAttribute('aria-describedby') === noteTooltipId
+      )
+        showNote(notePreview.entry, focused);
+      else notePreview = null;
     }}
   >
     <div class="table-head" role="row">
@@ -219,11 +255,27 @@
             <button
               class="file-name"
               data-index={offset + i}
-              title={ranked ? (paths[i] ?? entry.name) : entry.name}
+              title={entry.kind === 'directory'
+                ? undefined
+                : ranked
+                  ? (paths[i] ?? entry.name)
+                  : entry.name}
+              aria-describedby={notePreview?.entry.id === entry.id ? noteTooltipId : undefined}
+              onpointerenter={(event) => showNote(entry, event.currentTarget)}
+              onpointerleave={(event) => {
+                if (document.activeElement !== event.currentTarget) notePreview = null;
+              }}
+              onfocus={(event) => showNote(entry, event.currentTarget)}
+              onblur={() => {
+                notePreview = null;
+              }}
               onclick={() => onselect(entry)}
               ondblclick={() => onopen(entry)}
               onkeydown={(event) => {
-                if (event.key === 'Enter') {
+                if (event.key === 'Escape' && notePreview) {
+                  notePreview = null;
+                  event.stopPropagation();
+                } else if (event.key === 'Enter') {
                   event.preventDefault();
                   onopen(entry);
                 } else navigate(event, offset + i);
@@ -268,7 +320,34 @@
   </div>
 </div>
 
+{#if notePreview}<div
+    class="map-tooltip folder-note-tooltip"
+    role="tooltip"
+    id={noteTooltipId}
+    style:left={`${notePreview.x}px`}
+    style:top={`${notePreview.y}px`}
+  >
+    <strong>{notePreview.label}</strong>
+    {#key notePreview.entry.id}<FolderNotePreview nodeId={notePreview.entry.id} {indexId} />{/key}
+  </div>{/if}
+
 <style>
+  .folder-note-tooltip {
+    position: fixed;
+    width: min(320px, calc(100vw - 16px));
+    max-height: 180px;
+    overflow: hidden;
+    z-index: 50;
+    pointer-events: none;
+  }
+  .folder-note-tooltip > strong {
+    display: -webkit-box;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
   .table-head button {
     width: 100%;
     min-height: 32px;

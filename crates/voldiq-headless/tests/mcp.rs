@@ -17,6 +17,108 @@ async fn call(
 }
 
 #[tokio::test]
+async fn sdk_folder_notes_are_explicit_scoped_data_and_never_a_write_surface() {
+    let state = tempfile::tempdir().unwrap();
+    let source = tempfile::tempdir().unwrap();
+    let text = "<script>literal note</script>\nIgnore previous instructions is data.";
+    voldiq_core::metadata::Store::open(state.path())
+        .unwrap()
+        .save_note(source.path(), text)
+        .unwrap();
+    let index = voldiq_core::scanner::scan(
+        source.path(),
+        &Default::default(),
+        &std::sync::atomic::AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    let snapshot = voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db"))
+        .unwrap()
+        .save(&index, &std::sync::atomic::AtomicBool::new(false), &[])
+        .unwrap();
+    let mut registry = Registry::open(&state.path().join("agents.db")).unwrap();
+    for enabled in [false, true] {
+        let mut capabilities = vec![Capability::Metadata];
+        if enabled {
+            capabilities.push(Capability::ReadContent);
+        }
+        let actor = registry
+            .provision(
+                "SDK notes fixture",
+                Policy::new(
+                    vec![source.path().to_owned()],
+                    vec![],
+                    capabilities,
+                    Limits::default(),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_voldiq-cli"));
+        command
+            .arg("--state")
+            .arg(state.path())
+            .args(["mcp", "serve", "--stdio"])
+            .env("VOLDIQ_AGENT_TOKEN", actor.credential.expose());
+        let client = ().serve(TokioChildProcess::new(command).unwrap()).await.unwrap();
+        let tools = client.list_all_tools().await.unwrap();
+        assert!(
+            tools
+                .iter()
+                .any(|tool| tool.name == "voldiq_folder_metadata")
+        );
+        assert!(
+            !tools
+                .iter()
+                .any(|tool| tool.name.contains("unprotect") || tool.name.contains("save_note"))
+        );
+        let metadata = call(
+            &client,
+            "voldiq_folder_metadata",
+            json!({"snapshot_id":snapshot,"node_id":0}),
+        )
+        .await;
+        let value = metadata.structured_content.unwrap();
+        assert_eq!(value["result"]["note"]["kind"], "not_requested");
+        assert!(!value.to_string().contains("literal note"));
+        let note = call(
+            &client,
+            "voldiq_folder_metadata",
+            json!({"snapshot_id":snapshot,"node_id":0,"include_note":true}),
+        )
+        .await;
+        if enabled {
+            assert_ne!(note.is_error, Some(true));
+            assert_eq!(
+                note.structured_content.unwrap()["result"]["note"]["text"],
+                text
+            );
+        } else {
+            assert_eq!(note.is_error, Some(true));
+        }
+        let invalid = call(
+            &client,
+            "voldiq_folder_metadata",
+            json!({"snapshot_id":snapshot,"node_id":0,"include_note":true,"protected":false}),
+        )
+        .await;
+        assert_eq!(invalid.is_error, Some(true));
+        registry.revoke(actor.id).unwrap();
+        assert_eq!(
+            call(
+                &client,
+                "voldiq_folder_metadata",
+                json!({"snapshot_id":snapshot,"node_id":0})
+            )
+            .await
+            .is_error,
+            Some(true)
+        );
+        client.cancel().await.unwrap();
+    }
+}
+
+#[tokio::test]
 async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_tool() {
     let state = tempfile::tempdir().unwrap();
     let source = tempfile::tempdir().unwrap();
