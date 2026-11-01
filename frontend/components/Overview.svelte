@@ -26,6 +26,7 @@
     onselect,
     onopen,
     onlist,
+    ongrid,
     ontype,
     mapMode,
     depth = $bindable<StorageDepth>(6),
@@ -50,6 +51,7 @@
     onselect: (id: number) => void;
     onopen: (id: number, pointer?: boolean) => void;
     onlist: () => void;
+    ongrid?: () => void;
     ontype: (item: FileType) => void;
     mapMode: import('../lib/storage-map').StorageView;
     depth?: StorageDepth;
@@ -170,6 +172,7 @@
           {onmode}
           {onback}
           {onlist}
+          {ongrid}
           selected={selected?.entry.id ?? null}
           {onselect}
           onopen={(id) => onopen(id, true)}

@@ -59,6 +59,7 @@
     onselect,
     onopen,
     onlist,
+    ongrid,
     onback,
     oninspect,
   }: {
@@ -77,6 +78,7 @@
     onselect: (id: number) => void;
     onopen: (id: number) => void;
     onlist: () => void;
+    ongrid?: () => void;
     onback: () => void;
     oninspect?: () => void;
   } = $props();
@@ -510,6 +512,7 @@
       >
       <button aria-pressed={mode === 'circles'} onclick={() => onmode('circles')}>Circles</button>
       <button onclick={onlist}>List</button>
+      {#if ongrid}<button onclick={ongrid}>Grid</button>{/if}
     </div>
     <label
       >Area<select

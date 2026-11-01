@@ -58,6 +58,8 @@ Radial views reuse the exact bounded rectangular frontier and add its explicit p
 
 Depth is one application-owned value, shared by Overview and Explorer across every map representation. Restrict it to the six explicit selector values and collapse only the common frontier. Preserve byte totals and the supplied tree; do not rescan, clear selection or promise unloaded levels. If selection is outside the drawn frontier, keep details available and explain the missing shape. Verify the depth boundary and rectangular/radial conservation through pure fixtures.
 
+Grid extends the existing FileTable renderer and cancellation pipeline. Use one to eight responsive columns, bounded pages up to 500 entries, compressed scrolling and two-dimensional keyboard movement. Preserve index identity, root, filters, inspection, cleanup checks and current snapshot. Show metadata in equal tiles with an explicit area legend. Share logical/allocated display and known-allocation ordering with the core query; unknown and partial allocation remain explicit. Loading/cancellation/error never become an empty-result claim. Verify geometry, paging, extreme counts, resize anchors and metric semantics with owned fixtures; native focus/render/scaling acceptance remains manual.
+
 - [ ] Extend existing summary/details and shared map state; add Sunburst, area-correct circle packing, bounded approximate Voronoi, virtual grid and advanced treemap selection/lens controls.
 - [ ] Preserve the existing treemap/Skyline geometry and selection. Complete depth, metric, color legends and cross-view context without rescans.
 - [ ] Verify byte conservation, layout limits, picking and shared selection through pure behavior fixtures; leave visual/scaling acceptance manual. Commit and push.

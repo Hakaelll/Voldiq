@@ -8,8 +8,11 @@
     scrollToRow,
     keyboardRow,
     wheelScroll,
+    gridDimensions,
+    type WindowGeometry,
   } from '../lib/virtual-list';
-  import { bytes, date, type Entry, type Query } from '../lib/types';
+  import { date, type Entry, type Query } from '../lib/types';
+  import { fileSizeLabel } from '../lib/file-size';
   import Icon from './Icon.svelte';
   import FolderNotePreview from './FolderNotePreview.svelte';
   import { categoryPaint } from '../lib/storage-map';
@@ -26,6 +29,8 @@
     oncheck,
     ranked = false,
     paint,
+    representation = 'table',
+    allocated = false,
   }: {
     query: Query;
     revision: number;
@@ -33,12 +38,14 @@
     onselect: (entry: Entry) => void;
     onopen: (entry: Entry) => void;
     onerror: (error: unknown) => void;
-    onsort: (sort: NonNullable<Query['sort']>) => void;
+    onsort: (sort: Exclude<NonNullable<Query['sort']>, 'allocated'>) => void;
     checked?: ReadonlySet<number>;
     manageable?: boolean;
     oncheck?: (id: number, checked: boolean) => void;
     ranked?: boolean;
     paint?: (entry: Entry) => { fill: string; ink: string };
+    representation?: 'table' | 'grid';
+    allocated?: boolean;
   } = $props();
   const indexId = untrack(getIndexContext);
   const noteTooltipId = $props.id();
@@ -64,26 +71,69 @@
     offset = $state(0);
   let paths = $state<string[]>([]);
   let largest = $state(0);
-  const activeSort = $derived(query.sort ?? 'size');
+  const activeSort = $derived(query.sort === 'allocated' ? 'size' : (query.sort ?? 'size'));
+  const grid = $derived(representation === 'grid');
   let viewport: HTMLDivElement;
   let viewportHeight = $state(420);
+  let viewportWidth = $state(700);
+  const geometry = $derived(grid ? gridDimensions(viewportWidth, viewportHeight) : undefined);
+  let previousGeometry: WindowGeometry | undefined;
+  let loading = $state(true),
+    loadError = $state(''),
+    retry = $state(0);
   let pendingFocus = $state<number | null>(null);
   let request = 0;
-  let window = $derived(virtualWindow(total, viewportHeight, scrollTop));
+  let window = $derived(virtualWindow(total, viewportHeight, scrollTop, geometry));
   let desired = $derived(window.offset);
+  const pageLimit = $derived(window.limit);
   $effect(() => {
     if (notePreview && !rows.some((entry) => entry.id === notePreview?.entry.id))
       notePreview = null;
   });
   $effect(() => {
+    void query;
     void revision;
+    pendingFocus = null;
+    notePreview = null;
+    rows = [];
+    paths = [];
+    total = 0;
+    largest = 0;
+    offset = 0;
+    if (viewport) viewport.scrollTop = 0;
+    scrollTop = 0;
+  });
+  $effect(() => {
+    const next = geometry;
+    untrack(() => {
+      if (
+        !viewport ||
+        (next?.columns === previousGeometry?.columns &&
+          next?.rowHeight === previousGeometry?.rowHeight)
+      )
+        return;
+      const before = virtualWindow(total, viewportHeight, scrollTop, previousGeometry);
+      const after = virtualWindow(total, viewportHeight, scrollTop, next);
+      const anchor = Math.floor(before.logicalTop / before.rowHeight) * before.columns;
+      viewport.scrollTop = scrollToRow(after, anchor, 'start');
+      scrollTop = viewport.scrollTop;
+      previousGeometry = next;
+      notePreview = null;
+    });
+  });
+  $effect(() => {
+    void revision;
+    void retry;
     const next = query;
     const start = desired;
+    const limit = pageLimit;
     const token = ++request;
     let alive = true;
     let issued: ReturnType<typeof fileQueries.request> | undefined;
+    loading = true;
+    loadError = '';
     const timer = setTimeout(() => {
-      issued = fileQueries.request({ ...next, offset: start, limit: 80, indexId });
+      issued = fileQueries.request({ ...next, offset: start, limit, indexId });
       issued.result
         .then((page) => {
           if (alive && token === request && page) {
@@ -92,10 +142,22 @@
             largest = page.largest;
             total = page.total;
             offset = start;
+            loading = false;
+          } else if (alive && token === request) {
+            rows = [];
+            paths = [];
+            loading = false;
+            loadError = 'Item request was cancelled. Retry to load the current analysis.';
           }
         })
         .catch((problem: unknown) => {
-          if (alive && token === request) onerror(problem);
+          if (alive && token === request) {
+            rows = [];
+            paths = [];
+            loading = false;
+            loadError = 'Could not load items.';
+            onerror(problem);
+          }
         });
     }, 40);
     return () => {
@@ -103,12 +165,6 @@
       clearTimeout(timer);
       issued?.cancel();
     };
-  });
-  $effect(() => {
-    void query;
-    pendingFocus = null;
-    if (viewport) viewport.scrollTop = 0;
-    scrollTop = 0;
   });
   $effect(() => {
     const target = pendingFocus;
@@ -161,7 +217,14 @@
   });
   function navigate(event: KeyboardEvent, index: number): void {
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
-    const target = keyboardRow(event.key, pendingFocus ?? index, total, window.visibleHeight);
+    const target = keyboardRow(
+      event.key,
+      pendingFocus ?? index,
+      total,
+      window.visibleHeight,
+      window.columns,
+      window.rowHeight,
+    );
     if (target === null) return;
     event.preventDefault();
     pendingFocus = target;
@@ -179,15 +242,19 @@
 <div
   class="file-table"
   class:ranked
-  role="table"
-  aria-label="Indexed files"
-  aria-rowcount={total + 1}
+  class:grid-view={grid}
+  role={grid ? 'region' : 'table'}
+  aria-label={grid ? 'Indexed file grid' : 'Indexed files'}
+  aria-rowcount={grid || loading || loadError ? undefined : total + 1}
+  aria-busy={loading}
 >
   <div
     class="table-scroll"
-    role="rowgroup"
+    role={grid ? 'list' : 'rowgroup'}
+    aria-label={grid ? 'Indexed files' : undefined}
     bind:this={viewport}
     bind:clientHeight={viewportHeight}
+    bind:clientWidth={viewportWidth}
     onscroll={() => {
       scrollTop = viewport.scrollTop;
       const focused = document.activeElement;
@@ -200,53 +267,66 @@
       else notePreview = null;
     }}
   >
-    <div class="table-head" role="row">
-      <span role="columnheader" aria-sort={activeSort === 'name' ? 'ascending' : 'none'}>
-        <button
-          class:active={activeSort === 'name'}
-          onclick={() => onsort('name')}
-          title="Sort by name"
-          >Name{#if activeSort === 'name'}<Icon name="chevron-up" size={14} />{/if}</button
-        >
-      </span>
-      <span role="columnheader" aria-sort={activeSort === 'size' ? 'descending' : 'none'}>
-        <button
-          class:active={activeSort === 'size'}
-          onclick={() => onsort('size')}
-          title="Sort by logical size, largest first"
-          >Logical size{#if activeSort === 'size'}<Icon
-              name="chevron-down"
-              size={14}
-            />{/if}</button
-        >
-      </span>
-      <span role="columnheader" aria-sort={activeSort === 'modified' ? 'descending' : 'none'}>
-        <button
-          class:active={activeSort === 'modified'}
-          onclick={() => onsort('modified')}
-          title="Sort by modification date, newest first"
-          >Modified{#if activeSort === 'modified'}<Icon
-              name="chevron-down"
-              size={14}
-            />{/if}</button
-        >
-      </span>
-      <span role="columnheader">Type</span>
-    </div>
-    <div class="virtual-rows" style:height={`${window.height}px`}>
+    {#if !grid}<div class="table-head" role="row">
+        <span role="columnheader" aria-sort={activeSort === 'name' ? 'ascending' : 'none'}>
+          <button
+            class:active={activeSort === 'name'}
+            onclick={() => onsort('name')}
+            title="Sort by name"
+            >Name{#if activeSort === 'name'}<Icon name="chevron-up" size={14} />{/if}</button
+          >
+        </span>
+        <span role="columnheader" aria-sort={activeSort === 'size' ? 'descending' : 'none'}>
+          <button
+            class:active={activeSort === 'size'}
+            onclick={() => onsort('size')}
+            title={allocated
+              ? 'Sort by known allocation, largest first'
+              : 'Sort by logical size, largest first'}
+            >{allocated ? 'Unique allocation' : 'Logical size'}{#if activeSort === 'size'}<Icon
+                name="chevron-down"
+                size={14}
+              />{/if}</button
+          >
+        </span>
+        <span role="columnheader" aria-sort={activeSort === 'modified' ? 'descending' : 'none'}>
+          <button
+            class:active={activeSort === 'modified'}
+            onclick={() => onsort('modified')}
+            title="Sort by modification date, newest first"
+            >Modified{#if activeSort === 'modified'}<Icon
+                name="chevron-down"
+                size={14}
+              />{/if}</button
+          >
+        </span>
+        <span role="columnheader">Type</span>
+      </div>{/if}
+    <div
+      class="virtual-rows"
+      role={grid ? 'presentation' : undefined}
+      style:height={`${window.height}px`}
+    >
       {#each rows as entry, i (entry.id)}
         <div
           class:selected={entry.id === selected}
-          class="table-row"
-          role="row"
-          aria-rowindex={offset + i + 2}
+          class={grid ? 'file-grid-item' : 'table-row'}
+          role={grid ? 'listitem' : 'row'}
+          aria-rowindex={grid ? undefined : offset + i + 2}
+          aria-posinset={grid ? offset + i + 1 : undefined}
+          aria-setsize={grid ? total : undefined}
           style:top={`${rowTop(window, offset + i)}px`}
+          style:left={grid
+            ? `${(100 * ((offset + i) % window.columns)) / window.columns}%`
+            : undefined}
+          style:width={grid ? `${100 / window.columns}%` : undefined}
+          style:height={grid ? `${window.rowHeight}px` : undefined}
         >
-          <span role="cell" class="file-label">
+          <span role={grid ? undefined : 'cell'} class="file-label">
             {#if manageable}
               {#if entry.kind === 'file' && !entry.incomplete}<input
                   type="checkbox"
-                  aria-label={`Select ${entry.name}`}
+                  aria-label={`Add ${entry.name} to cleanup review`}
                   checked={checked.has(entry.id)}
                   onchange={(event) => oncheck?.(entry.id, event.currentTarget.checked)}
                 />
@@ -254,6 +334,7 @@
             {/if}
             <button
               class="file-name"
+              aria-current={entry.id === selected ? 'true' : undefined}
               data-index={offset + i}
               title={entry.kind === 'directory'
                 ? undefined
@@ -294,14 +375,18 @@
               >{#if entry.incomplete}<Icon name="warning" size={14} />{/if}</button
             ></span
           >
-          <span class="number" role="cell"
-            >{bytes(entry.logical)}<span class="size-track" aria-hidden="true"
-              ><span
-                style:width={`${largest ? Math.min(100, (entry.logical / largest) * 100) : 0}%`}
-              ></span></span
-            ></span
-          >
-          <span role="cell">{date(entry.modified)}</span><span role="cell"
+          <span class="number" role={grid ? undefined : 'cell'}>
+            {#if grid}<small>{allocated ? 'Unique allocation' : 'Logical size'}</small>{/if}
+            {fileSizeLabel(entry, allocated)}
+            {#if !allocated}<span class="size-track" aria-hidden="true"
+                ><span
+                  style:width={`${largest ? Math.min(100, (entry.logical / largest) * 100) : 0}%`}
+                ></span></span
+              >{/if}
+          </span>
+          <span role={grid ? undefined : 'cell'}
+            >{#if grid}<small>Modified</small>{/if}{date(entry.modified)}</span
+          ><span role={grid ? undefined : 'cell'}
             >{entry.kind === 'directory'
               ? 'Folder'
               : entry.kind === 'link'
@@ -313,10 +398,22 @@
         </div>
       {/each}
     </div>
-    {#if total === 0}<div class="table-empty">No matching items.</div>{/if}
+    {#if loadError}<div class="table-empty" role="alert">
+        {loadError} <button onclick={() => retry++}>Retry</button>
+      </div>
+    {:else if !loading && total === 0}<div class="table-empty">No matching items.</div>{/if}
   </div>
   <div class="table-footer">
-    {total.toLocaleString()} items
+    <span
+      >{loading
+        ? 'Loading items…'
+        : loadError
+          ? 'Items unavailable'
+          : `${total.toLocaleString()} items`}</span
+    >
+    {#if loadError}<button onclick={() => retry++}>Retry</button>{/if}
+    {#if grid}<span>Equal tiles · size is shown as text</span>{/if}
+    {#if manageable}<span>Checkboxes select items for cleanup review.</span>{/if}
   </div>
 </div>
 
@@ -332,6 +429,67 @@
   </div>{/if}
 
 <style>
+  .grid-view .virtual-rows {
+    min-width: 0;
+  }
+  .file-grid-item {
+    position: absolute;
+    display: grid;
+    align-content: start;
+    gap: 6px;
+    padding: 12px;
+    overflow: hidden;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    background: var(--canvas);
+  }
+  .file-grid-item:hover {
+    background: var(--surface);
+  }
+  .file-grid-item.selected {
+    background: var(--selected);
+    outline: 2px solid var(--text);
+    outline-offset: -2px;
+  }
+  .file-grid-item > span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .file-grid-item > .number {
+    text-align: left;
+  }
+  .file-grid-item > span > small {
+    display: block;
+    color: var(--secondary);
+    font-size: 10px;
+  }
+  .file-grid-item .file-label {
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .file-grid-item .file-name {
+    min-height: 36px;
+    align-items: flex-start;
+  }
+  .file-grid-item .file-name > span:last-of-type {
+    display: -webkit-box;
+    line-clamp: 2;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 18px;
+  }
+  .file-grid-item .file-name > .item-swatch {
+    margin-top: 3px;
+  }
+  .file-grid-item .file-label input {
+    margin-top: 3px;
+  }
+  .table-footer {
+    flex-wrap: wrap;
+    gap: 6px 12px;
+  }
   .folder-note-tooltip {
     position: fixed;
     width: min(320px, calc(100vw - 16px));

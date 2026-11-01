@@ -177,7 +177,7 @@ export interface Query {
   modified_before?: number;
   files_only?: boolean;
   kind?: Entry['kind'];
-  sort?: 'size' | 'name' | 'modified';
+  sort?: 'size' | 'allocated' | 'name' | 'modified';
   offset?: number;
   limit?: number;
 }

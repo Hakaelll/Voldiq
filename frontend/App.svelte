@@ -91,7 +91,7 @@
     minSize = $state(100),
     largeKind = $state<'file' | 'directory'>('file'),
     before = $state(''),
-    sort = $state<NonNullable<Query['sort']>>('size');
+    sort = $state<Exclude<NonNullable<Query['sort']>, 'allocated'>>('size');
   let error = $state(''),
     issues = $state<Issue[]>([]),
     showIssues = $state(false);
@@ -108,6 +108,7 @@
   let mapDepth = $state<import('./lib/storage-map').StorageDepth>(6);
   let mapColorMode = $state<ColorMode>('type');
   let explorerMap = $state(false);
+  let fileRepresentation = $state<'table' | 'grid'>('table');
   let mapMetrics = $state<OverviewData['map_metrics']>([]);
   let showMapList = $state(false);
   const navigationRefresh = createNavigationRefresh();
@@ -162,7 +163,7 @@
       ...(before ? { modified_before: new Date(before).getTime() / 1000 } : {}),
       files_only: view === 'large' && largeKind === 'file',
       ...(view === 'large' ? { kind: largeKind } : {}),
-      sort,
+      sort: sort === 'size' && view === 'explorer' && sizeMode === 'allocated' ? 'allocated' : sort,
     }),
   );
   let nodes = $derived.by(() => {
@@ -1060,6 +1061,12 @@
                   }}
                   onlist={() => {
                     explorerMap = false;
+                    fileRepresentation = 'table';
+                    view = 'explorer';
+                  }}
+                  ongrid={() => {
+                    explorerMap = false;
+                    fileRepresentation = 'grid';
                     view = 'explorer';
                   }}
                   ontype={(item) => {
@@ -1151,7 +1158,14 @@
                           mapMode = 'circles';
                         }}>Circles</button
                       >
-                      <button aria-pressed="true">List</button>
+                      <button
+                        aria-pressed={fileRepresentation === 'table'}
+                        onclick={() => (fileRepresentation = 'table')}>List</button
+                      >
+                      <button
+                        aria-pressed={fileRepresentation === 'grid'}
+                        onclick={() => (fileRepresentation = 'grid')}>Grid</button
+                      >
                     </div>{/if}
                   {#if view === 'explorer' && explorerMap}
                     <StorageMap
@@ -1180,6 +1194,11 @@
                       }}
                       onlist={() => {
                         explorerMap = false;
+                        fileRepresentation = 'table';
+                      }}
+                      ongrid={() => {
+                        explorerMap = false;
+                        fileRepresentation = 'grid';
                       }}
                       onback={() => {
                         if (details) details = null;
@@ -1208,6 +1227,13 @@
                     class:map-list-visible={view === 'explorer' && explorerMap && showMapList}
                   >
                     <div class="filter-bar">
+                      {#if view === 'explorer'}<label
+                          >Size<select bind:value={sizeMode} onchange={savePreferences}>
+                            <option value="logical">Logical bytes</option><option value="allocated"
+                              >Unique allocation</option
+                            >
+                          </select></label
+                        >{/if}
                       <label
                         >Extension<input
                           bind:value={extension}
@@ -1244,6 +1270,10 @@
                       >
                     </div>
                     <FileTable
+                      representation={view === 'explorer' && !explorerMap
+                        ? fileRepresentation
+                        : 'table'}
+                      allocated={view === 'explorer' && sizeMode === 'allocated'}
                       paint={entryPaint}
                       onsort={(next) => {
                         sort = next;
