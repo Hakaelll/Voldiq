@@ -108,6 +108,18 @@ fn authorized_service_scans_once_persists_and_queries_only_the_current_scope() {
         .unwrap();
     assert_eq!(page.total, 1);
     assert_eq!(page.items[0].name, "report.txt");
+    let allocated = service
+        .query(
+            snapshot,
+            &Query {
+                files_only: true,
+                sort: "allocated".into(),
+                ..Query::default()
+            },
+        )
+        .unwrap();
+    assert_eq!(allocated.total, 1);
+    assert_eq!(allocated.items[0].name, "report.txt");
     assert!(
         service
             .query(

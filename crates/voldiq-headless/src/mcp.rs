@@ -321,7 +321,7 @@ fn tools() -> Vec<Tool> {
         "text":{"type":"string","maxLength":4096},"extension":{"type":"string","maxLength":128},
         "without_extension":{"type":"boolean"},"min_size":{"type":"integer","minimum":0},
         "modified_before":{"type":["integer","null"],"minimum":0},"files_only":{"type":"boolean"},
-        "kind":{"enum":["directory","file","link",null]},"sort":{"enum":["size","name","modified"]},
+        "kind":{"enum":["directory","file","link",null]},"sort":{"enum":["size","allocated","name","modified"]},
         "offset":{"type":"integer","minimum":0},"limit":{"type":"integer","minimum":1,"maximum":500}}});
     [
         ("voldiq_capabilities", "Read actual connection capabilities, limits and implementation status.", json!({}), json!([])),

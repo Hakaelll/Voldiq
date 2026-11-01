@@ -274,8 +274,10 @@ impl AgentService {
     }
 
     pub fn query(&self, snapshot: i64, query: &Query) -> Result<Page> {
-        if !matches!(query.sort.as_str(), "size" | "name" | "modified")
-            || query.text.len() > 4096
+        if !matches!(
+            query.sort.as_str(),
+            "size" | "allocated" | "name" | "modified"
+        ) || query.text.len() > 4096
             || query.extension.len() > 128
         {
             return Err(Error::Invalid(

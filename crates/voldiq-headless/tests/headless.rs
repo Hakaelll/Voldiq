@@ -185,6 +185,14 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     )
     .unwrap();
     let node = files["result"]["items"][0]["id"].as_u64().unwrap();
+    let allocated = run(&[
+        "query",
+        &snapshot.to_string(),
+        r#"{"files_only":true,"sort":"allocated"}"#,
+    ]);
+    assert!(allocated.status.success());
+    let allocated: Value = serde_json::from_slice(&allocated.stdout).unwrap();
+    assert_eq!(allocated["result"]["items"][0]["id"], node);
     let output = run(&[
         "plan",
         "prepare",

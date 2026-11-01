@@ -273,6 +273,12 @@ impl Index {
             }));
         }
         let compare = |a: &&Entry, b: &&Entry| match query.sort.as_str() {
+            "allocated" => {
+                let known = |entry: &Entry| {
+                    (entry.allocation_known || entry.allocated > 0).then_some(entry.allocated)
+                };
+                known(b).cmp(&known(a)).then(a.id.0.cmp(&b.id.0))
+            }
             "name" => compare_name(&a.name, &b.name).then(a.id.0.cmp(&b.id.0)),
             "modified" => b.modified.cmp(&a.modified).then(a.id.0.cmp(&b.id.0)),
             _ => b.logical.cmp(&a.logical).then(a.id.0.cmp(&b.id.0)),

@@ -198,6 +198,17 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     let selected = files.structured_content.unwrap()["result"]["items"][0]["id"]
         .as_u64()
         .unwrap();
+    let allocated = call(
+        &client,
+        "voldiq_query",
+        json!({"snapshot_id":snapshot,"query":{"files_only":true,"sort":"allocated"}}),
+    )
+    .await;
+    assert_ne!(allocated.is_error, Some(true));
+    assert_eq!(
+        allocated.structured_content.unwrap()["result"]["items"][0]["id"],
+        selected
+    );
     let prepared = call(
         &client,
         "voldiq_plan_prepare",
