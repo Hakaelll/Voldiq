@@ -30,6 +30,37 @@ pub struct HumanAuthority {
 }
 
 impl HumanAuthority {
+    /// Availability observation only. The desktop must still consume its private live grant.
+    pub fn is_active(directory: &Path) -> Result<bool> {
+        let directory = pin_directory(directory)?;
+        let mut options = std::fs::OpenOptions::new();
+        options.read(true).write(true);
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            use windows_sys::Win32::Storage::FileSystem::*;
+            options
+                .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
+                .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_OPEN_NO_RECALL);
+        }
+        let file = match options.open(directory.path().join("approval.lock")) {
+            Ok(file) => file,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
+            Err(error) => return Err(error.into()),
+        };
+        let metadata = file.metadata()?;
+        if !metadata.is_file()
+            || crate::windows::is_reparse(&metadata)
+            || crate::windows::requires_recall(&metadata)
+        {
+            return Err(invalid());
+        }
+        match file.try_lock_shared() {
+            Ok(()) => Ok(false),
+            Err(std::fs::TryLockError::WouldBlock) => Ok(true),
+            Err(std::fs::TryLockError::Error(error)) => Err(error.into()),
+        }
+    }
     pub fn acquire(directory: &Path) -> Result<Self> {
         let directory = pin_directory(directory)?;
         let mut options = std::fs::OpenOptions::new();
@@ -134,10 +165,13 @@ impl HumanAuthority {
     }
 
     pub(super) fn close(&self) {
-        self.closed.store(true, Ordering::Release);
+        if self.closed.swap(true, Ordering::AcqRel) {
+            return;
+        }
         if let Ok(mut grants) = self.grants.lock() {
             grants.clear();
         }
+        let _ = self._file.unlock();
     }
 }
 

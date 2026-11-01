@@ -36,16 +36,18 @@ Execution is inline, without subagents or computer use, as the user requested. T
 
 ## C. Plans, headless and MCP
 
-Execution requests and cooperative cancellation now persist in plan-store schema 2. Requests are data, never grants. The next unit must dispatch only requests bound to the current human session, then consume the existing live grant under the shared operation lease. Restart requires a fresh explicit request after renewed approval. External execution stays disabled until runtime admission/recycling checks and native dispatch are verified.
+Execution requests and cooperative cancellation persist in plan-store schema 2. Requests are data, never grants. The desktop dispatches only requests bound to its current human session, consuming the live grant under the shared operation lease. Restart requires a fresh explicit request after renewed approval. CLI/MCP expose exact execution/cancel intents; full elevated/Shell acceptance remains manual.
 
 Runtime execution uses one borrowed worker context containing the operation lease, cancellation token and STA apartment. The prepared batch retains those borrows, so they cannot be released or exchanged before it finishes. Complete native evidence validation remains in preflight; bounded authority checks run before helper launch, each admission and each recycling attempt. Use owned normal-helper denial fixtures for non-interactive verification. Elevated admission and Shell acceptance remain separate evidence.
 
+Dispatch unit: one dedicated desktop STA worker consumes current-session requests under the existing native operation guard. Headless execute/cancel only enqueue exact-hash intents and report status. Human provisioning grants execution separately, off by default. Closing the review session releases availability and prevents reacquisition by that session; a second instance may retry acquisition. Replayed or uncertain execution is never dispatched again. Invalidate the current native analysis with its exact index ID when agent work starts, so delayed events cannot clear a newer analysis.
+
 - [ ] Extend the existing cleanup preview/executor with immutable serializable manifests and explicit lifecycle states. Persist hash, principal, exact identities, policy version, expiry and audit. No agent approval endpoint.
-  Core manifests, lifecycle, CLI/MCP planning dispatch, desktop review, complete preflight, journal association, shared coordination, protections, execution/cancel intents, retained worker resources and runtime admission/recycling checks are implemented. Desktop execution dispatch, external adapter wiring and elevated agent acceptance remain open.
+  Core manifests, lifecycle, CLI/MCP planning and execution/cancel intents, desktop review/dispatch, complete preflight, journal association, shared coordination, protections, retained worker resources and runtime admission/recycling checks are implemented. Elevated agent acceptance remains open.
 - [ ] Add a separate headless crate and CLI for scan/query/stats/history/plan/jobs/export, with JSON envelopes, structured errors and a read-only default.
-  Scan/query/stats/history/details/jobs/cancel, plan preparation/status/request/audit and versioned errors are implemented and subprocess-tested. Execution/export remain open.
+  Scan/query/stats/history/details/jobs/cancel, exact plan prepare/get/request/execute/cancel/audit and versioned errors are implemented and subprocess-tested. Export remains open.
 - [ ] Add official `rmcp` stdio transport, bounded schemas/results and tools that route through authorization and shared services. Verify protocol behavior with the SDK client against the real executable.
-  Transport plus nine analysis and four recycling-plan tools are implemented and verified with `rmcp` 3.8.0's real client. The broader catalogue remains open.
+  Transport plus nine analysis and six recycling-plan tools are implemented and verified with `rmcp` 3.8.0's real client. The broader catalogue remains open.
 - [ ] Add desktop connection management, separate human approval and revocation. Unavailable independent approval returns `needs_human_approval` without changing user data.
   Native management/review and separate confirmation are implemented. Human facade and request behavior are fixture-tested; actual dialog/keyboard/visual acceptance remains manual.
 - [ ] Test mutation, expiry, replay, concurrent execution and restart in temporary fixtures. Document generic stdio and current Codex configuration. Commit and push.

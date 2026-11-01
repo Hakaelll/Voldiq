@@ -748,6 +748,7 @@ fn main() {
             setup_trace.record("snapshot-open-end", Some(app.handle()));
             app.manage(CleanupJournal::open(&directory.join("cleanup.db")));
             app.manage(plan_commands::PlanReviews::open(&directory));
+            plan_commands::start_dispatcher(app.handle())?;
             setup_trace.record("setup-end", Some(app.handle()));
             Ok(())
         })
@@ -780,6 +781,7 @@ fn main() {
             plan_commands::get_agent_plan,
             plan_commands::approve_agent_plan,
             plan_commands::reject_agent_plan,
+            plan_commands::cancel_agent_plan,
             get_volumes,
             choose_folder,
             start_scan,

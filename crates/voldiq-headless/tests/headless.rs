@@ -153,6 +153,7 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
                     Capability::Metadata,
                     Capability::PreparePlans,
                     Capability::RequestApproval,
+                    Capability::ExecuteApproved,
                 ],
                 Limits::default(),
             )
@@ -216,6 +217,24 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
         serde_json::from_slice::<Value>(&run(&["plan", "get", id]).stdout).unwrap()["result"]["state"],
         "awaiting_approval"
     );
+    let hash = plan["result"]["hash"].as_str().unwrap();
+    assert_eq!(run(&["plan", "execute", id, hash]).status.code(), Some(5));
+    assert_eq!(
+        run(&["plan", "execute", id, hash, "--yes"]).status.code(),
+        Some(2)
+    );
+    let desktop = voldiq_core::plans::Desktop::open(state.path()).unwrap();
+    desktop.approve(id, hash).unwrap();
+    let queued: Value =
+        serde_json::from_slice(&run(&["plan", "execute", id, hash]).stdout).unwrap();
+    assert_eq!(queued["result"]["dispatch"], "queued");
+    assert_eq!(desktop.pending_execution(25).unwrap().len(), 1);
+    let cancelled: Value =
+        serde_json::from_slice(&run(&["plan", "cancel", id, hash]).stdout).unwrap();
+    assert_eq!(cancelled["result"]["state"], "cancelled");
+    let replay: Value =
+        serde_json::from_slice(&run(&["plan", "execute", id, hash]).stdout).unwrap();
+    assert_eq!(replay["result"]["dispatch"], "existing");
     let events: Value = serde_json::from_slice(&run(&["plan", "audit", id]).stdout).unwrap();
     assert_eq!(
         events["result"]
@@ -224,7 +243,13 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
             .iter()
             .map(|event| event["event"].as_str().unwrap())
             .collect::<Vec<_>>(),
-        vec!["draft", "awaiting_approval"]
+        vec![
+            "draft",
+            "awaiting_approval",
+            "approved",
+            "execution_requested",
+            "cancelled"
+        ]
     );
     assert_eq!(
         std::fs::read(source.path().join("selected.data")).unwrap(),

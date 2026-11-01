@@ -227,6 +227,7 @@ impl Store {
         })
     }
 
+    #[cfg(windows)]
     pub(crate) fn protection_fingerprint(&self) -> Result<String> {
         read_fingerprint(&self.connection)
     }

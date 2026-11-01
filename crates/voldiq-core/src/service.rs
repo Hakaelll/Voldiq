@@ -50,6 +50,38 @@ pub struct Stats {
 }
 
 impl AgentService {
+    pub fn plan_execute(&self, id: &str, hash: &str) -> Result<serde_json::Value> {
+        let registry = self.registry()?;
+        let execute = registry.plan_context(&self.principal, Capability::ExecuteApproved)?;
+        let metadata = registry.plan_context(&self.principal, Capability::Metadata)?;
+        let mut store = crate::plans::Store::open(self.directory.directory())?;
+        let view = store.get(&metadata, id, crate::plans::now()?)?;
+        if view.hash != hash {
+            return Err(denied());
+        }
+        let existing = view.state.terminal() || view.state == crate::plans::State::Executing;
+        if !existing
+            && (!cfg!(windows)
+                || !crate::plans::HumanAuthority::is_active(self.directory.directory())?)
+        {
+            return Err(Error::NeedsHumanApproval);
+        }
+        let queued = matches!(
+            store.request_execution(&execute, id, hash, crate::plans::now()?)?,
+            crate::plans::Enqueue::Queued
+        );
+        let view = store.get(&metadata, id, crate::plans::now()?)?;
+        Ok(serde_json::json!({"dispatch":if queued {"queued"} else {"existing"},"plan":view}))
+    }
+
+    pub fn plan_cancel(&self, id: &str, hash: &str) -> Result<crate::plans::View> {
+        let registry = self.registry()?;
+        let execute = registry.plan_context(&self.principal, Capability::ExecuteApproved)?;
+        let mut store = crate::plans::Store::open(self.directory.directory())?;
+        store.cancel_execution(&execute, id, hash, crate::plans::now()?)?;
+        let metadata = registry.plan_context(&self.principal, Capability::Metadata)?;
+        store.get(&metadata, id, crate::plans::now()?)
+    }
     pub fn plan_prepare(
         &self,
         snapshot: i64,
@@ -115,9 +147,12 @@ impl AgentService {
         let policy = self
             .registry()?
             .policy(&self.principal, Capability::Metadata)?;
+        let execution = cfg!(windows)
+            && policy.capabilities().contains(&Capability::ExecuteApproved)
+            && crate::plans::HumanAuthority::is_active(self.directory.directory())?;
         Ok(
             serde_json::json!({"schema_version":1,"capabilities":policy.capabilities(),"limits":policy.limits(),
-            "transport":"local_stdio","approval":"independent_human_required","plan_preparation_available":true,"execution_available":false,
+            "transport":"local_stdio","approval":"independent_human_required","plan_preparation_available":true,"execution_available":execution,
             "scope":"Stored snapshots whose native root identity and exclusion coverage satisfy this connection's current policy."}),
         )
     }

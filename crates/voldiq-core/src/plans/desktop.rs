@@ -48,6 +48,86 @@ pub enum ReviewStatus {
 }
 
 impl Desktop {
+    pub fn pending_execution(&self, limit: usize) -> Result<Vec<super::ExecutionRequest>> {
+        Store::open(&self.directory)?.pending_execution(&self.human, limit, now()?)
+    }
+
+    pub fn cancel(&self, id: &str, hash: &str) -> Result<View> {
+        let registry = Registry::open(&self.directory.join("agents.db"))?;
+        let mut store = Store::open(&self.directory)?;
+        let owner = store.review_owner(&self.human, id)?;
+        let principal = registry.human_principal(owner)?;
+        let execute = registry.plan_context(&principal, Capability::ExecuteApproved)?;
+        store.cancel_execution(&execute, id, hash, now()?)?;
+        store.get(
+            &registry.plan_context(&principal, Capability::Metadata)?,
+            id,
+            now()?,
+        )
+    }
+
+    #[cfg(windows)]
+    pub fn execute_request(
+        &self,
+        id: &str,
+        hash: &str,
+        journal: &mut crate::cleanup::journal::Journal,
+        worker: super::RecyclingWorker<'_>,
+        progress: impl FnMut(usize),
+    ) -> Result<View> {
+        let result = self.execute_request_using(
+            id,
+            hash,
+            journal,
+            worker,
+            progress,
+            crate::cleanup::helper::Session::launch,
+        );
+        if result.is_err() {
+            Store::open(&self.directory)?.discard_request(&self.human, id, hash, now()?)?;
+        }
+        result
+    }
+
+    #[cfg(windows)]
+    fn execute_request_using(
+        &self,
+        id: &str,
+        hash: &str,
+        journal: &mut crate::cleanup::journal::Journal,
+        worker: super::RecyclingWorker<'_>,
+        progress: impl FnMut(usize),
+        launch: impl FnOnce(
+            &crate::cleanup::recycle::ShellApartment,
+        ) -> std::io::Result<crate::cleanup::helper::Session>,
+    ) -> Result<View> {
+        let registry = Registry::open(&self.directory.join("agents.db"))?;
+        let mut store = Store::open(&self.directory)?;
+        let owner = store.review_owner(&self.human, id)?;
+        let principal = registry.human_principal(owner)?;
+        let metadata = registry.plan_context(&principal, Capability::Metadata)?;
+        let view = store.get(&metadata, id, now()?)?;
+        if view.hash != hash {
+            return Err(invalid());
+        }
+        let context = registry.plan_context(&principal, Capability::ExecuteApproved)?;
+        match store.begin(&context, id, &self.human, now()?)? {
+            super::Begin::Existing(_) => {}
+            super::Begin::Started(lease) => {
+                let prepared =
+                    store.prepare_recycling(&context, &self.human, lease, journal, worker)?;
+                prepared.execute_using(
+                    &mut store,
+                    &context,
+                    &self.human,
+                    journal,
+                    progress,
+                    launch,
+                )?;
+            }
+        }
+        store.get(&metadata, id, now()?)
+    }
     pub fn close(&self) {
         self.human.close();
     }
@@ -138,3 +218,6 @@ impl Desktop {
         store.reject(&context, id, &self.human, now()?)
     }
 }
+
+#[cfg(all(test, windows))]
+mod tests;

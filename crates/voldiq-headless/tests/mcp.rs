@@ -135,6 +135,7 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
                     Capability::Scan,
                     Capability::PreparePlans,
                     Capability::RequestApproval,
+                    Capability::ExecuteApproved,
                 ],
                 Limits::default(),
             )
@@ -242,6 +243,41 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
             .unwrap()
             .iter()
             .all(|event| event["event"] != "approved")
+    );
+    let hash = prepared["result"]["hash"].as_str().unwrap();
+    let execution = json!({"plan_id":plan_id,"manifest_hash":hash});
+    assert!(tools.iter().any(|tool| tool.name == "voldiq_plan_execute"));
+    assert!(tools.iter().any(|tool| tool.name == "voldiq_plan_cancel"));
+    let no_human = call(&client, "voldiq_plan_execute", execution.clone()).await;
+    assert_eq!(
+        no_human.structured_content.unwrap()["error"]["code"],
+        "needs_human_approval"
+    );
+    let desktop = voldiq_core::plans::Desktop::open(state.path()).unwrap();
+    desktop.approve(plan_id, hash).unwrap();
+    let invalid = call(
+        &client,
+        "voldiq_plan_execute",
+        json!({"plan_id":plan_id,"manifest_hash":hash,"approved":true}),
+    )
+    .await;
+    assert_eq!(invalid.is_error, Some(true));
+    let queued = call(&client, "voldiq_plan_execute", execution.clone()).await;
+    assert_eq!(
+        queued.structured_content.unwrap()["result"]["dispatch"],
+        "queued"
+    );
+    assert_eq!(desktop.pending_execution(25).unwrap().len(), 1);
+    let cancelled = call(&client, "voldiq_plan_cancel", execution.clone()).await;
+    assert_eq!(
+        cancelled.structured_content.unwrap()["result"]["state"],
+        "cancelled"
+    );
+    assert!(desktop.pending_execution(25).unwrap().is_empty());
+    let replay = call(&client, "voldiq_plan_execute", execution).await;
+    assert_eq!(
+        replay.structured_content.unwrap()["result"]["dispatch"],
+        "existing"
     );
     assert_eq!(
         std::fs::read(source.path().join("measured.txt")).unwrap(),

@@ -32,6 +32,28 @@ pub(super) enum ExecutionControl {
 }
 
 impl Store {
+    #[cfg(windows)]
+    pub(super) fn discard_request(
+        &mut self,
+        human: &HumanAuthority,
+        id: &str,
+        hash: &str,
+        at: i64,
+    ) -> Result<()> {
+        human.check_directory(self.directory.identity())?;
+        let tx = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let changed = tx.execute("UPDATE agent_plans SET state='invalidated',approval_issuer=NULL,approval_expires=NULL
+            WHERE id=?1 AND hash=?2 AND state='approved' AND approval_issuer=?3
+                AND EXISTS(SELECT 1 FROM execution_requests r WHERE r.plan_id=agent_plans.id AND r.owner=agent_plans.owner AND r.hash=?2 AND r.issuer=?3)",
+            params![id,hash,human.issuer()])?;
+        if changed == 1 {
+            audit(&tx, id, at, "execution_dispatch_invalidated")?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
     pub(super) fn review_refs(
         &self,
         human: &HumanAuthority,

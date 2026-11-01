@@ -35,6 +35,7 @@
     planFiles = $state(100),
     planBytes = $state(10_000_000_000);
   let allowContent = $state(false);
+  let allowExecution = $state(false);
   let credential = $state<Credential | null>(null),
     revealed = $state(false);
   let alive = true;
@@ -82,6 +83,7 @@
           scan: allowScan,
           plan: allowPlans,
           content: allowContent,
+          execute: allowExecution,
           page_size: pageSize,
           scan_entries: scanEntries,
           plan_files: planFiles,
@@ -269,8 +271,13 @@
         ><input type="checkbox" bind:checked={allowPlans} />Prepare recycling plans and request
         human review</label
       >
+      <label class="agent-check"
+        ><input type="checkbox" bind:checked={allowExecution} />Request execution of exact
+        human-approved recycling plans</label
+      >
       <small
-        >Each plan needs separate approval in Voldiq. This connection cannot execute file changes.</small
+        >Execution is off by default. Each batch requires separate human approval in Voldiq and
+        native helper confirmation.</small
       >
       <div class="agent-limits">
         <label for="agent-page"

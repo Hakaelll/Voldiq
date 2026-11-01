@@ -63,7 +63,19 @@ impl PreparedRecycling<'_> {
         context: &PlanContext<'_>,
         human: &HumanAuthority,
         journal: &mut Journal,
+        progress: impl FnMut(usize),
+    ) -> Result<Report> {
+        self.execute_using(plans, context, human, journal, progress, Session::launch)
+    }
+
+    pub(super) fn execute_using(
+        self,
+        plans: &mut Store,
+        context: &PlanContext<'_>,
+        human: &HumanAuthority,
+        journal: &mut Journal,
         mut progress: impl FnMut(usize),
+        launch: impl FnOnce(&ShellApartment) -> std::io::Result<Session>,
     ) -> Result<Report> {
         let Self {
             lease,
@@ -95,7 +107,7 @@ impl PreparedRecycling<'_> {
                 report.preflight_error = Some(error.to_string());
                 report
             } else {
-                match Session::launch(worker.apartment) {
+                match launch(worker.apartment) {
                     Ok(session) => batch.execute_guarded(
                         journal,
                         worker.cancel,

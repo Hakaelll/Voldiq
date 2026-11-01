@@ -2,6 +2,7 @@
   import { invokeIndexed, setIndexContext, type IndexId } from './lib/index-context';
   import { onMount, tick } from 'svelte';
   import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
+  import { listen } from '@tauri-apps/api/event';
   import Icon from './components/Icon.svelte';
   import Overview from './components/Overview.svelte';
   import StorageMap from './components/StorageMap.svelte';
@@ -110,6 +111,8 @@
   let showMapList = $state(false);
   const navigationRefresh = createNavigationRefresh();
   let analysisBusy = $state(false);
+  let agentOperation = $state<number | null>(null);
+  let agentNotice = $state('');
   let historical = $state<Snapshot | null>(null);
   let selection = $state(new Set<number>());
   let cleanupPreview = $state<CleanupPreview | null>(null);
@@ -141,7 +144,12 @@
     }
   }
   let volume = $derived(volumes.find((v) => v.path === volumePath));
-  let busy = $derived(operation?.phase === 'scanning' || analysisBusy || restoreReceipt !== null);
+  let busy = $derived(
+    operation?.phase === 'scanning' ||
+      analysisBusy ||
+      agentOperation !== null ||
+      restoreReceipt !== null,
+  );
   let query = $derived<Query>(
     scopedFileQuery({
       scope,
@@ -510,6 +518,39 @@
     }
   }
   onMount(() => {
+    let mounted = true;
+    const agentEvents = isTauri()
+      ? listen<unknown>('agent-operation', ({ payload }) => {
+          if (
+            !mounted ||
+            !payload ||
+            typeof payload !== 'object' ||
+            !('id' in payload) ||
+            typeof payload.id !== 'number' ||
+            !Number.isSafeInteger(payload.id) ||
+            payload.id <= 0 ||
+            !('phase' in payload)
+          )
+            return;
+          if (payload.phase === 'started') {
+            agentOperation = payload.id;
+            agentNotice =
+              'An approved agent operation is running. Review its plan for actual outcomes.';
+            if ('index_id' in payload && payload.index_id === indexId && indexId !== null) {
+              scanRequest += 1;
+              adoptIndex(null);
+              ready = false;
+              historical = null;
+              operation = null;
+              scanId = null;
+            }
+          } else if (payload.phase === 'finished' && agentOperation === payload.id) {
+            agentOperation = null;
+            agentNotice =
+              'Agent operation finished running. Review its result and scan again before using file measurements.';
+          }
+        }).catch(report)
+      : null;
     try {
       const value: unknown = JSON.parse(localStorage.getItem('voldiq-preferences') ?? '{}');
       if (value && typeof value === 'object') {
@@ -574,6 +615,8 @@
     };
     window.addEventListener('keydown', keyboard);
     return () => {
+      mounted = false;
+      if (agentEvents) void agentEvents.then((unlisten) => unlisten?.());
       invalidateInteraction();
       invalidateRefresh();
       window.removeEventListener('keydown', keyboard);
@@ -770,6 +813,20 @@
               error = '';
             }}><Icon name="close" /></button
           >
+        </div>{/if}
+      {#if agentNotice}<div class="scan-status" role="status">
+          <span>{agentNotice}</span>
+          {#if agentOperation !== null}<button
+              onclick={() => {
+                if (agentOperation !== null)
+                  void invoke('cancel_operation', { id: agentOperation }).catch(report);
+              }}>Request stop</button
+            >
+          {:else}<button
+              onclick={() => {
+                agentNotice = '';
+              }}>Dismiss</button
+            >{/if}
         </div>{/if}
       {#if operation && view !== 'settings' && view !== 'duplicates' && view !== 'history'}<div
           class="scan-status"
