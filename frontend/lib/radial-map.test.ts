@@ -159,6 +159,30 @@ test('six-level navigation picks measured leaves and structural parents without 
   }
 });
 
+test('radial views use the requested common depth without changing byte totals or area meaning', () => {
+  for (const depth of [1, 2, 3, 4, 5, 6] as const) {
+    const source = createStorageLayout(tree, depth);
+    for (const view of ['sunburst', 'circles'] as const) {
+      const result = radialLayout(source, view);
+      const measured = result.shapes.filter((shape) => !shape.structural);
+      assert.deepEqual(
+        measured.map((shape) => shape.node.id).sort((a, b) => a - b),
+        source.rects.map((node) => node.id).sort((a, b) => a - b),
+      );
+      assert.equal(
+        measured.reduce((sum, shape) => sum + shape.node.value, 0),
+        1000,
+      );
+      const scale = shapeArea(measured[0]) / measured[0].node.value;
+      for (const shape of measured) {
+        assert.ok(shape.node.depth <= depth);
+        near(shapeArea(shape) / shape.node.value, scale);
+        assert.equal(radialHit(result, shapeAnchor(shape))?.id, shape.node.id);
+      }
+    }
+  }
+});
+
 test('empty, zero and unknown byte entries do not invent measurable area; inconsistent hierarchy fails explicitly', () => {
   for (const view of ['sunburst', 'circles'] as const) {
     assert.deepEqual(radialLayout(createStorageLayout([]), view).shapes, []);

@@ -105,6 +105,7 @@
   let scanRequest = 0;
   let mapNavigation = $state(false);
   let mapMode = $state<import('./lib/storage-map').StorageView>('treemap');
+  let mapDepth = $state<import('./lib/storage-map').StorageDepth>(6);
   let mapColorMode = $state<ColorMode>('type');
   let explorerMap = $state(false);
   let mapMetrics = $state<OverviewData['map_metrics']>([]);
@@ -1029,6 +1030,7 @@
                   {children}
                   {nodes}
                   {mapMode}
+                  bind:depth={mapDepth}
                   bind:colorMode={mapColorMode}
                   mapIdentity={`${indexId}:${scope}`}
                   search={text}
@@ -1057,6 +1059,7 @@
                     void open(id, pointer);
                   }}
                   onlist={() => {
+                    explorerMap = false;
                     view = 'explorer';
                   }}
                   ontype={(item) => {
@@ -1155,6 +1158,7 @@
                       {nodes}
                       identity={`${indexId}:${scope}`}
                       mode={mapMode}
+                      bind:depth={mapDepth}
                       bind:colorMode={mapColorMode}
                       selected={details?.entry.id ?? null}
                       search={text}

@@ -19,6 +19,9 @@
     type ColorMode,
     type Rect,
     type StorageView,
+    type StorageDepth,
+    STORAGE_DEPTHS,
+    parseStorageDepth,
   } from '../lib/storage-map';
   import {
     buildCity,
@@ -44,6 +47,7 @@
     nodes,
     identity,
     mode = 'treemap',
+    depth = $bindable<StorageDepth>(6),
     colorMode = $bindable<ColorMode>('type'),
     selected,
     search = '',
@@ -61,6 +65,7 @@
     nodes: WeightedNode[];
     identity: string;
     mode?: StorageView;
+    depth?: StorageDepth;
     colorMode?: ColorMode;
     selected: number | null;
     search?: string;
@@ -93,7 +98,7 @@
   const now = Date.now() / 1000;
   const layout = $derived.by(() => {
     const start = performance.now();
-    return { ...createStorageLayout(nodes), elapsed: performance.now() - start };
+    return { ...createStorageLayout(nodes, depth), elapsed: performance.now() - start };
   });
   type RadialState =
     | { kind: 'none' }
@@ -111,6 +116,7 @@
     }
   });
   const maximum = $derived(metricMaximum(layout.rects, heightMode, now));
+  const selectionOutside = $derived(selected !== null && !layout.parents.has(selected));
   const selectedBoundary = $derived(layout.boundaries.find((rect) => rect.id === selected));
   const selectedIds = $derived(
     new Set(
@@ -515,6 +521,20 @@
         ></select
       ></label
     >
+    <label
+      title="Maximum depth within loaded branches. Small shapes remain grouped for readability."
+    >
+      Depth<select
+        aria-label="Maximum map depth"
+        value={depth}
+        onchange={(event) => {
+          const next = parseStorageDepth(event.currentTarget.value);
+          if (next !== null) depth = next;
+        }}
+      >
+        {#each STORAGE_DEPTHS as level}<option value={level}>{level}</option>{/each}
+      </select>
+    </label>
     {#if mode === 'city'}<div class="map-metric-group">
         <span>Height</span>
         <div class="map-switch" role="group" aria-label="Height metric">
@@ -680,6 +700,13 @@
       </div>{/if}
   </div>
   <div class="map-encoding">
+    <span
+      >Up to {depth}
+      {depth === 1 ? 'level' : 'levels'} within loaded branches; small groups may remain collapsed.</span
+    >
+    {#if selectionOutside}<span role="status"
+        >The selected item is outside the drawn frontier. Its details remain available.</span
+      >{/if}
     {#if mode === 'sunburst'}<span
         >Equal-area depth rings. Colored sectors encode the current frontier; neutral parent bands
         group the hierarchy. Gaps are not free disk space.</span
@@ -734,10 +761,8 @@
     <span
       class="map-render-status"
       title={`Last draw ${drawTime.toFixed(1)} ms. Geometry is cached; idle has no animation loop.`}
-      >{layout.represented.toLocaleString()} files represented · {layout.rects.length} blocks · {Math.max(
-        0,
-        layout.rects.length - drawn,
-      )} outside draw bounds{#if matches}
+      >{layout.represented.toLocaleString()} files represented · {layout.rects.length} frontier items
+      · {Math.max(0, layout.rects.length - drawn)} outside draw bounds{#if matches}
         · {matches.size} highlighted{/if}</span
     >
   </div>

@@ -56,6 +56,8 @@ Dispatch unit: one dedicated desktop STA worker consumes current-session request
 
 Radial views reuse the exact bounded rectangular frontier and add its explicit parent relation. Sunburst uses equal-area depth bands so colored frontier sectors retain one byte-to-area scale across depths. Neutral parent bands are structural. Nested circles use a global square-root byte scale; parent circles enclose packed descendants and are outlines, not additional size encodings. Packing gaps are disclosed and never labelled free disk space. Both views reuse root/filter/selection/details/metric/color and cached pan/zoom, without rescanning. Verify area, topology, containment, nonoverlap and analytic picking through pure fixtures; rendering/scaling remain manual.
 
+Depth is one application-owned value, shared by Overview and Explorer across every map representation. Restrict it to the six explicit selector values and collapse only the common frontier. Preserve byte totals and the supplied tree; do not rescan, clear selection or promise unloaded levels. If selection is outside the drawn frontier, keep details available and explain the missing shape. Verify the depth boundary and rectangular/radial conservation through pure fixtures.
+
 - [ ] Extend existing summary/details and shared map state; add Sunburst, area-correct circle packing, bounded approximate Voronoi, virtual grid and advanced treemap selection/lens controls.
 - [ ] Preserve the existing treemap/Skyline geometry and selection. Complete depth, metric, color legends and cross-view context without rescans.
 - [ ] Verify byte conservation, layout limits, picking and shared selection through pure behavior fixtures; leave visual/scaling acceptance manual. Commit and push.

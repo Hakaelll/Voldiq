@@ -9,7 +9,7 @@
     type Volume,
   } from '../lib/types';
   import type { WeightedNode } from '../lib/treemap';
-  import { categoryPaint, type ColorMode } from '../lib/storage-map';
+  import { categoryPaint, type ColorMode, type StorageDepth } from '../lib/storage-map';
   import { visibleFileTypes } from '../lib/file-types';
 
   let {
@@ -28,6 +28,7 @@
     onlist,
     ontype,
     mapMode,
+    depth = $bindable<StorageDepth>(6),
     colorMode = $bindable<ColorMode>('type'),
     mapIdentity,
     search,
@@ -51,6 +52,7 @@
     onlist: () => void;
     ontype: (item: FileType) => void;
     mapMode: import('../lib/storage-map').StorageView;
+    depth?: StorageDepth;
     colorMode?: ColorMode;
     mapIdentity: string;
     search: string;
@@ -158,6 +160,7 @@
           {nodes}
           identity={mapIdentity}
           mode={mapMode}
+          bind:depth
           bind:colorMode
           {search}
           {extension}

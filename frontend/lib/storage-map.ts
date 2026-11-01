@@ -3,6 +3,11 @@ import { layout, type Rect as TreemapRect, type WeightedNode } from './treemap.t
 export type HeightMode = 'modified' | 'files' | 'depth';
 export type ColorMode = 'type' | 'size' | 'age';
 export type StorageView = 'treemap' | 'city' | 'sunburst' | 'circles';
+export const STORAGE_DEPTHS = [1, 2, 3, 4, 5, 6] as const;
+export type StorageDepth = (typeof STORAGE_DEPTHS)[number];
+export function parseStorageDepth(value: string): StorageDepth | null {
+  return STORAGE_DEPTHS.find((depth) => String(depth) === value) ?? null;
+}
 export interface Rect extends TreemapRect {
   depth: number;
   modified: number | null;
@@ -43,7 +48,10 @@ function toRect(node: TreemapRect, depth: number, total: number): Rect {
   };
 }
 
-export function createStorageLayout(nodes: WeightedNode[]): {
+export function createStorageLayout(
+  nodes: WeightedNode[],
+  maxDepth: StorageDepth = 6,
+): {
   rects: Rect[];
   boundaries: Rect[];
   total: number;
@@ -81,7 +89,7 @@ export function createStorageLayout(nodes: WeightedNode[]): {
       !placed.directory ||
       !children.length ||
       remainder < 0 ||
-      depth >= 6 ||
+      depth >= maxDepth ||
       placed.width < 90 ||
       placed.height < 65 ||
       placed.width * placed.height < 11000 ||

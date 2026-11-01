@@ -9,6 +9,7 @@ import {
   metricMaximum,
   metricValue,
   visualPaint,
+  parseStorageDepth,
 } from './storage-map.ts';
 import type { WeightedNode } from './treemap.ts';
 
@@ -152,6 +153,41 @@ test('frontier expansion has a bounded rectangle count', () => {
     result.rects.reduce((sum, rect) => sum + rect.value, 0),
     result.total,
   );
+});
+
+test('requested depth collapses only the frontier while preserving bytes and supplied nodes', () => {
+  let branch: WeightedNode = file(7, 900);
+  for (let id = 6; id > 0; id--) branch = { ...file(id, 900), directory: true, children: [branch] };
+  const nodes = [branch, file(8, 100)];
+  const original = structuredClone(nodes);
+  for (const depth of [1, 2, 3, 4, 5, 6] as const) {
+    const result = createStorageLayout(nodes, depth);
+    assert.deepEqual(
+      result.rects.map((rect) => rect.id),
+      [depth, 8],
+    );
+    assert.deepEqual(
+      result.boundaries.map((rect) => rect.id),
+      Array.from({ length: depth - 1 }, (_, i) => i + 1),
+    );
+    assert.equal(result.total, 1000);
+    assert.equal(
+      result.rects.reduce((sum, rect) => sum + rect.value, 0),
+      1000,
+    );
+    for (const rect of result.rects) {
+      assert.ok(rect.depth <= depth);
+      near((rect.width * rect.height) / 700000, rect.value / 1000);
+    }
+  }
+  assert.deepEqual(nodes, original);
+});
+
+test('map depth accepts only the six explicit selector values', () => {
+  for (const value of ['1', '2', '3', '4', '5', '6'])
+    assert.equal(parseStorageDepth(value), Number(value));
+  for (const value of ['', '0', '7', '-1', '2.0', '02', '2e0', ' 2', 'NaN', 'all'])
+    assert.equal(parseStorageDepth(value), null);
 });
 
 test('directory age uses descendant coverage and unknown times stay unknown', () => {
