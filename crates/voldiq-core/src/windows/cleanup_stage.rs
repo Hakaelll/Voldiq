@@ -27,7 +27,7 @@ use windows_sys::{
     },
 };
 
-const PREFIX: &str = "voldiq-stage-";
+use crate::cleanup::STAGE_DIRECTORY_PREFIX as PREFIX;
 
 pub struct StageName(String);
 

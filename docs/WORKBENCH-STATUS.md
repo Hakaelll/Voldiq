@@ -123,3 +123,11 @@ Five owned-fixture cases cover renamed/replaced protected directories, prefix si
 The final [six-stage gate](../benchmarks/workbench-suggestions-source-20261101.json) passes 20 frontend and 46 workspace Rust tests, production frontend build, zero Svelte diagnostics and strict Clippy including all examples. Review remained inline, with no subagents or computer use. No new native visual/keyboard/scaling acceptance is claimed. Agent execution remains disabled.
 
 Next: share the native recovery-stage namespace with the protected-path policy, then scoped note reads and tooltips. Approved dispatch/runtime validation, GUI durable-job/index mirroring, budgets, favorites and all other pending matrix rows remain part of the active goal.
+
+## Recovery namespace protection
+
+The native stage generator/parser and sensitive-path policy now share one reserved prefix constant. Previously, policy recognized hidden `.voldiq-` paths but omitted the actual `voldiq-stage-` namespace. The new regression reproduced that omission using a name from the real `StageName::generate` function, with ordinary owned fixture files. The fix classifies the stage subtree as protected, rejects a manual preview bound to state protections and performs zero duplicate content reads when the only possible pair includes that recovery copy. Source bytes remain unchanged. It does not create a real privileged stage, launch UAC or move user files.
+
+The stage name format, parser and recovery protocol remain unchanged. The [full source gate](../benchmarks/workbench-recovery-policy-source-20261101.json) passes 20 frontend and 47 workspace Rust tests, production frontend build, zero Svelte diagnostics and strict Clippy. The previous suggestion block is committed and pushed as `1be0299`; this correction follows it directly on `main`.
+
+The existing preview window PID 24556 remains open and a pre-existing process PID 16504 still retains its image. They are preserved. A fresh native preview will be prepared after the build, with startup/asset evidence separate from visual acceptance. Scoped note reads, tooltips, approved execution and the broader matrix remain pending; the goal is active.

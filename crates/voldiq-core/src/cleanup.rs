@@ -17,6 +17,8 @@ use std::{
     time::SystemTime,
 };
 
+pub(crate) const STAGE_DIRECTORY_PREFIX: &str = "voldiq-stage-";
+
 #[derive(Clone, Serialize)]
 pub struct PreviewItem {
     pub id: NodeId,

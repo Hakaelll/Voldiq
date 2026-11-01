@@ -209,6 +209,7 @@ pub(crate) fn sensitive(path: &std::path::Path) -> bool {
         ) || name == ".env"
             || name.starts_with(".env.")
             || name.starts_with(".voldiq-")
+            || name.starts_with(super::STAGE_DIRECTORY_PREFIX)
             || name.ends_with(".vhd")
             || name.ends_with(".vhdx")
             || matches!(
