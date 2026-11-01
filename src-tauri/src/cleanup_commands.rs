@@ -1,4 +1,4 @@
-use crate::{Engine, Operation, analysis_status::IndexId, snapshot_commands::SnapshotDatabase};
+use crate::{Engine, analysis_status::IndexId, snapshot_commands::SnapshotDatabase};
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
 use tauri::State;
@@ -78,7 +78,7 @@ mod execution_tests {
             std::fs::read(fixture.path().join("selected")).unwrap(),
             b"original"
         );
-        let engine = Engine::default();
+        let engine = Engine::new(fixture.path()).unwrap();
         let first = engine.publish(current.clone(), None).unwrap();
         assert!(engine.index_is_current(first, &current).unwrap());
         assert_eq!(engine.publish(current.clone(), Some(123)).unwrap(), first);
@@ -153,11 +153,7 @@ fn clear_loaded_analysis(
     plans: &Mutex<Option<Session>>,
     database: &Mutex<voldiq_core::snapshots::Store>,
 ) -> Result<(), String> {
-    let (id, _) = engine.begin()?;
-    let _operation = Operation {
-        engine: engine.clone(),
-        id,
-    };
+    let _operation = engine.begin()?;
     let mut index = engine.index.lock().map_err(|error| error.to_string())?;
     let mut duplicates = engine
         .duplicates
@@ -255,11 +251,9 @@ pub async fn execute_permanent_cleanup(
     journal: State<'_, CleanupJournal>,
 ) -> Result<voldiq_core::cleanup::execute::Report, String> {
     let engine = engine.inner().clone();
-    let (operation_id, cancel) = engine.begin()?;
-    let operation = Operation {
-        engine: engine.clone(),
-        id: operation_id,
-    };
+    let operation = engine.begin()?;
+    let operation_id = operation.id;
+    let cancel = operation.cancel.clone();
     let current = engine.index()?;
     let session = consume_plan(
         &plans.0,
@@ -324,11 +318,9 @@ pub async fn execute_recycling_cleanup(
     journal: State<'_, CleanupJournal>,
 ) -> Result<voldiq_core::cleanup::recycle::batch::Report, String> {
     let engine = engine.inner().clone();
-    let (operation_id, cancel) = engine.begin()?;
-    let operation = Operation {
-        engine: engine.clone(),
-        id: operation_id,
-    };
+    let operation = engine.begin()?;
+    let operation_id = operation.id;
+    let cancel = operation.cancel.clone();
     let current = engine.index()?;
     let session = consume_plan(
         &plans.0,
@@ -478,11 +470,8 @@ pub async fn preview_cleanup_rule(
 ) -> Result<CleanupPreview, String> {
     let caches = crate::developer_commands::cache_locations(&app);
     let engine = engine.inner().clone();
-    let (id, _) = engine.begin()?;
-    let operation = Operation {
-        engine: engine.clone(),
-        id,
-    };
+    let operation = engine.begin()?;
+    let id = operation.id;
     let index = engine.index_for(index_id)?;
     let plans = plans.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
@@ -532,11 +521,8 @@ pub async fn preview_cleanup(
     plans: State<'_, CleanupPlans>,
 ) -> Result<CleanupPreview, String> {
     let engine = engine.inner().clone();
-    let (id, _) = engine.begin()?;
-    let operation = Operation {
-        engine: engine.clone(),
-        id,
-    };
+    let operation = engine.begin()?;
+    let id = operation.id;
     let index = engine.index_for(index_id)?;
     let plans = plans.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
@@ -574,11 +560,9 @@ pub async fn preview_duplicate_cleanup(
     plans: State<'_, CleanupPlans>,
 ) -> Result<CleanupPreview, String> {
     let engine = engine.inner().clone();
-    let (id, cancel) = engine.begin()?;
-    let operation = Operation {
-        engine: engine.clone(),
-        id,
-    };
+    let operation = engine.begin()?;
+    let id = operation.id;
+    let cancel = operation.cancel.clone();
     let index = engine.index_for(index_id)?;
     let run = engine
         .duplicates

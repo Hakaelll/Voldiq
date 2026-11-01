@@ -20,7 +20,7 @@ The shared recycling executor now requires the complete selection to pass prepar
 
 Cleanup-journal schema 5 associates each agent relocation with its manifest, connection and execution nonce in the same transaction as preparation, before stage creation or any original move. These rows are audit, not approval proof. The journal must be in the ticket's pinned state directory. Migration preserves historical receipts and creates no invented agent associations. Bounded read-only receipts omit the nonce.
 
-Before enabling execution, finish the shared operation coordinator, user protections, desktop request dispatch, approval-deadline and capability checks around admission/recycling, bounded result reporting and cancellation/recovery wiring. Native helper and Shell execution through this agent path remain unverified and disabled.
+The shared operation coordinator now serializes native work and headless scans under the same OS lease. Before enabling execution, pass that lease through the agent execution path and finish user protections, desktop request dispatch, approval-deadline and capability checks around admission/recycling, bounded result reporting and cancellation/recovery wiring. Native helper and Shell execution through this agent path remain unverified and disabled.
 
 Six owned-fixture tests cover forged database approval, wrong hashes, expiry, restart, changed files, changed hard-link count, principal isolation, rotation, limits, rejection, protected selections and eight competing requests. These tests issue and consume execution tickets without cleaning any user data. They do not establish native UI acceptance or actual approved recycling through CLI/MCP.
 

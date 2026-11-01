@@ -1,45 +1,14 @@
-//! Durable scan status and an OS-released cross-process scan lease. No job auto-retry.
-use crate::{Error, Progress, Result, windows};
+//! Durable owner-scoped scan status under the shared operation lease. No job auto-retry.
+use crate::{
+    Error, Progress, Result,
+    operations::{Coordinator, Lease},
+};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
 use std::{
-    cell::Cell,
-    fs::File,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
-
-pub struct ScanLease {
-    _file: File,
-    directory_identity: (u64, u64),
-    recovered: Cell<bool>,
-}
-
-impl ScanLease {
-    pub fn acquire(directory: &Path) -> Result<Self> {
-        Self::try_acquire(directory)?
-            .ok_or_else(|| Error::Invalid("Another Voldiq process owns the active scan.".into()))
-    }
-
-    fn try_acquire(directory: &Path) -> Result<Option<Self>> {
-        let file = std::fs::OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .open(directory.join("scan.lock"))?;
-        match file.try_lock() {
-            Ok(()) => {}
-            Err(std::fs::TryLockError::WouldBlock) => return Ok(None),
-            Err(std::fs::TryLockError::Error(error)) => return Err(error.into()),
-        }
-        Ok(Some(Self {
-            _file: file,
-            directory_identity: windows::identity(directory)?.key,
-            recovered: Cell::new(false),
-        }))
-    }
-}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -88,11 +57,12 @@ pub struct Job {
 pub struct Jobs {
     connection: Connection,
     directory_identity: (u64, u64),
+    _directory: Coordinator,
 }
 
 impl Jobs {
     pub fn reconcile_abandoned(directory: &Path, owner: i64) -> Result<usize> {
-        let Some(_lease) = ScanLease::try_acquire(directory)? else {
+        let Some(_lease) = Lease::try_acquire(directory)? else {
             return Ok(0);
         };
         let jobs = Self::open(directory)?;
@@ -100,7 +70,8 @@ impl Jobs {
     }
 
     pub fn open(directory: &Path) -> Result<Self> {
-        let mut connection = Connection::open(directory.join("jobs.db"))?;
+        let directory = Coordinator::open(directory)?;
+        let mut connection = Connection::open(directory.directory().join("jobs.db"))?;
         crate::database::configure(&connection)?;
         let tx = connection.transaction_with_behavior(TransactionBehavior::Immediate)?;
         let version: u32 = tx.query_row("PRAGMA user_version", [], |row| row.get(0))?;
@@ -116,14 +87,15 @@ impl Jobs {
         tx.commit()?;
         Ok(Self {
             connection,
-            directory_identity: windows::identity(directory)?.key,
+            directory_identity: directory.identity(),
+            _directory: directory,
         })
     }
 
-    pub fn begin(&mut self, lease: &ScanLease, owner: i64, root: &Path) -> Result<i64> {
-        if lease.directory_identity != self.directory_identity {
+    pub fn begin(&mut self, lease: &Lease, owner: i64, root: &Path) -> Result<i64> {
+        if lease.directory_identity() != self.directory_identity {
             return Err(Error::Invalid(
-                "Scan lease belongs to another workspace.".into(),
+                "Operation lease belongs to another workspace.".into(),
             ));
         }
         let tx = self

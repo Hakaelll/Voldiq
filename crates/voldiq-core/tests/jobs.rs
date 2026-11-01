@@ -1,14 +1,17 @@
-use voldiq_core::jobs::{JobState, Jobs, ScanLease};
+use voldiq_core::{
+    jobs::{JobState, Jobs},
+    operations::Lease,
+};
 
 #[test]
 fn scan_lease_excludes_other_processes_and_releases_after_owner_exit() {
     if let Some(directory) = std::env::var_os("VOLDIQ_TEST_LOCK_DIRECTORY") {
-        assert!(ScanLease::acquire(std::path::Path::new(&directory)).is_err());
+        assert!(Lease::acquire(std::path::Path::new(&directory)).is_err());
         return;
     }
     let fixture = tempfile::tempdir().unwrap();
-    let lease = ScanLease::acquire(fixture.path()).unwrap();
-    assert!(ScanLease::acquire(fixture.path()).is_err());
+    let lease = Lease::acquire(fixture.path()).unwrap();
+    assert!(Lease::acquire(fixture.path()).is_err());
     let child = std::process::Command::new(std::env::current_exe().unwrap())
         .args([
             "--exact",
@@ -23,14 +26,14 @@ fn scan_lease_excludes_other_processes_and_releases_after_owner_exit() {
         String::from_utf8_lossy(&child.stdout)
     );
     drop(lease);
-    assert!(ScanLease::acquire(fixture.path()).is_ok());
+    assert!(Lease::acquire(fixture.path()).is_ok());
 }
 
 #[test]
 fn durable_jobs_are_owner_scoped_cancelable_bounded_and_never_retried_after_interruption() {
     let fixture = tempfile::tempdir().unwrap();
     let mut jobs = Jobs::open(fixture.path()).unwrap();
-    let lease = ScanLease::acquire(fixture.path()).unwrap();
+    let lease = Lease::acquire(fixture.path()).unwrap();
     let id = jobs.begin(&lease, 7, fixture.path()).unwrap();
     assert_eq!(jobs.get(7, id).unwrap().state, JobState::Running);
     assert!(jobs.get(8, id).is_err());
@@ -53,7 +56,7 @@ fn durable_jobs_are_owner_scoped_cancelable_bounded_and_never_retried_after_inte
         jobs.get(7, interrupted).unwrap().state,
         JobState::Interrupted
     );
-    let lease = ScanLease::acquire(fixture.path()).unwrap();
+    let lease = Lease::acquire(fixture.path()).unwrap();
     let next = jobs.begin(&lease, 8, fixture.path()).unwrap();
     assert!(next > interrupted);
     assert_eq!(

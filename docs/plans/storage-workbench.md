@@ -31,12 +31,13 @@ Execution is inline, without subagents or computer use, as the user requested. T
 - [x] Add `crates/voldiq-core/src/agents.rs` and focused fixtures for explicit capabilities, canonical root authorization, exclusions, revocation, bounded policies and non-disclosing errors. Actual query/result filtering remains in the shared-service task.
 - [x] Add durable SQLite agent/job state with transactional migrations, human provisioning, credential rotation and a single cross-process scan lease. Reuse the existing snapshot store for indexes.
 - [ ] Extract reusable operation coordination from desktop ownership without dropping current `IndexId` guarantees. Add provenance, cloud state and unknown metric contracts where the existing index lacks them.
+  Core coordination and all twelve native operation guards now share one OS lease with headless scans, retaining it until worker exit. Model/provenance extensions and GUI durable-job/index mirroring remain open.
 - [ ] Verify wrong/revoked credentials, sibling paths, links, overlapping roots, concurrency, cancellation and restart. Commit and push.
 
 ## C. Plans, headless and MCP
 
 - [ ] Extend the existing cleanup preview/executor with immutable serializable manifests and explicit lifecycle states. Persist hash, principal, exact identities, policy version, expiry and audit. No agent approval endpoint.
-  Core manifests, lifecycle, CLI/MCP planning dispatch, desktop review, complete-selection preflight and journal association are implemented. Shared operation coordination, protections, runtime revalidation and execution dispatch remain open.
+  Core manifests, lifecycle, CLI/MCP planning dispatch, desktop review, complete-selection preflight, journal association and shared operation coordination are implemented. Protections, runtime revalidation and execution dispatch remain open.
 - [ ] Add a separate headless crate and CLI for scan/query/stats/history/plan/jobs/export, with JSON envelopes, structured errors and a read-only default.
   Scan/query/stats/history/details/jobs/cancel, plan preparation/status/request/audit and versioned errors are implemented and subprocess-tested. Execution/export remain open.
 - [ ] Add official `rmcp` stdio transport, bounded schemas/results and tools that route through authorization and shared services. Verify protocol behavior with the SDK client against the real executable.

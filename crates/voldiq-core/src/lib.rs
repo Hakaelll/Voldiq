@@ -6,6 +6,7 @@ pub mod duplicates;
 pub mod index;
 pub mod jobs;
 pub mod ntfs;
+pub mod operations;
 pub mod plans;
 pub mod scanner;
 pub mod service;

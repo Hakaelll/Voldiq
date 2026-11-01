@@ -1,4 +1,4 @@
-use crate::{Engine, Operation, cleanup_commands::CleanupJournal};
+use crate::{Engine, cleanup_commands::CleanupJournal};
 use serde::Serialize;
 use std::{
     sync::{Arc, Mutex},
@@ -40,8 +40,8 @@ pub async fn preview_restoration(
     journal: State<'_, CleanupJournal>,
 ) -> Result<RestorePreview, String> {
     let engine = engine.inner().clone();
-    let (id, _) = engine.begin()?;
-    let operation = Operation { engine, id };
+    let operation = engine.begin()?;
+    let id = operation.id;
     let reviews = reviews.0.clone();
     let journal = journal.0.clone();
     let preview = tauri::async_runtime::spawn_blocking({
@@ -125,11 +125,7 @@ pub async fn execute_restoration(
     journal: State<'_, CleanupJournal>,
 ) -> Result<RestoreResult, String> {
     let engine = engine.inner().clone();
-    let (operation_id, _) = engine.begin()?;
-    let operation = Operation {
-        engine: engine.clone(),
-        id: operation_id,
-    };
+    let operation = engine.begin()?;
     let review = consume_review(&reviews.0, id, &confirmation)?;
     let journal = journal.0.clone();
     tauri::async_runtime::spawn_blocking(move || {

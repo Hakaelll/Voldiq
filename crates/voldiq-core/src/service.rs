@@ -3,7 +3,8 @@ use crate::{
     Error, Kind, Result, ScanPhase,
     agents::{Capability, Principal, Registry, denied},
     index::{Details, Index, Page, Query},
-    jobs::{Job, JobState, Jobs, ScanLease},
+    jobs::{Job, JobState, Jobs},
+    operations::Lease,
     scanner,
     snapshots::Store,
 };
@@ -115,7 +116,7 @@ impl AgentService {
 
     pub fn start_scan(&self, root: &Path) -> Result<i64> {
         let permit = self.registry()?.scan_permit(&self.principal, root)?;
-        let lease = ScanLease::acquire(&self.directory)?;
+        let lease = Lease::acquire(&self.directory)?;
         let mut jobs = Jobs::open(&self.directory)?;
         let id = jobs.begin(&lease, self.principal.id(), permit.root.path())?;
         let service = self.clone();

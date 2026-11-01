@@ -110,9 +110,9 @@ pub(crate) fn verify_fixture() {
     );
     Trace::default().record("disabled", None);
     assert_eq!(std::fs::read(&path).unwrap(), before);
-    let engine = Engine::default();
+    let engine = Arc::new(Engine::new(directory.path()).unwrap());
     assert_eq!(operation_state(&engine), "idle");
-    let _ = engine.begin().unwrap();
+    let _operation = engine.begin().unwrap();
     assert_eq!(operation_state(&engine), "active");
     let _held = engine.active.lock().unwrap();
     assert_eq!(operation_state(&engine), "busy");

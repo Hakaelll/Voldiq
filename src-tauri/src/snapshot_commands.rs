@@ -1,4 +1,4 @@
-use crate::{Engine, Operation, analysis_status::IndexId};
+use crate::{Engine, analysis_status::IndexId};
 use std::{
     path::Path,
     sync::{
@@ -26,11 +26,9 @@ pub async fn save_snapshot(
     database: State<'_, SnapshotDatabase>,
 ) -> Result<Option<i64>, String> {
     let engine = engine.inner().clone();
-    let (id, cancel) = engine.begin()?;
-    let active_operation = Operation {
-        engine: engine.clone(),
-        id,
-    };
+    let active_operation = engine.begin()?;
+    let id = active_operation.id;
+    let cancel = active_operation.cancel.clone();
     let index = engine.index_for(index_id)?;
     operation.send(id).map_err(|error| error.to_string())?;
     let store = database.0.clone();
@@ -81,11 +79,9 @@ pub async fn load_snapshot(
     database: State<'_, SnapshotDatabase>,
 ) -> Result<Option<IndexId>, String> {
     let engine = engine.inner().clone();
-    let (operation_id, cancel) = engine.begin()?;
-    let active_operation = Operation {
-        engine: engine.clone(),
-        id: operation_id,
-    };
+    let active_operation = engine.begin()?;
+    let operation_id = active_operation.id;
+    let cancel = active_operation.cancel.clone();
     operation
         .send(operation_id)
         .map_err(|error| error.to_string())?;

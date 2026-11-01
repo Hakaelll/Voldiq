@@ -23,6 +23,8 @@ mod developer_commands;
 mod docker_commands;
 mod embedded_ui;
 mod lifecycle_trace;
+#[cfg(test)]
+mod operation_tests;
 mod overview;
 mod plan_commands;
 mod query_commands;
@@ -38,8 +40,8 @@ use voldiq_core::{
     windows::Volume,
 };
 
-#[derive(Default)]
 struct Engine {
+    operations: voldiq_core::operations::Coordinator,
     queries: query_commands::Queries,
     index: Mutex<Option<analysis_status::LoadedAnalysis>>,
     active: Mutex<Option<(u64, Arc<AtomicBool>)>>,
@@ -55,6 +57,8 @@ struct DuplicateRun {
 struct Operation {
     engine: Arc<Engine>,
     id: u64,
+    cancel: Arc<AtomicBool>,
+    _lease: voldiq_core::operations::Lease,
 }
 impl Drop for Operation {
     fn drop(&mut self) {
@@ -67,15 +71,35 @@ impl Drop for Operation {
 }
 
 impl Engine {
-    fn begin(&self) -> Result<(u64, Arc<AtomicBool>), String> {
+    fn new(directory: &std::path::Path) -> voldiq_core::Result<Self> {
+        Ok(Self {
+            operations: voldiq_core::operations::Coordinator::open(directory)?,
+            queries: Default::default(),
+            index: Default::default(),
+            active: Default::default(),
+            sequence: Default::default(),
+            duplicates: Default::default(),
+        })
+    }
+
+    fn begin(self: &Arc<Self>) -> Result<Operation, String> {
         let mut active = self.active.lock().map_err(|e| e.to_string())?;
         if active.is_some() {
             return Err("Another analysis is running.".into());
         }
+        let lease = self
+            .operations
+            .acquire()
+            .map_err(|error| error.to_string())?;
         let id = self.sequence.fetch_add(1, Ordering::Relaxed) + 1;
         let cancel = Arc::new(AtomicBool::new(false));
         *active = Some((id, cancel.clone()));
-        Ok((id, cancel))
+        Ok(Operation {
+            engine: self.clone(),
+            id,
+            cancel,
+            _lease: lease,
+        })
     }
     fn index(&self) -> Result<SharedIndex, String> {
         self.index
@@ -149,25 +173,16 @@ async fn choose_folder() -> Result<Option<String>, String> {
 
 #[tauri::command]
 fn start_scan(
-    app: tauri::AppHandle,
     path: String,
     options: ScanOptions,
     progress: Channel<analysis_status::ScanProgress>,
     engine: State<'_, Arc<Engine>>,
     database: State<'_, SnapshotDatabase>,
 ) -> Result<u64, String> {
-    let directory = app
-        .path()
-        .app_local_data_dir()
-        .map_err(|error| error.to_string())?;
-    let scan_lease =
-        voldiq_core::jobs::ScanLease::acquire(&directory).map_err(|error| error.to_string())?;
     let engine = engine.inner().clone();
-    let (id, cancel) = engine.begin()?;
-    let operation = Operation {
-        engine: engine.clone(),
-        id,
-    };
+    let operation = engine.begin()?;
+    let id = operation.id;
+    let cancel = operation.cancel.clone();
     if let Ok(mut result) = engine.duplicates.lock() {
         *result = None;
     }
@@ -176,7 +191,6 @@ fn start_scan(
     let store = database.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = operation;
-        let _scan_lease = scan_lease;
         let mut final_progress = None;
         let path = PathBuf::from(path);
         let start = std::time::Instant::now();
@@ -314,11 +328,9 @@ fn start_duplicates(
     database: State<'_, SnapshotDatabase>,
 ) -> Result<u64, String> {
     let engine = engine.inner().clone();
-    let (id, cancel) = engine.begin()?;
-    let operation = Operation {
-        engine: engine.clone(),
-        id,
-    };
+    let operation = engine.begin()?;
+    let id = operation.id;
+    let cancel = operation.cancel.clone();
     let index = engine.index_for(index_id)?;
     index
         .read()
@@ -700,6 +712,7 @@ fn main() {
             setup_trace.record("setup-start", Some(app.handle()));
             let directory = app.path().app_local_data_dir()?;
             std::fs::create_dir_all(&directory)?;
+            app.manage(Arc::new(Engine::new(&directory)?));
             setup_trace.record("snapshot-open-start", Some(app.handle()));
             app.manage(SnapshotDatabase::open(&directory.join("snapshots.db"))?);
             setup_trace.record("snapshot-open-end", Some(app.handle()));
@@ -720,7 +733,6 @@ fn main() {
                 reviews.close();
             }
         })
-        .manage(Arc::new(Engine::default()))
         .manage(CleanupPlans::default())
         .manage(restore_commands::RestorationReviews::default())
         .invoke_handler(tauri::generate_handler![
