@@ -11,7 +11,7 @@ pub use human::{Begin, HumanAuthority};
 #[cfg(windows)]
 pub use recycling::PreparedRecycling;
 use serde::{Deserialize, Serialize};
-pub use store::Store;
+pub use store::{Enqueue, ExecutionRequest, Store};
 
 const POLICY_VERSION: u32 = 2;
 const PLAN_TTL: i64 = 900;

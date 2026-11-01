@@ -7,6 +7,8 @@ use crate::{
 };
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use std::path::Path;
+mod requests;
+pub use requests::{Enqueue, ExecutionRequest};
 
 // Leave room for the result summary and envelope inside the 512 KiB transport limit.
 const MANIFEST_LIMIT: usize = 440 * 1024;
@@ -69,7 +71,17 @@ impl Store {
                 CREATE TABLE plan_audit(sequence INTEGER PRIMARY KEY AUTOINCREMENT,plan_id TEXT NOT NULL REFERENCES agent_plans(id),at INTEGER NOT NULL,event TEXT NOT NULL);
                 CREATE INDEX plan_audit_id ON plan_audit(plan_id,sequence);
                 PRAGMA user_version=1;")?;
-        } else if version != 1 {
+        }
+        if version <= 1 {
+            tx.execute_batch(
+                "CREATE TABLE execution_requests(
+                plan_id TEXT PRIMARY KEY REFERENCES agent_plans(id),owner INTEGER NOT NULL,
+                hash TEXT NOT NULL,issuer TEXT NOT NULL,requested INTEGER NOT NULL,
+                cancel_requested INTEGER NOT NULL DEFAULT 0 CHECK(cancel_requested IN (0,1)));
+                CREATE INDEX execution_requests_session ON execution_requests(issuer,requested);
+                PRAGMA user_version=2;",
+            )?;
+        } else if version != 2 {
             return Err(invalid());
         }
         tx.commit()?;

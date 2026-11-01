@@ -36,8 +36,10 @@ Execution is inline, without subagents or computer use, as the user requested. T
 
 ## C. Plans, headless and MCP
 
+Execution requests and cooperative cancellation now persist in plan-store schema 2. Requests are data, never grants. The next unit must dispatch only requests bound to the current human session, then consume the existing live grant under the shared operation lease. Restart requires a fresh explicit request after renewed approval. External execution stays disabled until runtime admission/recycling checks and native dispatch are verified.
+
 - [ ] Extend the existing cleanup preview/executor with immutable serializable manifests and explicit lifecycle states. Persist hash, principal, exact identities, policy version, expiry and audit. No agent approval endpoint.
-  Core manifests, lifecycle, CLI/MCP planning dispatch, desktop review, complete-selection preflight, journal association, shared coordination and persisted protection binding are implemented. Runtime admission checks and execution dispatch remain open.
+  Core manifests, lifecycle, CLI/MCP planning dispatch, desktop review, complete-selection preflight, journal association, shared coordination, persisted protection binding and durable execution/cancellation intents are implemented. Runtime admission checks and execution dispatch remain open.
 - [ ] Add a separate headless crate and CLI for scan/query/stats/history/plan/jobs/export, with JSON envelopes, structured errors and a read-only default.
   Scan/query/stats/history/details/jobs/cancel, plan preparation/status/request/audit and versioned errors are implemented and subprocess-tested. Execution/export remain open.
 - [ ] Add official `rmcp` stdio transport, bounded schemas/results and tools that route through authorization and shared services. Verify protocol behavior with the SDK client against the real executable.
