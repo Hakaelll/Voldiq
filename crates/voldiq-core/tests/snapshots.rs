@@ -137,6 +137,11 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         std::fs::write(duplicates.path().join(name), [7_u8; 16_384]).unwrap();
     }
     let cancel = AtomicBool::new(false);
+    let policy_state = tempfile::tempdir().unwrap();
+    let protections = voldiq_core::metadata::Store::open(policy_state.path())
+        .unwrap()
+        .protections()
+        .unwrap();
     let index = std::sync::Arc::new(std::sync::RwLock::new(capture(duplicates.path())));
     let mut cache = store.load_hash_cache(&cancel).unwrap();
     let cold = voldiq_core::duplicates::find(
@@ -146,6 +151,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         &cancel,
         &mut cache,
         |_| {},
+        &protections,
     )
     .unwrap();
     assert_eq!(cold.errors, 0);
@@ -175,6 +181,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         &cancel,
         &mut cache,
         |_| {},
+        &protections,
     )
     .unwrap();
     assert_eq!(warm.errors, 0);
@@ -197,6 +204,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         &cancel,
         &mut cache,
         |_| {},
+        &protections,
     )
     .unwrap();
     assert_eq!(repaired.errors, 0);
@@ -225,6 +233,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         &cancel,
         &mut cache,
         |_| {},
+        &protections,
     )
     .unwrap();
     assert_eq!(changed.errors, 0);
@@ -244,6 +253,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         &cancel,
         &mut cache,
         |_| {},
+        &protections,
     )
     .unwrap();
     assert_eq!(cleared.errors, 0);

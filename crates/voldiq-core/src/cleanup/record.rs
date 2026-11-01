@@ -193,7 +193,7 @@ impl Record {
     }
 }
 
-pub(super) fn sensitive(path: &std::path::Path) -> bool {
+pub(crate) fn sensitive(path: &std::path::Path) -> bool {
     path.components().any(|part| {
         let name = part.as_os_str().to_string_lossy().to_ascii_lowercase();
         matches!(

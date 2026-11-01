@@ -54,9 +54,21 @@ pub struct Analysis {
     pub bytes_read: u64,
     pub cache_hits: u64,
     pub examined: u64,
+    pub unverified_branches: usize,
+    #[serde(skip)]
+    pub protection_fingerprint: String,
 }
 
 impl Analysis {
+    pub fn check_protections(&self, protections: &crate::metadata::Protections) -> Result<()> {
+        if self.protection_fingerprint != protections.fingerprint() {
+            return Err(Error::Invalid(
+                "Folder protections changed. Analyze duplicates again.".into(),
+            ));
+        }
+        Ok(())
+    }
+
     pub fn review_selection(
         &self,
         index: &crate::index::Index,
@@ -165,17 +177,22 @@ pub fn find(
     cancel: &AtomicBool,
     cache: &mut HashCache,
     mut progress: impl FnMut(Progress),
+    protections: &crate::metadata::Protections,
 ) -> Result<Analysis> {
     let start = Instant::now();
     let mut sizes = BTreeMap::<u64, Vec<NodeId>>::new();
+    let unverified_branches;
     {
         let index = index.read().map_err(|e| Error::Invalid(e.to_string()))?;
         index.entry(scope)?;
+        let mask = protections.for_index(&index, cancel)?;
+        unverified_branches = mask.unverified_branches(scope)?;
         for entry in &index.entries {
             if cancel.load(Ordering::Relaxed) {
                 break;
             }
             if entry.kind == Kind::File
+                && mask.allows(entry.id)
                 && entry.logical >= min_size
                 && index.in_scope(entry.id, scope)
             {
@@ -185,7 +202,11 @@ pub fn find(
     }
     sizes.retain(|_, ids| ids.len() > 1);
     let total = sizes.values().map(Vec::len).sum();
-    let mut result = Analysis::default();
+    let mut result = Analysis {
+        unverified_branches,
+        protection_fingerprint: protections.fingerprint().to_owned(),
+        ..Default::default()
+    };
     let mut seen = HashSet::new();
     let emit = |phase: &str, result: &Analysis, progress: &mut dyn FnMut(Progress)| {
         progress(Progress {

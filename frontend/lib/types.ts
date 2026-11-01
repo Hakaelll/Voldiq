@@ -66,6 +66,7 @@ export interface CleanupRulePage {
   root: string;
   indexed: boolean;
   complete: boolean;
+  unverified_branches: number;
   items: CleanupPreview['preview']['items'];
   total: number;
   logical: number;
@@ -200,6 +201,7 @@ export interface DuplicateGroup {
   digest: string;
 }
 export interface DuplicatePage {
+  unverified_branches: number;
   groups: DuplicateGroup[];
   total: number;
   recoverable: number;

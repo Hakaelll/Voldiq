@@ -1,4 +1,5 @@
 //! Human-maintained folder notes and protections shared by every adapter.
+mod suggestions;
 use crate::{
     Error, Result,
     agents::{pin_directory, pin_path},
@@ -11,6 +12,7 @@ use std::{
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
+pub use suggestions::{Eligibility, SuggestionMask};
 
 const MAX_NOTES: i64 = 10_000;
 const MAX_NOTE_BYTES: usize = 8192;
@@ -273,16 +275,18 @@ impl Protections {
 }
 
 fn contains(root: &Path, path: &Path) -> bool {
+    path_key(path).starts_with(path_key(root))
+}
+
+fn path_key(path: &Path) -> PathBuf {
     #[cfg(windows)]
     {
-        let root = root.to_string_lossy().to_uppercase();
         let path = path.to_string_lossy().to_uppercase();
-        Path::new(path.strip_prefix(r"\\?\").unwrap_or(&path))
-            .starts_with(Path::new(root.strip_prefix(r"\\?\").unwrap_or(&root)))
+        PathBuf::from(path.strip_prefix(r"\\?\").unwrap_or(&path))
     }
     #[cfg(not(windows))]
     {
-        path.starts_with(root)
+        path.to_owned()
     }
 }
 

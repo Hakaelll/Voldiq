@@ -412,6 +412,7 @@ pub async fn query_cleanup_rule(
     engine: State<'_, Arc<Engine>>,
 ) -> Result<voldiq_core::cleanup::rules::Page, String> {
     let caches = crate::developer_commands::cache_locations(&app);
+    let directory = engine.operations.clone();
     let index = match index_id {
         Some(id) => Some(engine.index_for(id)?),
         None if engine.index_id()?.is_none() => None,
@@ -419,6 +420,9 @@ pub async fn query_cleanup_rule(
     };
     tauri::async_runtime::spawn_blocking(move || {
         let root = std::env::temp_dir();
+        let protections = voldiq_core::metadata::Store::open(directory.directory())
+            .and_then(|mut store| store.protections())
+            .map_err(|e| e.to_string())?;
         let guard = index
             .as_ref()
             .map(|index| index.read())
@@ -426,11 +430,22 @@ pub async fn query_cleanup_rule(
             .map_err(|e| e.to_string())?;
         let now = voldiq_core::cleanup::rules::now().map_err(|e| e.to_string())?;
         match rule {
-            voldiq_core::cleanup::rules::RuleKind::UserTemp => {
-                voldiq_core::cleanup::rules::query(guard.as_deref(), &root, now, offset, limit)
-            }
+            voldiq_core::cleanup::rules::RuleKind::UserTemp => voldiq_core::cleanup::rules::query(
+                guard.as_deref(),
+                &root,
+                now,
+                offset,
+                limit,
+                &protections,
+            ),
             voldiq_core::cleanup::rules::RuleKind::OldFiles => {
-                voldiq_core::cleanup::rules::query_old(guard.as_deref(), now, offset, limit)
+                voldiq_core::cleanup::rules::query_old(
+                    guard.as_deref(),
+                    now,
+                    offset,
+                    limit,
+                    &protections,
+                )
             }
             voldiq_core::cleanup::rules::RuleKind::BrowserCache => {
                 let local_data =
@@ -441,6 +456,7 @@ pub async fn query_cleanup_rule(
                     now,
                     offset,
                     limit,
+                    &protections,
                 )
             }
             voldiq_core::cleanup::rules::RuleKind::ProjectTemp => {
@@ -450,6 +466,7 @@ pub async fn query_cleanup_rule(
                     offset,
                     limit,
                     &caches,
+                    &protections,
                 )
             }
         }
@@ -581,6 +598,9 @@ pub async fn preview_duplicate_cleanup(
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = operation;
         let guard = index.read().map_err(|e| e.to_string())?;
+        run.analysis
+            .check_protections(&engine.protections()?)
+            .map_err(|error| error.to_string())?;
         let plan = Plan::duplicates(&guard, &run.analysis, &selection, &cancel)
             .and_then(|plan| plan.with_protections(engine.operations.directory()))
             .map_err(|e| e.to_string())?;

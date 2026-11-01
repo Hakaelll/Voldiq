@@ -31,7 +31,7 @@ Stages: A audit, B shared services, C secure adapters, D visualization, E analys
 | Search properties | Text/glob/extension/path/size/date/app/cloud/type | Partial | B/E | Literal query fixtures | Only measured/available properties accepted |
 | Offline natural language | Deterministic editable query preview/unparsed words | Pending | E | Translation fixtures | No external LLM or silently ignored intent |
 | Saved views/favorites/palette | Extend existing Ctrl+K and recent roots | Partial | E | Persistence/keyboard checks | Saved queries use same parser and scope |
-| Notes and protection | Plain text, descendant protection, human-only removal | Core/native editing and plan enforcement implemented; scoped reads and suggestion filtering pending | B/E | Owned rename/replacement, version, operation-exclusion and invalidation fixtures; UI manual | Agents cannot remove protection or plan beneath it |
+| Notes and protection | Plain text, descendant protection, human-only removal | Native editing, plan/rule/duplicate enforcement implemented; scoped reads and tooltips pending | B/E | Owned identity, ancestry, omission, version, operation-exclusion and invalidation fixtures; UI manual | Agents cannot remove protection or plan beneath it |
 | Budgets/human equivalents | Real limits, occupied bytes, sampled equivalence | Pending | E/F | Measured sample/forecast tests | Forecast only with adequate compatible history |
 | App attribution | Evidence-based install/data/cache/logs/shared/unattributed | Pending | E | Manifest/accounting fixtures | No name-only ownership or double count; scope visible |
 | App scatter/list/explorer/cleanup | Measured bytes/file count and category-specific plans | Pending | E | Aggregate/order fixtures; UI manual | Scales visible; plan only verified categories |
@@ -40,7 +40,7 @@ Stages: A audit, B shared services, C secure adapters, D visualization, E analys
 | Assisted cleanup/rules | Extend existing versioned developer and browser-cache evidence | Partial | E | Existing cleanup/developer fixtures | Context required; active/shared/orphan states distinct |
 | Explainable review score | Adjustable contributions/confidence/missing signals | Pending | E | Deterministic scoring fixtures | Score never grants deletion authority |
 | Common cleanup tray/simulation/target | Shared bounded selection, exact plan preview | Partial; common tray pending | D/E | Selection and plan fixtures | No auto-add to hit target; simulation keeps scale |
-| Exact duplicates | Existing sample + complete streaming BLAKE3 and stamp validation | Existing | B/E | Existing hash/cache/cleanup fixtures | Hard-link aliases excluded; retain a verified copy |
+| Exact duplicates | Existing sample + complete streaming BLAKE3 and stamp validation | Existing; protected-candidate filtering and policy invalidation implemented | B/E | Hash/cache/cleanup and protected-content fixtures | Hard-link aliases excluded; retain a verified copy |
 | Similar images | Perceptual hash, explicit threshold, side-by-side manual choice | Pending | E/H | Image fixture corpus | Similar never labeled identical; no automatic deletion |
 | Compact snapshots/retention | Existing interval versions; configurable retention/provenance | Partial | F | Existing reopened snapshot tests | No unlimited full tree per scan; detailed versus summary |
 | Trends/forecast | Extend measured history with compatible confidence-bounded forecast | Partial | F | Growth/coverage/erratic history fixtures | No disk-full date with insufficient evidence |

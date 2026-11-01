@@ -167,8 +167,14 @@
           Unavailable<button onclick={() => load(offset)} disabled={busy}>Retry</button>
         </div>
       {:else if page}
+        {#if page.unverified_branches > 0}<p class="notice" role="status">
+            {page.unverified_branches.toLocaleString()} folder branches omitted because their identity
+            is unverified. Rescan to include them in review.
+          </p>{/if}
         {#if !page.indexed}<div class="rule-empty">Not indexed</div>
-        {:else if page.items.length === 0}<div class="rule-empty">No matching files</div>
+        {:else if page.items.length === 0}<div class="rule-empty">
+            {page.unverified_branches > 0 ? 'No verified matching files' : 'No matching files'}
+          </div>
         {:else}<div class="rule-scroll">
             <table>
               <thead

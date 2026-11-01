@@ -72,6 +72,11 @@ impl Drop for Operation {
 }
 
 impl Engine {
+    fn protections(&self) -> Result<voldiq_core::metadata::Protections, String> {
+        voldiq_core::metadata::Store::open(self.operations.directory())
+            .and_then(|mut store| store.protections())
+            .map_err(|error| error.to_string())
+    }
     fn new(directory: &std::path::Path) -> voldiq_core::Result<Self> {
         Ok(Self {
             operations: voldiq_core::operations::Coordinator::open(directory)?,
@@ -361,55 +366,60 @@ fn start_duplicates(
             }
         };
         let cache_load_ms = started.elapsed().as_millis() as u64;
-        let result = duplicates::find(
-            &index,
-            scope,
-            min_size,
-            &cancel,
-            &mut cache,
-            |mut update| {
-                update.elapsed_ms += cache_load_ms;
-                if update.phase == "complete" || update.phase == "cancelled" {
-                    terminal = Some(update);
-                } else {
-                    let _ = progress.send(update);
+        let result = engine
+            .protections()
+            .and_then(|protections| {
+                duplicates::find(
+                    &index,
+                    scope,
+                    min_size,
+                    &cancel,
+                    &mut cache,
+                    |mut update| {
+                        update.elapsed_ms += cache_load_ms;
+                        if update.phase == "complete" || update.phase == "cancelled" {
+                            terminal = Some(update);
+                        } else {
+                            let _ = progress.send(update);
+                        }
+                    },
+                    &protections,
+                )
+                .map_err(|error| error.to_string())
+            })
+            .map(|mut result| {
+                if !result.cancelled
+                    && let Err(error) =
+                        store
+                            .lock()
+                            .map_err(|error| error.to_string())
+                            .and_then(|mut database| {
+                                database
+                                    .save_hash_cache(&cache, &cancel)
+                                    .map_err(|error| error.to_string())
+                            })
+                {
+                    cache_issues.push(format!("Hash cache could not be saved: {error}"));
                 }
-            },
-        )
-        .map_err(|error| error.to_string())
-        .map(|mut result| {
-            if !result.cancelled
-                && let Err(error) =
-                    store
-                        .lock()
-                        .map_err(|error| error.to_string())
-                        .and_then(|mut database| {
-                            database
-                                .save_hash_cache(&cache, &cancel)
-                                .map_err(|error| error.to_string())
-                        })
-            {
-                cache_issues.push(format!("Hash cache could not be saved: {error}"));
-            }
-            result.cancelled |= cancel.load(Ordering::Relaxed);
-            for message in cache_issues {
-                result.errors += 1;
-                if result.issues.len() < 1000 {
-                    result.issues.push(voldiq_core::Issue {
-                        path: "Hash cache".into(),
-                        message,
-                    });
+                result.cancelled |= cancel.load(Ordering::Relaxed);
+                for message in cache_issues {
+                    result.errors += 1;
+                    if result.issues.len() < 1000 {
+                        result.issues.push(voldiq_core::Issue {
+                            path: "Hash cache".into(),
+                            message,
+                        });
+                    }
                 }
-            }
-            if let Some(update) = &mut terminal {
-                update.elapsed_ms = started.elapsed().as_millis() as u64;
-                update.errors = result.errors;
-                if result.cancelled {
-                    update.phase = "cancelled".into();
+                if let Some(update) = &mut terminal {
+                    update.elapsed_ms = started.elapsed().as_millis() as u64;
+                    update.errors = result.errors;
+                    if result.cancelled {
+                        update.phase = "cancelled".into();
+                    }
                 }
-            }
-            result
-        });
+                result
+            });
         let error = match result {
             Ok(result) => match engine.duplicates.lock() {
                 Ok(mut slot) => {
@@ -461,6 +471,7 @@ struct DuplicatePage {
     cancelled: bool,
     bytes_read: u64,
     cache_hits: u64,
+    unverified_branches: usize,
 }
 
 fn duplicate_group(
@@ -490,6 +501,7 @@ async fn query_duplicate_groups(
     limit: usize,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<Option<DuplicatePage>, String> {
+    let engine = engine.inner().clone();
     let current = engine.index_for(index_id)?;
     let result = engine.duplicates.lock().map_err(|e| e.to_string())?.clone();
     let Some(run) = result else {
@@ -500,6 +512,9 @@ async fn query_duplicate_groups(
     }
     tauri::async_runtime::spawn_blocking(move || {
         let result = &run.analysis;
+        result
+            .check_protections(&engine.protections()?)
+            .map_err(|error| error.to_string())?;
         let index = run.index.read().map_err(|e| e.to_string())?;
         Ok(Some(DuplicatePage {
             groups: result
@@ -516,6 +531,7 @@ async fn query_duplicate_groups(
             cancelled: result.cancelled,
             bytes_read: result.bytes_read,
             cache_hits: result.cache_hits,
+            unverified_branches: result.unverified_branches,
         }))
     })
     .await
@@ -541,6 +557,7 @@ async fn query_duplicate_members(
     limit: usize,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<Vec<DuplicateItem>, String> {
+    let engine = engine.inner().clone();
     let current = engine.index_for(index_id)?;
     let result = engine
         .duplicates
@@ -552,6 +569,10 @@ async fn query_duplicate_members(
         return Err("Duplicate results belong to another analysis.".into());
     }
     tauri::async_runtime::spawn_blocking(move || {
+        result
+            .analysis
+            .check_protections(&engine.protections()?)
+            .map_err(|error| error.to_string())?;
         let group = result
             .analysis
             .groups
@@ -582,21 +603,29 @@ async fn query_duplicate_members(
 }
 
 #[tauri::command]
-fn get_duplicate_issues(
+async fn get_duplicate_issues(
     index_id: IndexId,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<Vec<voldiq_core::Issue>, String> {
+    let engine = engine.inner().clone();
     let current = engine.index_for(index_id)?;
     let result = engine
         .duplicates
         .lock()
         .map_err(|error| error.to_string())?
         .clone();
-    match result {
-        Some(run) if Arc::ptr_eq(&run.index, &current) => Ok(run.analysis.issues.clone()),
+    tauri::async_runtime::spawn_blocking(move || match result {
+        Some(run) if Arc::ptr_eq(&run.index, &current) => {
+            run.analysis
+                .check_protections(&engine.protections()?)
+                .map_err(|error| error.to_string())?;
+            Ok(run.analysis.issues.clone())
+        }
         Some(_) => Err("Duplicate results belong to another analysis.".into()),
         None => Ok(Vec::new()),
-    }
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]

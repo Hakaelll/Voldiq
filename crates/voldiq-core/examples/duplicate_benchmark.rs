@@ -22,6 +22,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         |_| {},
     )?));
     let mut cache = HashCache::default();
+    let policy_state = tempfile::tempdir()?;
+    let protections = voldiq_core::metadata::Store::open(policy_state.path())?.protections()?;
     println!("run,groups,files,errors,elapsed_ms,bytes_read,cache_hits");
     for run in 1..=2 {
         let start = Instant::now();
@@ -32,6 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &AtomicBool::new(false),
             &mut cache,
             |_| {},
+            &protections,
         )?;
         let files: usize = result.groups.iter().map(|group| group.members.len()).sum();
         assert_eq!((result.groups.len(), files, result.errors), (4, 200, 0));

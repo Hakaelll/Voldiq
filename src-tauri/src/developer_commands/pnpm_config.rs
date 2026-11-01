@@ -437,10 +437,22 @@ pub(super) fn verify_fixture() {
     )
     .unwrap();
     let now = voldiq_core::cleanup::rules::now().unwrap();
+    let rule_state = tempfile::tempdir().unwrap();
+    let protections = voldiq_core::metadata::Store::open(rule_state.path())
+        .unwrap()
+        .protections()
+        .unwrap();
     assert_eq!(
-        voldiq_core::cleanup::rules::query_project(Some(&protected_index), now, 0, 50, &[])
-            .unwrap()
-            .total,
+        voldiq_core::cleanup::rules::query_project(
+            Some(&protected_index),
+            now,
+            0,
+            50,
+            &[],
+            &protections
+        )
+        .unwrap()
+        .total,
         1
     );
     assert_eq!(
@@ -449,7 +461,8 @@ pub(super) fn verify_fixture() {
             now,
             0,
             50,
-            &resolve(&environment)
+            &resolve(&environment),
+            &protections,
         )
         .unwrap()
         .total,

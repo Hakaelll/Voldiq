@@ -635,7 +635,7 @@ fn check_cancelled(cancel: &std::sync::atomic::AtomicBool) -> Result<()> {
     Ok(())
 }
 
-fn protected_identities() -> Result<HashSet<(u64, u64)>> {
+pub(crate) fn protected_identities() -> Result<HashSet<(u64, u64)>> {
     let mut identities = HashSet::new();
     #[cfg(windows)]
     for path in windows::protected_directories()? {

@@ -56,7 +56,7 @@ Execution is inline, without subagents or computer use, as the user requested. T
 
 - [ ] Add one strict core search parser and deterministic offline translation; connect GUI, CLI, MCP, saved views and policies.
 - [ ] Add notes/protections, budgets and favorites to shared persistence. User-only protection removal.
-  Folder notes, descendant protection, exact-version human removal and native/agent plan enforcement are implemented. Scoped agent note reads, suggestion filtering, budgets and favorites remain open; native UI acceptance remains manual.
+  Folder notes, descendant protection, exact-version human removal, native/agent plan enforcement and rule/duplicate candidate filtering are implemented. Scoped agent note reads, tooltips, budgets and favorites remain open; native UI acceptance remains manual.
 - [ ] Add evidence-based app/game/media attribution, shared/unattributed buckets, review scoring and common cleanup tray. Preserve existing verified developer rules.
 - [ ] Extend duplicate review with perceptual image comparison, explicit similarity and manual selection; do not weaken exact duplicate retention.
 - [ ] Verify parser failures, protection precedence, accounting and unsafe suggestions. Commit and push.

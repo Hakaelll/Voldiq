@@ -285,7 +285,11 @@
             >
           </button>
         {/each}
-        {#if page.total === 0}<div class="table-empty">No duplicates found</div>{/if}
+        {#if page.unverified_branches > 0}<p class="notice" role="status">
+            {page.unverified_branches.toLocaleString()} folder branches omitted because their identity
+            is unverified. Rescan before comparing their contents.
+          </p>{/if}
+        {#if page.total === 0}<div class="table-empty">No eligible duplicate groups</div>{/if}
         {#if page.total > groupLimit}<div class="duplicate-pagination">
             <button
               onclick={() => load(Math.max(0, offset - groupLimit))}

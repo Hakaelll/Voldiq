@@ -131,10 +131,14 @@ pub fn scan_live(
         .collect::<std::io::Result<_>>()?;
     exclusions.sort();
     exclusions.dedup();
+    let root_identity = windows::identity(&root).ok();
     let shared = Arc::new(RwLock::new(Index {
         root: root.clone(),
         entries: vec![Entry {
-            file_state: None,
+            file_state: root_identity.as_ref().map(|identity| crate::FileState {
+                identity: identity.key,
+                change_time: identity.change_time,
+            }),
             id: NodeId(0),
             parent: None,
             name: root
@@ -153,7 +157,7 @@ pub fn scan_live(
         issues: Vec::new(),
         error_count: 0,
         native_names: Default::default(),
-        root_identity: windows::identity(&root).ok().map(|identity| identity.key),
+        root_identity: root_identity.map(|identity| identity.key),
         exclusions: exclusions.clone(),
         snapshot_id: None,
         captured_caches: Vec::new(),

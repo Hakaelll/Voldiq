@@ -305,28 +305,36 @@ fn measure(input: Input) -> Measured {
         incomplete: false,
         hard_link: false,
     };
-    if kind == Kind::File {
-        entry.logical = metadata.len();
-        entry.files = 1;
+    if matches!(kind, Kind::File | Kind::Directory) {
+        if kind == Kind::File {
+            entry.logical = metadata.len();
+            entry.files = 1;
+        }
         match windows::metadata_identity(&measured.input.path) {
-            Ok((current, identity)) if current.is_file() && !windows::is_reparse(&current) => {
-                entry.logical = current.len();
+            Ok((current, identity))
+                if !windows::is_reparse(&current)
+                    && ((kind == Kind::File && current.is_file())
+                        || (kind == Kind::Directory && current.is_dir())) =>
+            {
                 entry.modified = modified(&current);
                 entry.file_state = Some(crate::FileState {
                     identity: identity.key,
                     change_time: identity.change_time,
                 });
-                entry.hard_link = identity.links > 1;
-                measured.identity = Some(identity);
+                if kind == Kind::File {
+                    entry.logical = current.len();
+                    entry.hard_link = identity.links > 1;
+                    measured.identity = Some(identity);
+                }
             }
             result => {
                 let error = match result {
                     Err(error) => error.to_string(),
-                    _ => "File changed during scanning.".into(),
+                    _ => "Entry changed during scanning.".into(),
                 };
                 entry.allocation_known = false;
                 entry.incomplete = true;
-                measured.error = Some(format!("Physical allocation unavailable: {error}"));
+                measured.error = Some(format!("Native metadata unavailable: {error}"));
             }
         }
     }

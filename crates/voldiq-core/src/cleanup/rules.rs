@@ -121,6 +121,7 @@ pub struct Page {
     pub root: String,
     pub indexed: bool,
     pub complete: bool,
+    pub unverified_branches: usize,
     pub items: Vec<PreviewItem>,
     pub total: usize,
     pub logical: u64,
@@ -140,12 +141,27 @@ pub fn query(
     now: u64,
     offset: usize,
     limit: usize,
+    protections: &crate::metadata::Protections,
 ) -> Result<Page> {
-    query_scoped(index, temporary, now, offset, limit, RuleSource::UserTemp)
+    query_scoped(
+        index,
+        temporary,
+        now,
+        offset,
+        limit,
+        RuleSource::UserTemp,
+        protections,
+    )
 }
 
-pub fn query_old(index: Option<&Index>, now: u64, offset: usize, limit: usize) -> Result<Page> {
-    query_current(index, now, offset, limit, RuleSource::OldFiles)
+pub fn query_old(
+    index: Option<&Index>,
+    now: u64,
+    offset: usize,
+    limit: usize,
+    protections: &crate::metadata::Protections,
+) -> Result<Page> {
+    query_current(index, now, offset, limit, RuleSource::OldFiles, protections)
 }
 
 pub fn query_project(
@@ -154,8 +170,16 @@ pub fn query_project(
     offset: usize,
     limit: usize,
     caches: &[crate::developer::CacheLocation],
+    protections: &crate::metadata::Protections,
 ) -> Result<Page> {
-    query_current(index, now, offset, limit, RuleSource::ProjectTemp(caches))
+    query_current(
+        index,
+        now,
+        offset,
+        limit,
+        RuleSource::ProjectTemp(caches),
+        protections,
+    )
 }
 
 pub fn query_browser_cache(
@@ -164,6 +188,7 @@ pub fn query_browser_cache(
     now: u64,
     offset: usize,
     limit: usize,
+    protections: &crate::metadata::Protections,
 ) -> Result<Page> {
     query_scoped(
         index,
@@ -172,6 +197,7 @@ pub fn query_browser_cache(
         offset,
         limit,
         RuleSource::BrowserCache(local_data),
+        protections,
     )
 }
 
@@ -181,14 +207,24 @@ fn query_current(
     offset: usize,
     limit: usize,
     source: RuleSource<'_>,
+    protections: &crate::metadata::Protections,
 ) -> Result<Page> {
     match index.filter(|index| index.snapshot_id.is_none()) {
-        Some(index) => query_scoped(Some(index), &index.root, now, offset, limit, source),
+        Some(index) => query_scoped(
+            Some(index),
+            &index.root,
+            now,
+            offset,
+            limit,
+            source,
+            protections,
+        ),
         None => Ok(Page {
             rule: source.kind().metadata(),
             root: String::new(),
             indexed: false,
             complete: false,
+            unverified_branches: 0,
             items: Vec::new(),
             total: 0,
             logical: 0,
@@ -204,6 +240,7 @@ fn query_scoped(
     offset: usize,
     limit: usize,
     source: RuleSource<'_>,
+    protections: &crate::metadata::Protections,
 ) -> Result<Page> {
     let kind = source.kind();
     let temporary = verified_root(temporary)?;
@@ -212,6 +249,7 @@ fn query_scoped(
         root: temporary.to_string_lossy().into_owned(),
         indexed: false,
         complete: false,
+        unverified_branches: 0,
         items: Vec::new(),
         total: 0,
         logical: 0,
@@ -230,6 +268,9 @@ fn query_scoped(
     page.complete = !index.entry(NodeId(0))?.incomplete
         && !index.entry(scope_id)?.incomplete
         && temporary.starts_with(&index.root);
+    let mask = protections.for_index(index, &std::sync::atomic::AtomicBool::new(false))?;
+    page.unverified_branches = mask.unverified_branches(scope_id)?;
+    page.complete &= page.unverified_branches == 0;
     let mut protected_scopes = Vec::new();
     #[cfg(windows)]
     if matches!(
@@ -258,6 +299,7 @@ fn query_scoped(
         .iter()
         .filter(|entry| {
             eligible(entry, now, kind)
+                && mask.allows(entry.id)
                 && index.in_scope(entry.id, scope_id)
                 && (!matches!(kind, RuleKind::ProjectTemp) || builds.contains(index, entry.id))
                 && (!matches!(kind, RuleKind::BrowserCache)
