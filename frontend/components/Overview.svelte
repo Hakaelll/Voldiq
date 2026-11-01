@@ -50,13 +50,13 @@
     onopen: (id: number, pointer?: boolean) => void;
     onlist: () => void;
     ontype: (item: FileType) => void;
-    mapMode: 'treemap' | 'city';
+    mapMode: import('../lib/storage-map').StorageView;
     colorMode?: ColorMode;
     mapIdentity: string;
     search: string;
     extension: string;
     withoutExtension: boolean;
-    onmode: (mode: 'treemap' | 'city') => void;
+    onmode: (mode: import('../lib/storage-map').StorageView) => void;
     onback: () => void;
   } = $props();
   const distribution = $derived(visibleFileTypes(types));

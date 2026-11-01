@@ -2,6 +2,7 @@ import { layout, type Rect as TreemapRect, type WeightedNode } from './treemap.t
 
 export type HeightMode = 'modified' | 'files' | 'depth';
 export type ColorMode = 'type' | 'size' | 'age';
+export type StorageView = 'treemap' | 'city' | 'sunburst' | 'circles';
 export interface Rect extends TreemapRect {
   depth: number;
   modified: number | null;
@@ -49,6 +50,7 @@ export function createStorageLayout(nodes: WeightedNode[]): {
   represented: number;
   zeroBytes: number;
   revision: string;
+  parents: Map<number, number | null>;
 } {
   const roots = nodes
     .filter((node) => Number.isFinite(node.value) && node.value > 0)
@@ -56,6 +58,7 @@ export function createStorageLayout(nodes: WeightedNode[]): {
   const total = roots.reduce((sum, node) => sum + node.value, 0);
   const rects: Rect[] = [];
   const boundaries: Rect[] = [];
+  const parents = new Map<number, number | null>();
   let frontierCount = roots.length;
   let zeroBytes = 0;
   const countZero = (items: WeightedNode[]): void => {
@@ -65,7 +68,8 @@ export function createStorageLayout(nodes: WeightedNode[]): {
     }
   };
   countZero(nodes);
-  const visit = (placed: TreemapRect, depth: number): void => {
+  const visit = (placed: TreemapRect, depth: number, parentId: number | null): void => {
+    parents.set(placed.id, parentId);
     const parent = toRect(placed, depth, total);
     const children = (placed.children ?? [])
       .filter((node) => Number.isFinite(node.value) && node.value > 0)
@@ -111,10 +115,10 @@ export function createStorageLayout(nodes: WeightedNode[]): {
     boundaries.push(parent);
     children.sort((a, b) => b.value - a.value || a.id - b.id);
     for (const child of layout(children, placed.width, placed.height)) {
-      visit({ ...child, x: child.x + placed.x, y: child.y + placed.y }, depth + 1);
+      visit({ ...child, x: child.x + placed.x, y: child.y + placed.y }, depth + 1, placed.id);
     }
   };
-  for (const root of layout(roots, STORAGE_WIDTH, STORAGE_HEIGHT)) visit(root, 1);
+  for (const root of layout(roots, STORAGE_WIDTH, STORAGE_HEIGHT)) visit(root, 1, null);
   const revision = JSON.stringify(
     rects.map((rect) => [
       rect.id,
@@ -139,6 +143,7 @@ export function createStorageLayout(nodes: WeightedNode[]): {
     represented: roots.reduce((sum, node) => sum + count(node), 0),
     zeroBytes,
     revision,
+    parents,
   };
 }
 

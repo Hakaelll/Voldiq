@@ -1745,6 +1745,10 @@ button:active:not(:disabled) {
   font-weight: 600;
   box-shadow: inset 0 -2px var(--text);
 }
+.map-switch[aria-label='Storage representation'] {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
 .workspace-view-switch {
   align-self: flex-start;
   margin: 12px 0 0;

@@ -18,6 +18,7 @@
     type HeightMode,
     type ColorMode,
     type Rect,
+    type StorageView,
   } from '../lib/storage-map';
   import {
     buildCity,
@@ -31,6 +32,8 @@
     type Point,
   } from '../lib/disk-city';
   import { paintCity, paintFlat, prepareShadows, type MapStyle } from '../lib/map-painter';
+  import { radialLayout, radialHit, shapeAnchor } from '../lib/radial-map';
+  import { paintRadial } from '../lib/radial-painter';
   import type { WeightedNode } from '../lib/treemap';
   import { bytes } from '../lib/types';
   import Icon from './Icon.svelte';
@@ -57,7 +60,7 @@
   }: {
     nodes: WeightedNode[];
     identity: string;
-    mode?: 'treemap' | 'city';
+    mode?: StorageView;
     colorMode?: ColorMode;
     selected: number | null;
     search?: string;
@@ -65,7 +68,7 @@
     withoutExtension?: boolean;
     sizeMode: string;
     onmetric: (value: string) => void;
-    onmode: (value: 'treemap' | 'city') => void;
+    onmode: (value: StorageView) => void;
     onselect: (id: number) => void;
     onopen: (id: number) => void;
     onlist: () => void;
@@ -91,6 +94,21 @@
   const layout = $derived.by(() => {
     const start = performance.now();
     return { ...createStorageLayout(nodes), elapsed: performance.now() - start };
+  });
+  type RadialState =
+    | { kind: 'none' }
+    | { kind: 'ready'; value: ReturnType<typeof radialLayout> }
+    | { kind: 'error'; message: string };
+  const radial = $derived.by<RadialState>(() => {
+    if (mode !== 'sunburst' && mode !== 'circles') return { kind: 'none' };
+    try {
+      return { kind: 'ready', value: radialLayout(layout, mode) };
+    } catch (error) {
+      return {
+        kind: 'error',
+        message: error instanceof Error ? error.message : String(error),
+      };
+    }
   });
   const maximum = $derived(metricMaximum(layout.rects, heightMode, now));
   const selectedBoundary = $derived(layout.boundaries.find((rect) => rect.id === selected));
@@ -208,7 +226,9 @@
           ? paintCity(ctx, scene, shadows, options)
           : mode === 'treemap'
             ? paintFlat(ctx, options)
-            : 0;
+            : radial.kind === 'ready'
+              ? paintRadial(ctx, radial.value, options)
+              : 0;
       drawTime = performance.now() - start;
     } catch (error) {
       failure = error instanceof Error ? error.message : String(error);
@@ -230,6 +250,7 @@
       const face = picker?.(p);
       return face ? (layout.rects.find((r) => r.id === face.node.id) ?? null) : null;
     }
+    if (radial.kind === 'ready') return radialHit(radial.value, p);
     return (
       layout.rects.find(
         (r) => p.x >= r.x && p.y >= r.y && p.x <= r.x + r.width && p.y <= r.y + r.height,
@@ -269,7 +290,9 @@
     else if (event.key === '-') zoom(1 / 1.2);
     else if (event.key === '0') fit();
     else if (event.key === 'Enter') {
-      const rect = layout.rects.find((r) => r.id === selected);
+      const rect =
+        layout.rects.find((r) => r.id === selected) ??
+        layout.boundaries.find((r) => r.id === selected);
       if (rect) select(rect, true);
     } else if (event.key === 'Escape') {
       hovered = null;
@@ -295,6 +318,7 @@
     hovered = null;
     if (mode !== 'city') {
       preparing = false;
+      if (radial.kind === 'error') failure = radial.message;
       untrack(schedule);
       return;
     }
@@ -387,7 +411,13 @@
         layout.rects.find((rect) => rect.id === id) ??
         layout.boundaries.find((rect) => rect.id === id);
       if (!rect || width <= 0 || height <= 0) return;
-      const point = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+      const shape =
+        radial.kind === 'ready'
+          ? radial.value.shapes.find((shape) => shape.node.id === rect.id)
+          : null;
+      const point = shape
+        ? shapeAnchor(shape)
+        : { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
       const target = worldToScreen(
         mode === 'city'
           ? project({
@@ -470,6 +500,9 @@
     <div class="map-switch" role="group" aria-label="Storage representation">
       <button aria-pressed={mode === 'treemap'} onclick={() => onmode('treemap')}>Treemap</button>
       <button aria-pressed={mode === 'city'} onclick={() => onmode('city')}>Skyline</button>
+      <button aria-pressed={mode === 'sunburst'} onclick={() => onmode('sunburst')}>Sunburst</button
+      >
+      <button aria-pressed={mode === 'circles'} onclick={() => onmode('circles')}>Circles</button>
       <button onclick={onlist}>List</button>
     </div>
     <label
@@ -542,7 +575,7 @@
     <canvas
       bind:this={canvas}
       tabindex="0"
-      aria-label={`${mode === 'city' ? 'Skyline' : 'Treemap'}. Use the item list for keyboard selection. Arrow keys pan, plus and minus zoom, zero fits the map.`}
+      aria-label={`${mode === 'city' ? 'Skyline' : mode === 'sunburst' ? 'Sunburst' : mode === 'circles' ? 'Nested circles' : 'Treemap'}. Use the item list for keyboard selection. Arrow keys pan, plus and minus zoom, zero fits the map.`}
       onkeydown={keyboard}
       onpointerdown={(event) => {
         if (event.button !== 0) return;
@@ -641,12 +674,24 @@
           >{/if}{#if hovered.aggregated}<span
             >{hovered.represented.toLocaleString()} files represented · Open to inspect</span
           >{/if}
-        {#if hovered.directory && !hovered.aggregated && hovered.id >= 0}
+        {#if hovered.directory && hovered.id >= 0}
           {#key hovered.id}<FolderNotePreview nodeId={hovered.id} indexId={noteIndexId} />{/key}
         {/if}
       </div>{/if}
   </div>
   <div class="map-encoding">
+    {#if mode === 'sunburst'}<span
+        >Equal-area depth rings. Colored sectors encode the current frontier; neutral parent bands
+        group the hierarchy. Gaps are not free disk space.</span
+      >{/if}
+    {#if mode === 'circles'}<span
+        >Filled circle area encodes the same frontier bytes at every depth. Parent outlines group
+        folders. {#if radial.kind === 'ready' && layout.total > 0}{(
+            100 *
+            (1 - radial.value.dataFraction)
+          ).toFixed(1)}% of the enclosing circle is packing space, not free disk space.{:else}Packing
+          coverage is unavailable without a positive, drawable total.{/if}</span
+      >{/if}
     <span
       >Area = {sizeMode === 'allocated'
         ? 'unique allocation, not recoverable space'
@@ -664,9 +709,10 @@
         ? 'file category'
         : colorMode === 'size'
           ? 'size, local log scale'
-          : 'age bands: 30 / 180 / 365 days / 10 years'}. Unknown metrics keep a low block.</span
+          : 'age bands: 30 / 180 / 365 days / 10 years'}. Unknown ages use neutral color.{#if mode === 'city'}
+        Unknown height metrics keep a low block.{/if}</span
     >
-    {#if sizeMode === 'allocated' && layout.rects.some((r) => !r.allocation_known)}<span
+    {#if sizeMode === 'allocated' && nodes.some((r) => !r.allocationKnown)}<span
         >Partial allocation coverage. Unknown bytes are not zero.</span
       >{/if}
   </div>
@@ -691,7 +737,7 @@
       >{layout.represented.toLocaleString()} files represented · {layout.rects.length} blocks · {Math.max(
         0,
         layout.rects.length - drawn,
-      )} outside viewport{#if matches}
+      )} outside draw bounds{#if matches}
         · {matches.size} highlighted{/if}</span
     >
   </div>

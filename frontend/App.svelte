@@ -104,7 +104,7 @@
   let interactionToken = 0;
   let scanRequest = 0;
   let mapNavigation = $state(false);
-  let mapMode = $state<'treemap' | 'city'>('treemap');
+  let mapMode = $state<import('./lib/storage-map').StorageView>('treemap');
   let mapColorMode = $state<ColorMode>('type');
   let explorerMap = $state(false);
   let mapMetrics = $state<OverviewData['map_metrics']>([]);
@@ -1135,6 +1135,18 @@
                           explorerMap = true;
                           mapMode = 'city';
                         }}>Skyline</button
+                      >
+                      <button
+                        onclick={() => {
+                          explorerMap = true;
+                          mapMode = 'sunburst';
+                        }}>Sunburst</button
+                      >
+                      <button
+                        onclick={() => {
+                          explorerMap = true;
+                          mapMode = 'circles';
+                        }}>Circles</button
                       >
                       <button aria-pressed="true">List</button>
                     </div>{/if}
