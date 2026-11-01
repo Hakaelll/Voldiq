@@ -1,0 +1,113 @@
+{
+  "checkedUtc": "2026-11-01T17:23:02.4613786Z",
+  "sourceCommit": "d04298f61320c21db841ff6792a748ca9ca6bc54",
+  "executableSha256": "3F66F645610393915820F02A8AB082BFB7581D3F99AC5ACD568FEC621859F511",
+  "preview": "target/preview/3F66F645610393915820F02A8AB082BFB7581D3F99AC5ACD568FEC621859F511/voldiq.exe",
+  "processId": 18984,
+  "mainWindowHandle": 3475206,
+  "startupEvents": [
+    {
+      "event": "process-start",
+      "pid": 18984,
+      "state": null,
+      "unixMs": 1793553766872
+    },
+    {
+      "event": "setup-start",
+      "pid": 18984,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "unavailable",
+        "snapshots": "unavailable"
+      },
+      "unixMs": 1793553767081
+    },
+    {
+      "event": "snapshot-open-start",
+      "pid": 18984,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "idle",
+        "snapshots": "unavailable"
+      },
+      "unixMs": 1793553767082
+    },
+    {
+      "event": "snapshot-open-end",
+      "pid": 18984,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793553767085
+    },
+    {
+      "event": "setup-end",
+      "pid": 18984,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793553767841
+    },
+    {
+      "event": "ready",
+      "pid": 18984,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793553767841
+    },
+    {
+      "event": "page-finished",
+      "pid": 18984,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793553767893
+    }
+  ],
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "assets/index-g4RjxR3Z.css",
+        "bytes": 58274,
+        "sha256": "742A150AAADCE2296402705275689495DA73E0595B7B26B5AD0622F7F81705BE"
+      },
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "F1BDDC83489488CDD7DCBB3BFB8D2FBDA3D9EF4E26564EBDD883431A795B1477"
+      },
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "assets/index-CYBVbzlR.js",
+        "bytes": 238611,
+        "sha256": "CD547F076A968362C7E4D924A4482629DA78D44D385EA2C2359D7D3C0727847D"
+      },
+      {
+        "path": "assets/city.worker-DLxzT0Wm.js",
+        "bytes": 2879,
+        "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      }
+    ]
+  },
+  "scope": "Actual native launch, completed page load and exact embedded production assets. Trace resource states describe mutex availability, not exclusive ownership. No rendered comparison, keyboard, scaling or device-performance acceptance."
+}
