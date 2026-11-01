@@ -380,23 +380,22 @@ pub(super) fn verify_fixture() {
     }
     assert!(parse_settings(&format!("nested: {}0{}", "[".repeat(33), "]".repeat(33))).is_err());
     environment.insert("EMPTY".into(), "".into());
+    let braced_store = home.join("store-{owned}");
+    environment.insert("BRACED_STORE".into(), braced_store.clone().into());
     let lookup = |key: &str| environment.get(key).cloned();
     assert_eq!(
-        expand_path(
-            &format!("${{UNSET-{}}}", store.display()),
-            Some(&home),
-            &lookup
-        ),
-        Some(store.clone())
+        expand_path("${UNSET-~/fallback-store}", Some(&home), &lookup),
+        Some(home.join("fallback-store"))
     );
     assert_eq!(
-        expand_path(
-            &format!("${{EMPTY:-{}}}", store.display()),
-            Some(&home),
-            &lookup
-        ),
-        Some(store)
+        expand_path("${EMPTY:-~/fallback-store}", Some(&home), &lookup),
+        Some(home.join("fallback-store"))
     );
+    assert_eq!(
+        expand_path("${BRACED_STORE}", Some(&home), &lookup),
+        Some(braced_store)
+    );
+    assert!(expand_path("${EMPTY-~/fallback-store}", Some(&home), &lookup).is_none());
     assert!(expand_path("${MISSING}", Some(&home), &lookup).is_none());
     assert_eq!(
         expand_path("~/packages", Some(&home), &lookup),
