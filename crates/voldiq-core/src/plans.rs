@@ -13,7 +13,7 @@ pub use recycling::PreparedRecycling;
 use serde::{Deserialize, Serialize};
 pub use store::Store;
 
-const POLICY_VERSION: u32 = 1;
+const POLICY_VERSION: u32 = 2;
 const PLAN_TTL: i64 = 900;
 const APPROVAL_TTL: i64 = 120;
 
@@ -78,6 +78,7 @@ pub struct Manifest {
     pub potential_reclaim_bytes: String,
     pub immediate_free_bytes: String,
     pub native_record_hash: String,
+    pub protection_fingerprint: String,
 }
 
 #[derive(Serialize)]
@@ -107,6 +108,8 @@ pub struct ExecutionLease {
     issuer: String,
     #[cfg(windows)]
     binding: String,
+    #[cfg(windows)]
+    admission_deadline: i64,
 }
 
 fn invalid() -> Error {

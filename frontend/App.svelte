@@ -18,6 +18,8 @@
   import RestorationDialog from './components/RestorationDialog.svelte';
   import AgentConnections from './components/AgentConnections.svelte';
   import AgentPlanReview from './components/AgentPlanReview.svelte';
+  import FolderNotes from './components/FolderNotes.svelte';
+  import ProtectedFolders from './components/ProtectedFolders.svelte';
   import { readRecentPaths, rememberPath } from './lib/recent-paths';
   import { overviewQueries, detailQueries } from './lib/queries';
   import { createNavigationRefresh } from './lib/navigation-refresh';
@@ -803,6 +805,7 @@
         </div>{/if}
       {#if view === 'settings'}
         <section class="settings-panel">
+          <ProtectedFolders />
           <section aria-labelledby="appearance-heading">
             <h2 id="appearance-heading">Appearance</h2>
             <div class="settings-row">
@@ -1319,6 +1322,9 @@
                         disabled={analysisBusy}><Icon name="folder" />Explore folder</button
                       >{/if}
                   </div>
+                  {#if details.entry.kind === 'directory' && details.path_exact}
+                    {#key details.path}<FolderNotes path={details.path} />{/key}
+                  {/if}
                   {#if details.children}<div class="detail-children">
                       <h3>Children ({details.children.total.toLocaleString()})</h3>
                       <FolderComposition

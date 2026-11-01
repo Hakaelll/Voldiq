@@ -30,6 +30,7 @@ pub fn permanent(
     mut progress: impl FnMut(usize),
 ) -> Result<Report> {
     plan.validate_retained()?;
+    plan.validate_protections()?;
     let mut report = Report {
         items: Vec::new(),
         cancelled: false,
@@ -63,6 +64,7 @@ pub fn permanent(
             if cancel.load(Ordering::Relaxed) {
                 return Err(Error::Invalid("Cleanup cancelled before removal.".into()));
             }
+            plan.validate_protections()?;
             verified.remove_permanently()
         })();
         let error = result.err().map(|error| error.to_string());

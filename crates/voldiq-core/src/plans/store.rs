@@ -14,7 +14,7 @@ const RECORD_LIMIT: usize = 2 * 1024 * 1024;
 
 pub struct Store {
     connection: Connection,
-    directory: crate::agents::AuthorizedPath,
+    pub(super) directory: crate::agents::AuthorizedPath,
 }
 
 struct Stored {
@@ -100,6 +100,8 @@ impl Store {
         let record = Record::capture(index, selection)?;
         let _root = context.snapshot(&record.scope())?;
         record.validate(self.directory.identity())?;
+        let protections = crate::metadata::Store::open(self.directory.path())?.protections()?;
+        record.check_protections(&protections)?;
         let entries = record.evidence()?;
         let _pins = entries
             .iter()
@@ -115,7 +117,7 @@ impl Store {
         }
         let scope = record.scope();
         let manifest = Manifest {
-            schema_version: 1,
+            schema_version: 2,
             policy_version: POLICY_VERSION,
             id: random_id()?,
             connection_id: context.owner(),
@@ -133,6 +135,7 @@ impl Store {
             potential_reclaim_bytes: reclaim.to_string(),
             immediate_free_bytes: "0".into(),
             native_record_hash: digest(native_record.as_bytes()),
+            protection_fingerprint: protections.fingerprint().to_owned(),
         };
         let json = serde_json::to_string(&manifest).map_err(|_| invalid())?;
         if json.len() > MANIFEST_LIMIT {
@@ -270,6 +273,8 @@ impl Store {
             issuer: human.issuer().to_owned(),
             #[cfg(windows)]
             binding: stored.binding,
+            #[cfg(windows)]
+            admission_deadline: view.approval_expires.ok_or_else(invalid)?,
         }))
     }
 
@@ -404,7 +409,7 @@ impl Store {
         if hash != digest(json.as_bytes())
             || manifest.native_record_hash != digest(native.as_bytes())
             || manifest.id != id
-            || manifest.schema_version != 1
+            || manifest.schema_version != 2
             || manifest.policy_version != POLICY_VERSION
             || manifest.connection_id != context.owner()
             || manifest.user != current_user()?
@@ -418,6 +423,14 @@ impl Store {
             return Err(invalid());
         }
         let record: Record = serde_json::from_str(&native).map_err(|_| invalid())?;
+        if manifest.protection_fingerprint.len() != 64
+            || !manifest
+                .protection_fingerprint
+                .bytes()
+                .all(|byte| byte.is_ascii_hexdigit())
+        {
+            return Err(invalid());
+        }
         let scope = record.scope();
         let _root = context.snapshot(&scope)?;
         let evidence = record.evidence()?;
@@ -464,10 +477,12 @@ impl Store {
             || lease.owner != context.owner()
             || lease.issuer != human.issuer()
             || lease.binding != context.binding()?
+            || now()? >= lease.admission_deadline
         {
             return Err(invalid());
         }
         let stored = self.read(context, &lease.id)?;
+        self.validate_protection_binding(&stored)?;
         let current: bool = self.connection.query_row("SELECT EXISTS(SELECT 1 FROM agent_plans WHERE id=?1 AND owner=?2 AND hash=?3 AND execution_nonce=?4 AND state='executing')",params![lease.id,lease.owner,lease.hash,lease.nonce],|row| row.get(0))?;
         if !current || stored.view.hash != lease.hash || stored.view.state != State::Executing {
             return Err(invalid());
@@ -493,10 +508,18 @@ impl Store {
 
     fn load(&mut self, context: &PlanContext<'_>, id: &str, now: i64) -> Result<Stored> {
         let mut stored = self.read(context, id)?;
-        let view = &stored.view;
-        if now < view.manifest.created {
+        if now < stored.view.manifest.created {
             return Err(invalid());
         }
+        if !stored.view.state.terminal()
+            && stored.view.state != State::Executing
+            && self.validate_protection_binding(&stored).is_err()
+        {
+            self.change(&stored.view, State::Invalidated, now, "protections_changed")?;
+            stored.view.state = State::Invalidated;
+            stored.view.approval_expires = None;
+        }
+        let view = &stored.view;
         if !view.state.terminal()
             && view.state != State::Executing
             && (now >= view.manifest.expires
@@ -510,6 +533,14 @@ impl Store {
         Ok(stored)
     }
 
+    fn validate_protection_binding(&self, stored: &Stored) -> Result<()> {
+        let protections = crate::metadata::Store::open(self.directory.path())?.protections()?;
+        if stored.view.manifest.protection_fingerprint != protections.fingerprint() {
+            return Err(invalid());
+        }
+        stored.record.check_protections(&protections)
+    }
+
     fn validate_material(
         &mut self,
         context: &PlanContext<'_>,
@@ -517,6 +548,7 @@ impl Store {
         now: i64,
     ) -> Result<()> {
         let checked = (|| {
+            self.validate_protection_binding(stored)?;
             let entries = &stored.view.manifest.entries;
             let _pins = entries
                 .iter()

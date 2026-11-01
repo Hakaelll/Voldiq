@@ -117,7 +117,7 @@ fn an_approved_ticket_prepares_only_its_exact_selection_and_persists_agent_recei
         agents::{Capability, Limits, Policy, Registry},
         plans::{Begin, HumanAuthority, State, Store},
     };
-    for blocked_writer in [false, true] {
+    for (blocked_writer, delayed) in [(false, false), (true, false), (false, true)] {
         let state = tempfile::tempdir().unwrap();
         let source = tempfile::tempdir().unwrap();
         std::fs::write(source.path().join("a.data"), b"original a").unwrap();
@@ -170,15 +170,18 @@ fn an_approved_ticket_prepares_only_its_exact_selection_and_persists_agent_recei
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()
             .as_secs() as i64;
+        let approved_at = if delayed { now - 300 } else { now };
         let mut plans = Store::open(state.path()).unwrap();
-        let plan = plans.create(&prepare, 1, &index, &selection, now).unwrap();
+        let plan = plans
+            .create(&prepare, 1, &index, &selection, approved_at)
+            .unwrap();
         let id = &plan.manifest.id;
-        plans.request(&request, id, now).unwrap();
+        plans.request(&request, id, approved_at).unwrap();
         let human = HumanAuthority::acquire(state.path()).unwrap();
         plans
-            .approve(&metadata, id, &plan.hash, &human, now)
+            .approve(&metadata, id, &plan.hash, &human, approved_at)
             .unwrap();
-        let Begin::Started(lease) = plans.begin(&execute, id, &human, now).unwrap() else {
+        let Begin::Started(lease) = plans.begin(&execute, id, &human, approved_at).unwrap() else {
             panic!("Missing execution ticket")
         };
         let apartment = ShellApartment::new().unwrap();
@@ -192,7 +195,13 @@ fn an_approved_ticket_prepares_only_its_exact_selection_and_persists_agent_recei
         });
         let prepared =
             plans.prepare_recycling(&execute, &human, lease, &mut journal, &cancel, &apartment);
-        if blocked_writer {
+        if delayed {
+            assert!(prepared.is_err());
+            assert_eq!(
+                plans.get(&metadata, id, now).unwrap().state,
+                State::Invalidated
+            );
+        } else if blocked_writer {
             assert!(prepared.is_err());
             assert_eq!(plans.get(&metadata, id, now).unwrap().state, State::Failed);
         } else {
@@ -233,7 +242,13 @@ fn an_approved_ticket_prepares_only_its_exact_selection_and_persists_agent_recei
         let journal = Journal::open(&state.path().join("cleanup.db")).unwrap();
         assert_eq!(
             journal.agent_relocations(id, &plan.hash).unwrap().len(),
-            if blocked_writer { 1 } else { 2 }
+            if delayed {
+                0
+            } else if blocked_writer {
+                1
+            } else {
+                2
+            }
         );
         assert_eq!(
             std::fs::read(source.path().join("a.data")).unwrap(),

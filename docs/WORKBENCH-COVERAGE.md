@@ -31,7 +31,7 @@ Stages: A audit, B shared services, C secure adapters, D visualization, E analys
 | Search properties | Text/glob/extension/path/size/date/app/cloud/type | Partial | B/E | Literal query fixtures | Only measured/available properties accepted |
 | Offline natural language | Deterministic editable query preview/unparsed words | Pending | E | Translation fixtures | No external LLM or silently ignored intent |
 | Saved views/favorites/palette | Extend existing Ctrl+K and recent roots | Partial | E | Persistence/keyboard checks | Saved queries use same parser and scope |
-| Notes and protection | Plain text, descendant protection, human-only removal | Pending | B/E | Protection precedence/security tests | Agents cannot remove protection or plan beneath it |
+| Notes and protection | Plain text, descendant protection, human-only removal | Core/native editing and plan enforcement implemented; scoped reads and suggestion filtering pending | B/E | Owned rename/replacement, version, operation-exclusion and invalidation fixtures; UI manual | Agents cannot remove protection or plan beneath it |
 | Budgets/human equivalents | Real limits, occupied bytes, sampled equivalence | Pending | E/F | Measured sample/forecast tests | Forecast only with adequate compatible history |
 | App attribution | Evidence-based install/data/cache/logs/shared/unattributed | Pending | E | Manifest/accounting fixtures | No name-only ownership or double count; scope visible |
 | App scatter/list/explorer/cleanup | Measured bytes/file count and category-specific plans | Pending | E | Aggregate/order fixtures; UI manual | Scales visible; plan only verified categories |

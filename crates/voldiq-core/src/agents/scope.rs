@@ -62,6 +62,30 @@ impl AuthorizedPath {
         self.identity
     }
 
+    pub(crate) fn identity_bytes(&self) -> Result<Vec<u8>> {
+        #[cfg(windows)]
+        {
+            let identity =
+                windows::cleanup_stage::identity(self.handles.last().ok_or_else(denied)?)?;
+            let mut bytes = identity.volume.to_le_bytes().to_vec();
+            bytes.extend_from_slice(&identity.file);
+            Ok(bytes)
+        }
+        #[cfg(not(windows))]
+        {
+            let mut bytes = self.identity.0.to_le_bytes().to_vec();
+            bytes.extend_from_slice(&self.identity.1.to_le_bytes());
+            Ok(bytes)
+        }
+    }
+
+    pub(crate) fn ancestor_identities(&self) -> Result<Vec<(u64, u64)>> {
+        self.handles
+            .iter()
+            .map(|file| Ok(windows::file_identity(file)?.key))
+            .collect()
+    }
+
     fn open(path: &Path) -> Result<Self> {
         validate_path(path)?;
         let mut handles = Vec::new();
@@ -118,6 +142,10 @@ pub(crate) fn pin_directory(path: &Path) -> Result<AuthorizedPath> {
         return Err(denied());
     }
     Ok(pin)
+}
+
+pub(crate) fn pin_path(path: &Path) -> Result<AuthorizedPath> {
+    AuthorizedPath::open(&ordinary_path(path)?)
 }
 
 pub(super) fn authorize(

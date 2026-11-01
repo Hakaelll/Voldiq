@@ -23,6 +23,7 @@ mod developer_commands;
 mod docker_commands;
 mod embedded_ui;
 mod lifecycle_trace;
+mod metadata_commands;
 #[cfg(test)]
 mod operation_tests;
 mod overview;
@@ -736,6 +737,11 @@ fn main() {
         .manage(CleanupPlans::default())
         .manage(restore_commands::RestorationReviews::default())
         .invoke_handler(tauri::generate_handler![
+            metadata_commands::get_folder_metadata,
+            metadata_commands::save_folder_note,
+            metadata_commands::protect_folder,
+            metadata_commands::list_protected_folders,
+            metadata_commands::remove_folder_protection,
             agent_commands::list_agent_connections,
             agent_commands::create_agent_connection,
             agent_commands::rotate_agent_credential,

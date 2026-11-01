@@ -67,6 +67,7 @@ impl Record {
             preview,
             files: self.files,
             retained: Vec::new(),
+            protections: None,
         })
     }
 
@@ -96,6 +97,24 @@ impl Record {
                 .map(|(path, _)| path.clone())
                 .collect(),
         }
+    }
+
+    pub(crate) fn check_protections(
+        &self,
+        protections: &crate::metadata::Protections,
+    ) -> Result<()> {
+        for file in &self.files {
+            protections.check_evidence(
+                &file.path,
+                file.stamp.identity,
+                &file
+                    .parents
+                    .iter()
+                    .map(|(_, identity)| *identity)
+                    .collect::<Vec<_>>(),
+            )?;
+        }
+        Ok(())
     }
 
     pub(crate) fn evidence(&self) -> Result<Vec<FileEvidence>> {
@@ -174,7 +193,7 @@ impl Record {
     }
 }
 
-fn sensitive(path: &std::path::Path) -> bool {
+pub(super) fn sensitive(path: &std::path::Path) -> bool {
     path.components().any(|part| {
         let name = part.as_os_str().to_string_lossy().to_ascii_lowercase();
         matches!(

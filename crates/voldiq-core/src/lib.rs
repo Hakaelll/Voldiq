@@ -5,6 +5,7 @@ pub mod developer;
 pub mod duplicates;
 pub mod index;
 pub mod jobs;
+pub mod metadata;
 pub mod ntfs;
 pub mod operations;
 pub mod plans;

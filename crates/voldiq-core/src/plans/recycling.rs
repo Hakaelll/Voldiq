@@ -44,7 +44,7 @@ impl Store {
                 .map(|file| context.path(Path::new(&file.path)))
                 .collect::<Result<Vec<_>>>()?;
             record.validate(lease.directory)?;
-            record.into_plan()
+            record.into_plan()?.with_protections(self.directory.path())
         })();
         let plan = match checked {
             Ok(plan) => plan,

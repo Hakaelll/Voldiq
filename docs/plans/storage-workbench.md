@@ -37,7 +37,7 @@ Execution is inline, without subagents or computer use, as the user requested. T
 ## C. Plans, headless and MCP
 
 - [ ] Extend the existing cleanup preview/executor with immutable serializable manifests and explicit lifecycle states. Persist hash, principal, exact identities, policy version, expiry and audit. No agent approval endpoint.
-  Core manifests, lifecycle, CLI/MCP planning dispatch, desktop review, complete-selection preflight, journal association and shared operation coordination are implemented. Protections, runtime revalidation and execution dispatch remain open.
+  Core manifests, lifecycle, CLI/MCP planning dispatch, desktop review, complete-selection preflight, journal association, shared coordination and persisted protection binding are implemented. Runtime admission checks and execution dispatch remain open.
 - [ ] Add a separate headless crate and CLI for scan/query/stats/history/plan/jobs/export, with JSON envelopes, structured errors and a read-only default.
   Scan/query/stats/history/details/jobs/cancel, plan preparation/status/request/audit and versioned errors are implemented and subprocess-tested. Execution/export remain open.
 - [ ] Add official `rmcp` stdio transport, bounded schemas/results and tools that route through authorization and shared services. Verify protocol behavior with the SDK client against the real executable.
@@ -56,6 +56,7 @@ Execution is inline, without subagents or computer use, as the user requested. T
 
 - [ ] Add one strict core search parser and deterministic offline translation; connect GUI, CLI, MCP, saved views and policies.
 - [ ] Add notes/protections, budgets and favorites to shared persistence. User-only protection removal.
+  Folder notes, descendant protection, exact-version human removal and native/agent plan enforcement are implemented. Scoped agent note reads, suggestion filtering, budgets and favorites remain open; native UI acceptance remains manual.
 - [ ] Add evidence-based app/game/media attribution, shared/unattributed buckets, review scoring and common cleanup tray. Preserve existing verified developer rules.
 - [ ] Extend duplicate review with perceptual image comparison, explicit similarity and manual selection; do not weaken exact duplicate retention.
 - [ ] Verify parser failures, protection precedence, accounting and unsafe suggestions. Commit and push.

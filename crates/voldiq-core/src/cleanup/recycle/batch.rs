@@ -151,6 +151,7 @@ impl Batch {
         origin: Option<&crate::cleanup::journal::AgentExecutionRef<'_>>,
     ) -> Result<Self> {
         plan.validate_retained()?;
+        plan.validate_protections()?;
         if plan.files.is_empty() || plan.files.len() > 500 {
             return Err(Error::Invalid("Invalid recycling batch size.".into()));
         }
@@ -284,7 +285,13 @@ impl Batch {
         mut session: Session,
         mut progress: impl FnMut(usize),
     ) -> Report {
-        if !self.ready_for_admission() || cancel.load(Ordering::Relaxed) {
+        if let Err(error) = self._plan.validate_protections() {
+            self.report.preflight_error = Some(error.to_string());
+        }
+        if !self.ready_for_admission()
+            || self.report.preflight_error.is_some()
+            || cancel.load(Ordering::Relaxed)
+        {
             if let Err(error) = session.finish() {
                 self.report.helper_error = Some(error.to_string());
             }
@@ -302,7 +309,12 @@ impl Batch {
                 .stage
                 .as_ref()
                 .expect("Prepared stage exists before admission");
-            if let Err(error) = check_keepers(&self.keepers).and_then(|()| source.check_stamp()) {
+            if let Err(error) = self
+                ._plan
+                .validate_protections()
+                .and_then(|()| check_keepers(&self.keepers))
+                .and_then(|()| source.check_stamp())
+            {
                 self.report.items[item.row].error = Some(error.to_string());
                 break;
             }
@@ -376,6 +388,10 @@ impl Batch {
                 Phase::Unmoved => cleanup(item, &mut self.report),
                 Phase::Unknown => {}
                 Phase::Staged => {
+                    if let Err(error) = self._plan.validate_protections() {
+                        stop = true;
+                        self.report.items[item.row].error = Some(error.to_string());
+                    }
                     if let Err(error) = check_keepers(&self.keepers) {
                         stop = true;
                         self.report.items[item.row].error = Some(error.to_string());

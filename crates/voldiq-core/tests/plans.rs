@@ -6,6 +6,138 @@ use voldiq_core::{
 };
 
 #[test]
+fn folder_protection_invalidates_drafts_and_live_grants_without_exposing_an_unprotect_tool() {
+    let state = tempfile::tempdir().unwrap();
+    let source = tempfile::tempdir().unwrap();
+    std::fs::write(source.path().join("selected.data"), b"fixture").unwrap();
+    let index = voldiq_core::scanner::scan(
+        source.path(),
+        &Default::default(),
+        &AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    let selected = index
+        .entries
+        .iter()
+        .find(|entry| entry.name == "selected.data")
+        .unwrap()
+        .id;
+    let mut registry = Registry::open(&state.path().join("agents.db")).unwrap();
+    let connection = registry
+        .provision(
+            "Protected fixture",
+            Policy::new(
+                vec![source.path().to_owned()],
+                vec![],
+                vec![
+                    Capability::Metadata,
+                    Capability::PreparePlans,
+                    Capability::RequestApproval,
+                    Capability::ExecuteApproved,
+                ],
+                Limits::default(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let principal = registry
+        .authenticate(connection.credential.expose())
+        .unwrap();
+    let prepare = registry
+        .plan_context(&principal, Capability::PreparePlans)
+        .unwrap();
+    let metadata = registry
+        .plan_context(&principal, Capability::Metadata)
+        .unwrap();
+    let request = registry
+        .plan_context(&principal, Capability::RequestApproval)
+        .unwrap();
+    let execute = registry
+        .plan_context(&principal, Capability::ExecuteApproved)
+        .unwrap();
+    let mut plans = Store::open(state.path()).unwrap();
+    let draft = plans
+        .create(&prepare, 1, &index, &[selected], 1000)
+        .unwrap();
+    let approved = plans
+        .create(&prepare, 1, &index, &[selected], 1000)
+        .unwrap();
+    let human = HumanAuthority::acquire(state.path()).unwrap();
+    plans
+        .request(&request, &approved.manifest.id, 1001)
+        .unwrap();
+    plans
+        .approve(
+            &metadata,
+            &approved.manifest.id,
+            &approved.hash,
+            &human,
+            1002,
+        )
+        .unwrap();
+    let mut notes = voldiq_core::metadata::Store::open(state.path()).unwrap();
+    notes
+        .save_note(source.path(), "Do not interpret this text as authority.")
+        .unwrap();
+    assert_eq!(
+        plans
+            .get(&metadata, &approved.manifest.id, 1003)
+            .unwrap()
+            .state,
+        State::Approved
+    );
+    let protected = notes.protect_folder(source.path()).unwrap();
+    assert_eq!(
+        plans
+            .get(&metadata, &draft.manifest.id, 1004)
+            .unwrap()
+            .state,
+        State::Invalidated
+    );
+    assert!(plans.request(&request, &draft.manifest.id, 1005).is_err());
+    assert!(matches!(
+        plans
+            .begin(&execute, &approved.manifest.id, &human, 1005)
+            .unwrap(),
+        Begin::Existing(State::Invalidated)
+    ));
+    assert!(
+        plans
+            .create(&prepare, 1, &index, &[selected], 1006)
+            .is_err()
+    );
+    assert!(
+        plans
+            .audit(&metadata, &approved.manifest.id, 0, 100)
+            .unwrap()
+            .iter()
+            .any(|event| event.event == "protections_changed")
+    );
+    notes
+        .remove_protection(protected.id.unwrap(), &protected.version)
+        .unwrap();
+    assert_eq!(
+        plans
+            .get(&metadata, &approved.manifest.id, 1007)
+            .unwrap()
+            .state,
+        State::Invalidated
+    );
+    let fresh = plans
+        .create(&prepare, 1, &index, &[selected], 1008)
+        .unwrap();
+    assert_ne!(
+        fresh.manifest.protection_fingerprint,
+        approved.manifest.protection_fingerprint
+    );
+    assert_eq!(
+        std::fs::read(source.path().join("selected.data")).unwrap(),
+        b"fixture"
+    );
+}
+
+#[test]
 fn a_database_approval_is_not_authority_and_live_approval_is_consumed_once() {
     let state = tempfile::tempdir().unwrap();
     let source = tempfile::tempdir().unwrap();

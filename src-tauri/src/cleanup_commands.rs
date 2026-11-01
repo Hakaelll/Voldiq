@@ -499,6 +499,7 @@ pub async fn preview_cleanup_rule(
                 voldiq_core::cleanup::rules::preview_project(&guard, now, &selection, &caches)
             }
         }
+        .and_then(|plan| plan.with_protections(engine.operations.directory()))
         .map_err(|e| e.to_string())?;
         drop(guard);
         let preview = plan.preview().clone();
@@ -528,7 +529,9 @@ pub async fn preview_cleanup(
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = operation;
         let guard = index.read().map_err(|e| e.to_string())?;
-        let plan = Plan::manual(&guard, &selection).map_err(|e| e.to_string())?;
+        let plan = Plan::manual(&guard, &selection)
+            .and_then(|plan| plan.with_protections(engine.operations.directory()))
+            .map_err(|e| e.to_string())?;
         drop(guard);
         let preview = plan.preview().clone();
         *plans.lock().map_err(|e| e.to_string())? = Some(Session {
@@ -579,6 +582,7 @@ pub async fn preview_duplicate_cleanup(
         let _operation = operation;
         let guard = index.read().map_err(|e| e.to_string())?;
         let plan = Plan::duplicates(&guard, &run.analysis, &selection, &cancel)
+            .and_then(|plan| plan.with_protections(engine.operations.directory()))
             .map_err(|e| e.to_string())?;
         if cancel.load(std::sync::atomic::Ordering::Relaxed) {
             return Err("Duplicate review cancelled.".into());

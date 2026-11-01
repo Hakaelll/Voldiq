@@ -61,6 +61,12 @@ pub struct Plan {
     preview: Preview,
     files: Vec<PlannedFile>,
     retained: Vec<(PlannedFile, String)>,
+    protections: Option<ProtectionFrame>,
+}
+
+struct ProtectionFrame {
+    directory: crate::operations::Coordinator,
+    fingerprint: String,
 }
 
 #[cfg(windows)]
@@ -69,6 +75,51 @@ pub struct RetainedCopies {
 }
 
 impl Plan {
+    pub fn with_protections(mut self, directory: &Path) -> Result<Self> {
+        let directory = crate::operations::Coordinator::open(directory)?;
+        let protections = crate::metadata::Store::open(directory.directory())?.protections()?;
+        self.check_protections(&protections)?;
+        self.protections = Some(ProtectionFrame {
+            directory,
+            fingerprint: protections.fingerprint().to_owned(),
+        });
+        Ok(self)
+    }
+
+    fn check_protections(&self, protections: &crate::metadata::Protections) -> Result<()> {
+        for file in &self.files {
+            if record::sensitive(&file.path) {
+                return Err(Error::Invalid(
+                    "Sensitive files are excluded from cleanup.".into(),
+                ));
+            }
+            protections.check_evidence(
+                &file.path,
+                file.stamp.identity,
+                &file
+                    .parents
+                    .iter()
+                    .map(|(_, identity)| *identity)
+                    .collect::<Vec<_>>(),
+            )?;
+        }
+        Ok(())
+    }
+
+    pub fn validate_protections(&self) -> Result<()> {
+        if let Some(frame) = &self.protections {
+            let protections =
+                crate::metadata::Store::open(frame.directory.directory())?.protections()?;
+            if protections.fingerprint() != frame.fingerprint {
+                return Err(Error::Invalid(
+                    "Folder protections changed. Prepare a new cleanup preview.".into(),
+                ));
+            }
+            self.check_protections(&protections)?;
+        }
+        Ok(())
+    }
+
     fn validate_retained(&self) -> Result<()> {
         if self.preview.retained.len() != self.retained.len()
             || self.files.iter().any(|file| match &file.digest {
@@ -250,6 +301,7 @@ impl Plan {
             preview,
             files,
             retained: Vec::new(),
+            protections: None,
         })
     }
 
@@ -260,6 +312,7 @@ impl Plan {
     /// Validates a preview without changing disk state. Execution must keep the returned handles alive.
     #[cfg(windows)]
     pub fn verify(&self, id: NodeId) -> Result<VerifiedFile> {
+        self.validate_protections()?;
         let planned = self
             .files
             .iter()
