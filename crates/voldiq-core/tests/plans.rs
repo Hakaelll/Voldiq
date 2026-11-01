@@ -684,12 +684,12 @@ fn internal_state_credentials_git_and_virtual_disks_cannot_be_selected() {
 }
 
 struct Fixture {
-    state: tempfile::TempDir,
-    source: tempfile::TempDir,
     registry: Registry,
     principal: voldiq_core::agents::Principal,
     index: voldiq_core::index::Index,
     selected: NodeId,
+    source: tempfile::TempDir,
+    state: tempfile::TempDir,
 }
 
 impl Fixture {

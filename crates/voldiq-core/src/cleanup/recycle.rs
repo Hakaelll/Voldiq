@@ -219,6 +219,16 @@ impl<'stage> StagedSource<'stage> {
         journal: &mut Journal,
         relocation: RelocationId,
     ) -> Result<RecycledItem<'a, 'stage>> {
+        self.recycle_guarded(apartment, journal, relocation, || Ok(()))
+    }
+
+    fn recycle_guarded<'a>(
+        &'a mut self,
+        apartment: &'a ShellApartment,
+        journal: &mut Journal,
+        relocation: RelocationId,
+        mut check_authority: impl FnMut() -> Result<()>,
+    ) -> Result<RecycledItem<'a, 'stage>> {
         if self.attempted {
             return Err(Error::Invalid(
                 "Recycling was already attempted; reconcile its result.".into(),
@@ -232,6 +242,7 @@ impl<'stage> StagedSource<'stage> {
             unsafe { SHCreateItemFromRelativeName(&parent, PCWSTR(entry.as_ptr()), None) }
                 .map_err(shell_error)?;
         check_shell_identity(&source, self.identity, false)?;
+        check_authority()?;
         journal.start_recycling(relocation, self.identity, self.stage.identity())?;
         self.attempted = true;
         let item = unsafe { transfer.RecycleItem(&source, &bin, 0) }.map_err(shell_error)?;

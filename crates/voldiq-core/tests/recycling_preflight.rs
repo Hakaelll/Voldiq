@@ -181,6 +181,9 @@ fn an_approved_ticket_prepares_only_its_exact_selection_and_persists_agent_recei
         plans
             .approve(&metadata, id, &plan.hash, &human, approved_at)
             .unwrap();
+        plans
+            .request_execution(&execute, id, &plan.hash, approved_at)
+            .unwrap();
         let Begin::Started(lease) = plans.begin(&execute, id, &human, approved_at).unwrap() else {
             panic!("Missing execution ticket")
         };
@@ -193,8 +196,9 @@ fn an_approved_ticket_prepares_only_its_exact_selection_and_persists_agent_recei
                 .open(source.path().join("b.data"))
                 .unwrap()
         });
-        let prepared =
-            plans.prepare_recycling(&execute, &human, lease, &mut journal, &cancel, &apartment);
+        let operation = voldiq_core::operations::Lease::acquire(state.path()).unwrap();
+        let worker = voldiq_core::plans::RecyclingWorker::new(&operation, &cancel, &apartment);
+        let prepared = plans.prepare_recycling(&execute, &human, lease, &mut journal, worker);
         if delayed {
             assert!(prepared.is_err());
             assert_eq!(

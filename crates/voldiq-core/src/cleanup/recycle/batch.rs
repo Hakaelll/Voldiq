@@ -278,14 +278,31 @@ impl Batch {
 
     /// Consumes one authenticated helper session and closes it before any recycling or return work.
     pub fn execute(
+        self,
+        journal: &mut Journal,
+        cancel: &AtomicBool,
+        apartment: &ShellApartment,
+        session: Session,
+        progress: impl FnMut(usize),
+    ) -> Report {
+        self.execute_guarded(journal, cancel, apartment, session, progress, || Ok(()))
+    }
+
+    /// Additional live authority is checked before admission and before recycling each source.
+    pub fn execute_guarded(
         mut self,
         journal: &mut Journal,
         cancel: &AtomicBool,
         apartment: &ShellApartment,
         mut session: Session,
         mut progress: impl FnMut(usize),
+        mut check_authority: impl FnMut() -> Result<()>,
     ) -> Report {
-        if let Err(error) = self._plan.validate_protections() {
+        if let Err(error) = self
+            ._plan
+            .validate_protections()
+            .and_then(|()| check_authority())
+        {
             self.report.preflight_error = Some(error.to_string());
         }
         if !self.ready_for_admission()
@@ -314,6 +331,7 @@ impl Batch {
                 .validate_protections()
                 .and_then(|()| check_keepers(&self.keepers))
                 .and_then(|()| source.check_stamp())
+                .and_then(|()| check_authority())
             {
                 self.report.items[item.row].error = Some(error.to_string());
                 break;
@@ -388,6 +406,11 @@ impl Batch {
                 Phase::Unmoved => cleanup(item, &mut self.report),
                 Phase::Unknown => {}
                 Phase::Staged => {
+                    if let Err(error) = check_authority() {
+                        stop = true;
+                        self.report.cancelled |= cancel.load(Ordering::Relaxed);
+                        self.report.items[item.row].error = Some(error.to_string());
+                    }
                     if let Err(error) = self._plan.validate_protections() {
                         stop = true;
                         self.report.items[item.row].error = Some(error.to_string());
@@ -414,7 +437,13 @@ impl Batch {
                                 return_source(item, journal, &mut self.report);
                             }
                             Ok(mut staged) => {
-                                let result = staged.recycle(apartment, journal, item.relocation);
+                                let result = staged.recycle_guarded(
+                                    apartment,
+                                    journal,
+                                    item.relocation,
+                                    &mut check_authority,
+                                );
+                                self.report.cancelled |= cancel.load(Ordering::Relaxed);
                                 let mut failure = None;
                                 match result {
                                     Ok(recycled) => {

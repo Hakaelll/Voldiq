@@ -9,7 +9,7 @@ use crate::{Error, Result};
 pub use desktop::{Desktop, Review, ReviewPage};
 pub use human::{Begin, HumanAuthority};
 #[cfg(windows)]
-pub use recycling::PreparedRecycling;
+pub use recycling::{PreparedRecycling, RecyclingWorker};
 use serde::{Deserialize, Serialize};
 pub use store::{Enqueue, ExecutionRequest, Store};
 
@@ -105,11 +105,17 @@ pub struct ExecutionLease {
     nonce: String,
     directory: (u64, u64),
     #[cfg(windows)]
+    runtime: Box<RuntimeBinding>,
+}
+
+#[cfg(windows)]
+struct RuntimeBinding {
     issuer: String,
-    #[cfg(windows)]
-    binding: String,
-    #[cfg(windows)]
-    admission_deadline: i64,
+    policy: String,
+    deadline: i64,
+    created: i64,
+    user: String,
+    protection_fingerprint: String,
 }
 
 fn invalid() -> Error {

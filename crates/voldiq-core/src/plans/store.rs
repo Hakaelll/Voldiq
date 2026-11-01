@@ -25,6 +25,12 @@ struct Stored {
     binding: String,
 }
 
+#[cfg(windows)]
+pub(super) enum ExecutionControl {
+    Proceed,
+    Cancel,
+}
+
 impl Store {
     pub(super) fn review_refs(
         &self,
@@ -282,11 +288,14 @@ impl Store {
             nonce,
             directory: self.directory.identity(),
             #[cfg(windows)]
-            issuer: human.issuer().to_owned(),
-            #[cfg(windows)]
-            binding: stored.binding,
-            #[cfg(windows)]
-            admission_deadline: view.approval_expires.ok_or_else(invalid)?,
+            runtime: Box::new(RuntimeBinding {
+                issuer: human.issuer().to_owned(),
+                policy: stored.binding,
+                deadline: view.approval_expires.ok_or_else(invalid)?,
+                created: view.manifest.created,
+                user: view.manifest.user.clone(),
+                protection_fingerprint: view.manifest.protection_fingerprint.clone(),
+            }),
         }))
     }
 
@@ -477,26 +486,63 @@ impl Store {
     }
 
     #[cfg(windows)]
+    pub(super) fn check_execution(
+        &self,
+        context: &PlanContext<'_>,
+        human: &HumanAuthority,
+        lease: &ExecutionLease,
+        mut clock: impl FnMut() -> Result<i64>,
+    ) -> Result<ExecutionControl> {
+        let at = clock()?;
+        context.check(Capability::ExecuteApproved)?;
+        human.check_directory(self.directory.identity())?;
+        if lease.directory != self.directory.identity()
+            || lease.owner != context.owner()
+            || lease.runtime.issuer != human.issuer()
+            || lease.runtime.policy != context.binding()?
+            || at < lease.runtime.created
+            || at >= lease.runtime.deadline
+            || lease.runtime.user != current_user()?
+            || crate::metadata::Store::open(self.directory.path())?.protection_fingerprint()?
+                != lease.runtime.protection_fingerprint
+        {
+            return Err(invalid());
+        }
+        let cancelled: Option<bool> = self.connection.query_row("SELECT r.cancel_requested FROM agent_plans p
+            JOIN execution_requests r ON r.plan_id=p.id AND r.owner=p.owner AND r.hash=p.hash AND r.issuer=p.approval_issuer
+            WHERE p.id=?1 AND p.owner=?2 AND p.hash=?3 AND p.execution_nonce=?4 AND p.state='executing'
+                AND p.approval_issuer=?5 AND p.binding=?6 AND p.approval_expires=?7
+                AND r.requested>=?8 AND r.requested<=?9",
+            params![lease.id,lease.owner,lease.hash,lease.nonce,lease.runtime.issuer,lease.runtime.policy,lease.runtime.deadline,lease.runtime.created,at],
+            |row| row.get(0)).optional()?;
+        let completed_at = clock()?;
+        human.check_directory(self.directory.identity())?;
+        if completed_at < at || completed_at >= lease.runtime.deadline {
+            return Err(invalid());
+        }
+        match cancelled {
+            Some(false) => Ok(ExecutionControl::Proceed),
+            Some(true) => Ok(ExecutionControl::Cancel),
+            None => Err(invalid()),
+        }
+    }
+
+    #[cfg(windows)]
     pub(super) fn execution_record(
         &self,
         context: &PlanContext<'_>,
         human: &HumanAuthority,
         lease: &ExecutionLease,
     ) -> Result<Record> {
-        context.check(Capability::ExecuteApproved)?;
-        human.check_directory(self.directory.identity())?;
-        if lease.directory != self.directory.identity()
-            || lease.owner != context.owner()
-            || lease.issuer != human.issuer()
-            || lease.binding != context.binding()?
-            || now()? >= lease.admission_deadline
-        {
+        if matches!(
+            self.check_execution(context, human, lease, now)?,
+            ExecutionControl::Cancel
+        ) {
             return Err(invalid());
         }
         let stored = self.read(context, &lease.id)?;
         self.validate_protection_binding(&stored)?;
-        let current: bool = self.connection.query_row("SELECT EXISTS(SELECT 1 FROM agent_plans WHERE id=?1 AND owner=?2 AND hash=?3 AND execution_nonce=?4 AND state='executing')",params![lease.id,lease.owner,lease.hash,lease.nonce],|row| row.get(0))?;
-        if !current || stored.view.hash != lease.hash || stored.view.state != State::Executing {
+        if stored.view.hash != lease.hash || stored.view.state != State::Executing {
             return Err(invalid());
         }
         Ok(stored.record)

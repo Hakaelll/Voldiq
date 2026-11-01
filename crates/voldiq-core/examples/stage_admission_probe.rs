@@ -350,7 +350,7 @@ mod probe {
         std::fs::remove_file(&journal_path)?;
         std::fs::remove_dir(root)?;
         Ok(
-            serde_json::json!({"helperElevated":external,"batchOrdinaryDenialVerified":!external,"batchCancellationPreservedSources":!external,"parentAuthorityReopenedAndNarrowed":true,"emptyStageRemovedByVerifiedHandle":true,"wrongCleanupTargetPreserved":true,"productionAdmissionProtocolVerified":true,"helperReleasedStrictSourceWhileLive":true,"unadmittedSourceRejectedForRecycling":true,"shellApartmentInitialized":true,"protectedStageShellBindingVerified":true,"journalIntentAndResultSurvivedRestart":true,"sameUserImageAndRoleVerified":true,"nativeAdmissionSucceeded":reply.admitted,"nativeError":reply.native_error,
+            serde_json::json!({"helperElevated":external,"runtimeAdmissionGuardsVerified":!external,"batchOrdinaryDenialVerified":!external,"batchCancellationPreservedSources":!external,"parentAuthorityReopenedAndNarrowed":true,"emptyStageRemovedByVerifiedHandle":true,"wrongCleanupTargetPreserved":true,"productionAdmissionProtocolVerified":true,"helperReleasedStrictSourceWhileLive":true,"unadmittedSourceRejectedForRecycling":true,"shellApartmentInitialized":true,"protectedStageShellBindingVerified":true,"journalIntentAndResultSurvivedRestart":true,"sameUserImageAndRoleVerified":true,"nativeAdmissionSucceeded":reply.admitted,"nativeError":reply.native_error,
             "reviewedSourceReplayRejected":replay_rejected,"rollbackCollisionPreservedBothFiles":external,"returnedByOrdinaryController":external,"originalIdentityAndContentsVerified":true,"ownedFixtureCleaned":true}),
         )
     }
@@ -412,6 +412,52 @@ mod probe {
         if stage_names()? != existing_stages {
             return Err("Denied batch left a protected stage behind.".into());
         }
+        for deny_at in [1, 2] {
+            let (planned, _) = plan(root)?;
+            let batch = Batch::prepare(planned, &mut journal, &cancel, &apartment)?;
+            let image = std::fs::OpenOptions::new()
+                .read(true)
+                .share_mode(FILE_SHARE_READ)
+                .open(std::env::current_exe()?)?;
+            let server = Server::create()?;
+            let mut child = self::child(&server)?;
+            let session =
+                Session::connect(server, child.as_handle(), PeerElevation::Ordinary, image)?;
+            let mut checks = 0;
+            let report = batch.execute_guarded(
+                &mut journal,
+                &cancel,
+                &apartment,
+                session,
+                |_| {},
+                || {
+                    checks += 1;
+                    if checks == deny_at {
+                        Err(voldiq_core::Error::Invalid(
+                            "Fixture authority withdrawn.".into(),
+                        ))
+                    } else {
+                        Ok(())
+                    }
+                },
+            );
+            if !child.wait()?.success()
+                || checks != deny_at
+                || report.items.len() != 1
+                || report.items[0].outcome != Outcome::NotStarted
+                || !report.items[0].recorded
+                || report.journal_error.is_some()
+                || report.helper_error.is_some()
+                || stage_names()? != existing_stages
+                || std::fs::read(root.join("owned.bin"))? != [1, 2, 3, 4]
+                || identity(&File::open(root.join("owned.bin"))?)? != original
+            {
+                return Err(
+                    "Runtime guard did not stop admission without changing its owned source."
+                        .into(),
+                );
+            }
+        }
         let (planned, _) = plan(root)?;
         let batch = Batch::prepare(planned, &mut journal, &cancel, &apartment)?;
         cancel.store(true, Ordering::Relaxed);
@@ -431,9 +477,9 @@ mod probe {
         drop(journal);
         let journal = Journal::open(&database)?;
         let rows = journal.relocations(0, 100)?;
-        if rows.len() != 2
-            || rows[0].state != "cancelled"
-            || rows[1].state != "unmoved"
+        if rows.len() != 4
+            || rows.iter().filter(|row| row.state == "cancelled").count() != 3
+            || rows.iter().filter(|row| row.state == "unmoved").count() != 1
             || rows.iter().any(|row| row.source != original)
             || std::fs::read(root.join("owned.bin"))? != [1, 2, 3, 4]
             || identity(&File::open(root.join("owned.bin"))?)? != original

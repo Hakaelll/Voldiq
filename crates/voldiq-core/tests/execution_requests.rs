@@ -7,13 +7,13 @@ use voldiq_core::{
 };
 
 struct Fixture {
-    state: tempfile::TempDir,
-    source: tempfile::TempDir,
     index: Index,
     selected: NodeId,
     registry: Registry,
     principal: Principal,
     connection_id: i64,
+    source: tempfile::TempDir,
+    state: tempfile::TempDir,
 }
 
 impl Fixture {

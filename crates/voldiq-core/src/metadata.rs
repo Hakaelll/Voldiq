@@ -193,14 +193,7 @@ impl Store {
 
     pub fn protections(&mut self) -> Result<Protections> {
         let tx = self.connection.transaction()?;
-        let fingerprint = tx.query_row(
-            "SELECT fingerprint FROM protection_policy WHERE id=1",
-            [],
-            |row| row.get::<_, String>(0),
-        )?;
-        if fingerprint.len() != 64 || !fingerprint.bytes().all(|byte| byte.is_ascii_hexdigit()) {
-            return Err(unavailable());
-        }
+        let fingerprint = read_fingerprint(&tx)?;
         let mut paths = vec![self.directory.directory().to_owned()];
         let mut identities = HashSet::from([self.directory.identity()]);
         {
@@ -232,6 +225,10 @@ impl Store {
             identities,
             _directory: self.directory.clone(),
         })
+    }
+
+    pub(crate) fn protection_fingerprint(&self) -> Result<String> {
+        read_fingerprint(&self.connection)
     }
 }
 
@@ -307,6 +304,18 @@ fn fingerprint() -> Result<String> {
     let mut bytes = [0u8; 32];
     getrandom::fill(&mut bytes).map_err(|_| unavailable())?;
     Ok(bytes.iter().map(|byte| format!("{byte:02x}")).collect())
+}
+
+fn read_fingerprint(connection: &Connection) -> Result<String> {
+    let fingerprint: String = connection.query_row(
+        "SELECT fingerprint FROM protection_policy WHERE id=1 AND length(fingerprint)=64",
+        [],
+        |row| row.get(0),
+    )?;
+    if !fingerprint.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        return Err(unavailable());
+    }
+    Ok(fingerprint)
 }
 
 fn now() -> Result<i64> {
