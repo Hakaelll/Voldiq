@@ -37,6 +37,9 @@
   import { paintCity, paintFlat, prepareShadows, type MapStyle } from '../lib/map-painter';
   import { radialLayout, radialHit, shapeAnchor } from '../lib/radial-map';
   import { paintRadial } from '../lib/radial-painter';
+  import { voronoiHit, VORONOI_GROUP_ID, type VoronoiLayout } from '../lib/voronoi';
+  import { paintVoronoi } from '../lib/voronoi-painter';
+  import { startVoronoiJob } from '../lib/voronoi-job';
   import type { WeightedNode } from '../lib/treemap';
   import { bytes } from '../lib/types';
   import Icon from './Icon.svelte';
@@ -164,6 +167,7 @@
     );
   });
   let scene: ReturnType<typeof buildCity> | null = null;
+  let voronoi = $state.raw<VoronoiLayout | null>(null);
   let shadows = new Map<string, Point[][]>();
   let picker: ReturnType<typeof createPicker> | null = null;
   let camera: Camera = { x: 0, y: 0, scale: 1 };
@@ -232,11 +236,13 @@
       drawn =
         mode === 'city' && scene
           ? paintCity(ctx, scene, shadows, options)
-          : mode === 'treemap'
-            ? paintFlat(ctx, options)
-            : radial.kind === 'ready'
-              ? paintRadial(ctx, radial.value, options)
-              : 0;
+          : mode === 'voronoi' && voronoi
+            ? paintVoronoi(ctx, voronoi, options)
+            : mode === 'treemap'
+              ? paintFlat(ctx, options)
+              : radial.kind === 'ready'
+                ? paintRadial(ctx, radial.value, options)
+                : 0;
       drawTime = performance.now() - start;
     } catch (error) {
       failure = error instanceof Error ? error.message : String(error);
@@ -254,6 +260,7 @@
   function hit(point: Point): Rect | null {
     if (preparing || failure) return null;
     const p = screenToWorld(point, camera);
+    if (mode === 'voronoi') return voronoi ? (voronoiHit(voronoi, p)?.node ?? null) : null;
     if (mode === 'city') {
       const face = picker?.(p);
       return face ? (layout.rects.find((r) => r.id === face.node.id) ?? null) : null;
@@ -266,6 +273,10 @@
     );
   }
   function select(rect: Rect, open = false): void {
+    if (rect.id === VORONOI_GROUP_ID) {
+      onlist();
+      return;
+    }
     if (rect.id < -1) {
       onopen(-rect.id - 2);
       return;
@@ -318,12 +329,26 @@
   }
   $effect(() => {
     const rects = layout.rects;
+    const currentIdentity = identity;
     const heights = rects.map((r) => metricHeight(r, heightMode, now, maximum) * relief);
     const owner = ++generation;
     worker?.terminate();
     worker = null;
     failure = '';
     hovered = null;
+    if (mode === 'voronoi') {
+      preparing = true;
+      voronoi = null;
+      const started = performance.now();
+      return startVoronoiJob($state.snapshot(rects), layout.total, (reply) => {
+        if (owner !== generation || currentIdentity !== identity) return;
+        preparing = false;
+        geometryMs = performance.now() - started;
+        if (reply.kind === 'ready') voronoi = reply.layout;
+        else failure = reply.message;
+        schedule();
+      });
+    }
     if (mode !== 'city') {
       preparing = false;
       if (radial.kind === 'error') failure = radial.message;
@@ -423,9 +448,13 @@
         radial.kind === 'ready'
           ? radial.value.shapes.find((shape) => shape.node.id === rect.id)
           : null;
-      const point = shape
-        ? shapeAnchor(shape)
-        : { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+      const polygon =
+        mode === 'voronoi' ? voronoi?.cells.find((cell) => cell.members.includes(rect.id)) : null;
+      const point = polygon
+        ? polygon.anchor
+        : shape
+          ? shapeAnchor(shape)
+          : { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
       const target = worldToScreen(
         mode === 'city'
           ? project({
@@ -511,6 +540,7 @@
       <button aria-pressed={mode === 'sunburst'} onclick={() => onmode('sunburst')}>Sunburst</button
       >
       <button aria-pressed={mode === 'circles'} onclick={() => onmode('circles')}>Circles</button>
+      <button aria-pressed={mode === 'voronoi'} onclick={() => onmode('voronoi')}>Voronoi</button>
       <button onclick={onlist}>List</button>
       {#if ongrid}<button onclick={ongrid}>Grid</button>{/if}
     </div>
@@ -598,7 +628,7 @@
     <canvas
       bind:this={canvas}
       tabindex="0"
-      aria-label={`${mode === 'city' ? 'Skyline' : mode === 'sunburst' ? 'Sunburst' : mode === 'circles' ? 'Nested circles' : 'Treemap'}. Use the item list for keyboard selection. Arrow keys pan, plus and minus zoom, zero fits the map.`}
+      aria-label={`${mode === 'city' ? 'Skyline' : mode === 'sunburst' ? 'Sunburst' : mode === 'circles' ? 'Nested circles' : mode === 'voronoi' ? 'Weighted Voronoi' : 'Treemap'}. Use the item list for keyboard selection. Arrow keys pan, plus and minus zoom, zero fits the map.`}
       onkeydown={keyboard}
       onpointerdown={(event) => {
         if (event.button !== 0) return;
@@ -667,7 +697,9 @@
           /></label
         ><label><input type="checkbox" bind:checked={detail} />Detail</label>{/if}
     </div>
-    {#if preparing}<div class="map-preparing" role="status">Preparing city…</div>{/if}
+    {#if preparing}<div class="map-preparing" role="status">
+        Preparing {mode === 'voronoi' ? 'Voronoi' : 'city'}…
+      </div>{/if}
     {#if failure}<div class="map-empty" role="alert">
         <p>{failure}</p>
         <div>
@@ -690,11 +722,23 @@
       >
         <strong>{hovered.name}</strong><span
           >{bytes(hovered.value)} · {((hovered.share ?? 0) * 100).toFixed(1)}%</span
-        ><span>{heightDescription(hovered, heightMode, now)}</span>{#if hovered.directory}<span
-            >{hovered.modifiedKnown ?? 0} / {hovered.modifiedTotal ?? hovered.files} descendant dates
-            known</span
-          >{/if}{#if !hovered.allocation_known}<span>Allocation coverage incomplete</span
-          >{/if}{#if hovered.aggregated}<span
+        >{#if hovered.id === VORONOI_GROUP_ID}<span
+            >{voronoi?.groupedEntries} frontier entries grouped. Open the complete item list.</span
+          >
+        {:else}<span>{heightDescription(hovered, heightMode, now)}</span
+          >{#if hovered.directory}<span
+              >{hovered.modifiedKnown ?? 0} / {hovered.modifiedTotal ?? hovered.files} descendant dates
+              known</span
+            >{/if}{/if}
+        {#if mode === 'voronoi' && voronoi}{@const cell = voronoi.cells.find(
+            (cell) => cell.node.id === hovered?.id,
+          )}{#if cell}<span
+              >Cell area error {cell.relativeError >= 0 ? '+' : ''}{(
+                100 * cell.relativeError
+              ).toFixed(2)}%</span
+            >{/if}{/if}
+        {#if !hovered.allocation_known}<span>Allocation coverage incomplete</span
+          >{/if}{#if hovered.aggregated && hovered.id !== VORONOI_GROUP_ID}<span
             >{hovered.represented.toLocaleString()} files represented · Open to inspect</span
           >{/if}
         {#if hovered.directory && hovered.id >= 0}
@@ -703,6 +747,19 @@
       </div>{/if}
   </div>
   <div class="map-encoding">
+    {#if mode === 'voronoi' && voronoi?.cells.length && voronoi.totalError !== null && voronoi.maximumError !== null}<span
+      >
+        Approximate weighted Voronoi · <span
+          title="Half the sum of absolute differences between cell area share and byte share."
+          >area discrepancy {(100 * voronoi.totalError).toFixed(3)}%</span
+        >
+        · worst cell {(100 * voronoi.maximumError).toFixed(2)}% · {voronoi.groupedEntries} frontier entries
+        grouped · {voronoi.stop === 'converged'
+          ? 'precision target reached'
+          : 'calculation stopped within display tolerance'}.
+        {#if voronoi.groupedEntries}<button onclick={onlist}>Inspect complete item list</button
+          >{/if}
+      </span>{/if}
     <span
       >Up to {depth}
       {depth === 1 ? 'level' : 'levels'} within loaded branches; small groups may remain collapsed.</span
@@ -765,7 +822,11 @@
       class="map-render-status"
       title={`Last draw ${drawTime.toFixed(1)} ms. Geometry is cached; idle has no animation loop.`}
       >{layout.represented.toLocaleString()} files represented · {layout.rects.length} frontier items
-      · {Math.max(0, layout.rects.length - drawn)} outside draw bounds{#if matches}
+      {#if mode === 'voronoi'}· {voronoi
+          ? `${voronoi.cells.length} cells · ${Math.max(0, voronoi.cells.length - drawn)} outside draw bounds`
+          : failure
+            ? 'layout unavailable'
+            : 'layout pending'}{:else}· {Math.max(0, layout.rects.length - drawn)} outside draw bounds{/if}{#if matches}
         · {matches.size} highlighted{/if}</span
     >
   </div>

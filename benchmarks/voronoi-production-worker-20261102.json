@@ -1,0 +1,14 @@
+{
+  "checkedUtc": "2026-11-02T03:57:24.728Z",
+  "asset": "dist/assets/voronoi.worker-DwJ2QmrW.js",
+  "sha256": "c6fc25fee9277ae80bd385e23d8d8f1813c042c71f52b46bb878a8c088947014",
+  "sourceEntries": 250,
+  "cells": 120,
+  "groupedEntries": 131,
+  "totalError": 0.000002630806243348119,
+  "maximumError": 0.0006360189879121005,
+  "observedAreaDiscrepancy": 0.000002630806243493402,
+  "observedMaximumError": 0.0006360189879030861,
+  "clips": 197719,
+  "scope": "Exact production browser-worker asset executed in an owned Node worker thread through a self/postMessage adapter. Synthetic metadata only. This proves the built worker protocol and geometry, not WebView creation, native rendering, UI interaction or device performance."
+}

@@ -2,7 +2,7 @@ import { layout, type Rect as TreemapRect, type WeightedNode } from './treemap.t
 
 export type HeightMode = 'modified' | 'files' | 'depth';
 export type ColorMode = 'type' | 'size' | 'age';
-export type StorageView = 'treemap' | 'city' | 'sunburst' | 'circles';
+export type StorageView = 'treemap' | 'city' | 'sunburst' | 'circles' | 'voronoi';
 export const STORAGE_DEPTHS = [1, 2, 3, 4, 5, 6] as const;
 export type StorageDepth = (typeof STORAGE_DEPTHS)[number];
 export function parseStorageDepth(value: string): StorageDepth | null {

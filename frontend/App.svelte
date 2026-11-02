@@ -1159,6 +1159,12 @@
                         }}>Circles</button
                       >
                       <button
+                        onclick={() => {
+                          explorerMap = true;
+                          mapMode = 'voronoi';
+                        }}>Voronoi</button
+                      >
+                      <button
                         aria-pressed={fileRepresentation === 'table'}
                         onclick={() => (fileRepresentation = 'table')}>List</button
                       >
