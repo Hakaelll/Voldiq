@@ -1,0 +1,8 @@
+{
+  "checkedUtc": "2026-11-02T22:41:30.6635644Z",
+  "startedUtc": "2026-11-02T22:40:31.4904018Z",
+  "checkoutCommit": "98079d096421282d9fe97f8bdf7a2da223c1c0af",
+  "command": "cargo test --offline --release --workspace --features voldiq/production --test snapshots",
+  "scope": "Fresh retained snapshot flow after the partial-observation coverage clarification. Includes exact retention batches, stale/replayed reviews, transactional rollback, surviving intervals and other-root preservation.",
+  "exitCode": 0
+}

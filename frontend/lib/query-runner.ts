@@ -7,7 +7,8 @@ export type QueryFamily =
   | 'folder_budget'
   | 'snapshot_visual'
   | 'snapshot_changes'
-  | 'snapshot_capture';
+  | 'snapshot_capture'
+  | 'snapshot_retention';
 export type QueryTransport<T = Page, Q = Query, F extends string = QueryFamily> = {
   run: (family: F, requestId: number, query: Q) => Promise<T | null>;
   cancel: (family: F, requestId: number) => Promise<void>;

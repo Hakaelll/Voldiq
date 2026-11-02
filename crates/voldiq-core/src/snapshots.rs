@@ -1,7 +1,9 @@
 mod budget_history;
 mod cache_evidence;
+mod retention;
 mod visual;
 pub(crate) use budget_history::HistoryPoint;
+pub use retention::{RetentionPreview, RetentionResult, RetentionSettings};
 pub use visual::{Accounting, VisualFrame, VisualPair};
 #[cfg(windows)]
 mod resume;
@@ -241,12 +243,12 @@ impl Store {
         let mut connection = Connection::open(path)?;
         crate::database::configure(&connection)?;
         let version: u32 = connection.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version < 7 {
+        if version < 8 {
             let transaction =
                 connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
             let version: u32 =
                 transaction.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-            if version > 7 {
+            if version > 8 {
                 return Err(Error::Invalid(
                     "Unsupported snapshot database version.".into(),
                 ));
@@ -272,8 +274,11 @@ impl Store {
             if version <= 6 {
                 transaction.execute_batch(OBSERVATION_SCHEMA)?;
             }
+            if version <= 7 {
+                transaction.execute_batch(retention::SCHEMA)?;
+            }
             transaction.commit()?;
-        } else if version != 7 {
+        } else if version != 8 {
             return Err(Error::Invalid(
                 "Unsupported snapshot database version.".into(),
             ));
@@ -875,12 +880,7 @@ impl Store {
         if transaction.execute("DELETE FROM snapshots WHERE id=?1", [id])? != 1 {
             return Err(Error::Invalid("Snapshot no longer exists.".into()));
         }
-        transaction.execute("DELETE FROM snapshot_roots WHERE NOT EXISTS(SELECT 1 FROM snapshots s WHERE s.root_id=snapshot_roots.id)", [])?;
-        transaction.execute("DELETE FROM snapshot_versions WHERE NOT EXISTS
-            (SELECT 1 FROM snapshots s JOIN snapshot_paths p ON p.root_id=s.root_id WHERE p.id=snapshot_versions.path_id
-             AND s.id>=snapshot_versions.start_id AND (snapshot_versions.end_id IS NULL OR s.id<snapshot_versions.end_id))", [])?;
-        while transaction.execute("DELETE FROM snapshot_paths WHERE NOT EXISTS(SELECT 1 FROM snapshot_versions v WHERE v.path_id=snapshot_paths.id)
-            AND NOT EXISTS(SELECT 1 FROM snapshot_paths child WHERE child.parent_id=snapshot_paths.id)", [])? > 0 {}
+        retention::prune(&transaction, &AtomicBool::new(false))?;
         transaction.commit()?;
         Ok(())
     }

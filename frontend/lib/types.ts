@@ -373,6 +373,25 @@ export interface SnapshotVisualPair {
   };
 }
 
+export interface SnapshotRetentionSettings {
+  root_key: number;
+  root: string;
+  version: string;
+  keep_latest: number | null;
+  total: number;
+}
+export interface SnapshotRetentionPreview {
+  settings: SnapshotRetentionSettings;
+  revision: string;
+  fingerprint: string;
+  eligible: number;
+  captures: { id: number; captured: number; logical: string; complete: boolean }[];
+}
+export interface SnapshotRetentionResult {
+  removed: number;
+  remaining_eligible: number;
+}
+
 export function difference(value: number): string {
   return `${value > 0 ? '+' : value < 0 ? '−' : ''}${bytes(Math.abs(value))}`;
 }

@@ -1952,6 +1952,77 @@ main {
   gap: 16px;
   margin-bottom: 18px;
 }
+.snapshot-retention-disclosure {
+  margin-bottom: 18px;
+}
+.snapshot-retention-disclosure > summary {
+  padding: 12px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.snapshot-retention {
+  padding: 0 16px 16px;
+  font-size: 13px;
+}
+.snapshot-retention-heading,
+.snapshot-retention form,
+.snapshot-retention-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: end;
+}
+.snapshot-retention-heading {
+  align-items: center;
+  justify-content: space-between;
+}
+.snapshot-retention-heading h2 {
+  font-size: 14px;
+  margin: 0;
+}
+.snapshot-retention form label {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+}
+.snapshot-retention input[type='number'] {
+  width: 110px;
+}
+.snapshot-retention-scope {
+  overflow-wrap: anywhere;
+}
+.snapshot-retention-help {
+  color: var(--secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.snapshot-retention-table {
+  max-height: 260px;
+  overflow: auto;
+}
+.snapshot-retention-table table {
+  width: 100%;
+  min-width: 440px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.snapshot-retention-table th,
+.snapshot-retention-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.snapshot-retention-table th {
+  color: var(--secondary);
+  font-size: 12px;
+}
+.snapshot-retention-confirm {
+  display: flex;
+  align-items: start;
+  gap: 8px;
+  margin: 16px 0;
+}
 .history-compare-heading h2 {
   font-size: 21px;
   margin: 0;

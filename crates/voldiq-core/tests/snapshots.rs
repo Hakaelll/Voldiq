@@ -35,6 +35,34 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     std::fs::write(fixture.path().join("added"), [4; 14]).unwrap();
     let second = capture(fixture.path());
     let after = store.save(&second, &AtomicBool::new(false), &[]).unwrap();
+    let preference = store.retention_settings(after).unwrap();
+    assert_eq!(preference.keep_latest, None);
+    let preference = store
+        .set_retention(after, &preference.version, Some(1))
+        .unwrap();
+    let review = store.preview_retention(after, &loading).unwrap().unwrap();
+    assert_eq!(
+        review
+            .captures
+            .iter()
+            .map(|capture| capture.id)
+            .collect::<Vec<_>>(),
+        [before]
+    );
+    assert_eq!(review.settings.keep_latest, Some(1));
+    assert!(store.set_retention(after, "0", Some(2)).is_err());
+    let preference = store
+        .set_retention(after, &preference.version, None)
+        .unwrap();
+    assert!(
+        store
+            .apply_retention(after, &review.fingerprint, &loading)
+            .is_err()
+    );
+    assert_eq!(
+        store.retention_settings(after).unwrap().version,
+        preference.version
+    );
     assert!(store.save(&second, &AtomicBool::new(true), &[]).is_err());
     assert_eq!(store.list(0, 10).unwrap().len(), 2);
     drop(store);
@@ -150,7 +178,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     drop(store);
     let connection = rusqlite::Connection::open(&db).unwrap();
     connection
-        .execute_batch("DROP INDEX snapshots_observed; ALTER TABLE snapshots DROP COLUMN observed_at; ALTER TABLE snapshots DROP COLUMN observed_complete; ALTER TABLE snapshots DROP COLUMN engine_version; ALTER TABLE snapshots DROP COLUMN accounting_version; ALTER TABLE snapshot_versions DROP COLUMN cloud; DROP TABLE duplicate_hashes; PRAGMA user_version=4;")
+        .execute_batch("DROP TABLE snapshot_retention; DROP TRIGGER history_snapshot_insert; DROP TRIGGER history_snapshot_update; DROP TRIGGER history_snapshot_delete; DROP TABLE snapshot_history_revision; DROP INDEX snapshots_observed; ALTER TABLE snapshots DROP COLUMN observed_at; ALTER TABLE snapshots DROP COLUMN observed_complete; ALTER TABLE snapshots DROP COLUMN engine_version; ALTER TABLE snapshots DROP COLUMN accounting_version; ALTER TABLE snapshot_versions DROP COLUMN cloud; DROP TABLE duplicate_hashes; PRAGMA user_version=4;")
         .unwrap();
     drop(connection);
     let mut store = Store::open(&db).unwrap();
@@ -403,6 +431,102 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         store
             .visual_pair(before, foreign, None, None, false, &loading)
             .is_err()
+    );
+    connection
+        .execute(
+            "UPDATE snapshots SET accounting_version=?1 WHERE id=?2",
+            rusqlite::params![voldiq_core::index::ACCOUNTING_VERSION, third],
+        )
+        .unwrap();
+    let current = capture(fixture.path());
+    for _ in 0..104 {
+        store.save(&current, &loading, &[]).unwrap();
+    }
+    assert!(store.set_retention(third, "0", Some(0)).is_err());
+    assert!(store.set_retention(third, "0", Some(10001)).is_err());
+    let preference = store.set_retention(third, "0", Some(1)).unwrap();
+    connection
+        .execute(
+            "UPDATE snapshots SET observed_complete=0 WHERE id=?1",
+            [after],
+        )
+        .unwrap();
+    let review = store.preview_retention(third, &loading).unwrap().unwrap();
+    assert_eq!(review.eligible, 106);
+    assert_eq!(review.captures.len(), 100);
+    assert!(
+        !review
+            .captures
+            .iter()
+            .find(|capture| capture.id == after)
+            .unwrap()
+            .complete
+    );
+    let mut concurrent = Store::open(&db).unwrap();
+    assert_eq!(
+        concurrent.retention_settings(third).unwrap().version,
+        preference.version
+    );
+    let newest = concurrent.save(&current, &loading, &[]).unwrap();
+    assert!(
+        store
+            .apply_retention(third, &review.fingerprint, &loading)
+            .is_err()
+    );
+    let review = store.preview_retention(newest, &loading).unwrap().unwrap();
+    assert_eq!(review.eligible, 107);
+    assert!(
+        store
+            .apply_retention(newest, &review.fingerprint, &AtomicBool::new(true))
+            .unwrap()
+            .is_none()
+    );
+    connection.execute_batch(&format!("CREATE TRIGGER fail_retention_fixture BEFORE DELETE ON snapshots WHEN OLD.id={after} BEGIN SELECT RAISE(ABORT,'owned fixture failure'); END;")).unwrap();
+    assert!(
+        store
+            .apply_retention(newest, &review.fingerprint, &loading)
+            .is_err()
+    );
+    assert_eq!(store.load(before, &loading).unwrap().entries[0].logical, 33);
+    connection
+        .execute_batch("DROP TRIGGER fail_retention_fixture;")
+        .unwrap();
+    let result = store
+        .apply_retention(newest, &review.fingerprint, &loading)
+        .unwrap()
+        .unwrap();
+    assert_eq!((result.removed, result.remaining_eligible), (100, 7));
+    assert!(
+        store
+            .apply_retention(newest, &review.fingerprint, &loading)
+            .is_err()
+    );
+    let review = store.preview_retention(newest, &loading).unwrap().unwrap();
+    assert_eq!(review.captures.len(), 7);
+    assert_eq!(
+        store
+            .apply_retention(newest, &review.fingerprint, &loading)
+            .unwrap()
+            .unwrap()
+            .remaining_eligible,
+        0
+    );
+    drop(store);
+    let store = Store::open(&db).unwrap();
+    assert_eq!(store.retention_settings(newest).unwrap().total, 1);
+    assert_eq!(
+        store.load(newest, &loading).unwrap().entries[0].logical,
+        231
+    );
+    assert_eq!(
+        store.load(foreign, &loading).unwrap().entries[0].logical,
+        32768
+    );
+    assert_eq!(
+        std::fs::metadata(fixture.path().join("nested/growth"))
+            .unwrap()
+            .len(),
+        33
     );
 }
 

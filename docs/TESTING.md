@@ -8,7 +8,7 @@ The routine Windows suite contains eight behavior tests: one frontend case and s
 |---|---|---|
 | Frontend interaction | `frontend/lib/cleanup-selection.test.ts` | Atomic selection limits, navigation ownership, stale indexed IPC replies and bounded/interrupted map motion |
 | Native authorization | `crates/voldiq-core/tests/agents.rs` | Allowed file identity, sibling and excluded-path denial, renamed exclusions, pinned directories and replaced roots |
-| Saved storage evidence | `crates/voldiq-core/tests/snapshots.rs` | Reopened/cancelled snapshots, migration, recorded playback frames, measured/visual comparisons, ranked remainders, coordinated folder pages, unknown/incompatible accounting, duplicate hashes and qualified folder-budget samples/history |
+| Saved storage evidence | `crates/voldiq-core/tests/snapshots.rs` | Reopened/cancelled snapshots, migration, recorded playback frames, measured/visual comparisons, ranked remainders, coordinated folder pages, unknown/incompatible accounting, duplicate hashes, qualified budgets and reviewed retention batches with rollback/stale/replay/other-root checks |
 | Duplicate execution | `crates/voldiq-core/src/cleanup/execute/tests.rs` | A changed retained copy prevents deletion; cancellation preserves pending files and retained copies |
 | Interrupted result recording | `crates/voldiq-core/src/cleanup/execute/tests.rs` | A journal write failure stops further removal and retains explicit partial/unknown outcomes |
 | Human-approved dispatch | `crates/voldiq-core/src/plans/desktop/tests.rs` | Exact live grant, wrong-hash denial, helper refusal, persisted result, replay without another attempt and closed-session denial |

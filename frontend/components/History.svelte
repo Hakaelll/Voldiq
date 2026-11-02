@@ -6,6 +6,8 @@
   import SnapshotChangeBars from './SnapshotChangeBars.svelte';
   import SnapshotVisualCompare from './SnapshotVisualCompare.svelte';
   import HistoryPlayback from './HistoryPlayback.svelte';
+  import SnapshotRetention from './SnapshotRetention.svelte';
+  import type { SnapshotRetentionSettings, SnapshotRetentionResult } from '../lib/types';
   import { snapshotChangeQueries } from '../lib/queries';
   import { historyTrend } from '../lib/history-trend';
   import { updateSnapshotPair } from '../lib/snapshot-pair';
@@ -34,6 +36,8 @@
     comparisonLoading = $state(false),
     comparisonProblem = $state('');
   let playback = $state(false);
+  let retentionOpen = $state(false),
+    retentionResult = $state('');
   let deleting = $state<number | null>(null);
   let loadState = $state<'loading' | 'ready' | 'unavailable'>(isTauri() ? 'loading' : 'ready');
   let region: HTMLDivElement;
@@ -132,7 +136,10 @@
       }
     }
   }
-  async function mutate(action: () => Promise<void>, cancellableAction = false): Promise<void> {
+  async function mutate<T>(
+    action: () => Promise<T>,
+    cancellableAction = false,
+  ): Promise<T | undefined> {
     if (working) return;
     const trigger = document.activeElement;
     actionGeneration += 1;
@@ -142,7 +149,7 @@
     onbusy(true);
     resetComparison();
     try {
-      await action();
+      return await action();
     } catch (problem) {
       onerror(problem);
     } finally {
@@ -168,6 +175,40 @@
       });
       finishOperation();
       if (saved !== null && alive) await refresh(0);
+    }, true);
+  }
+  async function configureRetention(
+    snapshot: number,
+    version: string,
+    keepLatest: number | null,
+  ): Promise<SnapshotRetentionSettings | undefined> {
+    return mutate(() =>
+      invoke<SnapshotRetentionSettings>('set_snapshot_retention', {
+        snapshot,
+        version,
+        keepLatest,
+      }),
+    );
+  }
+  async function applyRetention(
+    snapshot: number,
+    fingerprint: string,
+  ): Promise<SnapshotRetentionResult | null | undefined> {
+    return mutate(async () => {
+      const result = await invoke<SnapshotRetentionResult | null>('apply_snapshot_retention', {
+        snapshot,
+        fingerprint,
+        operation: operationChannel(),
+      });
+      finishOperation();
+      if (result !== null && alive) {
+        await refresh(0);
+        retentionResult = `Removed ${result.removed} saved captures. ${result.remaining_eligible} remain eligible in that history group.`;
+        await tick();
+        if (alive && document.activeElement === document.body)
+          (region.querySelector<HTMLInputElement>('.snapshot-row input:checked') ?? region).focus();
+      }
+      return result;
     }, true);
   }
   async function open(snapshot: Snapshot): Promise<void> {
@@ -303,6 +344,7 @@
       disabled={working || !isTauri() || !storage || loadState !== 'ready'}>Compact</button
     >
   </div>
+  {#if retentionResult}<p role="status">{retentionResult}</p>{/if}
   {#if loadState !== 'ready'}
     <section class="panel history-empty" aria-live="polite">
       <h2>{loadState === 'loading' ? 'Loading…' : 'History unavailable'}</h2>
@@ -316,6 +358,18 @@
       <h2>No snapshots yet</h2>
     </section>
   {:else}
+    {#if compatible.length}<details
+        class="panel snapshot-retention-disclosure"
+        bind:open={retentionOpen}
+      >
+        <summary>Snapshot retention</summary>
+        {#if retentionOpen}{#key compatible[0].id}<SnapshotRetention
+              snapshot={compatible[0].id}
+              disabled={working}
+              onconfigure={configureRetention}
+              onapply={applyRetention}
+            />{/key}{/if}
+      </details>{/if}
     <div class="history-layout" class:comparing={focusedComparison || playback}>
       <div class="history-captures">
         <h2>Snapshots</h2>

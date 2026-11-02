@@ -7,6 +7,7 @@ import type {
   SnapshotVisualPair,
   SnapshotComparison,
   SnapshotVisualFrame,
+  SnapshotRetentionPreview,
 } from './types';
 
 let session: Promise<number> | undefined;
@@ -36,6 +37,20 @@ export const snapshotVisualQueries = createQueryRunner<
 });
 
 type IndexedInput<T> = T & { indexId: IndexId | null };
+
+export const retentionQueries = createQueryRunner<SnapshotRetentionPreview, { snapshot: number }>(
+  'snapshot_retention',
+  {
+    run: async (_family, requestId, query) =>
+      invoke<SnapshotRetentionPreview | null>('query_snapshot_retention', {
+        ...query,
+        epoch: await querySession(),
+        requestId,
+      }),
+    cancel: async (family, requestId) =>
+      invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+  },
+);
 
 export const snapshotCaptureQueries = createQueryRunner<SnapshotVisualFrame, { snapshot: number }>(
   'snapshot_capture',

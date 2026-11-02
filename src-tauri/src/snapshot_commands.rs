@@ -11,6 +11,68 @@ use voldiq_core::snapshots::{Snapshot, Store};
 
 pub struct SnapshotDatabase(pub(super) Arc<Mutex<Store>>);
 
+#[tauri::command]
+pub async fn get_snapshot_retention(
+    snapshot: i64,
+    database: State<'_, SnapshotDatabase>,
+) -> Result<voldiq_core::snapshots::RetentionSettings, String> {
+    let store = database.0.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        store
+            .lock()
+            .map_err(|e| e.to_string())?
+            .retention_settings(snapshot)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn set_snapshot_retention(
+    snapshot: i64,
+    version: String,
+    keep_latest: Option<u32>,
+    engine: State<'_, Arc<Engine>>,
+    database: State<'_, SnapshotDatabase>,
+) -> Result<voldiq_core::snapshots::RetentionSettings, String> {
+    let operation = engine.begin()?;
+    let store = database.0.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let _operation = operation;
+        store
+            .lock()
+            .map_err(|e| e.to_string())?
+            .set_retention(snapshot, &version, keep_latest)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn apply_snapshot_retention(
+    snapshot: i64,
+    fingerprint: String,
+    operation: Channel<u64>,
+    engine: State<'_, Arc<Engine>>,
+    database: State<'_, SnapshotDatabase>,
+) -> Result<Option<voldiq_core::snapshots::RetentionResult>, String> {
+    let active = engine.begin()?;
+    operation.send(active.id).map_err(|e| e.to_string())?;
+    let store = database.0.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let operation = active;
+        store
+            .lock()
+            .map_err(|e| e.to_string())?
+            .apply_retention(snapshot, &fingerprint, &operation.cancel)
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 impl SnapshotDatabase {
     pub fn open(path: &Path) -> voldiq_core::Result<Self> {
         Ok(Self(Arc::new(Mutex::new(Store::open(path)?))))

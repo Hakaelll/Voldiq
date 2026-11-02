@@ -1,0 +1,29 @@
+{
+  "checkedUtc": "2026-11-02T22:42:52.1109975Z",
+  "startedUtc": "2026-11-02T22:42:37.0027891Z",
+  "commands": [
+    "pnpm check",
+    "pnpm test",
+    "pnpm build"
+  ],
+  "scope": "Final retention form uses an explicit empty-number state; empty or out-of-range counts cannot be saved. Source diagnostics, retained frontend behavior and production build; native interaction remains manual.",
+  "exitCode": 0,
+  "assets": [
+    {
+      "Name": "city.worker-DLxzT0Wm.js",
+      "Length": 2879
+    },
+    {
+      "Name": "index-P9S6JfDC.js",
+      "Length": 330126
+    },
+    {
+      "Name": "index-X4hNCqs6.css",
+      "Length": 73289
+    },
+    {
+      "Name": "voronoi.worker-DwJ2QmrW.js",
+      "Length": 5606
+    }
+  ]
+}
