@@ -11,6 +11,7 @@
   import type { WeightedNode } from '../lib/treemap';
   import { categoryPaint, type ColorMode, type StorageDepth } from '../lib/storage-map';
   import { visibleFileTypes } from '../lib/file-types';
+  import { selectionOperation, type SelectionOperation } from '../lib/exploration';
 
   let {
     volume,
@@ -19,6 +20,8 @@
     nodes,
     types,
     selected,
+    explored,
+    onclearExplore,
     sizeMode,
     reduceMotion,
     animateNavigation,
@@ -44,11 +47,13 @@
     nodes: WeightedNode[];
     types: FileTypes;
     selected: Details | null;
+    explored: ReadonlySet<number>;
+    onclearExplore: () => void;
     sizeMode: string;
     reduceMotion: boolean;
     animateNavigation: boolean;
     onmetric: (metric: string) => void;
-    onselect: (id: number) => void;
+    onselect: (id: number, operation?: SelectionOperation) => void;
     onopen: (id: number, pointer?: boolean) => void;
     onlist: () => void;
     ongrid?: () => void;
@@ -133,15 +138,24 @@
         <button
           class="ranking-row"
           class:active={selected?.entry.id === entry.id}
-          aria-pressed={selected?.entry.id === entry.id}
+          aria-pressed={explored.has(entry.id)}
+          class:explored={explored.has(entry.id)}
           style:--item-color={categoryPaint({
             id: entry.id,
             name: entry.name,
             value: entry.logical,
             directory: entry.kind === 'directory',
           }).fill}
-          onclick={() => onselect(entry.id)}
-          ondblclick={() => onopen(entry.id, true)}
+          onclick={(event) => onselect(entry.id, selectionOperation(event))}
+          ondblclick={(event) => {
+            if (!event.ctrlKey && !event.metaKey && !event.shiftKey) onopen(entry.id, true);
+          }}
+          onkeydown={(event) => {
+            if (event.key === ' ' && (event.ctrlKey || event.metaKey)) {
+              event.preventDefault();
+              onselect(entry.id, 'toggle');
+            }
+          }}
         >
           <span class="item-swatch"></span>
           <span class="ranking-name" title={entry.name}>{entry.name}</span><strong
@@ -174,6 +188,9 @@
           {onlist}
           {ongrid}
           selected={selected?.entry.id ?? null}
+          {explored}
+          {onclearExplore}
+          scopeAncestors={[directory.entry.id, ...directory.ancestors.map((entry) => entry.id)]}
           {onselect}
           onopen={(id) => onopen(id, true)}
         />

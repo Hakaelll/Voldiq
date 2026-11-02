@@ -16,10 +16,13 @@
   import Icon from './Icon.svelte';
   import FolderNotePreview from './FolderNotePreview.svelte';
   import { categoryPaint } from '../lib/storage-map';
+  import { selectionOperation, type SelectionOperation } from '../lib/exploration';
   let {
     query,
     revision,
     selected,
+    explored,
+    onclearExplore,
     onselect,
     onopen,
     onerror,
@@ -35,7 +38,9 @@
     query: Query;
     revision: number;
     selected: number | null;
-    onselect: (entry: Entry) => void;
+    explored: ReadonlySet<number>;
+    onclearExplore: () => void;
+    onselect: (entry: Entry, operation?: SelectionOperation) => void;
     onopen: (entry: Entry) => void;
     onerror: (error: unknown) => void;
     onsort: (sort: Exclude<NonNullable<Query['sort']>, 'allocated'>) => void;
@@ -310,6 +315,7 @@
       {#each rows as entry, i (entry.id)}
         <div
           class:selected={entry.id === selected}
+          class:explored={explored.has(entry.id)}
           class={grid ? 'file-grid-item' : 'table-row'}
           role={grid ? 'listitem' : 'row'}
           aria-rowindex={grid ? undefined : offset + i + 2}
@@ -335,6 +341,7 @@
             <button
               class="file-name"
               aria-current={entry.id === selected ? 'true' : undefined}
+              aria-pressed={explored.has(entry.id)}
               data-index={offset + i}
               title={entry.kind === 'directory'
                 ? undefined
@@ -350,12 +357,20 @@
               onblur={() => {
                 notePreview = null;
               }}
-              onclick={() => onselect(entry)}
-              ondblclick={() => onopen(entry)}
+              onclick={(event) => onselect(entry, selectionOperation(event))}
+              ondblclick={(event) => {
+                if (!event.ctrlKey && !event.metaKey && !event.shiftKey) onopen(entry);
+              }}
               onkeydown={(event) => {
                 if (event.key === 'Escape' && notePreview) {
                   notePreview = null;
                   event.stopPropagation();
+                } else if (event.key === 'Escape' && explored.size) {
+                  event.stopPropagation();
+                  onclearExplore();
+                } else if (event.key === ' ' && (event.ctrlKey || event.metaKey)) {
+                  event.preventDefault();
+                  onselect(entry, 'toggle');
                 } else if (event.key === 'Enter') {
                   event.preventDefault();
                   onopen(entry);
@@ -450,6 +465,9 @@
     background: var(--selected);
     outline: 2px solid var(--text);
     outline-offset: -2px;
+  }
+  .explored {
+    box-shadow: inset 3px 0 var(--accent);
   }
   .file-grid-item > span {
     min-width: 0;

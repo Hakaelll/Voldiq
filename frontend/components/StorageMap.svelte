@@ -45,6 +45,11 @@
   import Icon from './Icon.svelte';
   import FolderNotePreview from './FolderNotePreview.svelte';
   import { getIndexContext } from '../lib/index-context';
+  import {
+    projectedSelection,
+    selectionOperation,
+    type SelectionOperation,
+  } from '../lib/exploration';
 
   let {
     nodes,
@@ -53,6 +58,9 @@
     depth = $bindable<StorageDepth>(6),
     colorMode = $bindable<ColorMode>('type'),
     selected,
+    explored,
+    scopeAncestors,
+    onclearExplore,
     search = '',
     extension = '',
     withoutExtension = false,
@@ -72,13 +80,16 @@
     depth?: StorageDepth;
     colorMode?: ColorMode;
     selected: number | null;
+    explored: ReadonlySet<number>;
+    scopeAncestors: readonly number[];
+    onclearExplore: () => void;
     search?: string;
     extension?: string;
     withoutExtension?: boolean;
     sizeMode: string;
     onmetric: (value: string) => void;
     onmode: (value: StorageView) => void;
-    onselect: (id: number) => void;
+    onselect: (id: number, operation?: SelectionOperation) => void;
     onopen: (id: number) => void;
     onlist: () => void;
     ongrid?: () => void;
@@ -122,22 +133,12 @@
   });
   const maximum = $derived(metricMaximum(layout.rects, heightMode, now));
   const selectionOutside = $derived(selected !== null && !layout.parents.has(selected));
-  const selectedBoundary = $derived(layout.boundaries.find((rect) => rect.id === selected));
   const selectedIds = $derived(
-    new Set(
-      selectedBoundary
-        ? layout.rects
-            .filter(
-              (rect) =>
-                rect.x >= selectedBoundary.x - 1e-6 &&
-                rect.y >= selectedBoundary.y - 1e-6 &&
-                rect.x + rect.width <= selectedBoundary.x + selectedBoundary.width + 1e-6 &&
-                rect.y + rect.height <= selectedBoundary.y + selectedBoundary.height + 1e-6,
-            )
-            .map((rect) => rect.id)
-        : selected === null
-          ? []
-          : [selected],
+    projectedSelection(
+      layout.rects.map((rect) => rect.id),
+      layout.parents,
+      new Set([...explored, ...(selected === null ? [] : [selected])]),
+      scopeAncestors,
     ),
   );
   const colorMaximum = $derived(
@@ -272,7 +273,7 @@
       ) ?? null
     );
   }
-  function select(rect: Rect, open = false): void {
+  function select(rect: Rect, open = false, operation: SelectionOperation = 'replace'): void {
     if (rect.id === VORONOI_GROUP_ID) {
       onlist();
       return;
@@ -286,7 +287,7 @@
       return;
     }
     if (open && rect.directory) onopen(rect.id);
-    else onselect(rect.id);
+    else onselect(rect.id, operation);
   }
   function keyboard(event: KeyboardEvent): void {
     if (event.target !== canvas) return;
@@ -316,7 +317,8 @@
     } else if (event.key === 'Escape') {
       hovered = null;
       event.stopPropagation();
-      onback();
+      if (explored.size) onclearExplore();
+      else onback();
     } else if (event.key.startsWith('Arrow')) {
       camera = {
         ...camera,
@@ -431,6 +433,7 @@
   });
   $effect(() => {
     void selected;
+    void selectedIds;
     void hovered;
     void matches;
     void colorMode;
@@ -664,7 +667,7 @@
         if (moved) saveCamera();
         else {
           const rect = hit(local(event));
-          if (rect) select(rect);
+          if (rect) select(rect, false, selectionOperation(event));
         }
       }}
       onpointercancel={() => {
@@ -674,6 +677,7 @@
         hovered = null;
       }}
       ondblclick={(event) => {
+        if (event.ctrlKey || event.metaKey || event.shiftKey) return;
         const rect = hit(local(event));
         if (rect) select(rect, true);
       }}

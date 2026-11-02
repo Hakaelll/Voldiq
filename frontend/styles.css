@@ -786,6 +786,21 @@ main {
   margin-right: auto;
   color: var(--secondary);
 }
+.exploration-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  padding: 10px 0;
+  font-size: 12px;
+}
+.exploration-hint {
+  flex: 1;
+  color: var(--secondary);
+}
+.ranking-row.explored {
+  box-shadow: inset 3px 0 var(--accent);
+}
 .table-head,
 .table-row {
   display: grid;

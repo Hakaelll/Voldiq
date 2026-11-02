@@ -25,6 +25,13 @@
   import { overviewQueries, detailQueries } from './lib/queries';
   import { createNavigationRefresh } from './lib/navigation-refresh';
   import { scopedFileQuery } from './lib/file-query';
+  import {
+    emptyExploration,
+    explorationIds,
+    updateExploration,
+    type Exploration,
+    type SelectionOperation,
+  } from './lib/exploration';
   import type { WeightedNode } from './lib/treemap';
   import { categoryPaint, categoryLabel, visualPaint, type ColorMode } from './lib/storage-map';
   import {
@@ -116,11 +123,30 @@
   let agentOperation = $state<number | null>(null);
   let agentNotice = $state('');
   let historical = $state<Snapshot | null>(null);
+  let exploration = $state.raw<Exploration>(emptyExploration(null));
+  const explored = $derived(explorationIds(exploration, indexId));
   let selection = $state(new Set<number>());
   let cleanupPreview = $state<CleanupPreview | null>(null);
   let cleanupNeedsRefresh = false;
   let restoreReceipt = $state<number | null>(null);
   let restoreNeedsRefresh = false;
+  function explore(ids: readonly number[], operation: SelectionOperation): boolean {
+    const result = updateExploration(exploration, indexId, ids, operation);
+    if (result.kind !== 'accepted') {
+      error =
+        result.kind === 'limit'
+          ? 'Select up to 500 items for inspection.'
+          : 'This item is unavailable for inspection. Refresh the analysis.';
+      return false;
+    }
+    exploration = result.state;
+    return true;
+  }
+  function clearExploration(): void {
+    invalidateInteraction();
+    exploration = emptyExploration(indexId);
+    details = null;
+  }
   function checkFile(id: number, checked: boolean): void {
     const next = new Set(selection);
     if (checked) {
@@ -245,6 +271,7 @@
     invalidateInteraction();
     invalidateRefresh();
     scope = 0;
+    exploration = emptyExploration(next);
     selection = new Set();
     directory = null;
     details = null;
@@ -285,12 +312,18 @@
         report(problem);
     }
   }
-  async function select(id: number): Promise<void> {
+  async function select(id: number, operation: SelectionOperation = 'replace'): Promise<void> {
     const token = invalidateInteraction();
     if (id === -1) {
       view = 'explorer';
       return;
     }
+    if (!explore([id], operation)) return;
+    if (!explored.has(id)) {
+      if (details?.entry.id === id) details = null;
+      return;
+    }
+    if (operation === 'replace' && details?.entry.id !== id) details = null;
     try {
       const item = await detailQueries.request({ id, indexId }).result;
       if (item && token === interactionToken && ready) details = item;
@@ -339,6 +372,7 @@
         details = null;
         await refresh(id, token);
       } else {
+        if (!explored.has(id)) explore([id], 'replace');
         details = item;
       }
     } catch (problem) {
@@ -613,6 +647,8 @@
         invalidateInteraction();
         showIssues = false;
         details = null;
+        if (view === 'overview' || view === 'explorer' || view === 'large')
+          exploration = emptyExploration(indexId);
       }
     };
     window.addEventListener('keydown', keyboard);
@@ -1017,6 +1053,21 @@
                   >{/if}
               </div>{/if}
             {#if directory?.entry.incomplete}<div class="notice">Incomplete coverage</div>{/if}
+            {#if view === 'overview' || view === 'explorer' || view === 'large'}
+              <div class="exploration-bar" role="group" aria-label="Inspection selection">
+                <span
+                  role="status"
+                  title="Up to 500 items across the current analysis, including items outside this view."
+                  >{explored.size} selected for inspection</span
+                >
+                <span class="exploration-hint"
+                  >Ctrl+click toggles · Shift+click adds · Ctrl+Space toggles a focused item</span
+                >
+                <button disabled={!explored.size && !details} onclick={clearExploration}
+                  >Clear inspection</button
+                >
+              </div>
+            {/if}
             <div
               bind:this={fileWorkspace}
               tabindex="-1"
@@ -1046,6 +1097,8 @@
                   }}
                   {types}
                   selected={details}
+                  {explored}
+                  onclearExplore={clearExploration}
                   {sizeMode}
                   {reduceMotion}
                   animateNavigation={mapNavigation}
@@ -1053,8 +1106,8 @@
                     sizeMode = metric;
                     savePreferences();
                   }}
-                  onselect={(id) => {
-                    void select(id);
+                  onselect={(id, operation) => {
+                    void select(id, operation);
                   }}
                   onopen={(id, pointer = false) => {
                     void open(id, pointer);
@@ -1181,6 +1234,11 @@
                       bind:depth={mapDepth}
                       bind:colorMode={mapColorMode}
                       selected={details?.entry.id ?? null}
+                      {explored}
+                      scopeAncestors={directory
+                        ? [directory.entry.id, ...directory.ancestors.map((entry) => entry.id)]
+                        : []}
+                      onclearExplore={clearExploration}
                       search={text}
                       {extension}
                       {withoutExtension}
@@ -1192,8 +1250,8 @@
                       onmode={(mode) => {
                         mapMode = mode;
                       }}
-                      onselect={(id) => {
-                        void select(id);
+                      onselect={(id, operation) => {
+                        void select(id, operation);
                       }}
                       onopen={(id) => {
                         void open(id, true);
@@ -1288,11 +1346,13 @@
                       {query}
                       {revision}
                       selected={details?.entry.id ?? null}
+                      {explored}
+                      onclearExplore={clearExploration}
                       checked={selection}
                       manageable={!busy && historical === null}
                       oncheck={checkFile}
-                      onselect={(entry) => {
-                        void select(entry.id);
+                      onselect={(entry, operation) => {
+                        void select(entry.id, operation);
                       }}
                       onopen={(entry) => {
                         void open(entry.id);
@@ -1301,7 +1361,7 @@
                     />
                   </div>
                   {#if selection.size > 0}<div class="selection-bar">
-                      <span>{selection.size} selected</span><button
+                      <span>{selection.size} in cleanup review</span><button
                         disabled={busy || historical !== null}
                         onclick={previewSelection}>Review selection</button
                       ><button
