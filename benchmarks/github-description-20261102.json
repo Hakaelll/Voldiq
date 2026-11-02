@@ -1,0 +1,11 @@
+{
+  "checkedUtc": "2026-11-02T20:59:54.0962171Z",
+  "repository": "Hakaelll/Voldiq",
+  "url": "https://github.com/Hakaelll/Voldiq",
+  "previousDescription": null,
+  "description": "Windows disk space analyzer with interactive maps, snapshot history, and guided cleanup.",
+  "changedFields": [
+    "description"
+  ],
+  "verification": "Fresh GitHub REST GET after the description-only PATCH."
+}
