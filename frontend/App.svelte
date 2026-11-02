@@ -8,6 +8,8 @@
   import StorageMap from './components/StorageMap.svelte';
   import ScanWelcome from './components/ScanWelcome.svelte';
   import FileTable from './components/FileTable.svelte';
+  import AdvancedSearch from './components/AdvancedSearch.svelte';
+  import type { SearchDraftRequest } from './lib/search-editor';
   import CloudFilterSelect from './components/CloudFilterSelect.svelte';
   import FolderComposition from './components/FolderComposition.svelte';
   import Duplicates from './components/Duplicates.svelte';
@@ -74,6 +76,10 @@
     { id: 'history', label: 'History', icon: 'history' },
   ];
   let view = $state<View>('overview');
+  const indexedView = $derived(view === 'overview' || view === 'explorer' || view === 'large');
+  $effect(() => {
+    if (!indexedView) advancedOpen = false;
+  });
   let navigationHovered = $state(false);
   let navigationKeyboardFocus = $state(false);
   let expanded = $derived(navigationHovered || navigationKeyboardFocus);
@@ -105,6 +111,12 @@
     before = $state(''),
     sort = $state<Exclude<NonNullable<Query['sort']>, 'allocated'>>('size');
   let cloudFilter = $state<CloudFilter | null>(null);
+  let searchExpression = $state('');
+  let advancedOpen = $state(false);
+  let advancedButton: HTMLButtonElement;
+  let appliedSearchKey = $state<string | null>(null);
+  let searchProblem = $state<{ key: string; message: string } | null>(null);
+  let pendingSearchKey: string | null = null;
   let mapCloud = $state<CloudFilter | null>(null);
   let cloudProblem = $state('');
   let error = $state(''),
@@ -202,6 +214,7 @@
       scope,
       ranked: view === 'large',
       text,
+      expression: searchExpression,
       ...(cloudFilter ? { cloud: cloudFilter } : {}),
       extension: withoutExtension ? '' : extension,
       without_extension: withoutExtension,
@@ -212,6 +225,55 @@
       sort: sort === 'size' && view === 'explorer' && sizeMode === 'allocated' ? 'allocated' : sort,
     }),
   );
+  const mapSearch = $derived<Query | null>(
+    indexedView && (text || extension || withoutExtension || searchExpression.trim())
+      ? {
+          text,
+          expression: searchExpression,
+          extension: withoutExtension ? '' : extension,
+          without_extension: withoutExtension,
+          ...(cloudFilter ? { cloud: cloudFilter } : {}),
+        }
+      : null,
+  );
+  const mapSearchKey = $derived(JSON.stringify(mapSearch));
+  const matchProblem = $derived(searchProblem?.key === mapSearchKey ? searchProblem.message : '');
+  const searchState = $derived<'inactive' | 'loading' | 'ready' | 'failed'>(
+    !mapSearch
+      ? 'inactive'
+      : matchProblem
+        ? 'failed'
+        : appliedSearchKey !== mapSearchKey
+          ? 'loading'
+          : !mapMetrics.length || mapMetrics.some((metric) => !metric.matches)
+            ? 'failed'
+            : 'ready',
+  );
+  const searchTotal = $derived.by(() => {
+    const root =
+      directory && searchState === 'ready'
+        ? mapMetrics.find((metric) => metric.id === directory?.entry.id)?.matches
+        : null;
+    return root ? Number(root.own) + root.descendants : null;
+  });
+  $effect(() => {
+    const key = mapSearchKey;
+    const active = ready && indexedView;
+    const analysis = indexId;
+    const timer = setTimeout(() => {
+      if (
+        active &&
+        ready &&
+        analysis === indexId &&
+        key === mapSearchKey &&
+        appliedSearchKey !== key &&
+        pendingSearchKey !== key &&
+        navigationRefresh.request()
+      )
+        void refresh(scope);
+    }, 150);
+    return () => clearTimeout(timer);
+  });
   const nodeProjection = $derived(
     storageNodes({
       directory: directory?.entry ?? null,
@@ -252,6 +314,7 @@
   }
   function invalidateRefresh(): void {
     refreshToken += 1;
+    pendingSearchKey = null;
     overviewQueries.cancel();
   }
   function invalidateInteraction(): number {
@@ -274,6 +337,10 @@
     children = { items: [], total: 0 };
     types = { items: [], total_bytes: 0, total_files: 0 };
     branches = [];
+    advancedOpen = false;
+    appliedSearchKey = null;
+    pendingSearchKey = null;
+    searchProblem = null;
     mapCloud = null;
     cloudProblem = '';
     cleanupPreview = null;
@@ -286,8 +353,17 @@
   async function refresh(id = scope, navigationOwner: number | null = null): Promise<void> {
     const token = ++refreshToken;
     const requestedCloud = cloudFilter;
+    const requestedSearchKey = mapSearchKey;
+    const requestedSearch = mapSearch;
+    pendingSearchKey = requestedSearchKey;
+    if (searchProblem?.key === requestedSearchKey) searchProblem = null;
     cloudProblem = '';
-    const overviewRequest = overviewQueries.request({ id, indexId, cloud: requestedCloud });
+    const overviewRequest = overviewQueries.request({
+      id,
+      indexId,
+      cloud: requestedCloud,
+      search: requestedSearch,
+    });
     try {
       const result = await overviewRequest.result;
       if (
@@ -297,6 +373,8 @@
         return;
       if (result === null || result.cloud !== requestedCloud) {
         if (mapCloud !== cloudFilter) cloudProblem = 'Map query was cancelled or superseded.';
+        if (requestedSearch && requestedSearchKey === mapSearchKey)
+          searchProblem = { key: requestedSearchKey, message: 'Search matches were cancelled.' };
         return;
       }
       directory = result.directory;
@@ -305,6 +383,7 @@
       mapMetrics = result.map_metrics ?? [];
       types = result.types;
       mapCloud = result.cloud;
+      appliedSearchKey = requestedSearchKey;
       scope = id;
       revision += 1;
     } catch (problem) {
@@ -314,9 +393,49 @@
         (navigationOwner === null || navigationOwner === interactionToken)
       ) {
         if (mapCloud !== cloudFilter) cloudProblem = 'Map query failed.';
-        report(problem);
+        if (requestedSearchKey === mapSearchKey) {
+          if (requestedSearch)
+            searchProblem = { key: requestedSearchKey, message: String(problem) };
+          report(problem);
+        }
       }
+    } finally {
+      if (token === refreshToken) pendingSearchKey = null;
     }
+  }
+  function closeAdvanced(restore: boolean): void {
+    const owner = interactionToken;
+    advancedOpen = false;
+    if (restore)
+      void tick().then(() => {
+        if (owner === interactionToken && document.activeElement === document.body)
+          advancedButton?.focus({ preventScroll: true });
+      });
+  }
+  function applyAdvanced(request: SearchDraftRequest): void {
+    if (
+      !ready ||
+      !advancedOpen ||
+      !indexedView ||
+      indexId === null ||
+      request.indexId !== indexId ||
+      request.query !== query
+    )
+      return;
+    invalidateRefresh();
+    const owner = invalidateInteraction();
+    searchExpression = request.expression;
+    advancedOpen = false;
+    void refresh(scope);
+    void tick().then(() => {
+      if (
+        owner === interactionToken &&
+        request.indexId === indexId &&
+        indexedView &&
+        document.activeElement === document.body
+      )
+        fileWorkspace?.focus({ preventScroll: true });
+    });
   }
   function changeCloudFilter(next: CloudFilter | null): void {
     if (next === cloudFilter) return;
@@ -867,7 +986,41 @@
             view === 'developer'}
         /><kbd>Ctrl K</kbd>
       </div>
+      <button
+        class="advanced-toggle"
+        bind:this={advancedButton}
+        disabled={!ready || indexId === null || !['overview', 'explorer', 'large'].includes(view)}
+        aria-expanded={advancedOpen}
+        aria-controls="advanced-query-editor"
+        aria-pressed={Boolean(searchExpression.trim())}
+        onclick={() => {
+          advancedOpen = !advancedOpen;
+        }}
+        >Advanced{#if searchExpression.trim()}
+          · On{/if}</button
+      >
     </header>
+    {#if advancedOpen}<div id="advanced-query-editor">
+        <AdvancedSearch
+          value={searchExpression}
+          {query}
+          {indexId}
+          disabled={!ready || indexId === null}
+          onapply={applyAdvanced}
+          onclose={closeAdvanced}
+        />
+      </div>
+    {:else if searchExpression.trim() && ['overview', 'explorer', 'large'].includes(view)}<div
+        class="applied-query-bar"
+      >
+        <code title={searchExpression}>Expression: {searchExpression}</code><button
+          disabled={!ready || indexId === null}
+          onclick={() => {
+            invalidateInteraction();
+            searchExpression = '';
+          }}>Clear expression</button
+        >
+      </div>{/if}
     <main
       class:file-view={ready && (view === 'explorer' || view === 'large')}
       class:visual-explorer={ready && view === 'explorer' && explorerMap}
@@ -1150,9 +1303,9 @@
                   onretry={() => {
                     void refresh(scope);
                   }}
-                  search={text}
-                  {extension}
-                  {withoutExtension}
+                  {searchState}
+                  searchIdentity={mapSearchKey}
+                  {searchTotal}
                   onmode={(mode) => {
                     mapMode = mode;
                   }}
@@ -1312,9 +1465,9 @@
                       onclearExplore={clearExploration}
                       onselectMany={selectMany}
                       oncommand={mapCommand}
-                      search={text}
-                      {extension}
-                      {withoutExtension}
+                      {searchState}
+                      searchIdentity={mapSearchKey}
+                      {searchTotal}
                       {sizeMode}
                       onmetric={(metric) => {
                         sizeMode = metric;
@@ -1403,6 +1556,7 @@
                           before = '';
                           minSize = 100;
                           largeKind = 'file';
+                          searchExpression = '';
                           changeCloudFilter(null);
                         }}>Reset filters</button
                       >

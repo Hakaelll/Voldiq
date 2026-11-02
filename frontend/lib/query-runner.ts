@@ -1,9 +1,9 @@
 import type { Page, Query } from './types';
 
 export type QueryFamily = 'file_list' | 'overview_children' | 'details';
-export type QueryTransport<T = Page, Q = Query> = {
-  run: (family: QueryFamily, requestId: number, query: Q) => Promise<T | null>;
-  cancel: (family: QueryFamily, requestId: number) => Promise<void>;
+export type QueryTransport<T = Page, Q = Query, F extends string = QueryFamily> = {
+  run: (family: F, requestId: number, query: Q) => Promise<T | null>;
+  cancel: (family: F, requestId: number) => Promise<void>;
 };
 
 let sequence = 0;
@@ -15,9 +15,9 @@ type Job<T, Q> = {
   cancelled: boolean;
 };
 
-export function createQueryRunner<T = Page, Q = Query>(
-  family: QueryFamily,
-  transport: QueryTransport<T, Q>,
+export function createQueryRunner<T = Page, Q = Query, F extends string = QueryFamily>(
+  family: F,
+  transport: QueryTransport<T, Q, F>,
 ) {
   let active: Job<T, Q> | null = null;
   let pending: Job<T, Q> | null = null;

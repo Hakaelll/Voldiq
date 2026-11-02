@@ -14,6 +14,7 @@ export interface WeightedNode {
   latestModified?: number | null;
   modifiedKnown?: number;
   modifiedTotal?: number;
+  search?: { own: boolean; descendants: number; inherited: boolean };
 }
 export interface Rect extends WeightedNode {
   share?: number;

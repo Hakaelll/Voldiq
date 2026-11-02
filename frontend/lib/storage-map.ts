@@ -1,4 +1,5 @@
 import { layout, type Rect as TreemapRect, type WeightedNode } from './treemap.ts';
+import { remainderSearch } from './storage-nodes.ts';
 
 export type HeightMode = 'modified' | 'files' | 'depth';
 export type ColorMode = 'type' | 'size' | 'age';
@@ -117,6 +118,7 @@ export function createStorageLayout(
         allocationKnown: placed.allocationKnown,
         incomplete: placed.incomplete,
         category: 'remainder',
+        search: remainderSearch(placed, children),
       });
     }
     frontierCount = nextCount;

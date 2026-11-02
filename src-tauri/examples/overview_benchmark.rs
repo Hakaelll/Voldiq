@@ -255,7 +255,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let (index, scope, expected_bytes) = fixture(shape);
         let (expected_children, expected_total, expected_branches) = reference(&index, scope);
         let expected_count: usize = expected_branches.values().map(Vec::len).sum();
-        let warm = overview::overview(&index, scope, None, &cancelled)
+        let warm = overview::overview(&index, scope, None, None, &cancelled)
             .map_err(io::Error::other)?
             .ok_or("Unexpected cancellation")?;
         assert_eq!(warm.types.total_files, u64::from(FILES));
@@ -330,7 +330,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     );
                 } else {
                     let (result, wall, cpu) =
-                        measure(|| overview::overview(&index, scope, None, &cancelled))?;
+                        measure(|| overview::overview(&index, scope, None, None, &cancelled))?;
                     let result = result
                         .map_err(io::Error::other)?
                         .ok_or("Unexpected cancellation")?;

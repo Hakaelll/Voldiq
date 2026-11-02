@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import type { Entry, Overview } from './types.ts';
-import { storageNodes } from './storage-nodes.ts';
+import { storageNodes, searchHighlightIds } from './storage-nodes.ts';
 import { createStorageLayout } from './storage-map.ts';
 
 const entry = (id: number, kind: Entry['kind'], logical: number, files: number): Entry => ({
@@ -62,7 +62,7 @@ const metrics: Overview['map_metrics'] = [
     modified_known: 1,
     modified_total: 1,
   },
-];
+].map((metric) => ({ ...metric, matches: null }));
 
 test('all map frontiers use filtered leaf totals and exact remainders without changing native entries', () => {
   const nodes = storageNodes({
@@ -150,5 +150,34 @@ test('unfiltered maps retain indexed totals and incomplete filtered evidence nev
       filtered: true,
     }),
     null,
+  );
+});
+
+test('matching folders and omitted matches share the frontier without changing byte areas', () => {
+  const matching = metrics.map((metric) => ({
+    ...metric,
+    matches:
+      metric.id === 0
+        ? { own: false, descendants: 4 }
+        : metric.id === 1
+          ? { own: true, descendants: 1 }
+          : { own: false, descendants: 0 },
+  }));
+  const nodes = storageNodes({
+    directory,
+    children,
+    branches,
+    metrics: matching,
+    allocated: false,
+    filtered: false,
+  });
+  assert.ok(nodes);
+  assert.equal(nodes[0].children?.[0].search?.inherited, true);
+  assert.equal(nodes[2].search?.descendants, 2);
+  const layout = createStorageLayout(nodes, 6);
+  assert.equal(layout.total, 1000);
+  assert.deepEqual(
+    [...searchHighlightIds(layout.rects)].sort((a, b) => a - b),
+    [-3, -1, 3],
   );
 });

@@ -39,9 +39,9 @@
     depth = $bindable<StorageDepth>(6),
     colorMode = $bindable<ColorMode>('type'),
     mapIdentity,
-    search,
-    extension,
-    withoutExtension,
+    searchState,
+    searchIdentity,
+    searchTotal,
     onmode,
     onback,
     cloudFilter,
@@ -72,9 +72,9 @@
     depth?: StorageDepth;
     colorMode?: ColorMode;
     mapIdentity: string;
-    search: string;
-    extension: string;
-    withoutExtension: boolean;
+    searchState: 'inactive' | 'loading' | 'ready' | 'failed';
+    searchIdentity: string;
+    searchTotal: number | null;
     onmode: (mode: import('../lib/storage-map').StorageView) => void;
     onback: () => void;
     cloudFilter: CloudFilter | null;
@@ -196,9 +196,9 @@
           mode={mapMode}
           bind:depth
           bind:colorMode
-          {search}
-          {extension}
-          {withoutExtension}
+          {searchState}
+          {searchIdentity}
+          {searchTotal}
           {sizeMode}
           {onmetric}
           {onmode}

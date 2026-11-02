@@ -39,7 +39,7 @@ export const detailQueries = createQueryRunner<SelectedDetails, IndexedInput<{ i
 );
 export const overviewQueries = createQueryRunner<
   Overview,
-  IndexedInput<{ id: NodeId; cloud: CloudFilter | null }>
+  IndexedInput<{ id: NodeId; cloud: CloudFilter | null; search: Query | null }>
 >('overview_children', {
   run: async (_family, requestId, input) =>
     invoke<Overview | null>('query_overview', {
@@ -47,6 +47,7 @@ export const overviewQueries = createQueryRunner<
       requestId,
       id: input.id,
       cloud: input.cloud,
+      search: input.search,
       indexId: input.indexId,
     }),
   cancel: transport.cancel,

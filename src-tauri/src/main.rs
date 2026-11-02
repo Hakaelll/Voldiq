@@ -792,6 +792,7 @@ fn main() {
             get_duplicate_issues,
             query_commands::query_files_cancellable,
             query_commands::query_overview,
+            query_commands::inspect_search,
             query_commands::query_details_cancellable,
             query_commands::cancel_query,
             query_commands::open_query_session,

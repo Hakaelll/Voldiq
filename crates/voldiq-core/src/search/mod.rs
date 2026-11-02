@@ -24,6 +24,18 @@ pub struct CompiledQuery<'a> {
     pub(crate) search: Search,
 }
 
+#[derive(serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum SearchInspection {
+    Valid {
+        conditions: usize,
+    },
+    Invalid {
+        offset: usize,
+        message: &'static str,
+    },
+}
+
 #[derive(Clone, Copy)]
 enum Compare {
     Equal,
@@ -65,6 +77,17 @@ pub(crate) struct Search {
 pub(crate) const GLOB_WORK_LIMIT: u64 = 100_000_000;
 
 impl Query {
+    pub fn inspect(&self) -> SearchInspection {
+        match self.compile() {
+            Ok(compiled) => SearchInspection::Valid {
+                conditions: compiled.search.terms.len(),
+            },
+            Err(error) => SearchInspection::Invalid {
+                offset: error.offset,
+                message: error.message,
+            },
+        }
+    }
     pub fn compile(&self) -> Result<CompiledQuery<'_>, QueryError> {
         if self.expression.len() > 4096 || self.text.len() > 4096 || self.extension.len() > 128 {
             return Err(QueryError::new(

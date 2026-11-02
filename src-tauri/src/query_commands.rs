@@ -260,6 +260,7 @@ pub(crate) async fn query_overview(
     epoch: u64,
     id: NodeId,
     cloud: Option<voldiq_core::cloud::CloudFilter>,
+    search: Option<Query>,
     request_id: u64,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<Option<Overview>, String> {
@@ -269,9 +270,14 @@ pub(crate) async fn query_overview(
         QueryFamily::OverviewChildren,
         request_id,
         engine.inner().clone(),
-        move |index, cancelled| overview(index, id, cloud, cancelled),
+        move |index, cancelled| overview(index, id, cloud, search.as_ref(), cancelled),
     )
     .await
+}
+
+#[tauri::command]
+pub(crate) fn inspect_search(query: Query) -> voldiq_core::search::SearchInspection {
+    query.inspect()
 }
 
 #[tauri::command]

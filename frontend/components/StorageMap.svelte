@@ -48,6 +48,7 @@
   import { paintVoronoi } from '../lib/voronoi-painter';
   import { startVoronoiJob } from '../lib/voronoi-job';
   import type { WeightedNode } from '../lib/treemap';
+  import { searchHighlightIds } from '../lib/storage-nodes';
   import { bytes, type CloudFilter } from '../lib/types';
   import CloudFilterSelect from './CloudFilterSelect.svelte';
   import Icon from './Icon.svelte';
@@ -81,9 +82,9 @@
     onclearExplore,
     onselectMany,
     oncommand,
-    search = '',
-    extension = '',
-    withoutExtension = false,
+    searchState,
+    searchIdentity,
+    searchTotal,
     sizeMode,
     onmetric,
     onmode,
@@ -109,9 +110,9 @@
     onclearExplore: () => void;
     onselectMany: SelectMany;
     oncommand: MapCommandHandler;
-    search?: string;
-    extension?: string;
-    withoutExtension?: boolean;
+    searchState: 'inactive' | 'loading' | 'ready' | 'failed';
+    searchIdentity: string;
+    searchTotal: number | null;
     sizeMode: string;
     onmetric: (value: string) => void;
     onmode: (value: StorageView) => void;
@@ -176,27 +177,7 @@
       ? Math.max(1, ...layout.rects.map((r) => r.value))
       : metricMaximum(layout.rects, 'modified', now),
   );
-  const matches = $derived.by(() => {
-    const query = search.trim().toLocaleLowerCase();
-    const ext = extension.replace(/^\./, '').toLocaleLowerCase();
-    if (!query && !ext && !withoutExtension) return null;
-    return new Set(
-      layout.rects
-        .filter((r) => {
-          const suffix = r.directory
-            ? ''
-            : r.name.includes('.')
-              ? (r.name.split('.').pop()?.toLocaleLowerCase() ?? '')
-              : '';
-          return (
-            (!query || r.name.toLocaleLowerCase().includes(query)) &&
-            (!ext || suffix === ext) &&
-            (!withoutExtension || (!r.directory && !suffix))
-          );
-        })
-        .map((r) => r.id),
-    );
-  });
+  const matches = $derived(searchState === 'ready' ? searchHighlightIds(layout.rects) : null);
   let scene: ReturnType<typeof buildCity> | null = null;
   let voronoi = $state.raw<VoronoiLayout | null>(null);
   let shadows = new Map<string, Point[][]>();
@@ -219,6 +200,7 @@
   let toolIssue = $state(false);
   const gestureContext = $derived({
     identity,
+    searchIdentity,
     revision: layout.revision,
     mode,
     sizeMode,
@@ -894,6 +876,13 @@
         ><Icon name="file" size={14} />Inspector</button
       >{/if}
   </div>
+  {#if searchState === 'loading'}<div class="map-tool-status" role="status">
+      Updating search matches…
+    </div>
+  {:else if searchState === 'failed'}<div class="map-tool-status" role="alert">
+      Search matches unavailable. {#if onretry}<button onclick={onretry}>Retry matches</button>{/if}
+      <button onclick={onlist}>Open item list</button>
+    </div>{/if}
   {#if mode === 'treemap' && (tool === 'lasso' || toolMessage)}<div
       class="map-tool-status"
       role={toolIssue ? 'alert' : 'status'}
@@ -996,7 +985,15 @@
       >
         <strong>{hovered.name}</strong><span
           >{bytes(hovered.value)} · {((hovered.share ?? 0) * 100).toFixed(1)}%</span
-        >{#if hovered.id === VORONOI_GROUP_ID}<span
+        >{#if searchState === 'ready' && hovered.search}<span
+            >{hovered.search.own
+              ? 'Matches the query'
+              : hovered.search.inherited
+                ? 'Within a matching folder'
+                : hovered.search.descendants > 0
+                  ? `${hovered.search.descendants.toLocaleString()} indexed matches in this group`
+                  : 'No observed match'}</span
+          >{/if}{#if hovered.id === VORONOI_GROUP_ID}<span
             >{voronoi?.groupedEntries} frontier entries grouped. Open the complete item list.</span
           >
         {:else}<span>{heightDescription(hovered, heightMode, now)}</span
@@ -1056,6 +1053,9 @@
           ).toFixed(1)}% of the enclosing circle is packing space, not free disk space.{:else}Packing
           coverage is unavailable without a positive, drawable total.{/if}</span
       >{/if}
+    {#if searchState !== 'inactive'}<span
+        >Search highlights matching items and folder groups. Area uses the selected byte metric.</span
+      >{/if}
     <span
       >Area = {sizeMode === 'allocated'
         ? 'unique allocation, not recoverable space'
@@ -1108,9 +1108,17 @@
           : failure
             ? 'layout unavailable'
             : 'layout pending'}{:else}· {Math.max(0, layout.rects.length - drawn)} outside draw bounds{/if}{#if matches}
-        · {matches.size} highlighted{/if}</span
+        · {searchTotal === null
+          ? 'Match count unavailable'
+          : `${searchTotal.toLocaleString()} indexed matches`} · {matches.size} highlighted regions{/if}</span
     >
   </div>
+  {#if searchState === 'ready' && searchTotal !== null && searchTotal > 0 && matches?.size === 0}<div
+      class="map-tool-status"
+      role="status"
+    >
+      Matches are outside the drawn regions. <button onclick={onlist}>Open item list</button>
+    </div>{/if}
 </section>
 {#if contextMenu}{#key contextMenu.model}<MapContextMenu
       model={contextMenu.model}

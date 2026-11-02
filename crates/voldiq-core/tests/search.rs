@@ -1,6 +1,30 @@
 use std::sync::atomic::AtomicBool;
 use voldiq_core::{NodeId, ScanOptions, cloud::CloudState, index::Query, scanner};
 
+#[test]
+fn syntax_inspection_is_structured_bounded_and_does_not_require_an_index() {
+    let valid = serde_json::to_value(
+        Query {
+            expression: "glob:*.bin size>1KiB".into(),
+            ..Query::default()
+        }
+        .inspect(),
+    )
+    .unwrap();
+    assert_eq!(valid, serde_json::json!({"kind":"valid","conditions":2}));
+    let invalid = serde_json::to_value(
+        Query {
+            expression: "app:private-secret".into(),
+            ..Query::default()
+        }
+        .inspect(),
+    )
+    .unwrap();
+    assert_eq!(invalid["kind"], "invalid");
+    assert_eq!(invalid["offset"], 0);
+    assert!(!invalid.to_string().contains("private-secret"));
+}
+
 fn fixture() -> (tempfile::TempDir, voldiq_core::index::Index) {
     let root = tempfile::tempdir().unwrap();
     std::fs::create_dir(root.path().join("Archive")).unwrap();

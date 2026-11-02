@@ -1,4 +1,4 @@
-use crate::{Error, Kind, NodeId, Result, cloud::CloudFilter, index::Index};
+use crate::{Error, Kind, NodeId, Result, cloud::CloudFilter, index::Index, search::CompiledQuery};
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -15,6 +15,13 @@ pub struct MapMetric {
     pub latest_modified: Option<u64>,
     pub modified_known: u64,
     pub modified_total: u64,
+    pub matches: Option<MapMatches>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct MapMatches {
+    pub own: bool,
+    pub descendants: u64,
 }
 
 impl MapMetric {
@@ -39,12 +46,16 @@ impl Index {
         scope: NodeId,
         targets: &[NodeId],
         cloud: Option<CloudFilter>,
+        search: Option<&CompiledQuery<'_>>,
         mut cancelled: impl FnMut() -> bool,
     ) -> Result<Option<Vec<MapMetric>>> {
         if cancelled() {
             return Ok(None);
         }
         self.entry(scope)?;
+        if let Some(search) = search {
+            self.validate_query_scope(search)?;
+        }
         if targets.len() > MAX_MAP_TARGETS {
             return Err(Error::Invalid("Too many map targets.".into()));
         }
@@ -87,14 +98,21 @@ impl Index {
                 latest_modified: None,
                 modified_known: 0,
                 modified_total: 0,
+                matches: search.map(|_| MapMatches {
+                    own: false,
+                    descendants: 0,
+                }),
             });
         }
         let mut ancestry = HashMap::<NodeId, Vec<usize>>::new();
+        let mut budget = crate::search::GLOB_WORK_LIMIT;
         for (number, entry) in self.entries.iter().enumerate() {
             if number % 256 == 0 && cancelled() {
                 return Ok(None);
             }
-            if entry.kind == Kind::Directory || cloud.is_some_and(|f| !f.matches(entry.cloud)) {
+            let include_bytes =
+                entry.kind != Kind::Directory && cloud.is_none_or(|f| f.matches(entry.cloud));
+            if entry.id == NodeId(0) || (!include_bytes && search.is_none()) {
                 continue;
             }
             let Some(parent) = entry.parent else {
@@ -132,11 +150,40 @@ impl Index {
                     ancestry.insert(id, ancestors.clone());
                 }
             }
-            for &position in &ancestry[&parent] {
-                metrics[position].include(entry);
+            let own = positions.get(&entry.id).copied();
+            let ancestors = &ancestry[&parent];
+            if own.is_none() && ancestors.first() != Some(&0) {
+                continue;
             }
-            if let Some(&position) = positions.get(&entry.id) {
-                metrics[position].include(entry);
+            if include_bytes {
+                for &position in ancestors {
+                    metrics[position].include(entry);
+                }
+                if let Some(position) = own {
+                    metrics[position].include(entry);
+                }
+            }
+            if let Some(search) = search {
+                match self.matches_compiled_cancellable(
+                    search,
+                    entry,
+                    &mut budget,
+                    &mut cancelled,
+                )? {
+                    None => return Ok(None),
+                    Some(false) => continue,
+                    Some(true) => {}
+                }
+                for &position in ancestors {
+                    if let Some(matches) = &mut metrics[position].matches {
+                        matches.descendants += 1;
+                    }
+                }
+                if let Some(position) = own
+                    && let Some(matches) = &mut metrics[position].matches
+                {
+                    matches.own = true;
+                }
             }
         }
         if cancelled() {
@@ -151,6 +198,67 @@ impl Index {
 mod tests {
     use super::*;
     use crate::{Entry, cloud::CloudState};
+
+    #[test]
+    fn compiled_map_matches_are_scoped_and_do_not_change_observed_byte_totals() {
+        let index = index();
+        let query = crate::index::Query {
+            expression: "size>=100B type:file".into(),
+            ..Default::default()
+        };
+        let compiled = query.compile().unwrap();
+        let metrics = index
+            .map_metrics_cancellable(
+                NodeId(1),
+                &[NodeId(2), NodeId(3), NodeId(4)],
+                None,
+                Some(&compiled),
+                || false,
+            )
+            .unwrap()
+            .unwrap();
+        assert_eq!((metrics[0].logical, metrics[0].files), (360, 4));
+        let actual: Vec<_> = metrics
+            .iter()
+            .map(|m| {
+                (
+                    m.id.0,
+                    m.matches.as_ref().unwrap().own,
+                    m.matches.as_ref().unwrap().descendants,
+                )
+            })
+            .collect();
+        assert_eq!(
+            actual,
+            [(1, false, 2), (2, false, 1), (3, true, 0), (4, true, 0)]
+        );
+        let folder = crate::index::Query {
+            expression: "type:folder name:item-2".into(),
+            ..Default::default()
+        };
+        let folder = folder.compile().unwrap();
+        let metrics = index
+            .map_metrics_cancellable(NodeId(1), &[NodeId(2)], None, Some(&folder), || false)
+            .unwrap()
+            .unwrap();
+        assert_eq!(metrics[0].matches.as_ref().unwrap().descendants, 1);
+        assert!(metrics[1].matches.as_ref().unwrap().own);
+        let invalid = crate::index::Query {
+            scope: Some(NodeId(999)),
+            ..Default::default()
+        };
+        assert!(
+            index
+                .map_metrics_cancellable(
+                    NodeId(1),
+                    &[],
+                    None,
+                    Some(&invalid.compile().unwrap()),
+                    || false
+                )
+                .is_err()
+        );
+    }
 
     fn index() -> Index {
         let mut entries = Vec::new();
@@ -289,6 +397,7 @@ mod tests {
                 NodeId(1),
                 &[NodeId(2), NodeId(3), NodeId(2)],
                 Some(CloudFilter::Placeholder),
+                None,
                 || false,
             )
             .unwrap()
@@ -332,7 +441,7 @@ mod tests {
             (Some(CloudFilter::Unknown), 30, 1, Some(80)),
         ] {
             let result = index
-                .map_metrics_cancellable(NodeId(1), &[], filter, || false)
+                .map_metrics_cancellable(NodeId(1), &[], filter, None, || false)
                 .unwrap()
                 .unwrap();
             assert_eq!(
@@ -345,7 +454,7 @@ mod tests {
             );
         }
         let empty = index
-            .map_metrics_cancellable(NodeId(2), &[], Some(CloudFilter::Unknown), || false)
+            .map_metrics_cancellable(NodeId(2), &[], Some(CloudFilter::Unknown), None, || false)
             .unwrap()
             .unwrap();
         assert_eq!(
@@ -359,12 +468,12 @@ mod tests {
         let index = index();
         assert!(
             index
-                .map_metrics_cancellable(NodeId(1), &[NodeId(7)], None, || false)
+                .map_metrics_cancellable(NodeId(1), &[NodeId(7)], None, None, || false)
                 .is_err()
         );
         assert!(
             index
-                .map_metrics_cancellable(NodeId(1), &[NodeId(99)], None, || false)
+                .map_metrics_cancellable(NodeId(1), &[NodeId(99)], None, None, || false)
                 .is_err()
         );
         assert!(
@@ -373,13 +482,14 @@ mod tests {
                     NodeId(1),
                     &vec![NodeId(2); MAX_MAP_TARGETS + 1],
                     None,
+                    None,
                     || false
                 )
                 .is_err()
         );
         assert!(
             index
-                .map_metrics_cancellable(NodeId(1), &[], None, || true)
+                .map_metrics_cancellable(NodeId(1), &[], None, None, || true)
                 .unwrap()
                 .is_none()
         );
@@ -390,6 +500,7 @@ mod tests {
                     NodeId(1),
                     &[NodeId(2)],
                     Some(CloudFilter::Placeholder),
+                    None,
                     || {
                         checks += 1;
                         checks == 4

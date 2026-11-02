@@ -164,6 +164,7 @@ export interface Overview {
     latest_modified: number | null;
     modified_known: number;
     modified_total: number;
+    matches: { own: boolean; descendants: number } | null;
   }[];
 }
 export interface Issue {
@@ -198,6 +199,9 @@ export interface Query {
   offset?: number;
   limit?: number;
 }
+
+export type SearchInspection =
+  { kind: 'valid'; conditions: number } | { kind: 'invalid'; offset: number; message: string };
 
 export interface DuplicateProgress {
   phase: 'sampling' | 'hashing' | 'complete' | 'cancelled' | 'failed';

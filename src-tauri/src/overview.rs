@@ -4,6 +4,7 @@ use voldiq_core::{
     cloud::CloudFilter,
     index::{Details, FileTypes, Index, Page, Query},
     map::MapMetric,
+    search::CompiledQuery,
 };
 
 #[derive(serde::Serialize)]
@@ -76,8 +77,13 @@ pub(crate) fn overview(
     index: &Index,
     id: NodeId,
     cloud: Option<CloudFilter>,
+    search: Option<&Query>,
     cancelled: &AtomicBool,
 ) -> Result<Option<Overview>, String> {
+    let search = search
+        .map(Query::compile)
+        .transpose()
+        .map_err(|e| e.to_string())?;
     let Some(children) = index
         .query_cancellable(
             &Query {
@@ -113,10 +119,15 @@ pub(crate) fn overview(
     let Some(branches) = map_branches(index, &children, cancelled) else {
         return Ok(None);
     };
-    let Some(map_metrics) =
-        map_metrics(index, &directory.entry, &children, &branches, cloud, || {
-            cancelled.load(Ordering::Relaxed)
-        })?
+    let Some(map_metrics) = map_metrics(
+        index,
+        &directory.entry,
+        &children,
+        &branches,
+        cloud,
+        search.as_ref(),
+        || cancelled.load(Ordering::Relaxed),
+    )?
     else {
         return Ok(None);
     };
@@ -136,6 +147,7 @@ fn map_metrics(
     children: &Page,
     branches: &[MapBranch],
     cloud: Option<CloudFilter>,
+    search: Option<&CompiledQuery<'_>>,
     cancelled: impl FnMut() -> bool,
 ) -> Result<Option<Vec<MapMetric>>, String> {
     let targets: Vec<_> = children
@@ -145,7 +157,7 @@ fn map_metrics(
         .map(|entry| entry.id)
         .collect();
     index
-        .map_metrics_cancellable(scope.id, &targets, cloud, cancelled)
+        .map_metrics_cancellable(scope.id, &targets, cloud, search, cancelled)
         .map_err(|error| error.to_string())
 }
 #[cfg(test)]

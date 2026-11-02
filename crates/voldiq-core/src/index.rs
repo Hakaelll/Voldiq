@@ -217,6 +217,50 @@ impl Index {
         self.query_inner(&query.compile()?, cancelled, true)
     }
 
+    pub(crate) fn validate_query_scope(&self, compiled: &CompiledQuery<'_>) -> Result<()> {
+        for id in [compiled.query.parent, compiled.query.scope]
+            .into_iter()
+            .flatten()
+        {
+            self.entry(id)?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn matches_compiled_cancellable(
+        &self,
+        compiled: &CompiledQuery<'_>,
+        entry: &Entry,
+        budget: &mut u64,
+        cancelled: &mut impl FnMut() -> bool,
+    ) -> Result<Option<bool>> {
+        let query = compiled.query;
+        if entry.id == NodeId(0) || query.parent.is_some_and(|id| entry.parent != Some(id)) {
+            return Ok(Some(false));
+        }
+        if let Some(scope) = query.scope {
+            match self.scope_matches(entry.id, scope, cancelled) {
+                None => return Ok(None),
+                Some(false) => return Ok(Some(false)),
+                Some(true) => {}
+            }
+        }
+        match compiled.search.matches_entry(entry, budget, cancelled)? {
+            None => return Ok(None),
+            Some(false) => return Ok(Some(false)),
+            Some(true) => {}
+        }
+        if compiled.search.needs_path() {
+            let Some(path) = self.path_cancellable(entry.id, &mut *cancelled)? else {
+                return Ok(None);
+            };
+            return Ok(compiled
+                .search
+                .matches_path(path.to_str(), budget, cancelled)?);
+        }
+        Ok(Some(true))
+    }
+
     fn query_inner(
         &self,
         compiled: &CompiledQuery<'_>,
@@ -227,12 +271,7 @@ impl Index {
             return Ok(None);
         }
         let query = compiled.query;
-        if let Some(id) = query.parent {
-            self.entry(id)?;
-        }
-        if let Some(id) = query.scope {
-            self.entry(id)?;
-        }
+        self.validate_query_scope(compiled)?;
         let mut budget = crate::search::GLOB_WORK_LIMIT;
         let mut matches = Vec::new();
         let mut largest = 0;
@@ -240,36 +279,10 @@ impl Index {
             if position % 256 == 0 && cancelled() {
                 return Ok(None);
             }
-            if query.parent.is_some_and(|id| entry.parent != Some(id)) {
-                continue;
-            }
-            if let Some(scope) = query.scope {
-                match self.scope_matches(entry.id, scope, &mut cancelled) {
-                    None => return Ok(None),
-                    Some(false) => continue,
-                    Some(true) => {}
-                }
-            }
-            match compiled
-                .search
-                .matches_entry(entry, &mut budget, &mut cancelled)?
-            {
+            match self.matches_compiled_cancellable(compiled, entry, &mut budget, &mut cancelled)? {
                 None => return Ok(None),
                 Some(false) => continue,
                 Some(true) => {}
-            }
-            if compiled.search.needs_path() {
-                let Some(path) = self.path_cancellable(entry.id, &mut cancelled)? else {
-                    return Ok(None);
-                };
-                match compiled
-                    .search
-                    .matches_path(path.to_str(), &mut budget, &mut cancelled)?
-                {
-                    None => return Ok(None),
-                    Some(false) => continue,
-                    Some(true) => {}
-                }
             }
             matches.push(entry);
             largest = largest.max(entry.logical);
