@@ -16,6 +16,10 @@ The existing persistence, snapshot, migration and real CLI/MCP fixture groups co
 
 The [full integration gate](../benchmarks/workbench-folder-budgets-source-20261102.json) passes all six stages, including 74 frontend and 90 workspace Rust cases, zero Svelte diagnostics and strict Clippy. The final disclosure-icon/layout adjustment additionally passes [Svelte checks and the production build](../benchmarks/folder-budgets-disclosure-20261102.json); it changes no test behavior. The existing snapshot fixture verifies actual scoped image sizes, repeated-save rejection, compatible measured growth, stale/partial/legacy/incompatible histories, a non-growing folder, a decrease and the horizon bound. Real CLI and SDK fixtures read the same core report and reject an agent write/bypass surface.
 
+The source unit was committed and pushed directly to `main` as `dc78379`. The production native build passes, and the [new preview](../benchmarks/native-folder-budgets-preview-20261102.json) opened as PID 11736, window handle 8980472, SHA-256 `6A1116EF3E0F47A0AA0D07051B131993CCB39E0A50931C8445243A731EB6B0B3`. It reached `ready` and `page-finished` and contains all seven exact current production assets. This proves startup and bundle contents; it does not establish the unperformed visual, interaction, scaling or performance acceptance.
+
+The [cache cleanup](../benchmarks/cache-cleanup-folder-budgets-20261102.json) removed zero bytes because the current image and both earlier preview images are still in use. Debug artifacts remain absent. Release caches are retained for ongoing work. No application state, Windows cache or other application's cache was changed. The full workbench goal remains active, with pending coverage rows preserved.
+
 ## Audit
 
 - Current application: Rust/Tauri 2, Svelte 5, TypeScript, SQLite, BLAKE3 and custom Canvas, version 0.2.0.
