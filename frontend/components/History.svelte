@@ -4,6 +4,8 @@
   import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
   import Icon from './Icon.svelte';
   import SnapshotChangeBars from './SnapshotChangeBars.svelte';
+  import SnapshotVisualCompare from './SnapshotVisualCompare.svelte';
+  import { snapshotChangeQueries } from '../lib/queries';
   import { historyTrend } from '../lib/history-trend';
   import { updateSnapshotPair } from '../lib/snapshot-pair';
   import { bytes, date, difference, type Snapshot, type SnapshotComparison } from '../lib/types';
@@ -27,6 +29,9 @@
     after = $state(0),
     changeOffset = $state(0);
   let comparison = $state<SnapshotComparison | null>(null);
+  let focusedComparison = $state(false),
+    comparisonLoading = $state(false),
+    comparisonProblem = $state('');
   let deleting = $state<number | null>(null);
   let loadState = $state<'loading' | 'ready' | 'unavailable'>(isTauri() ? 'loading' : 'ready');
   let region: HTMLDivElement;
@@ -91,6 +96,7 @@
   }
   async function refresh(next = offset): Promise<void> {
     const token = ++request;
+    resetComparison();
     const retainFocus = region?.contains(document.activeElement) ?? false;
     loadState = 'loading';
     try {
@@ -105,6 +111,8 @@
       offset = next;
       comparison = null;
       comparisonRequest += 1;
+      focusedComparison = comparisonLoading = false;
+      comparisonProblem = '';
       const latest = items[0];
       const older =
         latest && items.find((s) => s.root_key === latest.root_key && s.id !== latest.id);
@@ -130,7 +138,7 @@
     cancelPending = false;
     working = true;
     onbusy(true);
-    comparisonRequest += 1;
+    resetComparison();
     try {
       await action();
     } catch (problem) {
@@ -193,25 +201,36 @@
   }
   async function compare(next = 0): Promise<void> {
     if (!before || !after || before === after || working) return;
+    focusedComparison = comparisonLoading = true;
+    comparisonProblem = '';
     const token = ++comparisonRequest;
     try {
-      const result = await invoke<SnapshotComparison>('compare_snapshots', {
+      const result = await snapshotChangeQueries.request({
         before,
         after,
         offset: next,
         limit: 50,
-      });
+      }).result;
       if (token === comparisonRequest) {
+        if (!result) {
+          comparisonProblem = 'Comparison cancelled. Compare again to retry.';
+          return;
+        }
         comparison = result;
         changeOffset = next;
       }
     } catch (problem) {
-      if (token === comparisonRequest) onerror(problem);
+      if (token === comparisonRequest) comparisonProblem = String(problem);
+    } finally {
+      if (token === comparisonRequest) comparisonLoading = false;
     }
   }
   function resetComparison(): void {
     comparison = null;
     comparisonRequest += 1;
+    snapshotChangeQueries.cancel();
+    comparisonLoading = false;
+    comparisonProblem = '';
   }
   onMount(() => {
     if (isTauri()) void refresh(0);
@@ -222,7 +241,20 @@
     if (operationId !== null) void invoke('cancel_operation', { id: operationId }).catch(onerror);
     request += 1;
     comparisonRequest += 1;
+    snapshotChangeQueries.cancel();
   });
+  async function showCaptures(): Promise<void> {
+    if (comparisonLoading) resetComparison();
+    focusedComparison = false;
+    await tick();
+    if (alive)
+      (region.querySelector<HTMLInputElement>('.snapshot-row input:checked') ?? region).focus();
+  }
+  async function cancelComparison(): Promise<void> {
+    resetComparison();
+    await tick();
+    if (alive) region.querySelector<HTMLButtonElement>('[data-compare-snapshots]')?.focus();
+  }
 </script>
 
 <div
@@ -269,7 +301,7 @@
       <h2>No snapshots yet</h2>
     </section>
   {:else}
-    <div class="history-layout">
+    <div class="history-layout" class:comparing={focusedComparison}>
       <div class="history-captures">
         <h2>Snapshots</h2>
         <section class="panel snapshot-list" aria-label="Saved snapshots">
@@ -408,7 +440,10 @@
           </section>{/if}
       </div>
       <div class="history-comparison">
-        <h2>Compare snapshots</h2>
+        <div class="history-compare-heading">
+          <h2>Compare snapshots</h2>
+          {#if focusedComparison}<button onclick={showCaptures}>Back to captures</button>{/if}
+        </div>
         <div class="history-compare">
           <label
             >Before<select
@@ -436,11 +471,25 @@
             </select></label
           >
           <button
+            data-compare-snapshots
             onclick={() => compare()}
-            disabled={working || !before || !after || before === after}>Compare</button
+            disabled={working || comparisonLoading || !before || !after || before === after}
+            >{comparisonLoading ? 'Comparing…' : 'Compare'}</button
           >
         </div>
+        {#if comparisonLoading}<p role="status">
+            Reading recorded changes… <button onclick={cancelComparison}>Cancel comparison</button>
+          </p>{/if}
+        {#if comparisonProblem}<p role="alert">{comparisonProblem}</p>{/if}
+        {#if comparison && focusedComparison}{#key `${comparison.before}:${comparison.after}`}<SnapshotVisualCompare
+              before={comparison.before}
+              after={comparison.after}
+              disabled={working}
+            />{/key}{/if}
         {#if comparison}<section class="panel change-list">
+            {#if comparison.accounting === 'unknown'}<p class="history-coverage-summary">
+                Legacy accounting revision unavailable; comparability is unverified.
+              </p>{/if}
             {#if comparison.file_changes}
               <SnapshotChangeBars changes={comparison.file_changes} />
               {#if comparison.file_changes.newly_observed.files || comparison.file_changes.unobserved.files}<div
@@ -459,7 +508,7 @@
             <div class="panel-heading">
               <h2>{difference(comparison.delta)}</h2>
               <span
-                >{comparison.total.toLocaleString()} changes{#if !comparison.reliable}
+                >{comparison.total.toLocaleString()} changes{#if !comparison.coverage_complete}
                   · Partial coverage{/if}</span
               >
             </div>

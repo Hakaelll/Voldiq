@@ -7,7 +7,7 @@ use std::{
     },
 };
 use tauri::{State, ipc::Channel};
-use voldiq_core::snapshots::{Comparison, Snapshot, Store};
+use voldiq_core::snapshots::{Snapshot, Store};
 
 pub struct SnapshotDatabase(pub(super) Arc<Mutex<Store>>);
 
@@ -115,26 +115,6 @@ pub(crate) fn finish_snapshot_load(
         .lock()
         .map_err(|error| error.to_string())? = None;
     Ok(Some(index_id))
-}
-
-#[tauri::command]
-pub async fn compare_snapshots(
-    before: i64,
-    after: i64,
-    offset: usize,
-    limit: usize,
-    database: State<'_, SnapshotDatabase>,
-) -> Result<Comparison, String> {
-    let store = database.0.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        store
-            .lock()
-            .map_err(|e| e.to_string())?
-            .compare(before, after, offset, limit)
-            .map_err(|e| e.to_string())
-    })
-    .await
-    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]

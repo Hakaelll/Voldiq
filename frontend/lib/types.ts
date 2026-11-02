@@ -325,6 +325,8 @@ export interface SnapshotComparison {
   after: number;
   delta: number;
   reliable: boolean;
+  coverage_complete: boolean;
+  accounting: 'compatible' | 'unknown';
   total: number;
   changes: SnapshotChange[];
   file_changes: {
@@ -333,6 +335,41 @@ export interface SnapshotComparison {
     removed: { files: number; logical: number };
     newly_observed: { files: number; logical: number };
     unobserved: { files: number; logical: number };
+  };
+}
+
+export interface SnapshotVisualEntry {
+  path_id: string;
+  name: string;
+  kind: 'directory' | 'file' | 'link';
+  logical: string;
+  incomplete: boolean;
+}
+export interface SnapshotVisualFrame {
+  snapshot: number;
+  captured: number;
+  observation: Snapshot['observation'];
+  presence: 'present' | 'not_recorded' | 'not_observed';
+  kind: SnapshotVisualEntry['kind'] | null;
+  logical: string | null;
+  incomplete: boolean;
+  child_count: number;
+  entries: SnapshotVisualEntry[];
+  remainder: { logical: string; entries: number } | null;
+}
+export interface SnapshotVisualPair {
+  path_id: string;
+  parent_id: string | null;
+  path: string;
+  accounting: 'compatible' | 'unknown';
+  before: SnapshotVisualFrame;
+  after: SnapshotVisualFrame;
+  delta: string | null;
+  relative_percent: number | null;
+  folders: {
+    items: { path_id: string; name: string }[];
+    previous: string | null;
+    next: string | null;
   };
 }
 

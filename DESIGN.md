@@ -357,6 +357,12 @@ The shared light surfaces now use warm whites and graphite text, while the exist
 
 The canonical implementation is frontend/styles.css, frontend/components/StorageMap.svelte and frontend/lib/storage-map.ts. Technical details and evidence are documented in docs/SKYLINE.md; that file does not define a second visual system.
 
+## Historical visual comparison
+
+Compare snapshots expands to a full-width workspace while retaining the capture selectors and paged change details. Back to captures restores the selection area. Two historical treemaps use the existing layout and category palette with one byte-to-area scale. Neutral plot area is explicitly separate from volume free space. Labels retain each capture's save date and independently known measurement date. Recorded absolute and relative differences remain distinct from a claim of physical growth.
+
+The divider follows the [WAI-ARIA slider pattern](https://www.w3.org/WAI/ARIA/apg/patterns/slider/), with a named value, arrow steps, Home/End and larger Page Up/Down steps. Pointer capture keeps a drag attached to its handle. Root/Up, a paged union of recorded folders and a ranked-entry table provide coordinated navigation without turning persisted path IDs into file-action IDs. Each map retains at most 160 entries and an explicit remainder; the folder picker includes omitted and zero-byte folders in pages of 100. Loading and failure replace stale geometry, with reload and root recovery. No new animation, assets or visual tokens are introduced. Populated rendering, keyboard/focus, assistive technology, scaling and device performance remain manual acceptance.
+
 ## Folder budgets and measured estimates
 
 The indexed workspace has one compact, expandable Folder budget panel above its main content. It follows the existing bordered panels, spacing, typography and theme tokens. Its summary shows logical path bytes, the saved limit, a bounded progress indicator and a written status. Partial or provisional coverage says At least; a proven excess remains visible without implying known remaining capacity. Limits belong to a verified native folder identity. Saving and removing a limit are explicit human actions with revision checks; historical views remain read-only.

@@ -1,6 +1,8 @@
 mod budget_history;
 mod cache_evidence;
+mod visual;
 pub(crate) use budget_history::HistoryPoint;
+pub use visual::{Accounting, VisualPair};
 #[cfg(windows)]
 mod resume;
 
@@ -60,6 +62,8 @@ pub struct Comparison {
     pub after: i64,
     pub delta: i64,
     pub reliable: bool,
+    pub coverage_complete: bool,
+    pub accounting: Accounting,
     pub total: usize,
     pub changes: Vec<Change>,
     pub file_changes: FileChanges,
@@ -672,26 +676,48 @@ impl Store {
         offset: usize,
         limit: usize,
     ) -> Result<Comparison> {
+        self.compare_cancellable(before, after, offset, limit, &AtomicBool::new(false))?
+            .ok_or_else(|| Error::Invalid("Snapshot comparison cancelled.".into()))
+    }
+
+    pub fn compare_cancellable(
+        &self,
+        before: i64,
+        after: i64,
+        offset: usize,
+        limit: usize,
+        cancel: &AtomicBool,
+    ) -> Result<Option<Comparison>> {
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
         let _read_transaction = self.connection.unchecked_transaction()?;
-        let summary = |id| -> Result<(i64, u64, bool)> {
+        let summary = |id| -> Result<(i64, u64, bool, Option<Observation>)> {
             Ok(self.connection.query_row(
-                "SELECT root_id,logical,complete FROM snapshots WHERE id=?1",
+                "SELECT root_id,logical,complete,observed_at,observed_complete,engine_version,accounting_version FROM snapshots WHERE id=?1",
                 [id],
-                |r| Ok((r.get(0)?, unsigned(r, 1)?, r.get(2)?)),
+                |r| Ok((r.get(0)?, unsigned(r, 1)?, r.get(2)?, read_observation(r, 3)?)),
             )?)
         };
-        let (root, old_size, old_complete) = summary(before)?;
-        let (new_root, new_size, new_complete) = summary(after)?;
+        let (root, old_size, old_complete, old_observation) = summary(before)?;
+        let (new_root, new_size, new_complete, new_observation) = summary(after)?;
         if root != new_root {
             return Err(Error::Invalid(
                 "Compare snapshots from the same root, volume and exclusions.".into(),
             ));
         }
+        let accounting = visual::accounting(old_observation.as_ref(), new_observation.as_ref())?;
+        let old_complete = old_complete && old_observation.as_ref().is_none_or(|o| o.complete);
+        let new_complete = new_complete && new_observation.as_ref().is_none_or(|o| o.complete);
+        let coverage_complete = old_complete && new_complete;
         let total: i64 = self.connection.query_row(
             &format!("SELECT COUNT(*) {DIFFERENCES}"),
             params![before, after, root],
             |r| r.get(0),
         )?;
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
         let totals_query = format!(
             "SELECT o.kind,n.kind,
             CASE WHEN o.kind=1 THEN o.logical ELSE 0 END,
@@ -709,6 +735,9 @@ impl Store {
         })?;
         let mut file_changes = FileChanges::default();
         for record in totals_records {
+            if cancel.load(Ordering::Relaxed) {
+                return Ok(None);
+            }
             let (old_kind, new_kind, old, new) = record?;
             match (old_kind, new_kind) {
                 (None, Some(1)) => {
@@ -763,6 +792,9 @@ impl Store {
         )?;
         let mut changes = Vec::new();
         for row in records {
+            if cancel.load(Ordering::Relaxed) {
+                return Ok(None);
+            }
             let (path, old, new, kind) = row?;
             let change = match (old, new) {
                 (None, Some(_)) => {
@@ -790,16 +822,21 @@ impl Store {
                 delta: signed_delta(old.unwrap_or(0), new.unwrap_or(0))?,
             });
         }
-        Ok(Comparison {
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        Ok(Some(Comparison {
             before,
             after,
             delta: signed_delta(old_size, new_size)?,
-            reliable: old_complete && new_complete,
+            reliable: coverage_complete && accounting == Accounting::Compatible,
+            coverage_complete,
+            accounting,
             total: usize::try_from(total)
                 .map_err(|_| Error::Invalid("Invalid comparison count.".into()))?,
             changes,
             file_changes,
-        })
+        }))
     }
 
     fn path(&self, root: i64, mut id: i64) -> Result<PathBuf> {

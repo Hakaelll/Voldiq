@@ -2,7 +2,7 @@ import type { IndexId } from './index-context';
 import { invoke } from '@tauri-apps/api/core';
 import { createQueryRunner, type QueryTransport } from './query-runner';
 import type { CloudFilter, FilePage, Overview, NodeId, SelectedDetails, Query } from './types';
-import type { BudgetReport } from './types';
+import type { BudgetReport, SnapshotVisualPair, SnapshotComparison } from './types';
 
 let session: Promise<number> | undefined;
 function querySession(): Promise<number> {
@@ -10,7 +10,46 @@ function querySession(): Promise<number> {
   return session;
 }
 
+export const snapshotVisualQueries = createQueryRunner<
+  SnapshotVisualPair,
+  {
+    before: number;
+    after: number;
+    scope: string | null;
+    folderCursor: string | null;
+    reverse: boolean;
+  }
+>('snapshot_visual', {
+  run: async (_family, requestId, query) =>
+    invoke<SnapshotVisualPair | null>('query_snapshot_visual', {
+      query,
+      epoch: await querySession(),
+      requestId,
+    }),
+  cancel: async (family, requestId) =>
+    invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+});
+
 type IndexedInput<T> = T & { indexId: IndexId | null };
+
+export const snapshotChangeQueries = createQueryRunner<
+  SnapshotComparison,
+  {
+    before: number;
+    after: number;
+    offset: number;
+    limit: number;
+  }
+>('snapshot_changes', {
+  run: async (_family, requestId, query) =>
+    invoke<SnapshotComparison | null>('query_snapshot_changes', {
+      query,
+      epoch: await querySession(),
+      requestId,
+    }),
+  cancel: async (family, requestId) =>
+    invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+});
 
 const transport: QueryTransport<FilePage, IndexedInput<Query>> = {
   run: async (_family, requestId, { indexId, ...query }) =>

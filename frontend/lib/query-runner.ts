@@ -1,6 +1,12 @@
 import type { Page, Query } from './types';
 
-export type QueryFamily = 'file_list' | 'overview_children' | 'details' | 'folder_budget';
+export type QueryFamily =
+  | 'file_list'
+  | 'overview_children'
+  | 'details'
+  | 'folder_budget'
+  | 'snapshot_visual'
+  | 'snapshot_changes';
 export type QueryTransport<T = Page, Q = Query, F extends string = QueryFamily> = {
   run: (family: F, requestId: number, query: Q) => Promise<T | null>;
   cancel: (family: F, requestId: number) => Promise<void>;

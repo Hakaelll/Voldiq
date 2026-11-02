@@ -21,6 +21,8 @@ pub(crate) enum QueryFamily {
     OverviewChildren,
     Details,
     FolderBudget,
+    SnapshotVisual,
+    SnapshotChanges,
 }
 
 #[derive(Default)]
@@ -37,7 +39,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 4],
+    slots: [Slot; 6],
 }
 
 impl QueryFamily {
@@ -47,6 +49,8 @@ impl QueryFamily {
             Self::OverviewChildren => 1,
             Self::Details => 2,
             Self::FolderBudget => 3,
+            Self::SnapshotVisual => 4,
+            Self::SnapshotChanges => 5,
         }
     }
 }
@@ -134,6 +138,111 @@ struct Request {
     epoch: u64,
     family: QueryFamily,
     id: u64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct SnapshotVisualQuery {
+    before: i64,
+    after: i64,
+    scope: Option<String>,
+    folder_cursor: Option<String>,
+    reverse: bool,
+}
+
+#[tauri::command]
+pub(crate) async fn query_snapshot_visual(
+    query: SnapshotVisualQuery,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+    database: State<'_, crate::snapshot_commands::SnapshotDatabase>,
+) -> Result<Option<voldiq_core::snapshots::VisualPair>, String> {
+    run_stored_query(
+        epoch,
+        QueryFamily::SnapshotVisual,
+        request_id,
+        engine.inner().clone(),
+        database.0.clone(),
+        move |store, cancel| {
+            store.visual_pair(
+                query.before,
+                query.after,
+                query.scope.as_deref(),
+                query.folder_cursor.as_deref(),
+                query.reverse,
+                cancel,
+            )
+        },
+    )
+    .await
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct SnapshotChangesQuery {
+    before: i64,
+    after: i64,
+    offset: usize,
+    limit: usize,
+}
+
+#[tauri::command]
+pub(crate) async fn query_snapshot_changes(
+    query: SnapshotChangesQuery,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+    database: State<'_, crate::snapshot_commands::SnapshotDatabase>,
+) -> Result<Option<voldiq_core::snapshots::Comparison>, String> {
+    run_stored_query(
+        epoch,
+        QueryFamily::SnapshotChanges,
+        request_id,
+        engine.inner().clone(),
+        database.0.clone(),
+        move |store, cancel| {
+            store.compare_cancellable(query.before, query.after, query.offset, query.limit, cancel)
+        },
+    )
+    .await
+}
+
+async fn run_stored_query<T: Send + 'static>(
+    epoch: u64,
+    family: QueryFamily,
+    request_id: u64,
+    engine: Arc<Engine>,
+    store: Arc<Mutex<voldiq_core::snapshots::Store>>,
+    execute: impl FnOnce(&voldiq_core::snapshots::Store, &AtomicBool) -> voldiq_core::Result<Option<T>>
+    + Send
+    + 'static,
+) -> Result<Option<T>, String> {
+    let Some(cancelled) = engine.queries.begin(epoch, family, request_id)? else {
+        return Ok(None);
+    };
+    let request = Request {
+        engine: engine.clone(),
+        epoch,
+        family,
+        id: request_id,
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        let _request = request;
+        if cancelled.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        let result = {
+            let store = store.lock().map_err(|e| e.to_string())?;
+            execute(&store, &cancelled).map_err(|e| e.to_string())?
+        };
+        if cancelled.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        Ok(result)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 impl Drop for Request {

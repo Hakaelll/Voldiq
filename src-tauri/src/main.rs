@@ -818,6 +818,8 @@ fn main() {
             query_commands::query_overview,
             query_commands::inspect_search,
             query_commands::query_folder_budget,
+            query_commands::query_snapshot_visual,
+            query_commands::query_snapshot_changes,
             budget_commands::save_folder_budget,
             budget_commands::remove_folder_budget,
             query_commands::translate_search,
@@ -847,7 +849,6 @@ fn main() {
             save_snapshot,
             list_snapshots,
             load_snapshot,
-            compare_snapshots,
             delete_snapshot,
             snapshot_storage,
             compact_snapshots

@@ -100,6 +100,12 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     }
     let comparison = store.compare(before, after, 0, 200).unwrap();
     assert!(comparison.reliable);
+    assert!(
+        store
+            .compare_cancellable(-1, -2, 0, 10, &AtomicBool::new(true))
+            .unwrap()
+            .is_none()
+    );
     assert_eq!(comparison.delta, 28);
     assert_eq!(comparison.file_changes.added.logical, 14);
     assert_eq!(comparison.file_changes.added.files, 1);
@@ -269,6 +275,124 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     assert_eq!(cleared.bytes_read, 16_384);
     assert_eq!(store.list(0, 10).unwrap().len(), 2);
     budget_history_uses_measurements_and_real_scoped_image_samples();
+
+    // Continue the historical comparison flow with a folder larger than either map/page budget.
+    for n in 0..110 {
+        std::fs::create_dir(fixture.path().join(format!("nested/dir{n:03}"))).unwrap();
+    }
+    for n in 0..170 {
+        std::fs::write(fixture.path().join(format!("nested/file{n:03}")), [1]).unwrap();
+    }
+    let third = store.save(&capture(fixture.path()), &loading, &[]).unwrap();
+    let root_pair = store
+        .visual_pair(before, third, None, None, false, &loading)
+        .unwrap()
+        .unwrap();
+    assert_eq!(root_pair.before.logical.as_deref(), Some("33"));
+    assert_eq!(root_pair.after.logical.as_deref(), Some("231"));
+    assert_eq!(root_pair.delta.as_deref(), Some("198"));
+    assert_eq!(
+        root_pair.accounting,
+        voldiq_core::snapshots::Accounting::Unknown
+    );
+    let nested = &root_pair.folders.items[0].path_id;
+    let scoped = store
+        .visual_pair(before, third, Some(nested), None, false, &loading)
+        .unwrap()
+        .unwrap();
+    assert_eq!(scoped.before.logical.as_deref(), Some("12"));
+    assert_eq!(scoped.after.logical.as_deref(), Some("203"));
+    assert_eq!(scoped.after.child_count, 281);
+    assert_eq!(scoped.after.entries.len(), 160);
+    assert_eq!(scoped.after.remainder.as_ref().unwrap().logical, "11");
+    assert_eq!(scoped.after.remainder.as_ref().unwrap().entries, 121);
+    assert_eq!(scoped.folders.items.len(), 100);
+    assert!(scoped.folders.previous.is_none());
+    let cursor = scoped.folders.next.as_deref().unwrap();
+    let next = store
+        .visual_pair(before, third, Some(nested), Some(cursor), false, &loading)
+        .unwrap()
+        .unwrap();
+    assert_eq!(next.folders.items.len(), 10);
+    assert!(next.folders.next.is_none());
+    let previous = store
+        .visual_pair(
+            before,
+            third,
+            Some(nested),
+            next.folders.previous.as_deref(),
+            true,
+            &loading,
+        )
+        .unwrap()
+        .unwrap();
+    assert_eq!(previous.folders.items[0].name, "dir000");
+    assert_eq!(previous.folders.items.last().unwrap().name, "dir099");
+    let empty = &scoped.folders.items[0].path_id;
+    let missing = store
+        .visual_pair(before, third, Some(empty), None, false, &loading)
+        .unwrap()
+        .unwrap();
+    assert_eq!(missing.before.logical, None);
+    assert_eq!(
+        serde_json::to_value(&missing).unwrap()["before"]["presence"],
+        "not_recorded"
+    );
+    assert_eq!(missing.after.logical.as_deref(), Some("0"));
+    assert!(
+        store
+            .visual_pair(before, third, Some("01"), None, false, &loading)
+            .is_err()
+    );
+    assert!(
+        store
+            .visual_pair(before, before, None, None, false, &loading)
+            .is_err()
+    );
+    assert!(
+        store
+            .visual_pair(-1, -2, None, None, false, &AtomicBool::new(true))
+            .unwrap()
+            .is_none()
+    );
+    let connection = rusqlite::Connection::open(&db).unwrap();
+    connection
+        .execute("UPDATE snapshots SET complete=0 WHERE id=?1", [before])
+        .unwrap();
+    let partial = store
+        .visual_pair(before, third, Some(empty), None, false, &loading)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        serde_json::to_value(&partial).unwrap()["before"]["presence"],
+        "not_observed"
+    );
+    assert!(
+        !store
+            .compare(before, third, 0, 10)
+            .unwrap()
+            .coverage_complete
+    );
+    connection
+        .execute(
+            "UPDATE snapshots SET accounting_version=99 WHERE id=?1",
+            [third],
+        )
+        .unwrap();
+    assert!(
+        store
+            .visual_pair(before, third, None, None, false, &loading)
+            .is_err()
+    );
+    assert!(store.compare(before, third, 0, 10).is_err());
+    let foreign = store
+        .save(&capture(duplicates.path()), &loading, &[])
+        .unwrap();
+    assert!(
+        store
+            .visual_pair(before, foreign, None, None, false, &loading)
+            .is_err()
+    );
 }
 
 fn budget_history_uses_measurements_and_real_scoped_image_samples() {

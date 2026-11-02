@@ -96,6 +96,8 @@ Search first adds one bounded core parser/compiler to the existing query engine.
 
 ## F. History and diagnosis
 
+Visual-comparison unit: query a bounded pair of historical folder summaries from interval versions in one SQLite read view, without loading two indexes or publishing over the active analysis. Require the same native root/exclusions and reject known incompatible accounting revisions; disclose legacy unknown provenance separately from incomplete coverage. Preserve exact logical-byte strings, missing versus unobserved folders, checked remainders and bounded ranked map entries. Use opaque persisted path IDs and a paged union of folders for coordinated navigation, including entries omitted from the map. Reuse the bounded cancellable query transport and existing treemap geometry/palette. Show both captures with one byte-to-area scale, explicit neutral plot area, an adjustable keyboard-accessible divider, source dates and absolute/relative recorded differences. Keep paged change details. Extend the retained snapshot flow, maintaining eight declared tests. Native visual, pointer/keyboard, scaling and performance acceptance remains manual.
+
 - [ ] Extend compact existing snapshots with engine/coverage provenance and retention, compatible comparisons, bounded forecast, calendar, diary and playback.
 - [ ] Add grouped Live watchers with overflow resynchronization and explicit observed net growth.
 - [ ] Add measured space reconciliation, unknown residuals, Windows-specific diagnostics and read-only recovery discovery.

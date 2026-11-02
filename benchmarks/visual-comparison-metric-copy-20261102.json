@@ -1,0 +1,8 @@
+{
+  "checkedUtc": "2026-11-02T21:07:16.9059173Z",
+  "scope": "Final copy-only clarification that map areas represent logical path bytes, after the full integration gate. No behavior or test-case change.",
+  "svelteErrors": 0,
+  "svelteWarnings": 0,
+  "productionBuild": "passed",
+  "sourceSha256": "05A71071547C7DB3988800E9261427E993BDECF21C004B5E856EF2A8EC6CC7CB"
+}
