@@ -16,6 +16,7 @@ fn entry(id: u32, parent: Option<u32>, kind: Kind, modified: Option<u64>) -> Ent
         incomplete: false,
         hard_link: false,
         file_state: None,
+        cloud: voldiq_core::cloud::CloudState::Unknown,
     }
 }
 

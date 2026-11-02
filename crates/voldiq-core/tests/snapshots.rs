@@ -126,7 +126,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     drop(store);
     let connection = rusqlite::Connection::open(&db).unwrap();
     connection
-        .execute_batch("DROP TABLE duplicate_hashes; PRAGMA user_version=4;")
+        .execute_batch("ALTER TABLE snapshot_versions DROP COLUMN cloud; DROP TABLE duplicate_hashes; PRAGMA user_version=4;")
         .unwrap();
     drop(connection);
     let mut store = Store::open(&db).unwrap();

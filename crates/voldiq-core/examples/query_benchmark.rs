@@ -12,6 +12,7 @@ use voldiq_core::{
 fn entry(id: u32, parent: Option<NodeId>, kind: Kind, logical: u64) -> Entry {
     Entry {
         file_state: None,
+        cloud: voldiq_core::cloud::CloudState::Unknown,
         id: NodeId(id),
         parent,
         name: format!("file-{:08}", 1_100_003_u32.wrapping_mul(id) % 1_000_003),

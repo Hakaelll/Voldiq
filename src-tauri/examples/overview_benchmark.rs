@@ -36,6 +36,7 @@ fn entry(id: u32, parent: Option<NodeId>, kind: Kind) -> Entry {
         incomplete: false,
         hard_link: false,
         file_state: None,
+        cloud: voldiq_core::cloud::CloudState::Unknown,
     }
 }
 

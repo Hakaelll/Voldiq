@@ -1,5 +1,6 @@
 pub mod agents;
 pub mod cleanup;
+pub mod cloud;
 mod database;
 pub mod developer;
 pub mod duplicates;
@@ -45,6 +46,7 @@ pub enum Kind {
 pub struct Entry {
     #[serde(skip)]
     pub file_state: Option<FileState>,
+    pub cloud: cloud::CloudState,
     pub id: NodeId,
     pub parent: Option<NodeId>,
     pub name: String,
@@ -62,6 +64,16 @@ pub struct Entry {
 pub struct FileState {
     pub identity: (u64, u64),
     pub change_time: u64,
+}
+
+impl Entry {
+    /// Metadata classification never grants content access; cloud entries remain reparse records.
+    pub fn is_metadata_file(&self) -> bool {
+        self.kind == Kind::File || (self.kind == Kind::Link && self.cloud.is_file())
+    }
+    pub fn is_metadata_directory(&self) -> bool {
+        self.kind == Kind::Directory || (self.kind == Kind::Link && self.cloud.is_directory())
+    }
 }
 
 #[derive(Clone, Debug, Serialize)]

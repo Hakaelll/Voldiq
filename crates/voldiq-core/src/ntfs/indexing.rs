@@ -397,6 +397,7 @@ pub(super) fn read_entry(
         Kind::File
     };
     Ok(Entry {
+        cloud: identity.cloud,
         file_state: Some(crate::FileState {
             identity: identity.key,
             change_time: identity.change_time,
@@ -405,7 +406,7 @@ pub(super) fn read_entry(
         parent: Some(parent),
         name: name.to_string_lossy().into_owned(),
         kind,
-        logical: if kind == Kind::File {
+        logical: if kind == Kind::File || identity.cloud.is_file() {
             metadata.len()
         } else {
             0
@@ -417,7 +418,7 @@ pub(super) fn read_entry(
         },
         allocation_known: kind != Kind::Link,
         modified: modified(&metadata),
-        files: u64::from(kind == Kind::File),
+        files: u64::from(kind == Kind::File || identity.cloud.is_file()),
         incomplete: kind == Kind::Link,
         hard_link: identity.links > 1,
     })

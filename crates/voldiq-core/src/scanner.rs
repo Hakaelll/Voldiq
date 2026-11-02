@@ -135,6 +135,9 @@ pub fn scan_live(
     let shared = Arc::new(RwLock::new(Index {
         root: root.clone(),
         entries: vec![Entry {
+            cloud: root_identity
+                .as_ref()
+                .map_or(crate::cloud::CloudState::Unknown, |identity| identity.cloud),
             file_state: root_identity.as_ref().map(|identity| crate::FileState {
                 identity: identity.key,
                 change_time: identity.change_time,

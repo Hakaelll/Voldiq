@@ -28,6 +28,7 @@ pub struct Volume {
 }
 
 pub struct FileIdentity {
+    pub cloud: crate::cloud::CloudState,
     pub key: (u64, u64),
     pub allocated: u64,
     pub links: u32,
@@ -197,7 +198,28 @@ fn handle_identity(handle: windows_sys::Win32::Foundation::HANDLE) -> Result<Fil
         if !ok {
             return Err(error.into());
         }
+        let cloud = if basic.FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT == 0 {
+            crate::cloud::from_windows_handle_attributes(basic.FileAttributes, None)
+        } else {
+            let mut tag: FILE_ATTRIBUTE_TAG_INFO = std::mem::zeroed();
+            if GetFileInformationByHandleEx(
+                handle,
+                FileAttributeTagInfo,
+                &mut tag as *mut _ as *mut _,
+                std::mem::size_of_val(&tag) as u32,
+            ) != 0
+                && tag.FileAttributes == basic.FileAttributes
+            {
+                crate::cloud::from_windows_handle_attributes(
+                    tag.FileAttributes,
+                    Some(tag.ReparseTag),
+                )
+            } else {
+                crate::cloud::CloudState::Unknown
+            }
+        };
         Ok(FileIdentity {
+            cloud,
             key: (
                 info.dwVolumeSerialNumber as u64,
                 ((info.nFileIndexHigh as u64) << 32) | info.nFileIndexLow as u64,
@@ -214,6 +236,7 @@ pub fn identity(path: &Path) -> Result<FileIdentity> {
     use std::os::unix::fs::MetadataExt;
     let metadata = std::fs::symlink_metadata(path)?;
     Ok(FileIdentity {
+        cloud: crate::cloud::CloudState::Unknown,
         key: (metadata.dev(), metadata.ino()),
         allocated: metadata.blocks() * 512,
         links: metadata.nlink() as u32,
@@ -228,6 +251,7 @@ pub fn file_identity(file: &std::fs::File) -> Result<FileIdentity> {
     use std::os::unix::fs::MetadataExt;
     let metadata = file.metadata()?;
     Ok(FileIdentity {
+        cloud: crate::cloud::CloudState::Unknown,
         key: (metadata.dev(), metadata.ino()),
         allocated: metadata.blocks() * 512,
         links: metadata.nlink() as u32,

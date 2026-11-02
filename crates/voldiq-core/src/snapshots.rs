@@ -92,6 +92,7 @@ pub struct FileChanges {
 
 #[derive(Debug, PartialEq)]
 struct Data {
+    cloud: crate::cloud::CloudState,
     native_state: Option<crate::FileState>,
     kind: i64,
     logical: u64,
@@ -106,6 +107,7 @@ struct Data {
 impl Data {
     fn from_entry(entry: &Entry) -> Self {
         Self {
+            cloud: entry.cloud,
             native_state: entry.file_state,
             kind: match entry.kind {
                 Kind::Directory => 0,
@@ -122,7 +124,18 @@ impl Data {
         }
     }
     fn read(row: &rusqlite::Row<'_>) -> rusqlite::Result<Self> {
+        let kind = row.get::<_, i64>(0)?;
+        let cloud = crate::cloud::CloudState::from_code(row.get(9)?)
+            .filter(|state| !state.is_placeholder() || kind == 2)
+            .ok_or_else(|| {
+                rusqlite::Error::FromSqlConversionFailure(
+                    9,
+                    rusqlite::types::Type::Integer,
+                    Box::new(Error::Invalid("Invalid snapshot cloud evidence.".into())),
+                )
+            })?;
         Ok(Self {
+            cloud,
             native_state: row
                 .get::<_, Option<Vec<u8>>>(8)?
                 .map(|bytes| decode_state(&bytes))
@@ -134,7 +147,7 @@ impl Data {
                         Box::new(error),
                     )
                 })?,
-            kind: row.get(0)?,
+            kind,
             logical: unsigned(row, 1)?,
             allocated: unsigned(row, 2)?,
             modified: optional_unsigned(row, 3)?,
@@ -169,6 +182,7 @@ LEFT JOIN snapshot_versions n ON n.path_id=p.id AND n.start_id<=?2 AND (n.end_id
 WHERE p.root_id=?3 AND (o.path_id IS NOT NULL OR n.path_id IS NOT NULL)
 AND (o.path_id IS NULL OR n.path_id IS NULL OR o.kind!=n.kind OR o.logical!=n.logical OR o.allocated!=n.allocated
  OR o.modified IS NOT n.modified OR o.files!=n.files OR o.known!=n.known OR o.incomplete!=n.incomplete OR o.hard_link!=n.hard_link
+ OR (o.cloud>0 AND n.cloud>0 AND o.cloud!=n.cloud)
  OR (o.native_state IS NOT NULL AND n.native_state IS NOT NULL AND o.native_state IS NOT n.native_state))";
 
 const JOURNAL_SCHEMA: &str = "
@@ -209,8 +223,16 @@ impl Store {
         let mut connection = Connection::open(path)?;
         crate::database::configure(&connection)?;
         let version: u32 = connection.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version <= 4 {
-            let transaction = connection.transaction()?;
+        if version < 6 {
+            let transaction =
+                connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+            let version: u32 =
+                transaction.query_row("PRAGMA user_version", [], |row| row.get(0))?;
+            if version > 6 {
+                return Err(Error::Invalid(
+                    "Unsupported snapshot database version.".into(),
+                ));
+            }
             if version == 0 {
                 transaction.execute_batch(SCHEMA)?;
             }
@@ -223,9 +245,14 @@ impl Store {
             if version <= 3 {
                 transaction.execute_batch(cache_evidence::SCHEMA)?;
             }
-            transaction.execute_batch(crate::duplicates::persistence::SCHEMA)?;
+            if version <= 4 {
+                transaction.execute_batch(crate::duplicates::persistence::SCHEMA)?;
+            }
+            if version <= 5 {
+                transaction.execute_batch("ALTER TABLE snapshot_versions ADD COLUMN cloud INTEGER NOT NULL DEFAULT 0 CHECK(cloud BETWEEN 0 AND 5 AND (cloud<2 OR kind=2)); PRAGMA user_version=6;")?;
+            }
             transaction.commit()?;
-        } else if version != 5 {
+        } else if version != 6 {
             return Err(Error::Invalid(
                 "Unsupported snapshot database version.".into(),
             ));
@@ -302,14 +329,14 @@ impl Store {
             let mut insert_path = transaction
                 .prepare("INSERT INTO snapshot_paths(root_id,parent_id,name) VALUES(?1,?2,?3)")?;
             let mut lookup_data = transaction.prepare(
-                "SELECT kind,logical,allocated,modified,files,known,incomplete,hard_link,native_state
+                "SELECT kind,logical,allocated,modified,files,known,incomplete,hard_link,native_state,cloud
                 FROM snapshot_versions WHERE path_id=?1 AND end_id IS NULL",
             )?;
             let mut expire = transaction.prepare(
                 "UPDATE snapshot_versions SET end_id=?1 WHERE path_id=?2 AND end_id IS NULL",
             )?;
-            let mut insert = transaction.prepare("INSERT INTO snapshot_versions(path_id,start_id,kind,logical,allocated,modified,files,known,incomplete,hard_link,native_state)
-                VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11)")?;
+            let mut insert = transaction.prepare("INSERT INTO snapshot_versions(path_id,start_id,kind,logical,allocated,modified,files,known,incomplete,hard_link,native_state,cloud)
+                VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)")?;
             let mut seen = transaction.prepare("INSERT INTO captured_paths(id) VALUES(?1)")?;
             for (position, entry) in index.entries.iter().enumerate() {
                 if cancel.load(Ordering::Relaxed) {
@@ -372,7 +399,8 @@ impl Store {
                         data.known,
                         data.incomplete,
                         data.hard_link,
-                        data.native_state.map(encode_state)
+                        data.native_state.map(encode_state),
+                        data.cloud.code()
                     ])?;
                 }
             }
@@ -519,7 +547,7 @@ impl Store {
             return Err(Error::Invalid("Snapshot root is not absolute.".into()));
         }
         let mut paths = HashMap::<i64, NodeId>::new();
-        let mut statement = self.connection.prepare("SELECT v.kind,v.logical,v.allocated,v.modified,v.files,v.known,v.incomplete,v.hard_link,v.native_state,p.id,p.parent_id,p.name
+        let mut statement = self.connection.prepare("SELECT v.kind,v.logical,v.allocated,v.modified,v.files,v.known,v.incomplete,v.hard_link,v.native_state,v.cloud,p.id,p.parent_id,p.name
             FROM snapshot_paths p JOIN snapshot_versions v ON v.path_id=p.id WHERE p.root_id=?1 AND v.start_id<=?2 AND (v.end_id IS NULL OR v.end_id>?2) ORDER BY p.id")?;
         let mut rows = statement.query(params![root_id, id])?;
         while let Some(row) = rows.next()? {
@@ -532,9 +560,9 @@ impl Store {
                 return Err(Error::Invalid("Snapshot loading cancelled.".into()));
             }
             let data = Data::read(row)?;
-            let path_id: i64 = row.get(9)?;
-            let parent: i64 = row.get(10)?;
-            let native_name = decode(&row.get::<_, Vec<u8>>(11)?)?;
+            let path_id: i64 = row.get(10)?;
+            let parent: i64 = row.get(11)?;
+            let native_name = decode(&row.get::<_, Vec<u8>>(12)?)?;
             let node = NodeId(
                 u32::try_from(index.entries.len())
                     .map_err(|_| Error::Invalid("Snapshot exceeds node limit.".into()))?,
@@ -573,6 +601,7 @@ impl Store {
                 index.native_names.insert(node, native_name);
             }
             index.entries.push(Entry {
+                cloud: data.cloud,
                 file_state: if native { data.native_state } else { None },
                 id: node,
                 parent,

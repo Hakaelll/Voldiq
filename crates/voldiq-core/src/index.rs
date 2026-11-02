@@ -28,6 +28,7 @@ pub struct Query {
     pub modified_before: Option<u64>,
     pub files_only: bool,
     pub kind: Option<Kind>,
+    pub cloud: Option<crate::cloud::CloudFilter>,
     pub sort: String,
     pub offset: usize,
     pub limit: usize,
@@ -45,6 +46,7 @@ impl Default for Query {
             modified_before: None,
             files_only: false,
             kind: None,
+            cloud: None,
             sort: "size".into(),
             offset: 0,
             limit: 100,
@@ -242,12 +244,17 @@ impl Index {
                     Some(true) => {}
                 }
             }
-            if (!query.files_only || entry.kind == Kind::File)
-                && query.kind.is_none_or(|kind| entry.kind == kind)
+            if (!query.files_only || entry.is_metadata_file())
+                && query.kind.is_none_or(|kind| match kind {
+                    Kind::File => entry.is_metadata_file(),
+                    Kind::Directory => entry.is_metadata_directory(),
+                    Kind::Link => entry.kind == Kind::Link,
+                })
+                && query.cloud.is_none_or(|filter| filter.matches(entry.cloud))
                 && entry.logical >= query.min_size
                 && (text.is_empty() || contains_name(&entry.name, &text))
                 && (!query.without_extension
-                    || (entry.kind == Kind::File
+                    || (entry.is_metadata_file()
                         && std::path::Path::new(&entry.name).extension().is_none()))
                 && (extension.is_empty()
                     || std::path::Path::new(&entry.name)
@@ -370,7 +377,7 @@ impl Index {
             if position % 256 == 0 && cancelled() {
                 return Ok(None);
             }
-            if entry.kind != Kind::File {
+            if !entry.is_metadata_file() {
                 continue;
             }
             match self.scope_matches(entry.id, scope, &mut cancelled) {

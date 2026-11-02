@@ -292,6 +292,7 @@ fn measure(input: Input) -> Measured {
         return measured;
     };
     let mut entry = Entry {
+        cloud: crate::cloud::CloudState::Unknown,
         file_state: None,
         id: NodeId(0),
         parent: None,
@@ -317,6 +318,7 @@ fn measure(input: Input) -> Measured {
                         || (kind == Kind::Directory && current.is_dir())) =>
             {
                 entry.modified = modified(&current);
+                entry.cloud = identity.cloud;
                 entry.file_state = Some(crate::FileState {
                     identity: identity.key,
                     change_time: identity.change_time,
@@ -341,6 +343,22 @@ fn measure(input: Input) -> Measured {
     if kind == Kind::Link {
         entry.incomplete = true;
         entry.allocation_known = false;
+        #[cfg(windows)]
+        if let Ok((current, identity)) = windows::metadata_identity(&measured.input.path)
+            && windows::is_reparse(&current)
+        {
+            entry.cloud = identity.cloud;
+            entry.modified = modified(&current);
+            entry.file_state = Some(crate::FileState {
+                identity: identity.key,
+                change_time: identity.change_time,
+            });
+            if entry.cloud.is_file() {
+                entry.logical = current.len();
+                entry.files = 1;
+                entry.hard_link = identity.links > 1;
+            }
+        }
     }
     measured.entry = Some(entry);
     measured

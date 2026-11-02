@@ -174,7 +174,7 @@ fn map_metrics(
         if position % 256 == 0 && cancelled() {
             return None;
         }
-        if entry.kind != voldiq_core::Kind::File {
+        if !entry.is_metadata_file() {
             continue;
         }
         if let Some(&position) = positions.get(&entry.id) {

@@ -193,6 +193,17 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     assert!(allocated.status.success());
     let allocated: Value = serde_json::from_slice(&allocated.stdout).unwrap();
     assert_eq!(allocated["result"]["items"][0]["id"], node);
+    let filter = if cfg!(windows) {
+        "not_placeholder"
+    } else {
+        "unknown"
+    };
+    let cloud_query = format!(r#"{{"files_only":true,"cloud":"{filter}"}}"#);
+    let cloud = run(&["query", &snapshot.to_string(), &cloud_query]);
+    assert!(cloud.status.success());
+    let cloud: Value = serde_json::from_slice(&cloud.stdout).unwrap();
+    assert_eq!(cloud["result"]["items"][0]["cloud"], filter);
+    assert_eq!(cloud["result"]["items"][0]["id"], node);
     let output = run(&[
         "plan",
         "prepare",

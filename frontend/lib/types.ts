@@ -90,7 +90,15 @@ export interface DeveloperPage {
   allocated: number;
   categories: { category: DeveloperItem['category']; directories: number; logical: number }[];
 }
+export type CloudState =
+  | 'unknown'
+  | 'not_placeholder'
+  | 'file_no_recall_flag'
+  | 'file_recall_required'
+  | 'directory_no_recall_flag'
+  | 'directory_recall_required';
 export interface Entry {
+  cloud: CloudState;
   id: NodeId;
   parent: NodeId | null;
   name: string;
@@ -168,6 +176,7 @@ export interface Progress {
   method: string;
 }
 export interface Query {
+  cloud?: 'placeholder' | 'recall_required' | 'no_recall_flag' | 'not_placeholder' | 'unknown';
   parent?: NodeId;
   scope?: NodeId;
   text?: string;

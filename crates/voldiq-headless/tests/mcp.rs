@@ -209,6 +209,21 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         allocated.structured_content.unwrap()["result"]["items"][0]["id"],
         selected
     );
+    let filter = if cfg!(windows) {
+        "not_placeholder"
+    } else {
+        "unknown"
+    };
+    let cloud = call(
+        &client,
+        "voldiq_query",
+        json!({"snapshot_id":snapshot,"query":{"files_only":true,"cloud":filter}}),
+    )
+    .await;
+    assert_ne!(cloud.is_error, Some(true));
+    let cloud = cloud.structured_content.unwrap();
+    assert_eq!(cloud["result"]["items"][0]["cloud"], filter);
+    assert_eq!(cloud["result"]["items"][0]["id"], selected);
     let prepared = call(
         &client,
         "voldiq_plan_prepare",
