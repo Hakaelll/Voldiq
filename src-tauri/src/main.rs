@@ -25,8 +25,6 @@ mod docker_commands;
 mod embedded_ui;
 mod lifecycle_trace;
 mod metadata_commands;
-#[cfg(test)]
-mod operation_tests;
 mod overview;
 mod plan_commands;
 mod query_commands;

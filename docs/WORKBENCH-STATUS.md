@@ -4,6 +4,16 @@ Delivery branch: `main`, as the user explicitly requested during implementation.
 
 The complete task remains active. See the [coverage matrix](WORKBENCH-COVERAGE.md) and [execution plan](plans/storage-workbench.md). This status does not declare pending capabilities implemented.
 
+## Routine suite reduced to eight cases
+
+The owner explicitly requested keeping about 5% of the 164 tests. The suite now retains eight existing cases, one frontend and seven Rust, about 4.9%. The other 156 declarations and their unused fixture helpers were physically removed, including 9,051 lines from test sources and test-only application blocks. No ignored tests, name filters or replacement grouping wrappers were introduced. Runtime code and safeguards retain their behavior. [The current inventory](TESTING.md) lists each retained flow.
+
+The retained cases exercise interaction ownership, native scope identity, saved evidence and budgets, retained duplicate copies, interrupted journal outcomes, independent human dispatch and real CLI/MCP transports. Former detailed geometry, parser, race, protection, metadata and other fixture coverage is no longer automatically rerun. Older verification receipts and coverage descriptions retain their historical scope. The user's small-suite preference is recorded in `AGENTS.md` for subsequent work. The full workbench goal remains active.
+
+The [fresh integration gate](../benchmarks/workbench-eight-tests-source-20261102.json) passes all six stages: one frontend case, seven Rust cases, zero Svelte diagnostics, production frontend build, formatting and strict Clippy. The verification script and its unrestricted test commands are unchanged. Current production frontend assets match the open budget preview; application changes in this unit remove test-only blocks and helpers.
+
+The [cache cleanup](../benchmarks/cache-cleanup-eight-tests-20261102.json) removed 82 inactive executable/dependency artifacts of the 16 deleted integration-test targets, totaling 120,409,427 logical bytes, after confirming no compiler remained active and checking each dependency receipt against its deleted source. It also removed the two now-closed older preview images, 30,318,592 logical bytes. The current preview, PID 11736, remains alive with its window. Active/reusable release artifacts, application state and other applications' caches were preserved; debug artifacts remain absent. These are artifact lengths, not an observed volume free-space delta.
+
 ## Measured folder budgets and qualified forecasts
 
 The indexed workspace adds one compact expandable budget panel using Voldiq's existing tokens and bordered composition. It shows logical path bytes, a human-maintained limit and a written status. Partial or provisional coverage stays a lower bound; known excess is still reported. Opening the panel requests the heavier image-sample and history analysis. Current folder identity is pinned without following reparse points or recalling cloud content. Persistence has exact byte limits, optimistic versions, bounded records and the shared operation lease. Edits are human GUI actions; historical views and CLI/MCP only read.

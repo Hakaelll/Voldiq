@@ -183,22 +183,3 @@ pub async fn reject_agent_plan(
     .await
     .map_err(|error| error.to_string())?
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn a_waiting_instance_can_retry_but_a_closed_session_cannot_reopen() {
-        let state = tempfile::tempdir().unwrap();
-        let first = PlanReviews::open(state.path());
-        let first_handle = first.desktop().unwrap();
-        let waiting = PlanReviews::open(state.path());
-        assert!(waiting.desktop().is_err());
-        first.close();
-        assert!(waiting.desktop().is_ok());
-        assert!(first.desktop().is_err());
-        assert!(first_handle.list(0, 25).is_err());
-        waiting.close();
-        assert!(waiting.desktop().is_err());
-    }
-}

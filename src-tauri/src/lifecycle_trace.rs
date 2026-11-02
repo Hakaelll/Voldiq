@@ -86,36 +86,3 @@ fn lock_state<T>(lock: &Mutex<T>) -> &'static str {
         Err(TryLockError::Poisoned(_)) => "poisoned",
     }
 }
-
-#[cfg(test)]
-pub(crate) fn verify_fixture() {
-    let directory = tempfile::tempdir().unwrap();
-    let path = directory.path().join("events.jsonl");
-    let trace = Trace::open(&path).unwrap();
-    trace.record("fixture-start", None);
-    trace.clone().record("fixture-end", None);
-    let before = std::fs::read(&path).unwrap();
-    let rows: Vec<serde_json::Value> = std::str::from_utf8(&before)
-        .unwrap()
-        .lines()
-        .map(|line| serde_json::from_str(line).unwrap())
-        .collect();
-    assert_eq!(rows.len(), 2);
-    assert_eq!(rows[0]["event"], "fixture-start");
-    assert_eq!(rows[1]["event"], "fixture-end");
-    assert_eq!(rows[0]["pid"], std::process::id());
-    assert!(rows[0]["state"].is_null());
-    assert!(
-        matches!(Trace::open(&path), Err(error) if error.kind() == io::ErrorKind::AlreadyExists)
-    );
-    Trace::default().record("disabled", None);
-    assert_eq!(std::fs::read(&path).unwrap(), before);
-    let engine = Arc::new(Engine::new(directory.path()).unwrap());
-    assert_eq!(operation_state(&engine), "idle");
-    let _operation = engine.begin().unwrap();
-    assert_eq!(operation_state(&engine), "active");
-    let _held = engine.active.lock().unwrap();
-    assert_eq!(operation_state(&engine), "busy");
-    assert_eq!(lock_state(&engine.active), "busy");
-    drop(trace);
-}

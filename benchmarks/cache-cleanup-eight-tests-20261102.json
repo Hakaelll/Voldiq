@@ -1,0 +1,547 @@
+{
+  "checkedUtc": "2026-11-02T20:02:11.4460906Z",
+  "checkoutCommit": "1e793895df9868814ae54b29003fedeab14ae206",
+  "scope": "Only inactive executables and .d dependency receipts of the 16 deleted Voldiq integration-test targets, verified against their recorded source, plus the existing obsolete-preview cleaner. Logical artifact bytes are not observed volume free-space gain.",
+  "removedTestArtifactBytes": 120409427,
+  "removedTestArtifactFiles": 82,
+  "retiredTestTargets": [
+    "crates/voldiq-core/tests/cloud.rs",
+    "crates/voldiq-core/tests/execution_requests.rs",
+    "crates/voldiq-core/tests/folder_reads.rs",
+    "crates/voldiq-core/tests/jobs.rs",
+    "crates/voldiq-core/tests/metadata.rs",
+    "crates/voldiq-core/tests/operations.rs",
+    "crates/voldiq-core/tests/plan_service.rs",
+    "crates/voldiq-core/tests/plans.rs",
+    "crates/voldiq-core/tests/query_order.rs",
+    "crates/voldiq-core/tests/recovery_protection.rs",
+    "crates/voldiq-core/tests/recycling_preflight.rs",
+    "crates/voldiq-core/tests/search.rs",
+    "crates/voldiq-core/tests/search_translation.rs",
+    "crates/voldiq-core/tests/service.rs",
+    "crates/voldiq-core/tests/suggestions.rs",
+    "crates/voldiq-core/tests/workbench.rs"
+  ],
+  "files": [
+    {
+      "path": "target/release/deps/cloud-219f5c3192b48095.exe",
+      "source": "crates/voldiq-core/tests/cloud.rs",
+      "bytes": 2993664,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/cloud-219f5c3192b48095.d",
+      "source": "crates/voldiq-core/tests/cloud.rs",
+      "bytes": 277,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/cloud-5da9f3c9e41a9001.exe",
+      "source": "crates/voldiq-core/tests/cloud.rs",
+      "bytes": 2993664,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/cloud-5da9f3c9e41a9001.d",
+      "source": "crates/voldiq-core/tests/cloud.rs",
+      "bytes": 277,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/execution_requests-76d31da2c954774f.exe",
+      "source": "crates/voldiq-core/tests/execution_requests.rs",
+      "bytes": 3229184,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/execution_requests-76d31da2c954774f.d",
+      "source": "crates/voldiq-core/tests/execution_requests.rs",
+      "bytes": 342,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/execution_requests-7d253e76f4b70744.exe",
+      "source": "crates/voldiq-core/tests/execution_requests.rs",
+      "bytes": 3228160,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/execution_requests-7d253e76f4b70744.d",
+      "source": "crates/voldiq-core/tests/execution_requests.rs",
+      "bytes": 342,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/execution_requests-87c266fa5a5cb6dd.exe",
+      "source": "crates/voldiq-core/tests/execution_requests.rs",
+      "bytes": 3235328,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/execution_requests-87c266fa5a5cb6dd.d",
+      "source": "crates/voldiq-core/tests/execution_requests.rs",
+      "bytes": 342,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/folder_reads-1c5063c7a87b5ba9.exe",
+      "source": "crates/voldiq-core/tests/folder_reads.rs",
+      "bytes": 3120128,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/folder_reads-1c5063c7a87b5ba9.d",
+      "source": "crates/voldiq-core/tests/folder_reads.rs",
+      "bytes": 312,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/folder_reads-a66b82237e22bc9a.exe",
+      "source": "crates/voldiq-core/tests/folder_reads.rs",
+      "bytes": 3138048,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/folder_reads-a66b82237e22bc9a.d",
+      "source": "crates/voldiq-core/tests/folder_reads.rs",
+      "bytes": 312,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/folder_reads-bb280ca6d6b50a41.exe",
+      "source": "crates/voldiq-core/tests/folder_reads.rs",
+      "bytes": 3138048,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/folder_reads-bb280ca6d6b50a41.d",
+      "source": "crates/voldiq-core/tests/folder_reads.rs",
+      "bytes": 312,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/jobs-1bc4dba2be0fcf34.exe",
+      "source": "crates/voldiq-core/tests/jobs.rs",
+      "bytes": 2547712,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/jobs-1bc4dba2be0fcf34.d",
+      "source": "crates/voldiq-core/tests/jobs.rs",
+      "bytes": 272,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/jobs-69dfe8bec150d82e.exe",
+      "source": "crates/voldiq-core/tests/jobs.rs",
+      "bytes": 2542592,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/jobs-69dfe8bec150d82e.d",
+      "source": "crates/voldiq-core/tests/jobs.rs",
+      "bytes": 272,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/metadata-83bcedbc53d3b5bb.exe",
+      "source": "crates/voldiq-core/tests/metadata.rs",
+      "bytes": 2777088,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/metadata-83bcedbc53d3b5bb.d",
+      "source": "crates/voldiq-core/tests/metadata.rs",
+      "bytes": 292,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/metadata-9a1c73d4b4c8618c.exe",
+      "source": "crates/voldiq-core/tests/metadata.rs",
+      "bytes": 2780160,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/metadata-9a1c73d4b4c8618c.d",
+      "source": "crates/voldiq-core/tests/metadata.rs",
+      "bytes": 292,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/metadata-b6d96c26b85140af.exe",
+      "source": "crates/voldiq-core/tests/metadata.rs",
+      "bytes": 2776576,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/metadata-b6d96c26b85140af.d",
+      "source": "crates/voldiq-core/tests/metadata.rs",
+      "bytes": 292,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/operations-7fa0610e53e3daf2.exe",
+      "source": "crates/voldiq-core/tests/operations.rs",
+      "bytes": 2536448,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/operations-7fa0610e53e3daf2.d",
+      "source": "crates/voldiq-core/tests/operations.rs",
+      "bytes": 302,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/operations-bc2d8ef5cef8b4f4.exe",
+      "source": "crates/voldiq-core/tests/operations.rs",
+      "bytes": 2531328,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/operations-bc2d8ef5cef8b4f4.d",
+      "source": "crates/voldiq-core/tests/operations.rs",
+      "bytes": 302,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/plan_service-087234c9f582bdb0.exe",
+      "source": "crates/voldiq-core/tests/plan_service.rs",
+      "bytes": 3296768,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/plan_service-087234c9f582bdb0.d",
+      "source": "crates/voldiq-core/tests/plan_service.rs",
+      "bytes": 312,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/plan_service-53fadb6bbc0d5870.exe",
+      "source": "crates/voldiq-core/tests/plan_service.rs",
+      "bytes": 3313664,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/plan_service-53fadb6bbc0d5870.d",
+      "source": "crates/voldiq-core/tests/plan_service.rs",
+      "bytes": 312,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/plan_service-d7b88ac6de503d96.exe",
+      "source": "crates/voldiq-core/tests/plan_service.rs",
+      "bytes": 3296256,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/plan_service-d7b88ac6de503d96.d",
+      "source": "crates/voldiq-core/tests/plan_service.rs",
+      "bytes": 312,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/plans-694e25c9dd9541c8.exe",
+      "source": "crates/voldiq-core/tests/plans.rs",
+      "bytes": 3521536,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/plans-694e25c9dd9541c8.d",
+      "source": "crates/voldiq-core/tests/plans.rs",
+      "bytes": 277,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/plans-9f060940f0c67f3c.exe",
+      "source": "crates/voldiq-core/tests/plans.rs",
+      "bytes": 3502592,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/plans-9f060940f0c67f3c.d",
+      "source": "crates/voldiq-core/tests/plans.rs",
+      "bytes": 277,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/plans-c1630205a0c94e7b.exe",
+      "source": "crates/voldiq-core/tests/plans.rs",
+      "bytes": 3501568,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/plans-c1630205a0c94e7b.d",
+      "source": "crates/voldiq-core/tests/plans.rs",
+      "bytes": 277,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/query_order-1d3a59b7be235d17.exe",
+      "source": "crates/voldiq-core/tests/query_order.rs",
+      "bytes": 2642944,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/query_order-1d3a59b7be235d17.d",
+      "source": "crates/voldiq-core/tests/query_order.rs",
+      "bytes": 307,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/query_order-a5701a002ce980a9.exe",
+      "source": "crates/voldiq-core/tests/query_order.rs",
+      "bytes": 2679808,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/query_order-a5701a002ce980a9.d",
+      "source": "crates/voldiq-core/tests/query_order.rs",
+      "bytes": 307,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/recovery_protection-8f13a2e8c04379f2.exe",
+      "source": "crates/voldiq-core/tests/recovery_protection.rs",
+      "bytes": 2847744,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/recovery_protection-8f13a2e8c04379f2.d",
+      "source": "crates/voldiq-core/tests/recovery_protection.rs",
+      "bytes": 347,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/recovery_protection-8f6271a90f3de791.exe",
+      "source": "crates/voldiq-core/tests/recovery_protection.rs",
+      "bytes": 2847232,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/recovery_protection-8f6271a90f3de791.d",
+      "source": "crates/voldiq-core/tests/recovery_protection.rs",
+      "bytes": 347,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/recovery_protection-bd96dc80077436a6.exe",
+      "source": "crates/voldiq-core/tests/recovery_protection.rs",
+      "bytes": 2852864,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/recovery_protection-bd96dc80077436a6.d",
+      "source": "crates/voldiq-core/tests/recovery_protection.rs",
+      "bytes": 347,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/recycling_preflight-0c6d262bbca9002a.exe",
+      "source": "crates/voldiq-core/tests/recycling_preflight.rs",
+      "bytes": 3401728,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/recycling_preflight-0c6d262bbca9002a.d",
+      "source": "crates/voldiq-core/tests/recycling_preflight.rs",
+      "bytes": 347,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/recycling_preflight-17bbef7098bf17a5.exe",
+      "source": "crates/voldiq-core/tests/recycling_preflight.rs",
+      "bytes": 3412480,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/recycling_preflight-17bbef7098bf17a5.d",
+      "source": "crates/voldiq-core/tests/recycling_preflight.rs",
+      "bytes": 347,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/recycling_preflight-9dbd000b1bd05352.exe",
+      "source": "crates/voldiq-core/tests/recycling_preflight.rs",
+      "bytes": 3394560,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/recycling_preflight-9dbd000b1bd05352.d",
+      "source": "crates/voldiq-core/tests/recycling_preflight.rs",
+      "bytes": 347,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/search_translation-4d395d36a8134e94.exe",
+      "source": "crates/voldiq-core/tests/search_translation.rs",
+      "bytes": 781824,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/search_translation-4d395d36a8134e94.d",
+      "source": "crates/voldiq-core/tests/search_translation.rs",
+      "bytes": 342,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/search_translation-96425b8a3e5ca948.exe",
+      "source": "crates/voldiq-core/tests/search_translation.rs",
+      "bytes": 777728,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/search_translation-96425b8a3e5ca948.d",
+      "source": "crates/voldiq-core/tests/search_translation.rs",
+      "bytes": 342,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/search-0586f99be9f940a5.exe",
+      "source": "crates/voldiq-core/tests/search.rs",
+      "bytes": 2759680,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/search-0586f99be9f940a5.d",
+      "source": "crates/voldiq-core/tests/search.rs",
+      "bytes": 282,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/search-e980e6ba2345b7d9.exe",
+      "source": "crates/voldiq-core/tests/search.rs",
+      "bytes": 2783232,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/search-e980e6ba2345b7d9.d",
+      "source": "crates/voldiq-core/tests/search.rs",
+      "bytes": 282,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/service-12456075790d7a73.exe",
+      "source": "crates/voldiq-core/tests/service.rs",
+      "bytes": 3240448,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/service-12456075790d7a73.d",
+      "source": "crates/voldiq-core/tests/service.rs",
+      "bytes": 287,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/service-af1bd7c27dd7ee9c.exe",
+      "source": "crates/voldiq-core/tests/service.rs",
+      "bytes": 3304960,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/service-af1bd7c27dd7ee9c.d",
+      "source": "crates/voldiq-core/tests/service.rs",
+      "bytes": 287,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/service-db20bd9a3343b0e3.exe",
+      "source": "crates/voldiq-core/tests/service.rs",
+      "bytes": 3287040,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/service-db20bd9a3343b0e3.d",
+      "source": "crates/voldiq-core/tests/service.rs",
+      "bytes": 287,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/suggestions-3e6a8ad9700759ed.exe",
+      "source": "crates/voldiq-core/tests/suggestions.rs",
+      "bytes": 3108864,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/suggestions-3e6a8ad9700759ed.d",
+      "source": "crates/voldiq-core/tests/suggestions.rs",
+      "bytes": 307,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/suggestions-adb181862d29e638.exe",
+      "source": "crates/voldiq-core/tests/suggestions.rs",
+      "bytes": 3120640,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/suggestions-adb181862d29e638.d",
+      "source": "crates/voldiq-core/tests/suggestions.rs",
+      "bytes": 307,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/suggestions-b2d3f8667bcfc90e.exe",
+      "source": "crates/voldiq-core/tests/suggestions.rs",
+      "bytes": 3109376,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/suggestions-b2d3f8667bcfc90e.d",
+      "source": "crates/voldiq-core/tests/suggestions.rs",
+      "bytes": 307,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/workbench-60387b342bee51cf.exe",
+      "source": "crates/voldiq-core/tests/workbench.rs",
+      "bytes": 3022336,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/workbench-60387b342bee51cf.d",
+      "source": "crates/voldiq-core/tests/workbench.rs",
+      "bytes": 297,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/workbench-6c8bfd7fb74c1f80.exe",
+      "source": "crates/voldiq-core/tests/workbench.rs",
+      "bytes": 3020800,
+      "status": "Removed"
+    },
+    {
+      "path": "target/release/deps/workbench-6c8bfd7fb74c1f80.d",
+      "source": "crates/voldiq-core/tests/workbench.rs",
+      "bytes": 297,
+      "status": "Removed"
+    }
+  ],
+  "previewCleanup": {
+    "applied": true,
+    "removedBytes": 30318592,
+    "previews": [
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\3A34E6A12ED3A8C75BECC12EF1D9E07B3A7D5C1959FBB0807DB272696AECA19A",
+        "bytes": 15351808,
+        "status": "Removed"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\41CC98392F4ABA5DB3A5C20B04002F456E52D9C0A2621E8DFF7CBE49CCAB84AC",
+        "bytes": 14966784,
+        "status": "Removed"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\6A1116EF3E0F47A0AA0D07051B131993CCB39E0A50931C8445243A731EB6B0B3",
+        "bytes": 15582720,
+        "status": "KeptCurrent"
+      }
+    ]
+  },
+  "debugArtifactsPresent": false,
+  "existingPreview": {
+    "processId": 11736,
+    "alive": true,
+    "windowHandle": 8980472,
+    "sourceCommit": "dc783793f899a7050357f3dc74e4632fcda3ed1f"
+  }
+}

@@ -160,6 +160,3 @@ fn map_metrics(
         .map_metrics_cancellable(scope.id, &targets, cloud, search, cancelled)
         .map_err(|error| error.to_string())
 }
-#[cfg(test)]
-#[path = "overview_tests.rs"]
-mod tests;

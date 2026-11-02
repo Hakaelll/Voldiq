@@ -1,7 +1,5 @@
 use crate::{Error, Kind, NodeId, Result, index::Index, windows};
 use serde::{Deserialize, Serialize};
-#[cfg(all(test, windows))]
-mod disposition_tests;
 #[cfg(windows)]
 pub mod execute;
 #[cfg(windows)]

@@ -370,6 +370,3 @@ fn active(connection: &Connection, operation: OperationId) -> Result<()> {
 fn integer(value: u64) -> Result<i64> {
     i64::try_from(value).map_err(|_| Error::Invalid("Cleanup journal integer overflow.".into()))
 }
-
-#[cfg(all(test, windows))]
-mod tests;

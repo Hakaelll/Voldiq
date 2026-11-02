@@ -2,6 +2,8 @@
 
 Scope: [complete user requirements](reference/storage-workbench-requirements.txt). Baseline `fae47a0`, 2026-10-31. Existing means source is present, not that every new acceptance criterion has been verified. All pending rows remain part of the active goal.
 
+The user subsequently reduced the routine suite from 164 to eight behavior tests. [The retained inventory](TESTING.md) defines current regression coverage. Fixture descriptions below also record earlier verification; deleting a test does not undo that historical result, but its cases are no longer automatically rerun. Geometry, parser, attribution and other removed edge-case coverage must not be inferred from the reduced gate.
+
 Stages: A audit, B shared services, C secure adapters, D visualization, E analysis, F history, G operations, H integrations. Evidence is updated per delivered unit. No new screenshot or scaling acceptance is claimed because the user excludes computer use.
 
 | Reference function | Voldiq adaptation | Current state | Dependencies / stage | Verification | Acceptance criterion |

@@ -107,8 +107,3 @@ fn configured_path(value: Option<OsString>, default: Option<PathBuf>) -> Option<
         None => default,
     }
 }
-
-#[cfg(test)]
-pub(crate) fn verify_pnpm_configuration() {
-    pnpm_config::verify_fixture();
-}

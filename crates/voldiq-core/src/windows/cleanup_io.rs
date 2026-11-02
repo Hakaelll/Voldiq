@@ -162,7 +162,3 @@ fn native_open(name: &mut [u16], parent: Option<&File>, access: u32, share: u32)
     // NtCreateFile transferred ownership of a successful file handle; File closes it on every exit.
     Ok(unsafe { File::from_raw_handle(handle) })
 }
-
-#[cfg(test)]
-#[path = "cleanup_io_tests.rs"]
-mod tests;

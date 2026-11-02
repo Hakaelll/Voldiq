@@ -280,6 +280,3 @@ fn execution_summary(report: &Report) -> serde_json::Value {
         "items":report.items.iter().map(|item| serde_json::json!({"node_id":item.id,"outcome":item.outcome,"recorded":item.recorded,
             "failed":item.error.is_some(),"cleanup_requires_review":item.cleanup_error.is_some()})).collect::<Vec<_>>()})
 }
-
-#[cfg(test)]
-mod tests;
