@@ -132,6 +132,31 @@ fn kind(value: i64) -> Result<Kind> {
 }
 
 impl Store {
+    /// One recorded root frame for playback; no second capture or live index is needed.
+    pub fn visual_capture(
+        &self,
+        snapshot: i64,
+        cancel: &AtomicBool,
+    ) -> Result<Option<VisualFrame>> {
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        let _read = self.connection.unchecked_transaction()?;
+        let source = self.visual_source(snapshot)?;
+        accounting(source.observation.as_ref(), source.observation.as_ref())?;
+        let mut statement = self.connection.prepare("SELECT p.id FROM snapshot_paths p WHERE p.root_id=?1 AND p.parent_id=0 AND EXISTS (SELECT 1 FROM snapshot_versions v WHERE v.path_id=p.id AND v.start_id<=?2 AND (v.end_id IS NULL OR v.end_id>?2)) LIMIT 2")?;
+        let mut roots = statement.query(params![source.root, snapshot])?;
+        let id: i64 = roots.next()?.ok_or_else(invalid)?.get(0)?;
+        if id <= 0 || roots.next()?.is_some() {
+            return Err(invalid());
+        }
+        let frame = self.visual_frame(&source, id, cancel)?;
+        if frame.as_ref().is_some_and(|frame| frame.logical.is_none()) {
+            return Err(invalid());
+        }
+        Ok(frame)
+    }
+
     fn visual_source(&self, id: i64) -> Result<Source> {
         Ok(self.connection.query_row("SELECT root_id,captured,complete,observed_at,observed_complete,engine_version,accounting_version FROM snapshots WHERE id=?1", [id], |r| Ok(Source {
             id, root: r.get(0)?, captured: unsigned(r, 1)?, complete: r.get(2)?, observation: read_observation(r, 3)?,

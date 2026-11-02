@@ -4,6 +4,14 @@ Delivery branch: `main`, as the user explicitly requested during implementation.
 
 The complete task remains active. See the [coverage matrix](WORKBENCH-COVERAGE.md) and [execution plan](plans/storage-workbench.md). This status does not declare pending capabilities implemented.
 
+## Recorded history playback
+
+History now offers a full-width playback map with Play/Pause, Previous/Next, a labelled native timeline, three speeds and Loop. It covers compatible captures on the loaded history page and discloses that bound, the root and the selected accounting group. Every frame retains actual recorded logical sizes, save time, independently known measurement time, partial coverage and a bounded ranked-entry remainder. No intermediate values are invented. Open full snapshot remains an explicit operation; Back to captures restores the existing list focus route.
+
+The shared core reads one root frame from compact interval versions in a SQLite read view, rejects unsupported accounting and retains at most 160 map entries. A separate cancellable query family uses the existing bounded worker/queue ownership. Playback waits for each response, discards late replies, disposes timers and pending requests on exit, and pauses while hidden or during an operation. Comparison and playback share the previous treemap geometry/palette through one renderer. The retained snapshot flow verifies the real frame and a cancelled read; no test declaration was added. Actual playback timing, populated rendering, pointer/keyboard/focus, assistive technology, Windows scaling and device performance remain manual. Calendar/diary, retention and the other pending workbench rows remain part of the active goal.
+
+The [full integration gate](../benchmarks/workbench-history-playback-source-20261102.json) passes all six stages: one frontend and seven Rust cases, zero Svelte diagnostics, production frontend build, formatting and strict Clippy. Removing an unused comparison import afterward also passes the frontend check/build and produces the same final assets, `index-WSFksK7p.js` and `index-B-CGWgNT.css`. The eight-case suite remains unchanged in size. Native playback timing and visual/interaction/scaling acceptance are not established by this gate.
+
 ## Authorized CLI and MCP comparisons
 
 CLI `compare <before_id> <after_id> [offset] [limit]` and MCP `voldiq_compare` now call the same interval-based comparison as the desktop. The service authorizes and pins both snapshots independently, limits the returned page by the current connection policy and performs fresh authorization before returning. It reads stored scope descriptors and compact history directly, without loading or retaining two historical indexes. Coverage, unknown legacy accounting and newly observed/unobserved records keep the core qualification. Comparison remains metadata-only and grants no file-operation authority.

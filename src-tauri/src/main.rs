@@ -820,6 +820,7 @@ fn main() {
             query_commands::query_folder_budget,
             query_commands::query_snapshot_visual,
             query_commands::query_snapshot_changes,
+            query_commands::query_snapshot_capture,
             budget_commands::save_folder_budget,
             budget_commands::remove_folder_budget,
             query_commands::translate_search,

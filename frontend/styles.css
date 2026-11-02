@@ -1946,6 +1946,7 @@ main {
 }
 .history-compare-heading {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: baseline;
   gap: 16px;
@@ -1954,6 +1955,56 @@ main {
 .history-compare-heading h2 {
   font-size: 21px;
   margin: 0;
+  flex: 1;
+}
+.snapshot-playback {
+  padding: 16px;
+  margin: 18px 0;
+}
+.snapshot-playback-toolbar,
+.snapshot-playback-caption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.snapshot-playback-toolbar label,
+.snapshot-playback-timeline {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+}
+.snapshot-playback-toolbar .snapshot-playback-loop {
+  display: flex;
+  align-items: center;
+}
+.snapshot-playback-timeline {
+  margin: 16px 0;
+}
+.snapshot-playback-timeline input {
+  width: 100%;
+}
+.snapshot-playback-caption {
+  margin: 16px 0;
+  font-size: 12px;
+}
+.snapshot-playback-caption strong {
+  flex: 1 1 200px;
+  overflow-wrap: anywhere;
+}
+.snapshot-playback-values {
+  display: grid;
+  gap: 5px;
+  margin: 16px 14px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.snapshot-playback-values strong {
+  font-size: 24px;
+}
+.snapshot-playback .snapshot-visual-list li {
+  overflow-wrap: anywhere;
+  margin: 6px 0;
 }
 .snapshot-visual {
   margin: 18px 0;

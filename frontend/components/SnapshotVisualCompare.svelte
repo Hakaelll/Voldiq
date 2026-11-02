@@ -2,8 +2,7 @@
   import Icon from './Icon.svelte';
   import { tick } from 'svelte';
   import { snapshotVisualQueries } from '../lib/queries';
-  import { layout, type WeightedNode } from '../lib/treemap';
-  import { categoryPaint } from '../lib/storage-map';
+  import HistoricalMap from './HistoricalMap.svelte';
   import { bytes, date, type SnapshotVisualPair, type SnapshotVisualFrame } from '../lib/types';
 
   let {
@@ -47,7 +46,6 @@
     Math.max(Number(pair?.before.logical ?? 0), Number(pair?.after.logical ?? 0)),
   );
   const frames = $derived(pair ? [pair.before, pair.after] : []);
-  const maps = $derived(frames.map((frame) => geometry(frame, maximum, width)));
   const listed = $derived.by(() => {
     const entries = new Map<
       string,
@@ -128,43 +126,10 @@
     folderCursor = cursor;
     reverse = backwards;
   }
-  function geometry(frame: SnapshotVisualFrame, maximum: number, width: number) {
-    const nodes: WeightedNode[] = frame.entries.map((entry, index) => ({
-      id: index + 1,
-      name: entry.name,
-      value: Number(entry.logical),
-      directory: entry.kind === 'directory',
-      incomplete: entry.incomplete,
-    }));
-    if (frame.remainder)
-      nodes.push({
-        id: -1,
-        name: 'Other indexed contents',
-        value: Number(frame.remainder.logical),
-        directory: false,
-        category: 'remainder',
-      });
-    return layout(nodes, maximum > 0 ? (width * Number(frame.logical ?? 0)) / maximum : 0, 320).map(
-      (rect) => ({
-        ...rect,
-        paint: categoryPaint(rect),
-        source: rect.id > 0 ? frame.entries[rect.id - 1] : null,
-      }),
-    );
-  }
   function measured(frame: SnapshotVisualFrame): string {
     return frame.observation
       ? `Measured ${date(frame.observation.completed_at)}`
       : 'Measurement date unavailable';
-  }
-  function absence(frame: SnapshotVisualFrame): string {
-    return frame.presence === 'not_recorded'
-      ? 'No entry recorded in this capture.'
-      : frame.presence === 'not_observed'
-        ? 'Not observed; capture coverage is incomplete.'
-        : frame.incomplete
-          ? 'No positive-size geometry in the partial records.'
-          : 'Zero recorded logical bytes.';
   }
   function setDivider(value: number): void {
     divider = Math.max(0, Math.min(100, Math.round(value)));
@@ -281,42 +246,17 @@
         </div>{/each}
     </div>
     <div class="snapshot-visual-plot" bind:this={plot} bind:clientWidth={width}>
-      {#each frames as frame, i}<svg
+      {#each frames as frame, i}
+        <HistoricalMap
+          {frame}
+          {maximum}
+          {width}
           id={i === 0 ? 'snapshot-map-before' : 'snapshot-map-after'}
-          class="snapshot-visual-map"
-          class:before={i === 0}
-          style:clip-path={i === 0 ? `inset(0 ${100 - divider}% 0 0)` : 'none'}
-          viewBox={`0 0 ${Math.max(1, width)} 320`}
-          role="img"
-          aria-label={`${i === 0 ? 'Before' : 'After'} recorded logical sizes in ${pair.path}`}
-        >
-          {#each maps[i] ?? [] as rect}<g
-              ><rect
-                x={rect.x}
-                y={rect.y}
-                width={rect.width}
-                height={rect.height}
-                fill={rect.paint.fill}
-                stroke="var(--canvas)"
-                stroke-width="1"
-                ><title
-                  >{rect.name} · {rect.source?.logical ?? frame.remainder?.logical ?? '0'} logical bytes{rect.incomplete
-                    ? ' · partial'
-                    : ''}</title
-                ></rect
-              >
-              {#if rect.width >= 80 && rect.height >= 34}<text
-                  x={rect.x + 6}
-                  y={rect.y + 15}
-                  fill={rect.paint.ink}
-                  >{rect.name.slice(0, Math.max(1, Math.floor((rect.width - 12) / 7)))}</text
-                ><text x={rect.x + 6} y={rect.y + 29} fill={rect.paint.ink}
-                  >{bytes(rect.value)}</text
-                >{/if}
-            </g>{/each}
-          {#if !maps[i]?.length}<text x="16" y="40" fill="var(--secondary)">{absence(frame)}</text
-            >{/if}
-        </svg>{/each}
+          front={i === 0}
+          reveal={divider}
+          label={`${i === 0 ? 'Before' : 'After'} recorded logical sizes in ${pair.path}`}
+        />
+      {/each}
       <div class="snapshot-visual-line" style:left={`${divider}%`} aria-hidden="true"></div>
       <div
         class="snapshot-visual-handle"

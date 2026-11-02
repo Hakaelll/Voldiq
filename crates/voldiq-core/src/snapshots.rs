@@ -2,7 +2,7 @@ mod budget_history;
 mod cache_evidence;
 mod visual;
 pub(crate) use budget_history::HistoryPoint;
-pub use visual::{Accounting, VisualPair};
+pub use visual::{Accounting, VisualFrame, VisualPair};
 #[cfg(windows)]
 mod resume;
 

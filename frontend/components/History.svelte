@@ -5,6 +5,7 @@
   import Icon from './Icon.svelte';
   import SnapshotChangeBars from './SnapshotChangeBars.svelte';
   import SnapshotVisualCompare from './SnapshotVisualCompare.svelte';
+  import HistoryPlayback from './HistoryPlayback.svelte';
   import { snapshotChangeQueries } from '../lib/queries';
   import { historyTrend } from '../lib/history-trend';
   import { updateSnapshotPair } from '../lib/snapshot-pair';
@@ -32,6 +33,7 @@
   let focusedComparison = $state(false),
     comparisonLoading = $state(false),
     comparisonProblem = $state('');
+  let playback = $state(false);
   let deleting = $state<number | null>(null);
   let loadState = $state<'loading' | 'ready' | 'unavailable'>(isTauri() ? 'loading' : 'ready');
   let region: HTMLDivElement;
@@ -111,7 +113,7 @@
       offset = next;
       comparison = null;
       comparisonRequest += 1;
-      focusedComparison = comparisonLoading = false;
+      focusedComparison = comparisonLoading = playback = false;
       comparisonProblem = '';
       const latest = items[0];
       const older =
@@ -201,6 +203,7 @@
   }
   async function compare(next = 0): Promise<void> {
     if (!before || !after || before === after || working) return;
+    playback = false;
     focusedComparison = comparisonLoading = true;
     comparisonProblem = '';
     const token = ++comparisonRequest;
@@ -245,10 +248,15 @@
   });
   async function showCaptures(): Promise<void> {
     if (comparisonLoading) resetComparison();
-    focusedComparison = false;
+    focusedComparison = playback = false;
     await tick();
     if (alive)
       (region.querySelector<HTMLInputElement>('.snapshot-row input:checked') ?? region).focus();
+  }
+  function startPlayback(): void {
+    resetComparison();
+    focusedComparison = false;
+    playback = true;
   }
   async function cancelComparison(): Promise<void> {
     resetComparison();
@@ -301,7 +309,7 @@
       <h2>No snapshots yet</h2>
     </section>
   {:else}
-    <div class="history-layout" class:comparing={focusedComparison}>
+    <div class="history-layout" class:comparing={focusedComparison || playback}>
       <div class="history-captures">
         <h2>Snapshots</h2>
         <section class="panel snapshot-list" aria-label="Saved snapshots">
@@ -441,114 +449,125 @@
       </div>
       <div class="history-comparison">
         <div class="history-compare-heading">
-          <h2>Compare snapshots</h2>
-          {#if focusedComparison}<button onclick={showCaptures}>Back to captures</button>{/if}
+          <h2>{playback ? 'History playback' : 'Compare snapshots'}</h2>
+          {#if !playback}<button onclick={startPlayback} disabled={working || !compatible.length}
+              >Playback</button
+            >{/if}
+          {#if focusedComparison || playback}<button onclick={showCaptures}>Back to captures</button
+            >{/if}
         </div>
-        <div class="history-compare">
-          <label
-            >Before<select
-              bind:value={before}
-              onchange={() => {
-                resetComparison();
-                after =
-                  snapshots.find((s) => s.root_key === previous?.root_key && s.id !== before)?.id ??
-                  before;
-              }}
-              disabled={working}
-            >
-              <option value={0}>Select snapshot</option>
-              {#each snapshots as s}<option value={s.id}
-                  >{s.root} · {date(s.captured)} · {bytes(s.logical)}</option
-                >{/each}
-            </select></label
-          >
-          <label
-            >After<select bind:value={after} onchange={resetComparison} disabled={working}>
-              <option value={0}>Select snapshot</option>
-              {#each compatible as s}<option value={s.id}
-                  >{date(s.captured)} · {bytes(s.logical)}</option
-                >{/each}
-            </select></label
-          >
-          <button
-            data-compare-snapshots
-            onclick={() => compare()}
-            disabled={working || comparisonLoading || !before || !after || before === after}
-            >{comparisonLoading ? 'Comparing…' : 'Compare'}</button
-          >
-        </div>
-        {#if comparisonLoading}<p role="status">
-            Reading recorded changes… <button onclick={cancelComparison}>Cancel comparison</button>
-          </p>{/if}
-        {#if comparisonProblem}<p role="alert">{comparisonProblem}</p>{/if}
-        {#if comparison && focusedComparison}{#key `${comparison.before}:${comparison.after}`}<SnapshotVisualCompare
-              before={comparison.before}
-              after={comparison.after}
-              disabled={working}
-            />{/key}{/if}
-        {#if comparison}<section class="panel change-list">
-            {#if comparison.accounting === 'unknown'}<p class="history-coverage-summary">
-                Legacy accounting revision unavailable; comparability is unverified.
-              </p>{/if}
-            {#if comparison.file_changes}
-              <SnapshotChangeBars changes={comparison.file_changes} />
-              {#if comparison.file_changes.newly_observed.files || comparison.file_changes.unobserved.files}<div
-                  class="history-coverage-summary"
-                >
-                  {#if comparison.file_changes.newly_observed.files}<span
-                      >Newly observed · {comparison.file_changes.newly_observed.files.toLocaleString()}
-                      files · {bytes(comparison.file_changes.newly_observed.logical)}</span
-                    >{/if}
-                  {#if comparison.file_changes.unobserved.files}<span
-                      >Not observed · {comparison.file_changes.unobserved.files.toLocaleString()} files
-                      · {bytes(comparison.file_changes.unobserved.logical)}</span
-                    >{/if}
-                </div>{/if}
-            {/if}
-            <div class="panel-heading">
-              <h2>{difference(comparison.delta)}</h2>
-              <span
-                >{comparison.total.toLocaleString()} changes{#if !comparison.coverage_complete}
-                  · Partial coverage{/if}</span
+        {#if playback}
+          {#key compatible.map((snapshot) => snapshot.id).join(':')}
+            <HistoryPlayback captures={compatible} disabled={working} onopen={open} />
+          {/key}
+        {:else}
+          <div class="history-compare">
+            <label
+              >Before<select
+                bind:value={before}
+                onchange={() => {
+                  resetComparison();
+                  after =
+                    snapshots.find((s) => s.root_key === previous?.root_key && s.id !== before)
+                      ?.id ?? before;
+                }}
+                disabled={working}
               >
-            </div>
-            {#if !comparison.changes.length}<p class="history-no-changes">No changes</p>{/if}
-            {#if comparison.changes.length}<div class="history-change-columns">
-                <span>Path</span><span>Change</span><span>Before</span><span>After</span>
-              </div>{/if}
-            {#each comparison.changes as change}
-              <div class="change-row">
-                <Icon name={change.directory ? 'folder' : 'file'} /><span title={change.path}
-                  >{change.path}</span
-                ><small>{labels[change.kind]}</small>
-                <span class="number"
-                  >{change.kind === 'added'
-                    ? '—'
-                    : change.kind === 'newly_observed'
-                      ? 'Unavailable'
-                      : bytes(change.before)}</span
-                >
-                <span class="number"
-                  >{change.kind === 'removed'
-                    ? '—'
-                    : change.kind === 'unobserved'
-                      ? 'Unavailable'
-                      : bytes(change.after)}</span
+                <option value={0}>Select snapshot</option>
+                {#each snapshots as s}<option value={s.id}
+                    >{s.root} · {date(s.captured)} · {bytes(s.logical)}</option
+                  >{/each}
+              </select></label
+            >
+            <label
+              >After<select bind:value={after} onchange={resetComparison} disabled={working}>
+                <option value={0}>Select snapshot</option>
+                {#each compatible as s}<option value={s.id}
+                    >{date(s.captured)} · {bytes(s.logical)}</option
+                  >{/each}
+              </select></label
+            >
+            <button
+              data-compare-snapshots
+              onclick={() => compare()}
+              disabled={working || comparisonLoading || !before || !after || before === after}
+              >{comparisonLoading ? 'Comparing…' : 'Compare'}</button
+            >
+          </div>
+          {#if comparisonLoading}<p role="status">
+              Reading recorded changes… <button onclick={cancelComparison}>Cancel comparison</button
+              >
+            </p>{/if}
+          {#if comparisonProblem}<p role="alert">{comparisonProblem}</p>{/if}
+          {#if comparison && focusedComparison}{#key `${comparison.before}:${comparison.after}`}<SnapshotVisualCompare
+                before={comparison.before}
+                after={comparison.after}
+                disabled={working}
+              />{/key}{/if}
+          {#if comparison}<section class="panel change-list">
+              {#if comparison.accounting === 'unknown'}<p class="history-coverage-summary">
+                  Legacy accounting revision unavailable; comparability is unverified.
+                </p>{/if}
+              {#if comparison.file_changes}
+                <SnapshotChangeBars changes={comparison.file_changes} />
+                {#if comparison.file_changes.newly_observed.files || comparison.file_changes.unobserved.files}<div
+                    class="history-coverage-summary"
+                  >
+                    {#if comparison.file_changes.newly_observed.files}<span
+                        >Newly observed · {comparison.file_changes.newly_observed.files.toLocaleString()}
+                        files · {bytes(comparison.file_changes.newly_observed.logical)}</span
+                      >{/if}
+                    {#if comparison.file_changes.unobserved.files}<span
+                        >Not observed · {comparison.file_changes.unobserved.files.toLocaleString()} files
+                        · {bytes(comparison.file_changes.unobserved.logical)}</span
+                      >{/if}
+                  </div>{/if}
+              {/if}
+              <div class="panel-heading">
+                <h2>{difference(comparison.delta)}</h2>
+                <span
+                  >{comparison.total.toLocaleString()} changes{#if !comparison.coverage_complete}
+                    · Partial coverage{/if}</span
                 >
               </div>
-            {/each}
-            {#if comparison.total > 50}<div class="duplicate-pagination">
-                <button
-                  onclick={() => compare(Math.max(0, changeOffset - 50))}
-                  disabled={working || changeOffset === 0}>Previous</button
-                ><span
-                  >{changeOffset + 1}–{changeOffset + comparison.changes.length} of {comparison.total}</span
-                ><button
-                  onclick={() => compare(changeOffset + 50)}
-                  disabled={working || changeOffset + 50 >= comparison.total}>Next</button
-                >
-              </div>{/if}
-          </section>{/if}
+              {#if !comparison.changes.length}<p class="history-no-changes">No changes</p>{/if}
+              {#if comparison.changes.length}<div class="history-change-columns">
+                  <span>Path</span><span>Change</span><span>Before</span><span>After</span>
+                </div>{/if}
+              {#each comparison.changes as change}
+                <div class="change-row">
+                  <Icon name={change.directory ? 'folder' : 'file'} /><span title={change.path}
+                    >{change.path}</span
+                  ><small>{labels[change.kind]}</small>
+                  <span class="number"
+                    >{change.kind === 'added'
+                      ? '—'
+                      : change.kind === 'newly_observed'
+                        ? 'Unavailable'
+                        : bytes(change.before)}</span
+                  >
+                  <span class="number"
+                    >{change.kind === 'removed'
+                      ? '—'
+                      : change.kind === 'unobserved'
+                        ? 'Unavailable'
+                        : bytes(change.after)}</span
+                  >
+                </div>
+              {/each}
+              {#if comparison.total > 50}<div class="duplicate-pagination">
+                  <button
+                    onclick={() => compare(Math.max(0, changeOffset - 50))}
+                    disabled={working || changeOffset === 0}>Previous</button
+                  ><span
+                    >{changeOffset + 1}–{changeOffset + comparison.changes.length} of {comparison.total}</span
+                  ><button
+                    onclick={() => compare(changeOffset + 50)}
+                    disabled={working || changeOffset + 50 >= comparison.total}>Next</button
+                  >
+                </div>{/if}
+            </section>{/if}
+        {/if}
       </div>
     </div>
   {/if}

@@ -23,6 +23,7 @@ pub(crate) enum QueryFamily {
     FolderBudget,
     SnapshotVisual,
     SnapshotChanges,
+    SnapshotCapture,
 }
 
 #[derive(Default)]
@@ -39,7 +40,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 6],
+    slots: [Slot; 7],
 }
 
 impl QueryFamily {
@@ -51,6 +52,7 @@ impl QueryFamily {
             Self::FolderBudget => 3,
             Self::SnapshotVisual => 4,
             Self::SnapshotChanges => 5,
+            Self::SnapshotCapture => 6,
         }
     }
 }
@@ -138,6 +140,25 @@ struct Request {
     epoch: u64,
     family: QueryFamily,
     id: u64,
+}
+
+#[tauri::command]
+pub(crate) async fn query_snapshot_capture(
+    snapshot: i64,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+    database: State<'_, crate::snapshot_commands::SnapshotDatabase>,
+) -> Result<Option<voldiq_core::snapshots::VisualFrame>, String> {
+    run_stored_query(
+        epoch,
+        QueryFamily::SnapshotCapture,
+        request_id,
+        engine.inner().clone(),
+        database.0.clone(),
+        move |store, cancel| store.visual_capture(snapshot, cancel),
+    )
+    .await
 }
 
 #[derive(Deserialize)]

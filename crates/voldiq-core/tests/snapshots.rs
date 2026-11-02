@@ -60,6 +60,17 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             .is_some_and(|observation| observation.complete)
     );
     assert_eq!(loaded.entries[0].logical, 33);
+    let frame = store.visual_capture(before, &loading).unwrap().unwrap();
+    assert_eq!(frame.snapshot, before);
+    assert_eq!(frame.logical.as_deref(), Some("33"));
+    assert_eq!(frame.entries.len(), 4);
+    assert_eq!(frame.observation, first.observation);
+    assert!(
+        store
+            .visual_capture(-1, &AtomicBool::new(true))
+            .unwrap()
+            .is_none()
+    );
     assert_eq!(
         loaded
             .query(&Query {
