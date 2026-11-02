@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import OfflineSearch from './OfflineSearch.svelte';
   import type { IndexId } from '../lib/index-context';
   import type { Query, SearchInspection } from '../lib/types';
   import { createQueryRunner } from '../lib/query-runner';
@@ -149,4 +150,14 @@
       </span>
     </div>
   </form>
+  <OfflineSearch
+    {draft}
+    {query}
+    {indexId}
+    {disabled}
+    onchoose={(expression) => {
+      draft = expression;
+      input.focus();
+    }}
+  />
 </div>

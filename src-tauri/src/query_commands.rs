@@ -281,6 +281,11 @@ pub(crate) fn inspect_search(query: Query) -> voldiq_core::search::SearchInspect
 }
 
 #[tauri::command]
+pub(crate) fn translate_search(source: String) -> Result<voldiq_core::search::Translation, String> {
+    voldiq_core::search::translate(&source).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 pub(crate) async fn query_details_cancellable(
     index_id: IndexId,
     epoch: u64,

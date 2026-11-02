@@ -92,6 +92,36 @@ fn authorized_service_scans_once_persists_and_queries_only_the_current_scope() {
         .authenticate(provisioned.credential.expose())
         .unwrap();
     let service = AgentService::new(state.path().to_owned(), principal).unwrap();
+    assert_eq!(
+        service
+            .translate_query("archivos mayores de 1 GiB")
+            .unwrap()
+            .expression,
+        "type:file size>1GiB"
+    );
+    let scan_only = registry
+        .provision(
+            "No metadata",
+            Policy::new(
+                vec![source.path().to_owned()],
+                vec![],
+                vec![Capability::Scan],
+                Limits::default(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let scan_only = AgentService::new(
+        state.path().to_owned(),
+        registry
+            .authenticate(scan_only.credential.expose())
+            .unwrap(),
+    )
+    .unwrap();
+    assert!(matches!(
+        scan_only.translate_query("files larger than secret"),
+        Err(voldiq_core::Error::Invalid(_))
+    ));
     let job = service.start_scan(source.path()).unwrap();
     let result = service.wait(job).unwrap();
     assert_eq!(result.state, JobState::Completed);
@@ -221,6 +251,10 @@ fn authorized_service_scans_once_persists_and_queries_only_the_current_scope() {
     assert!(forbidden.details(snapshot, voldiq_core::NodeId(0)).is_err());
     assert!(forbidden.history(0, 100).unwrap().items.is_empty());
     registry.revoke(provisioned.id).unwrap();
+    assert!(matches!(
+        service.translate_query("files larger than secret"),
+        Err(voldiq_core::Error::Invalid(_))
+    ));
     let revoked_query = service
         .query(
             snapshot,

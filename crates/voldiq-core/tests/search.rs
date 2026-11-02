@@ -72,6 +72,29 @@ fn names(index: &voldiq_core::index::Index, expression: &str) -> Vec<String> {
 }
 
 #[test]
+fn media_categories_use_only_metadata_file_extensions_without_claiming_content_type() {
+    let (_root, mut index) = fixture();
+    let movie = index
+        .entries
+        .iter()
+        .position(|entry| entry.name == "old movie.mp4")
+        .unwrap();
+    for (name, category) in [
+        ("photo.JPEG", "image"),
+        ("clip.MKV", "video"),
+        ("sound.FLAC", "audio"),
+    ] {
+        index.entries[movie].name = name.into();
+        assert_eq!(names(&index, &format!("category:{category}")), [name]);
+        index.entries[movie].kind = voldiq_core::Kind::Directory;
+        assert!(names(&index, &format!("category:{category}")).is_empty());
+        index.entries[movie].kind = voldiq_core::Kind::File;
+    }
+    let proposal = voldiq_core::search::translate("audio larger than 1 KiB").unwrap();
+    assert_eq!(names(&index, &proposal.expression), ["sound.FLAC"]);
+}
+
+#[test]
 fn expressions_share_scope_paging_metadata_filters_and_literal_search() {
     let (_root, index) = fixture();
     assert_eq!(
@@ -83,6 +106,17 @@ fn expressions_share_scope_paging_metadata_filters_and_literal_search() {
         ["Report Final.BIN"]
     );
     assert_eq!(names(&index, "glob:*.MP4 size=2KiB"), ["old movie.mp4"]);
+    assert_eq!(names(&index, "category:video"), ["old movie.mp4"]);
+    assert!(names(&index, "category:image").is_empty());
+    assert!(names(&index, "category:audio").is_empty());
+    assert!(
+        Query {
+            expression: "category:application".into(),
+            ..Query::default()
+        }
+        .compile()
+        .is_err()
+    );
     assert_eq!(
         names(&index, "size>1.5KB size<1.6KiB"),
         ["Report Final.BIN"]

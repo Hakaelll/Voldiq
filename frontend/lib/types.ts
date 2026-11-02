@@ -203,6 +203,12 @@ export interface Query {
 export type SearchInspection =
   { kind: 'valid'; conditions: number } | { kind: 'invalid'; offset: number; message: string };
 
+export interface SearchTranslation {
+  expression: string;
+  conditions: number;
+  unparsed: { start: number; end: number; text: string }[];
+}
+
 export interface DuplicateProgress {
   phase: 'sampling' | 'hashing' | 'complete' | 'cancelled' | 'failed';
   examined: number;

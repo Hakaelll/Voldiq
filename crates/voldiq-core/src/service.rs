@@ -273,6 +273,12 @@ impl AgentService {
         Ok(index)
     }
 
+    pub fn translate_query(&self, source: &str) -> Result<crate::search::Translation> {
+        self.registry()?
+            .policy(&self.principal, Capability::Metadata)?;
+        Ok(crate::search::translate(source)?)
+    }
+
     pub fn query(&self, snapshot: i64, query: &Query) -> Result<Page> {
         let policy = self
             .registry()?

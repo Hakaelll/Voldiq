@@ -1,6 +1,8 @@
 mod glob;
 mod lexer;
 mod numbers;
+mod translation;
+pub use translation::{Translation, UnparsedSpan, translate};
 
 use crate::{Entry, Kind, cloud::CloudFilter, index::Query};
 use glob::Glob;
@@ -57,6 +59,48 @@ impl Compare {
         }
     }
 }
+enum Category {
+    Video,
+    Image,
+    Audio,
+}
+impl Category {
+    fn matches(&self, entry: &Entry) -> bool {
+        if !entry.is_metadata_file() {
+            return false;
+        }
+        let extension = std::path::Path::new(&entry.name)
+            .extension()
+            .and_then(|ext| ext.to_str())
+            .unwrap_or("")
+            .to_ascii_lowercase();
+        match self {
+            Self::Video => matches!(
+                extension.as_str(),
+                "mp4" | "mkv" | "mov" | "avi" | "webm" | "m4v" | "wmv" | "mpeg" | "mpg"
+            ),
+            Self::Image => matches!(
+                extension.as_str(),
+                "jpg"
+                    | "jpeg"
+                    | "png"
+                    | "gif"
+                    | "webp"
+                    | "bmp"
+                    | "tif"
+                    | "tiff"
+                    | "heic"
+                    | "heif"
+                    | "avif"
+                    | "svg"
+            ),
+            Self::Audio => matches!(
+                extension.as_str(),
+                "mp3" | "wav" | "flac" | "aac" | "ogg" | "m4a" | "opus" | "wma" | "aiff"
+            ),
+        }
+    }
+}
 enum Predicate {
     Name(String),
     NameGlob(Glob),
@@ -64,6 +108,7 @@ enum Predicate {
     PathGlob(Glob),
     Extension(String),
     Extensionless,
+    Category(Category),
     Size(Compare, ByteThreshold),
     Modified(Compare, DateValue),
     Kind(Kind),
@@ -227,6 +272,16 @@ fn parse(token: lexer::Token) -> Result<Predicate, QueryError> {
                 "An extension requires characters after the dot, or none.",
             ));
         }
+        "category" => Predicate::Category(match value.to_ascii_lowercase().as_str() {
+            "video" => Category::Video,
+            "image" => Category::Image,
+            "audio" => Category::Audio,
+            _ => {
+                return Err(error(
+                    "Use category:video, category:image or category:audio.",
+                ));
+            }
+        }),
         "type" => Predicate::Kind(match value.to_ascii_lowercase().as_str() {
             "file" => Kind::File,
             "folder" | "directory" => Kind::Directory,
@@ -243,7 +298,7 @@ fn parse(token: lexer::Token) -> Result<Predicate, QueryError> {
         }),
         _ => {
             return Err(error(
-                "Unsupported property. Use name, glob, path, pathglob, ext, size, modified, type or cloud. App attribution is not yet available.",
+                "Unsupported property. Use name, glob, path, pathglob, ext, category, size, modified, type or cloud. App attribution is not yet available.",
             ));
         }
     })
@@ -278,6 +333,7 @@ impl Search {
                 Predicate::Extension(value) => std::path::Path::new(&entry.name)
                     .extension()
                     .is_some_and(|ext| ext.to_string_lossy().to_lowercase() == *value),
+                Predicate::Category(category) => category.matches(entry),
                 Predicate::Extensionless => {
                     entry.is_metadata_file()
                         && std::path::Path::new(&entry.name).extension().is_none()

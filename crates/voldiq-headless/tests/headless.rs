@@ -185,6 +185,22 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     )
     .unwrap();
     let node = files["result"]["items"][0]["id"].as_u64().unwrap();
+    let translated = run(&["translate", "archivos mayores de 1 GiB"]);
+    assert!(translated.status.success());
+    let translated: Value = serde_json::from_slice(&translated.stdout).unwrap();
+    assert_eq!(translated["result"]["expression"], "type:file size>1GiB");
+    assert_eq!(translated["result"]["unparsed"], json!([]));
+    let partial = run(&["translate", "vídeos antiguos"]);
+    assert!(partial.status.success());
+    let partial: Value = serde_json::from_slice(&partial.stdout).unwrap();
+    assert_eq!(partial["result"]["unparsed"][0]["text"], "antiguos");
+    assert_eq!(
+        run(&["translate", "modified before 2023-02-29"])
+            .status
+            .code(),
+        Some(2)
+    );
+    assert_eq!(run(&["translate", "files", "--yes"]).status.code(), Some(2));
     let allocated = run(&[
         "query",
         &snapshot.to_string(),

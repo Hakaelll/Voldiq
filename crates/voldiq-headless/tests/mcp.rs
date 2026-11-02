@@ -151,6 +151,42 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     let client = ().serve(TokioChildProcess::new(command).unwrap()).await.unwrap();
     let tools = client.list_all_tools().await.unwrap();
     assert!(tools.iter().any(|tool| tool.name == "voldiq_scan_start"));
+    assert!(
+        tools
+            .iter()
+            .any(|tool| tool.name == "voldiq_query_translate")
+    );
+    let translated = call(
+        &client,
+        "voldiq_query_translate",
+        json!({"source":"archivos mayores de 1 GiB"}),
+    )
+    .await;
+    assert_ne!(translated.is_error, Some(true));
+    assert_eq!(
+        translated.structured_content.unwrap()["result"]["expression"],
+        "type:file size>1GiB"
+    );
+    let partial = call(
+        &client,
+        "voldiq_query_translate",
+        json!({"source":"vídeos antiguos"}),
+    )
+    .await;
+    assert_eq!(
+        partial.structured_content.unwrap()["result"]["unparsed"][0]["text"],
+        "antiguos"
+    );
+    let invalid = call(
+        &client,
+        "voldiq_query_translate",
+        json!({"source":"modified before 2023-02-29"}),
+    )
+    .await;
+    assert_eq!(
+        invalid.structured_content.unwrap()["error"]["code"],
+        "invalid_query"
+    );
     assert!(!tools.iter().any(|tool| tool.name.contains("approve")
         || tool.name.contains("delete")
         || tool.name.contains("shell")));
@@ -337,6 +373,16 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         [1; 11]
     );
     registry.revoke(provisioned.id).unwrap();
+    let revoked_translation = call(
+        &client,
+        "voldiq_query_translate",
+        json!({"source":"files larger than secret"}),
+    )
+    .await;
+    assert_eq!(
+        revoked_translation.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
+    );
     let revoked = call(&client, "voldiq_stats", json!({"snapshot_id":snapshot})).await;
     assert_eq!(revoked.is_error, Some(true));
     assert_eq!(

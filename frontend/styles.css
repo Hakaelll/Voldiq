@@ -350,6 +350,30 @@ progress::-webkit-progress-value {
   font-size: 12px;
   color: var(--secondary);
 }
+.offline-search {
+  margin-top: 10px;
+  font-size: 12px;
+}
+.offline-search summary {
+  cursor: pointer;
+  width: fit-content;
+}
+.offline-search[open] summary {
+  margin-bottom: 8px;
+}
+.offline-search-help {
+  color: var(--secondary);
+}
+.offline-search-proposal {
+  display: grid;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+.offline-search-partial {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .applied-query-bar {
   justify-content: space-between;
   flex-wrap: nowrap;
