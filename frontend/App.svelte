@@ -9,6 +9,20 @@
   import ScanWelcome from './components/ScanWelcome.svelte';
   import FileTable from './components/FileTable.svelte';
   import AdvancedSearch from './components/AdvancedSearch.svelte';
+  import SavedWorkspaces from './components/SavedWorkspaces.svelte';
+  import CommandPalette from './components/CommandPalette.svelte';
+  import {
+    detachedQuery,
+    restoreWorkspace,
+    workspaceContextIsCurrent,
+    type CatalogState,
+    type ViewSpec,
+    type Workspaces,
+    type RecordRef,
+    type SavedView,
+    type Destination,
+  } from './lib/workbench';
+  import { paletteCommands, type PaletteCommand } from './lib/command-palette';
   import type { SearchDraftRequest } from './lib/search-editor';
   import CloudFilterSelect from './components/CloudFilterSelect.svelte';
   import FolderComposition from './components/FolderComposition.svelte';
@@ -114,6 +128,14 @@
   let searchExpression = $state('');
   let advancedOpen = $state(false);
   let advancedButton: HTMLButtonElement;
+  let savedButton: HTMLButtonElement;
+  let savedOpen = $state(false),
+    paletteOpen = $state(false),
+    savedLoading = $state(false);
+  let catalog = $state.raw<CatalogState>({ kind: 'loading' });
+  let catalogEpoch = 0,
+    workspaceLoadToken = 0;
+  let paletteOpener: HTMLElement | null = null;
   let appliedSearchKey = $state<string | null>(null);
   let searchProblem = $state<{ key: string; message: string } | null>(null);
   let pendingSearchKey: string | null = null;
@@ -150,6 +172,191 @@
   let cleanupNeedsRefresh = false;
   let restoreReceipt = $state<number | null>(null);
   let restoreNeedsRefresh = false;
+  async function loadWorkspaces(): Promise<void> {
+    const owner = ++catalogEpoch;
+    catalog = { kind: 'loading' };
+    if (!isTauri()) {
+      catalog = { kind: 'failed', message: 'Saved workspaces are available in the desktop app.' };
+      return;
+    }
+    try {
+      const value = await invoke<Workspaces>('list_workspaces');
+      if (owner === catalogEpoch) catalog = { kind: 'ready', value };
+    } catch (problem) {
+      if (owner === catalogEpoch) catalog = { kind: 'failed', message: String(problem) };
+    }
+  }
+  function adoptWorkspaces(value: Workspaces): void {
+    catalogEpoch += 1;
+    catalog = { kind: 'ready', value };
+  }
+  function workspaceContext() {
+    return {
+      indexId,
+      scope,
+      query,
+      owner: interactionToken,
+      revision: catalog.kind === 'ready' ? catalog.value.revision : null,
+    };
+  }
+  async function loadWorkspace(reference: RecordRef): Promise<void> {
+    if (
+      !ready ||
+      indexId === null ||
+      analysisBusy ||
+      savedLoading ||
+      catalog.kind !== 'ready' ||
+      reference.revision !== catalog.value.revision
+    )
+      return;
+    const request = workspaceContext(),
+      token = ++workspaceLoadToken;
+    savedLoading = true;
+    try {
+      const item = await invoke<SavedView>('load_workspace', { reference });
+      if (
+        token !== workspaceLoadToken ||
+        !ready ||
+        analysisBusy ||
+        !workspaceContextIsCurrent(request, workspaceContext())
+      )
+        return;
+      const next = restoreWorkspace(item.spec, scope);
+      invalidateRefresh();
+      const owner = invalidateInteraction();
+      view = next.view;
+      scope = next.scope;
+      text = next.text;
+      searchExpression = next.expression;
+      extension = next.extension;
+      withoutExtension = next.withoutExtension;
+      cloudFilter = next.cloud;
+      minSize = next.minSize;
+      largeKind = next.largeKind;
+      before = next.before;
+      sort = next.sort;
+      sizeMode = next.metric;
+      mapDepth = next.depth;
+      mapColorMode = next.color;
+      if (next.mapMode !== null) mapMode = next.mapMode;
+      explorerMap = next.explorerMap;
+      fileRepresentation = next.fileRepresentation;
+      advancedOpen = false;
+      savedOpen = false;
+      details = null;
+      showMapList = false;
+      void refresh(scope);
+      await tick();
+      if (
+        owner === interactionToken &&
+        request.indexId === indexId &&
+        document.activeElement === document.body
+      )
+        fileWorkspace?.focus({ preventScroll: true });
+    } catch (problem) {
+      if (token === workspaceLoadToken && workspaceContextIsCurrent(request, workspaceContext())) {
+        report(problem);
+        void loadWorkspaces();
+      }
+    } finally {
+      if (token === workspaceLoadToken) savedLoading = false;
+    }
+  }
+  function openSaved(): void {
+    savedOpen = !savedOpen;
+    if (savedOpen) {
+      advancedOpen = false;
+      void loadWorkspaces();
+    }
+  }
+  function closeSaved(): void {
+    savedOpen = false;
+    const owner = interactionToken;
+    void tick().then(() => {
+      if (owner === interactionToken && document.activeElement === document.body)
+        savedButton?.focus({ preventScroll: true });
+    });
+  }
+  function closePalette(restore = true): void {
+    paletteOpen = false;
+    const owner = interactionToken,
+      opener = paletteOpener;
+    if (restore)
+      void tick().then(() => {
+        if (
+          owner === interactionToken &&
+          opener?.isConnected &&
+          document.activeElement === document.body
+        )
+          opener.focus({ preventScroll: true });
+      });
+  }
+  function openPalette(): void {
+    if (analysisBusy || cleanupPreview || restoreReceipt !== null || showIssues) return;
+    if (paletteOpen) {
+      closePalette();
+      return;
+    }
+    if (document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]')) return;
+    paletteOpener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    paletteOpen = true;
+    void loadWorkspaces();
+  }
+  function navigate(next: Destination): void {
+    if (analysisBusy) return;
+    invalidateInteraction();
+    invalidateRefresh();
+    view = next;
+    text = '';
+    if (ready && (next === 'overview' || next === 'explorer' || next === 'large'))
+      void refresh(scope);
+  }
+  async function focusFileSearch(): Promise<void> {
+    if (!ready || indexId === null || analysisBusy) return;
+    invalidateRefresh();
+    const owner = invalidateInteraction(),
+      expected = indexId;
+    scope = 0;
+    view = 'explorer';
+    details = null;
+    void refresh(0);
+    await tick();
+    if (owner === interactionToken && expected === indexId) {
+      search.focus();
+      search.select();
+    }
+  }
+  function runCommand(command: PaletteCommand): void {
+    if (!paletteOpen || !commands.includes(command) || command.disabled || analysisBusy) return;
+    closePalette(false);
+    const action = command.action;
+    switch (action.kind) {
+      case 'navigate':
+        navigate(action.view);
+        return;
+      case 'search':
+        void focusFileSearch();
+        return;
+      case 'choose':
+        void choose();
+        return;
+      case 'saved':
+        savedOpen = true;
+        advancedOpen = false;
+        return;
+      case 'load':
+        void loadWorkspace(action.reference);
+        return;
+      case 'scan':
+        savedOpen = false;
+        void start(action.path, action.reference);
+        return;
+      default: {
+        const unreachable: never = action;
+        return unreachable;
+      }
+    }
+  }
   function explore(ids: readonly number[], operation: SelectionOperation): boolean {
     const result = updateExploration(exploration, indexId, ids, operation);
     if (result.kind !== 'accepted') {
@@ -224,6 +431,33 @@
       ...(view === 'large' ? { kind: largeKind } : {}),
       sort: sort === 'size' && view === 'explorer' && sizeMode === 'allocated' ? 'allocated' : sort,
     }),
+  );
+  const workspaceCapture = $derived<ViewSpec | null>(
+    ready && indexedView
+      ? {
+          view: view === 'overview' ? 'overview' : view === 'large' ? 'large' : 'explorer',
+          query: detachedQuery(query),
+          scope: 'current_folder',
+          representation:
+            view === 'overview'
+              ? mapMode
+              : view === 'large'
+                ? 'table'
+                : explorerMap
+                  ? mapMode
+                  : fileRepresentation,
+          metric: sizeMode === 'allocated' ? 'allocated' : 'logical',
+          depth: mapDepth,
+          color: mapColorMode,
+        }
+      : null,
+  );
+  const commands = $derived(
+    paletteCommands(
+      catalog.kind === 'ready' ? catalog.value : null,
+      ready && !savedLoading,
+      busy || !isTauri(),
+    ),
   );
   const mapSearch = $derived<Query | null>(
     indexedView && (text || extension || withoutExtension || searchExpression.trim())
@@ -338,6 +572,8 @@
     types = { items: [], total_bytes: 0, total_files: 0 };
     branches = [];
     advancedOpen = false;
+    savedOpen = false;
+    paletteOpen = false;
     appliedSearchKey = null;
     pendingSearchKey = null;
     searchProblem = null;
@@ -514,8 +750,9 @@
       if (navigationRefresh.finish(token) && ready) void refresh(scope);
     }
   }
-  async function start(path: string): Promise<void> {
+  async function start(path: string, favorite?: RecordRef): Promise<void> {
     if (!path || busy) return;
+    const previous = { ready, indexId, scope, historical, selection, operation, scanPath, details };
     const owner = ++scanRequest;
     scanId = null;
     selection = new Set();
@@ -579,8 +816,8 @@
       }
     };
     try {
-      const id = await invoke<number>('start_scan', {
-        path,
+      const id = await invoke<number>(favorite ? 'start_favorite_scan' : 'start_scan', {
+        ...(favorite ? { reference: favorite } : { path }),
         options: {
           mode: scanMode,
           concurrency: scanConcurrency,
@@ -595,6 +832,16 @@
     } catch (problem) {
       if (owner !== scanRequest) return;
       operation = null;
+      if (indexId === previous.indexId) {
+        ready = previous.ready;
+        scope = previous.scope;
+        historical = previous.historical;
+        selection = previous.selection;
+        scanPath = previous.scanPath;
+        details = previous.details;
+        operation = previous.operation;
+        if (ready) void refresh(scope);
+      }
       report(problem);
     }
   }
@@ -733,6 +980,7 @@
   }
   onMount(() => {
     let mounted = true;
+    void loadWorkspaces();
     const agentEvents = isTauri()
       ? listen<unknown>('agent-operation', ({ payload }) => {
           if (
@@ -802,26 +1050,21 @@
         })
         .catch(report);
     const keyboard = (event: KeyboardEvent): void => {
-      if (event.ctrlKey && event.key.toLowerCase() === 'k') {
+      if (
+        !event.defaultPrevented &&
+        !event.repeat &&
+        event.ctrlKey &&
+        event.key.toLowerCase() === 'k'
+      ) {
         event.preventDefault();
-        if (ready && !analysisBusy && !cleanupPreview && restoreReceipt === null && !showIssues) {
-          invalidateInteraction();
-          invalidateRefresh();
-          scope = 0;
-          view = 'explorer';
-          extension = '';
-          withoutExtension = false;
-          before = '';
-          details = null;
-          selection = new Set();
-          void refresh(0);
-          void tick().then(() => {
-            search.focus();
-            search.select();
-          });
-        }
+        openPalette();
       }
       if (event.key === 'Escape') {
+        if (savedOpen) {
+          event.preventDefault();
+          closeSaved();
+          return;
+        }
         invalidateInteraction();
         showIssues = false;
         details = null;
@@ -832,6 +1075,8 @@
     window.addEventListener('keydown', keyboard);
     return () => {
       mounted = false;
+      catalogEpoch += 1;
+      workspaceLoadToken += 1;
       if (agentEvents) void agentEvents.then((unlisten) => unlisten?.());
       invalidateInteraction();
       invalidateRefresh();
@@ -907,8 +1152,7 @@
           aria-label={item.label}
           aria-current={view === item.id ? 'page' : undefined}
           onclick={() => {
-            view = item.id;
-            text = '';
+            navigate(item.id);
           }}
           ><Icon name={item.icon} size={20} />{#if expanded}<span>{item.label}</span>{/if}</button
         >{/each}
@@ -935,7 +1179,7 @@
         disabled={analysisBusy}
         aria-label="Settings"
         onclick={() => {
-          view = 'settings';
+          navigate('settings');
         }}
         ><Icon name="settings" />{#if expanded}<span>Settings</span>{/if}</button
       >
@@ -984,7 +1228,7 @@
             view === 'cleanup' ||
             view === 'history' ||
             view === 'developer'}
-        /><kbd>Ctrl K</kbd>
+        />
       </div>
       <button
         class="advanced-toggle"
@@ -995,11 +1239,43 @@
         aria-pressed={Boolean(searchExpression.trim())}
         onclick={() => {
           advancedOpen = !advancedOpen;
+          if (advancedOpen) savedOpen = false;
         }}
         >Advanced{#if searchExpression.trim()}
           · On{/if}</button
       >
+      <button
+        bind:this={savedButton}
+        aria-expanded={savedOpen}
+        aria-controls="saved-workspaces-panel"
+        onclick={openSaved}>Saved</button
+      >
+      <button
+        class="command-trigger"
+        onclick={openPalette}
+        aria-haspopup="dialog"
+        aria-label="Open command palette"><Icon name="search" />Commands <kbd>Ctrl K</kbd></button
+      >
     </header>
+    {#if savedOpen}<div id="saved-workspaces-panel">
+        <SavedWorkspaces
+          {catalog}
+          capture={workspaceCapture}
+          {indexId}
+          folder={scope}
+          path={directory?.path ?? ''}
+          disabled={busy}
+          canLoad={ready && !analysisBusy && !savedLoading}
+          onadopt={adoptWorkspaces}
+          onreload={() => void loadWorkspaces()}
+          onload={(reference) => void loadWorkspace(reference)}
+          onscan={(reference, path) => {
+            savedOpen = false;
+            void start(path, reference);
+          }}
+          onclose={closeSaved}
+        />
+      </div>{/if}
     {#if advancedOpen}<div id="advanced-query-editor">
         <AdvancedSearch
           value={searchExpression}
@@ -1766,6 +2042,14 @@
     </footer>
   </div>
 </div>
+
+{#if paletteOpen}<CommandPalette
+    {commands}
+    {catalog}
+    oncommand={runCommand}
+    onclose={() => closePalette()}
+    onreload={() => void loadWorkspaces()}
+  />{/if}
 {#if showIssues}<div class="dialog-backdrop" role="presentation">
     <div
       role="dialog"

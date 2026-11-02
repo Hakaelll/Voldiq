@@ -12,6 +12,7 @@
   import type { WeightedNode } from '../lib/treemap';
   import { categoryPaint, type ColorMode, type StorageDepth } from '../lib/storage-map';
   import { visibleFileTypes } from '../lib/file-types';
+  import { fileSizeLabel } from '../lib/file-size';
   import { selectionOperation, type SelectionOperation, type SelectMany } from '../lib/exploration';
   import type { MapCommandHandler } from '../lib/map-menu';
 
@@ -84,7 +85,9 @@
   } = $props();
   const distribution = $derived(visibleFileTypes(types));
   const usedPercent = $derived(
-    volume?.total ? ((volume.total - volume.free) / volume.total) * 100 : 0,
+    volume?.accessible && volume.total > 0 && volume.free >= 0 && volume.free <= volume.total
+      ? ((volume.total - volume.free) / volume.total) * 100
+      : null,
   );
 </script>
 
@@ -107,39 +110,56 @@
     {/if}
     {#if volume?.accessible}
       <section class="volume-summary">
-        <h2>{volume.name || volume.path}</h2>
-        <dl>
-          <div>
-            <dt>Used on volume</dt>
-            <dd>{bytes(volume.total - volume.free)}</dd>
-          </div>
-          <div>
-            <dt>Free space</dt>
-            <dd>{bytes(volume.free)}</dd>
-          </div>
-          <div>
-            <dt>Total capacity</dt>
-            <dd>{bytes(volume.total)}</dd>
-          </div>
-        </dl>
-        <div class="volume-meter">
-          <progress
-            aria-label="Volume space used"
-            value={volume.total - volume.free}
-            max={volume.total || 1}
-          ></progress>
-          <span>{usedPercent.toFixed(1)}%</span>
+        <div class="summary-heading">
+          <h2>Volume</h2>
+          <span title={volume.path}>{volume.name || volume.path}</span>
+        </div>
+        <div class="overview-volume-body">
+          {#if usedPercent !== null}<div
+              class="overview-volume-ring"
+              aria-hidden="true"
+              style:background={`conic-gradient(var(--accent-fill) ${usedPercent}%, var(--paper) 0)`}
+            >
+              <div><strong>{usedPercent.toFixed(0)}<small>%</small></strong><span>used</span></div>
+            </div>{/if}
+          <dl>
+            <div>
+              <dt>Used on volume</dt>
+              <dd>{bytes(volume.total - volume.free)}</dd>
+            </div>
+            <div>
+              <dt>Free space</dt>
+              <dd>{bytes(volume.free)}</dd>
+            </div>
+            <div>
+              <dt>Total capacity</dt>
+              <dd>{bytes(volume.total)}</dd>
+            </div>
+          </dl>
+        </div>
+        <div class="volume-meter sr-only">
+          {#if usedPercent !== null}
+            <progress
+              aria-label="Volume space used"
+              value={volume.total - volume.free}
+              max={volume.total || 1}
+            ></progress>
+            <span>{usedPercent.toFixed(1)}%</span>
+          {:else}<span>Usage unavailable</span>{/if}
         </div>
       </section>
     {/if}
     {#if !directory || directory.entry.id === 0}
       <section class="indexed-summary">
+        <h2>Indexed scope</h2>
         <dl>
-          <div>
+          <div class="indexed-total">
             <dt>Indexed logical size</dt>
             <dd>{directory ? bytes(directory.entry.logical) : '—'}</dd>
           </div>
         </dl>
+        {#if directory}<span class="indexed-path" title={directory.path}>{directory.path}</span
+          >{/if}
         {#if directory}<p>{directory.entry.files.toLocaleString()} files</p>{/if}
       </section>
     {/if}
@@ -220,11 +240,7 @@
           <div class="map-selection-stats">
             <span>{selected ? 'Full item' : 'Full folder'}</span>
             <span
-              >{bytes(
-                sizeMode === 'allocated'
-                  ? (selected?.entry.allocated ?? directory.entry.allocated)
-                  : (selected?.entry.logical ?? directory.entry.logical),
-              )}</span
+              >{fileSizeLabel(selected?.entry ?? directory.entry, sizeMode === 'allocated')}</span
             >
             <span
               >{(selected?.entry.kind === 'file'
@@ -280,12 +296,21 @@
             <strong title={item.extension === null ? 'No extension' : `.${item.extension}`}
               >{item.extension === null ? 'No extension' : `.${item.extension}`}</strong
             >
-            <span>{bytes(item.bytes)}</span><small>{item.count.toLocaleString()} files</small>
+            <span>{bytes(item.bytes)}</span><small>{item.count.toLocaleString()} files</small><em
+              >{types.total_bytes > 0
+                ? `${((item.bytes / types.total_bytes) * 100).toFixed(1)}%`
+                : '—'}</em
+            >
           </button>{/each}
         {#if distribution.otherFiles > 0}<div class="type-other">
             <span class="item-swatch" style:background="var(--paper)"></span>
             <strong>Other</strong><span>{bytes(distribution.otherBytes)}</span><small
               >{distribution.otherFiles.toLocaleString()} files</small
+            >
+            <em
+              >{types.total_bytes > 0
+                ? `${((distribution.otherBytes / types.total_bytes) * 100).toFixed(1)}%`
+                : '—'}</em
             >
           </div>{/if}
       </div>

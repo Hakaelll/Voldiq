@@ -16,19 +16,24 @@ pub struct Index {
     pub ntfs_checkpoint: Option<crate::ntfs::Checkpoint>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct Query {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub parent: Option<NodeId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub scope: Option<NodeId>,
     pub text: String,
     pub expression: String,
     pub extension: String,
     pub without_extension: bool,
     pub min_size: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub modified_before: Option<u64>,
     pub files_only: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub kind: Option<Kind>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub cloud: Option<crate::cloud::CloudFilter>,
     pub sort: String,
     pub offset: usize,

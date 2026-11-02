@@ -16,6 +16,7 @@ pub mod search;
 pub mod service;
 pub mod snapshots;
 pub mod windows;
+pub mod workbench;
 
 use serde::{Deserialize, Serialize};
 

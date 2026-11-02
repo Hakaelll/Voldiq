@@ -31,6 +31,7 @@ mod plan_commands;
 mod query_commands;
 mod restore_commands;
 mod snapshot_commands;
+mod workbench_commands;
 use analysis_status::IndexId;
 use cleanup_commands::*;
 use snapshot_commands::*;
@@ -185,7 +186,24 @@ fn start_scan(
     engine: State<'_, Arc<Engine>>,
     database: State<'_, SnapshotDatabase>,
 ) -> Result<u64, String> {
-    let engine = engine.inner().clone();
+    launch_scan(
+        path,
+        options,
+        progress,
+        engine.inner().clone(),
+        &database,
+        None,
+    )
+}
+
+fn launch_scan(
+    path: String,
+    options: ScanOptions,
+    progress: Channel<analysis_status::ScanProgress>,
+    engine: Arc<Engine>,
+    database: &SnapshotDatabase,
+    favorite: Option<voldiq_core::agents::AuthorizedPath>,
+) -> Result<u64, String> {
     let operation = engine.begin()?;
     let id = operation.id;
     let cancel = operation.cancel.clone();
@@ -197,6 +215,7 @@ fn start_scan(
     let store = database.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = operation;
+        let _favorite = favorite;
         let mut final_progress = None;
         let path = PathBuf::from(path);
         let start = std::time::Instant::now();
@@ -785,6 +804,12 @@ fn main() {
             get_volumes,
             choose_folder,
             start_scan,
+            workbench_commands::list_workspaces,
+            workbench_commands::save_workspace,
+            workbench_commands::load_workspace,
+            workbench_commands::remove_workspace,
+            workbench_commands::favorite_folder,
+            workbench_commands::start_favorite_scan,
             cancel_operation,
             start_duplicates,
             query_duplicate_groups,
