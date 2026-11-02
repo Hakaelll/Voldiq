@@ -1,0 +1,26 @@
+{
+  "checkedUtc": "2026-11-02T22:50:23.6948560Z",
+  "scope": "Only verified obsolete Voldiq preview executables. Active/current previews, reusable release/build/test caches, application state, Windows caches and other applications preserved. Byte counts are logical artifact lengths, not observed volume free-space change.",
+  "debugArtifactsAbsent": true,
+  "previewCleanup": {
+    "applied": true,
+    "removedBytes": 0,
+    "previews": [
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\6A1116EF3E0F47A0AA0D07051B131993CCB39E0A50931C8445243A731EB6B0B3",
+        "bytes": 15582720,
+        "status": "KeptRunning"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\7D418C7A4854DD3ACF7225AD7DC2BE345CBCE020F9E46AC9738533A5E373C5D3",
+        "bytes": 15954944,
+        "status": "KeptCurrent"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\A1688DF52A7C60AD7457D45862A47BDD0C4B227F1B7CB6B7573FC099D9ABDD4C",
+        "bytes": 15763968,
+        "status": "KeptRunning"
+      }
+    ]
+  }
+}

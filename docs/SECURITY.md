@@ -4,9 +4,9 @@ Scanning is read-only and uses the user's current Windows permissions. Voldiq do
 
 ## Agent boundary
 
-The workbench CLI/MCP adapter currently permits authenticated analysis only. Every connection has an OS-random individual credential, explicit capabilities, verified allowed roots, exclusions and limits. Only credential digests are persisted. Existing clients lose access on revocation or rotation. Windows metadata authorization pins ancestors, rejects reparse traversal and compares native identity; query totals come only from an authorized snapshot with sufficient exclusion coverage.
+The workbench CLI/MCP adapter supports authenticated analysis and exact recycling-plan lifecycle requests. Every connection has an OS-random individual credential, explicit capabilities, verified allowed roots, exclusions and limits. Only credential digests are persisted. Existing clients lose access on revocation or rotation. Windows metadata authorization pins ancestors, rejects reparse traversal and compares native identity; query totals come only from an authorized snapshot with sufficient exclusion coverage.
 
-Provisioning and rotation require a separate desktop/native confirmation. No agent transport exposes provisioning, approval, shell, file deletion or bin purge. The immutable-manifest human approval and execution lifecycle remains pending; this adapter has no mutation bypass while it is built.
+Provisioning, rotation and plan approval require separate desktop/native human confirmation. Agents may prepare immutable manifests, request approval and submit exact execution/cancellation intents. Desktop dispatch requires the current, expiring, single-use human grant bound to the manifest and principal, plus fresh scope and native evidence checks. No agent transport exposes provisioning, approval, arbitrary shell execution, permanent deletion, bin purge or history-retention removal. Complete elevated agent/Shell acceptance remains manual; transport and core fixtures do not establish that route as verified. See [the plan boundary](AGENT-PLANS.md).
 
 Stdio sends metadata to the local client, which may send it to an AI provider. These checks govern operations through Voldiq and do not sandbox a process with independent same-account filesystem access. Local state is not claimed tamper-proof. See [configuration, limits and tested boundaries](MCP.md).
 

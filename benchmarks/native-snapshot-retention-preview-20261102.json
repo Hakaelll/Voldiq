@@ -1,0 +1,118 @@
+{
+  "checkedUtc": "2026-11-02T22:49:32.8485736Z",
+  "sourceCommit": "04d4ffcc3e5ebca5482795a69b46154c594ec436",
+  "executableSha256": "7D418C7A4854DD3ACF7225AD7DC2BE345CBCE020F9E46AC9738533A5E373C5D3",
+  "preview": "target/preview/7D418C7A4854DD3ACF7225AD7DC2BE345CBCE020F9E46AC9738533A5E373C5D3/voldiq.exe",
+  "processId": 23220,
+  "mainWindowHandle": 6423342,
+  "startupEvents": [
+    {
+      "event": "process-start",
+      "pid": 23220,
+      "state": null,
+      "unixMs": 1793659770905
+    },
+    {
+      "event": "setup-start",
+      "pid": 23220,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "unavailable",
+        "snapshots": "unavailable"
+      },
+      "unixMs": 1793659771309
+    },
+    {
+      "event": "snapshot-open-start",
+      "pid": 23220,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "idle",
+        "snapshots": "unavailable"
+      },
+      "unixMs": 1793659771311
+    },
+    {
+      "event": "snapshot-open-end",
+      "pid": 23220,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793659771327
+    },
+    {
+      "event": "setup-end",
+      "pid": 23220,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793659772107
+    },
+    {
+      "event": "ready",
+      "pid": 23220,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793659772107
+    },
+    {
+      "event": "page-finished",
+      "pid": 23220,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793659772171
+    }
+  ],
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "assets/index-X4hNCqs6.css",
+        "bytes": 73289,
+        "sha256": "975E6FE0DABD3622B8CD18828796611E319933E8E4458CB04367D20918F0CB57"
+      },
+      {
+        "path": "assets/city.worker-DLxzT0Wm.js",
+        "bytes": 2879,
+        "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+      },
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "assets/index-P9S6JfDC.js",
+        "bytes": 330126,
+        "sha256": "560AEA6CC1853EF3E5673927D22011AB7E5B03F40AB0780C4BC9188961508A86"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      },
+      {
+        "path": "assets/voronoi.worker-DwJ2QmrW.js",
+        "bytes": 5606,
+        "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+      },
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "E56FA03FD7E52587E470736971738C38F5B53283C03C6A12A4C69B8B7E7BBEC3"
+      }
+    ]
+  },
+  "scope": "Actual native launch, ready/page-finished events, nonzero window handle and exact current production assets for reviewed snapshot retention. No retention preference was saved and no real historical capture was removed by this verification. Populated rendering, actual pointer/keyboard/focus, interactive cancellation, assistive technology, Windows scaling and device performance remain manual. The full workbench goal remains active."
+}
