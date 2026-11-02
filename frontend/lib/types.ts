@@ -97,6 +97,8 @@ export type CloudState =
   | 'file_recall_required'
   | 'directory_no_recall_flag'
   | 'directory_recall_required';
+export type CloudFilter =
+  'placeholder' | 'recall_required' | 'no_recall_flag' | 'not_placeholder' | 'unknown';
 export interface Entry {
   cloud: CloudState;
   id: NodeId;
@@ -148,12 +150,17 @@ export interface FileTypes {
   total_files: number;
 }
 export interface Overview {
+  cloud: CloudFilter | null;
   directory: Details;
   children: Page;
   types: FileTypes;
   branches: { parent: NodeId; items: Entry[] }[];
   map_metrics: {
     id: NodeId;
+    logical: number;
+    allocated: number;
+    allocation_known: boolean;
+    files: number;
     latest_modified: number | null;
     modified_known: number;
     modified_total: number;
@@ -176,7 +183,7 @@ export interface Progress {
   method: string;
 }
 export interface Query {
-  cloud?: 'placeholder' | 'recall_required' | 'no_recall_flag' | 'not_placeholder' | 'unknown';
+  cloud?: CloudFilter;
   parent?: NodeId;
   scope?: NodeId;
   text?: string;

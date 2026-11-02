@@ -48,7 +48,8 @@
   import { paintVoronoi } from '../lib/voronoi-painter';
   import { startVoronoiJob } from '../lib/voronoi-job';
   import type { WeightedNode } from '../lib/treemap';
-  import { bytes } from '../lib/types';
+  import { bytes, type CloudFilter } from '../lib/types';
+  import CloudFilterSelect from './CloudFilterSelect.svelte';
   import Icon from './Icon.svelte';
   import FolderNotePreview from './FolderNotePreview.svelte';
   import MapContextMenu from './MapContextMenu.svelte';
@@ -92,6 +93,10 @@
     ongrid,
     onback,
     oninspect,
+    cloudFilter,
+    oncloudfilter,
+    queryState = 'ready',
+    onretry,
   }: {
     nodes: WeightedNode[];
     identity: string;
@@ -116,6 +121,10 @@
     ongrid?: () => void;
     onback: () => void;
     oninspect?: () => void;
+    cloudFilter: CloudFilter | null;
+    oncloudfilter: (value: CloudFilter | null) => void;
+    queryState?: 'ready' | 'loading' | 'failed';
+    onretry?: () => void;
   } = $props();
   let canvas: HTMLCanvasElement;
   let container: HTMLDivElement;
@@ -755,8 +764,9 @@
 <section
   class="storage-map"
   aria-label="Storage visualization"
+  aria-busy={queryState === 'loading' || preparing}
   data-layout={layout.revision}
-  data-ready={!preparing && !failure}
+  data-ready={queryState === 'ready' && !preparing && !failure}
   data-draw-ms={drawTime}
   data-blocks={layout.rects.length}
   data-layout-ms={layout.elapsed}
@@ -827,6 +837,7 @@
         {#each STORAGE_DEPTHS as level}<option value={level}>{level}</option>{/each}
       </select>
     </label>
+    <CloudFilterSelect value={cloudFilter} onchange={oncloudfilter} />
     {#if mode === 'city'}<div class="map-metric-group">
         <span>Height</span>
         <div class="map-switch" role="group" aria-label="Height metric">
@@ -956,7 +967,14 @@
     {#if preparing}<div class="map-preparing" role="status">
         Preparing {mode === 'voronoi' ? 'Voronoi' : 'city'}…
       </div>{/if}
-    {#if failure}<div class="map-empty" role="alert">
+    {#if queryState === 'loading'}<div class="map-empty" role="status">
+        <p>Updating cloud filter…</p>
+      </div>
+    {:else if queryState === 'failed'}<div class="map-empty" role="alert">
+        <p>Filtered map unavailable.</p>
+        {#if onretry}<button onclick={onretry}>Retry map</button>{/if}
+      </div>
+    {:else if failure}<div class="map-empty" role="alert">
         <p>{failure}</p>
         <div>
           <button onclick={() => onmode('treemap')}>Return to treemap</button><button
@@ -1043,6 +1061,10 @@
         ? 'unique allocation, not recoverable space'
         : 'logical bytes'}.</span
     >
+    {#if cloudFilter}<span
+        >Filtered file bytes · folders group matching descendants. Details and summary totals remain
+        unfiltered.</span
+      >{/if}
     {#if mode === 'city'}<span
         >Height = {heightMode === 'modified'
           ? 'modification age, log scale capped at 10 years'

@@ -259,6 +259,7 @@ pub(crate) async fn query_overview(
     index_id: IndexId,
     epoch: u64,
     id: NodeId,
+    cloud: Option<voldiq_core::cloud::CloudFilter>,
     request_id: u64,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<Option<Overview>, String> {
@@ -268,7 +269,7 @@ pub(crate) async fn query_overview(
         QueryFamily::OverviewChildren,
         request_id,
         engine.inner().clone(),
-        move |index, cancelled| overview(index, id, cancelled),
+        move |index, cancelled| overview(index, id, cloud, cancelled),
     )
     .await
 }

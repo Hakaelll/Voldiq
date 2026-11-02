@@ -13,6 +13,7 @@
   } from '../lib/virtual-list';
   import { date, type Entry, type Query } from '../lib/types';
   import { fileSizeLabel } from '../lib/file-size';
+  import { cloudLabel, entryKindLabel } from '../lib/cloud';
   import Icon from './Icon.svelte';
   import FolderNotePreview from './FolderNotePreview.svelte';
   import { categoryPaint } from '../lib/storage-map';
@@ -401,14 +402,8 @@
           </span>
           <span role={grid ? undefined : 'cell'}
             >{#if grid}<small>Modified</small>{/if}{date(entry.modified)}</span
-          ><span role={grid ? undefined : 'cell'}
-            >{entry.kind === 'directory'
-              ? 'Folder'
-              : entry.kind === 'link'
-                ? 'Reparse point'
-                : entry.hard_link
-                  ? 'File · hard link'
-                  : 'File'}</span
+          ><span role={grid ? undefined : 'cell'} title={cloudLabel(entry.cloud)}
+            >{entryKindLabel(entry)}</span
           >
         </div>
       {/each}

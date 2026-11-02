@@ -7,6 +7,7 @@
     type FileTypes,
     type Page,
     type Volume,
+    type CloudFilter,
   } from '../lib/types';
   import type { WeightedNode } from '../lib/treemap';
   import { categoryPaint, type ColorMode, type StorageDepth } from '../lib/storage-map';
@@ -43,6 +44,10 @@
     withoutExtension,
     onmode,
     onback,
+    cloudFilter,
+    queryState,
+    oncloudfilter,
+    onretry,
   }: {
     volume: Volume | null | undefined;
     directory: Details | null;
@@ -72,6 +77,10 @@
     withoutExtension: boolean;
     onmode: (mode: import('../lib/storage-map').StorageView) => void;
     onback: () => void;
+    cloudFilter: CloudFilter | null;
+    queryState: 'ready' | 'loading' | 'failed';
+    oncloudfilter: (value: CloudFilter | null) => void;
+    onretry: () => void;
   } = $props();
   const distribution = $derived(visibleFileTypes(types));
   const usedPercent = $derived(
@@ -179,6 +188,10 @@
     <section class="map-panel" aria-busy={!directory}>
       {#if directory}<StorageMap
           {nodes}
+          {cloudFilter}
+          {queryState}
+          {oncloudfilter}
+          {onretry}
           identity={mapIdentity}
           mode={mapMode}
           bind:depth
@@ -205,6 +218,7 @@
       {#if directory}<div class="map-caption">
           <span title={selected?.path || directory.path}>{selected?.path || directory.path}</span>
           <div class="map-selection-stats">
+            <span>{selected ? 'Full item' : 'Full folder'}</span>
             <span
               >{bytes(
                 sizeMode === 'allocated'

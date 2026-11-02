@@ -8,6 +8,7 @@
   import StorageMap from './components/StorageMap.svelte';
   import ScanWelcome from './components/ScanWelcome.svelte';
   import FileTable from './components/FileTable.svelte';
+  import CloudFilterSelect from './components/CloudFilterSelect.svelte';
   import FolderComposition from './components/FolderComposition.svelte';
   import Duplicates from './components/Duplicates.svelte';
   import History from './components/History.svelte';
@@ -25,6 +26,9 @@
   import { overviewQueries, detailQueries } from './lib/queries';
   import { createNavigationRefresh } from './lib/navigation-refresh';
   import { scopedFileQuery } from './lib/file-query';
+  import { storageNodes } from './lib/storage-nodes';
+  import { cloudLabel, entryKindLabel } from './lib/cloud';
+  import { fileSizeLabel } from './lib/file-size';
   import type { MapCommand } from './lib/map-menu';
   import {
     emptyExploration,
@@ -33,7 +37,6 @@
     type Exploration,
     type SelectionOperation,
   } from './lib/exploration';
-  import type { WeightedNode } from './lib/treemap';
   import { categoryPaint, categoryLabel, visualPaint, type ColorMode } from './lib/storage-map';
   import {
     bytes,
@@ -47,6 +50,7 @@
     type Page,
     type Progress,
     type Query,
+    type CloudFilter,
     type Volume,
     type Snapshot,
     type CleanupPreview,
@@ -100,6 +104,9 @@
     largeKind = $state<'file' | 'directory'>('file'),
     before = $state(''),
     sort = $state<Exclude<NonNullable<Query['sort']>, 'allocated'>>('size');
+  let cloudFilter = $state<CloudFilter | null>(null);
+  let mapCloud = $state<CloudFilter | null>(null);
+  let cloudProblem = $state('');
   let error = $state(''),
     issues = $state<Issue[]>([]),
     showIssues = $state(false);
@@ -195,6 +202,7 @@
       scope,
       ranked: view === 'large',
       text,
+      ...(cloudFilter ? { cloud: cloudFilter } : {}),
       extension: withoutExtension ? '' : extension,
       without_extension: withoutExtension,
       min_size: view === 'large' ? Math.max(0, minSize) * 1024 * 1024 : 0,
@@ -204,50 +212,26 @@
       sort: sort === 'size' && view === 'explorer' && sizeMode === 'allocated' ? 'allocated' : sort,
     }),
   );
-  let nodes = $derived.by(() => {
-    const node = (entry: Entry): WeightedNode => ({
-      id: entry.id,
-      name: entry.name,
-      value: sizeMode === 'allocated' ? entry.allocated : entry.logical,
-      directory: entry.kind === 'directory',
-      files: entry.kind === 'file' ? 1 : entry.files,
-      represented: entry.kind === 'file' ? 1 : entry.files,
-      modified: entry.modified,
-      allocationKnown: entry.allocation_known,
-      incomplete: entry.incomplete,
-      latestModified: mapMetrics.find((metric) => metric.id === entry.id)?.latest_modified,
-      modifiedKnown: mapMetrics.find((metric) => metric.id === entry.id)?.modified_known,
-      modifiedTotal: mapMetrics.find((metric) => metric.id === entry.id)?.modified_total,
-    });
-    const entries: WeightedNode[] = children.items.map((entry) => ({
-      ...node(entry),
-      children: branches.find((branch) => branch.parent === entry.id)?.items.map(node),
-    }));
-    const total = directory
-      ? sizeMode === 'allocated'
-        ? directory.entry.allocated
-        : directory.entry.logical
-      : 0;
-    const remainder = Math.max(0, total - entries.reduce((s, n) => s + n.value, 0));
-    if (remainder > 0)
-      entries.push({
-        id: -1,
-        name: `${Math.max(0, children.total - children.items.length)} smaller items`,
-        value: remainder,
-        directory: true,
-        files: Math.max(
-          0,
-          (directory?.entry.files ?? 0) - entries.reduce((sum, item) => sum + (item.files ?? 0), 0),
-        ),
-        represented: Math.max(
-          0,
-          (directory?.entry.files ?? 0) - entries.reduce((sum, item) => sum + (item.files ?? 0), 0),
-        ),
-        category: 'remainder',
-        allocationKnown: directory?.entry.allocation_known,
-      });
-    return entries;
-  });
+  const nodeProjection = $derived(
+    storageNodes({
+      directory: directory?.entry ?? null,
+      children,
+      branches,
+      metrics: mapMetrics,
+      allocated: sizeMode === 'allocated',
+      filtered: cloudFilter !== null,
+    }),
+  );
+  const mapQueryState = $derived(
+    mapCloud !== cloudFilter
+      ? cloudProblem
+        ? 'failed'
+        : 'loading'
+      : nodeProjection === null
+        ? 'failed'
+        : 'ready',
+  );
+  const nodes = $derived(mapQueryState === 'ready' ? (nodeProjection ?? []) : []);
   function report(problem: unknown): void {
     error = problem instanceof Error ? problem.message : String(problem);
   }
@@ -290,6 +274,8 @@
     children = { items: [], total: 0 };
     types = { items: [], total_bytes: 0, total_files: 0 };
     branches = [];
+    mapCloud = null;
+    cloudProblem = '';
     cleanupPreview = null;
     cleanupNeedsRefresh = false;
     issues = [];
@@ -299,20 +285,26 @@
   }
   async function refresh(id = scope, navigationOwner: number | null = null): Promise<void> {
     const token = ++refreshToken;
-    const overviewRequest = overviewQueries.request({ id, indexId });
+    const requestedCloud = cloudFilter;
+    cloudProblem = '';
+    const overviewRequest = overviewQueries.request({ id, indexId, cloud: requestedCloud });
     try {
       const result = await overviewRequest.result;
       if (
         token !== refreshToken ||
-        result === null ||
         (navigationOwner !== null && navigationOwner !== interactionToken)
       )
         return;
+      if (result === null || result.cloud !== requestedCloud) {
+        if (mapCloud !== cloudFilter) cloudProblem = 'Map query was cancelled or superseded.';
+        return;
+      }
       directory = result.directory;
       children = result.children;
       branches = result.branches ?? [];
       mapMetrics = result.map_metrics ?? [];
       types = result.types;
+      mapCloud = result.cloud;
       scope = id;
       revision += 1;
     } catch (problem) {
@@ -320,9 +312,19 @@
       if (
         token === refreshToken &&
         (navigationOwner === null || navigationOwner === interactionToken)
-      )
+      ) {
+        if (mapCloud !== cloudFilter) cloudProblem = 'Map query failed.';
         report(problem);
+      }
     }
+  }
+  function changeCloudFilter(next: CloudFilter | null): void {
+    if (next === cloudFilter) return;
+    cloudFilter = next;
+    invalidateInteraction();
+    invalidateRefresh();
+    cloudProblem = '';
+    if (ready) void refresh(scope);
   }
   async function select(id: number, operation: SelectionOperation = 'replace'): Promise<void> {
     const token = invalidateInteraction();
@@ -1141,7 +1143,13 @@
                   {mapMode}
                   bind:depth={mapDepth}
                   bind:colorMode={mapColorMode}
-                  mapIdentity={`${indexId}:${scope}`}
+                  mapIdentity={`${indexId}:${scope}:${cloudFilter ?? 'all'}`}
+                  {cloudFilter}
+                  queryState={mapQueryState}
+                  oncloudfilter={changeCloudFilter}
+                  onretry={() => {
+                    void refresh(scope);
+                  }}
                   search={text}
                   {extension}
                   {withoutExtension}
@@ -1286,7 +1294,13 @@
                   {#if view === 'explorer' && explorerMap}
                     <StorageMap
                       {nodes}
-                      identity={`${indexId}:${scope}`}
+                      identity={`${indexId}:${scope}:${cloudFilter ?? 'all'}`}
+                      {cloudFilter}
+                      queryState={mapQueryState}
+                      oncloudfilter={changeCloudFilter}
+                      onretry={() => {
+                        void refresh(scope);
+                      }}
                       mode={mapMode}
                       bind:depth={mapDepth}
                       bind:colorMode={mapColorMode}
@@ -1349,6 +1363,7 @@
                     class:map-list-visible={view === 'explorer' && explorerMap && showMapList}
                   >
                     <div class="filter-bar">
+                      <CloudFilterSelect value={cloudFilter} onchange={changeCloudFilter} />
                       {#if view === 'explorer'}<label
                           >Size<select bind:value={sizeMode} onchange={savePreferences}>
                             <option value="logical">Logical bytes</option><option value="allocated"
@@ -1388,6 +1403,7 @@
                           before = '';
                           minSize = 100;
                           largeKind = 'file';
+                          changeCloudFilter(null);
                         }}>Reset filters</button
                       >
                     </div>
@@ -1453,9 +1469,7 @@
                     <div>
                       <dt>Unique allocated size</dt>
                       <dd>
-                        {details.entry.allocation_known
-                          ? bytes(details.entry.allocated)
-                          : `${bytes(details.entry.allocated)} · incomplete`}
+                        {fileSizeLabel(details.entry, true)}
                       </dd>
                     </div>
                     <div>
@@ -1465,13 +1479,15 @@
                     <div>
                       <dt>Type</dt>
                       <dd>
-                        {details.entry.kind === 'directory'
-                          ? 'Folder'
-                          : details.entry.kind === 'link'
-                            ? 'Reparse point'
-                            : details.entry.hard_link
-                              ? 'File · hard link'
-                              : 'File'}
+                        {entryKindLabel(details.entry)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt>Cloud state</dt>
+                      <dd
+                        title="Observed metadata only. No recall flag does not prove complete local content."
+                      >
+                        {cloudLabel(details.entry.cloud)}
                       </dd>
                     </div>
                     <div>

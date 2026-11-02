@@ -47,7 +47,7 @@ fn sample(
     let cancel = AtomicBool::new(false);
     let answer = if method == 2 {
         Answer::Overview(Box::new(
-            overview::overview(&index, NodeId(0), &cancel)?
+            overview::overview(&index, NodeId(0), None, &cancel)?
                 .ok_or("Unexpected overview cancellation")?,
         ))
     } else {

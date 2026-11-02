@@ -1,4 +1,5 @@
 use super::*;
+use std::collections::HashMap;
 use std::path::Path;
 use voldiq_core::{Entry, Kind};
 
@@ -58,7 +59,7 @@ fn overview_reports_descendant_dates_and_coverage_only_for_displayed_nodes() {
             entry(14, Some(2), Kind::File, Some(9999)),
         ],
     );
-    let overview = overview(&index, NodeId(1), &AtomicBool::new(false))
+    let overview = overview(&index, NodeId(1), None, &AtomicBool::new(false))
         .unwrap()
         .unwrap();
     let actual: std::collections::BTreeMap<_, _> = overview
@@ -120,7 +121,9 @@ fn metric_cache_eviction_keeps_all_descendant_files() {
         total: 0,
         largest: 0,
     };
-    let metrics = map_metrics(&index, &index.entries[0], &empty_page, &[], || false).unwrap();
+    let metrics = map_metrics(&index, &index.entries[0], &empty_page, &[], None, || false)
+        .unwrap()
+        .unwrap();
     assert_eq!(metrics.len(), 1);
     assert_eq!(metrics[0].latest_modified, Some(4099));
     assert_eq!(metrics[0].modified_known, 4100);
@@ -142,15 +145,72 @@ fn metric_ancestry_walk_can_be_cancelled() {
         largest: 0,
     };
     let mut checks = 0;
-    let metrics = map_metrics(&index, &index.entries[0], &empty_page, &[], || {
+    let metrics = map_metrics(&index, &index.entries[0], &empty_page, &[], None, || {
         checks += 1;
         checks == 9
-    });
+    })
+    .unwrap();
     assert!(metrics.is_none());
     assert_eq!(checks, 9);
     assert!(
-        overview(&index, NodeId(0), &AtomicBool::new(true))
+        overview(&index, NodeId(0), None, &AtomicBool::new(true))
             .unwrap()
             .is_none()
     );
+}
+
+#[test]
+fn cloud_overview_counts_matching_files_beyond_its_bounded_unfiltered_frontier() {
+    use voldiq_core::cloud::{CloudFilter, CloudState};
+    let root = tempfile::tempdir().unwrap();
+    let mut entries = vec![entry(0, None, Kind::Directory, None)];
+    entries[0].logical = 250010;
+    entries[0].files = 260;
+    entries[0].allocation_known = false;
+    entries[0].incomplete = true;
+    for id in 1..=260 {
+        let mut file = entry(id, Some(0), Kind::File, Some(u64::from(id)));
+        if id <= 250 {
+            file.logical = 1000;
+            file.cloud = CloudState::NotPlaceholder;
+        } else {
+            file.kind = Kind::Link;
+            file.cloud = CloudState::FileRecallRequired;
+            file.allocation_known = false;
+            file.allocated = 0;
+            file.incomplete = true;
+        }
+        entries.push(file);
+    }
+    let index = index(root.path(), entries);
+    let result = overview(
+        &index,
+        NodeId(0),
+        Some(CloudFilter::Placeholder),
+        &AtomicBool::new(false),
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(result.children.total, 260);
+    assert_eq!(result.children.items.len(), 250);
+    assert_eq!(result.directory.entry.logical, 250010);
+    assert_eq!(result.map_metrics.len(), 251);
+    assert_eq!(
+        (
+            result.map_metrics[0].logical,
+            result.map_metrics[0].files,
+            result.map_metrics[0].latest_modified
+        ),
+        (10, 10, Some(260))
+    );
+    assert!(!result.map_metrics[0].allocation_known);
+    assert!(
+        result.map_metrics[1..]
+            .iter()
+            .all(|metric| metric.logical == 0 && metric.files == 0)
+    );
+    let json = serde_json::to_value(result).unwrap();
+    assert_eq!(json["cloud"], "placeholder");
+    assert_eq!(json["directory"]["entry"]["logical"], 250010);
+    assert_eq!(json["map_metrics"][0]["logical"], 10);
 }
