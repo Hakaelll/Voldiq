@@ -4,6 +4,10 @@ Delivery branch: `main`, as the user explicitly requested during implementation.
 
 The complete task remains active. See the [coverage matrix](WORKBENCH-COVERAGE.md) and [execution plan](plans/storage-workbench.md). This status does not declare pending capabilities implemented.
 
+## Empty desktop test harness
+
+The desktop source has no remaining test declarations after the owner's eight-case reduction. Its Cargo binary target now disables only that empty harness. Cargo metadata reports `test: false`, and the [fresh integration gate](../benchmarks/workbench-empty-desktop-harness-source-20261103.json) runs all eight retained cases successfully, with zero Svelte diagnostics, production frontend build and strict workspace Clippy. No existing case is filtered or ignored, and no build-time speedup is claimed. The native adapter remains checked by Clippy and production builds; native interaction acceptance stays manual. Calendar/diary and the other pending workbench rows remain active.
+
 ## Reviewed snapshot retention
 
 History adds a collapsed retention disclosure for its selected native root/identity/exclusion group. The default is Keep all. A persisted Keep latest preference accepts 1–10,000 newest saves, with optimistic configuration versions. Saving a preference and removing history are separate human desktop actions. Review displays at most 100 exact oldest captures with saved dates, logical bytes and coverage, the full eligible count and an explicit permanent-history acknowledgement. New batches require fresh review. Source files are outside this operation; no freed-volume-space claim or automatic/CLI/MCP purge is introduced.

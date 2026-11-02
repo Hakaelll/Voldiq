@@ -29,6 +29,8 @@ Use the Rust MSVC toolchain, C++ Build Tools and installed project dependencies:
 
 The unchanged script runs all remaining cases, with no test-name filters. Its six stages are Rust formatting, Svelte/TypeScript diagnostics, frontend behavior, production frontend build, production-feature workspace Rust tests and strict Clippy. It retains the release profile and offline Cargo dependencies. A fresh dependency cache requires `cargo fetch --locked` while online.
 
+The desktop binary contains no remaining test declarations. Its Cargo target disables only the empty binary test harness; no existing case is skipped or ignored. Core and real CLI/MCP tests still run, while strict Clippy checks the native adapter and production native builds remain a separate delivery check. A new desktop unit-test case would require enabling that target's harness again. No build-time speedup is claimed.
+
 Individual behavior checks:
 
 ```powershell
