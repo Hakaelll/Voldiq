@@ -61,6 +61,84 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
             .code(),
         Some(2)
     );
+    let extra = source.path().join("history-added.data");
+    std::fs::write(&extra, [2; 5]).unwrap();
+    let next_index = voldiq_core::scanner::scan(
+        source.path(),
+        &Default::default(),
+        &std::sync::atomic::AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    let later = voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db"))
+        .unwrap()
+        .save(&next_index, &std::sync::atomic::AtomicBool::new(false), &[])
+        .unwrap();
+    std::fs::remove_file(extra).unwrap();
+    let compared = run(&[
+        "compare",
+        &snapshot.to_string(),
+        &later.to_string(),
+        "0",
+        "1",
+    ]);
+    assert!(compared.status.success());
+    let compared: Value = serde_json::from_slice(&compared.stdout).unwrap();
+    assert_eq!(compared["result"]["delta"], 5);
+    assert_eq!(compared["result"]["file_changes"]["added"]["logical"], 5);
+    assert_eq!(compared["result"]["changes"].as_array().unwrap().len(), 1);
+    let reversed: Value = serde_json::from_slice(
+        &run(&["compare", &later.to_string(), &snapshot.to_string()]).stdout,
+    )
+    .unwrap();
+    assert_eq!(reversed["result"]["delta"], -5);
+    assert_eq!(
+        run(&[
+            "compare",
+            &snapshot.to_string(),
+            &later.to_string(),
+            "0",
+            "201"
+        ])
+        .status
+        .code(),
+        Some(2)
+    );
+    assert_eq!(
+        run(&[
+            "compare",
+            &snapshot.to_string(),
+            &later.to_string(),
+            "--yes"
+        ])
+        .status
+        .code(),
+        Some(2)
+    );
+    let outside = tempfile::tempdir().unwrap();
+    let foreign_index = voldiq_core::scanner::scan(
+        outside.path(),
+        &Default::default(),
+        &std::sync::atomic::AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    let foreign = voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db"))
+        .unwrap()
+        .save(
+            &foreign_index,
+            &std::sync::atomic::AtomicBool::new(false),
+            &[],
+        )
+        .unwrap();
+    for (a, b) in [(snapshot, foreign), (foreign, snapshot)] {
+        assert_eq!(
+            run(&["compare", &a.to_string(), &b.to_string()])
+                .status
+                .code(),
+            Some(4)
+        );
+    }
     let translated = run(&["translate", "archivos mayores de 1 GiB"]);
     assert!(translated.status.success());
     let translated: Value = serde_json::from_slice(&translated.stdout).unwrap();

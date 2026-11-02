@@ -393,6 +393,48 @@ impl AgentService {
         })
     }
 
+    pub fn compare_snapshots(
+        &self,
+        before: i64,
+        after: i64,
+        offset: usize,
+        limit: usize,
+        cancel: &AtomicBool,
+    ) -> Result<Option<crate::snapshots::Comparison>> {
+        let registry = self.registry()?;
+        let policy = registry.policy(&self.principal, Capability::Metadata)?;
+        if before <= 0
+            || after <= 0
+            || before == after
+            || offset > 10_000
+            || !(1..=200).contains(&limit)
+        {
+            return Err(Error::Invalid("Comparison requires two different positive snapshot IDs, offset up to 10000 and limit from 1 to 200.".into()));
+        }
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        let store = Store::open(&self.directory.directory().join("snapshots.db"))?;
+        let old = store.scope(before).map_err(|_| denied())?;
+        let new = store.scope(after).map_err(|_| denied())?;
+        let _old_pin = registry.authorize_snapshot(&self.principal, &old)?;
+        let _new_pin = registry.authorize_snapshot(&self.principal, &new)?;
+        let result = store.compare_cancellable(
+            before,
+            after,
+            offset,
+            limit.min(policy.limits().page_size),
+            cancel,
+        )?;
+        let registry = self.registry()?;
+        let _old_check = registry.authorize_snapshot(&self.principal, &old)?;
+        let _new_check = registry.authorize_snapshot(&self.principal, &new)?;
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        Ok(result)
+    }
+
     pub fn stats(&self, snapshot: i64) -> Result<Stats> {
         let index = self.index(snapshot)?;
         let root = index.entry(crate::NodeId(0))?;

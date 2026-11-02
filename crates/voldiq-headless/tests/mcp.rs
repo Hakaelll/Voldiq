@@ -35,7 +35,10 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
                     Capability::RequestApproval,
                     Capability::ExecuteApproved,
                 ],
-                Limits::default(),
+                Limits {
+                    page_size: 1,
+                    ..Limits::default()
+                },
             )
             .unwrap(),
         )
@@ -131,6 +134,113 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         snapshot
     );
     let denied = call(&client, "voldiq_scan_start", json!({"root":state.path()})).await;
+    assert!(tools.iter().any(|tool| tool.name == "voldiq_compare"));
+    let private = source.path().join("excluded");
+    std::fs::create_dir(&private).unwrap();
+    let extra = source.path().join("history-added.data");
+    std::fs::write(&extra, [2; 5]).unwrap();
+    let index = voldiq_core::scanner::scan(
+        source.path(),
+        &Default::default(),
+        &std::sync::atomic::AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    let later = voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db"))
+        .unwrap()
+        .save(&index, &std::sync::atomic::AtomicBool::new(false), &[])
+        .unwrap();
+    std::fs::remove_file(extra).unwrap();
+    let compared = call(
+        &client,
+        "voldiq_compare",
+        json!({"before":snapshot,"after":later,"limit":200}),
+    )
+    .await;
+    assert_ne!(compared.is_error, Some(true));
+    let compared = compared.structured_content.unwrap();
+    assert_eq!(compared["result"]["delta"], 5);
+    assert_eq!(compared["result"]["accounting"], "compatible");
+    assert_eq!(compared["result"]["coverage_complete"], true);
+    assert_eq!(compared["result"]["file_changes"]["added"]["logical"], 5);
+    assert_eq!(compared["result"]["changes"].as_array().unwrap().len(), 1);
+    let restricted = registry
+        .provision(
+            "Restricted comparison",
+            Policy::new(
+                vec![source.path().to_owned()],
+                vec![private],
+                vec![Capability::Metadata],
+                Limits::default(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let reader = voldiq_core::service::AgentService::new(
+        state.path().to_owned(),
+        registry
+            .authenticate(restricted.credential.expose())
+            .unwrap(),
+    )
+    .unwrap();
+    assert!(
+        reader
+            .compare_snapshots(
+                snapshot,
+                later,
+                0,
+                10,
+                &std::sync::atomic::AtomicBool::new(false)
+            )
+            .is_err()
+    );
+    let cancelled = std::sync::atomic::AtomicBool::new(true);
+    let reader = voldiq_core::service::AgentService::new(
+        state.path().to_owned(),
+        registry
+            .authenticate(provisioned.credential.expose())
+            .unwrap(),
+    )
+    .unwrap();
+    assert!(
+        reader
+            .compare_snapshots(snapshot, later, 0, 10, &cancelled)
+            .unwrap()
+            .is_none()
+    );
+    let outside = tempfile::tempdir().unwrap();
+    let foreign_index = voldiq_core::scanner::scan(
+        outside.path(),
+        &Default::default(),
+        &std::sync::atomic::AtomicBool::new(false),
+        |_| {},
+    )
+    .unwrap();
+    let foreign = voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db"))
+        .unwrap()
+        .save(
+            &foreign_index,
+            &std::sync::atomic::AtomicBool::new(false),
+            &[],
+        )
+        .unwrap();
+    for (a, b) in [(snapshot, foreign), (foreign, snapshot)] {
+        let rejected = call(&client, "voldiq_compare", json!({"before":a,"after":b})).await;
+        assert_eq!(
+            rejected.structured_content.unwrap()["error"]["code"],
+            "not_authorized_or_unavailable"
+        );
+    }
+    let invalid = call(
+        &client,
+        "voldiq_compare",
+        json!({"before":snapshot,"after":later,"approved":true}),
+    )
+    .await;
+    assert_eq!(
+        invalid.structured_content.unwrap()["error"]["code"],
+        "invalid_arguments"
+    );
     assert_eq!(denied.is_error, Some(true));
     let unknown = call(
         &client,
@@ -287,6 +397,16 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         [1; 11]
     );
     registry.revoke(provisioned.id).unwrap();
+    let revoked_comparison = call(
+        &client,
+        "voldiq_compare",
+        json!({"before":snapshot,"after":later}),
+    )
+    .await;
+    assert_eq!(
+        revoked_comparison.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
+    );
     let revoked_translation = call(
         &client,
         "voldiq_query_translate",

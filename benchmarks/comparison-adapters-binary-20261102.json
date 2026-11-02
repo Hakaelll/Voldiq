@@ -1,0 +1,25 @@
+{
+  "checkedUtc": "2026-11-02T21:37:03.9467755Z",
+  "executable": "target/release/voldiq-cli.exe",
+  "executableSha256": "CF976413503C1E8CC113EF53C99F6D9C797F6CE7887DA403BFE69BC6374569E2",
+  "helpComparison": "compare <before_id> <after_id> [offset] [limit]",
+  "routineTests": 8,
+  "mcpToolCount": 18,
+  "scope": "Current release CLI help and actual binary tested by the retained CLI/official SDK fixtures. Existing GUI preview retained; no new native UI build or interaction is claimed for this adapter-only unit.",
+  "existingGuiPreview": {
+    "processId": 2856,
+    "alive": false,
+    "windowHandle": 0,
+    "sourceCommit": "2ea55f8f0fbddb0172ed6b85ad35279654138e20",
+    "executableSha256": "B461EF6ACBAC1CF81EB131A360E06F2CE7746F5344141F0F394E0C614EE7B1CF"
+  },
+  "debugArtifactsPresent": false,
+  "runningGuiPreviews": [
+    {
+      "processId": 11736,
+      "windowHandle": 8980472,
+      "executableSha256": "6A1116EF3E0F47A0AA0D07051B131993CCB39E0A50931C8445243A731EB6B0B3"
+    }
+  ],
+  "priorPreviewExit": "PID 2856 recorded close-requested, window-destroyed and exit, and is no longer running. The surviving instance is preserved."
+}
