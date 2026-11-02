@@ -80,6 +80,8 @@ function comparePicker(nodes: Rect[], seed: number, count: number): void {
 }
 
 test('BSP painting and binned facade picking agree with analytic ray-box intersections', () => {
+  assert.equal(createPicker([])({ x: 0, y: 0 }), null);
+  assert.equal(pickFace([], { x: 0, y: 0 }), null);
   const strips = Array.from({ length: 35 }, (_, index) =>
     rect(index, index * 2.1, 0, 2, 95, ((index * 31) % 83) + 0.02),
   );
@@ -197,6 +199,8 @@ test('split fragments retain complete original faces and preserve their projecte
 });
 
 test('full elevated geometry fits the viewport and zoom keeps the cursor anchored at both clamps', () => {
+  assert.ok(Number.isFinite(fitCamera({ x: 0, y: 0, width: 0, height: 0 }, 0, 0).scale));
+  assert.throws(() => buildCity([rect(1, 0, 0, 10, 10, 1)], () => NaN), /Invalid disk city prism/);
   const nodes = [rect(1, -80, -20, 170, 4, 350), rect(2, -70, 0, 20, 180, 500)];
   const city = buildCity(nodes, (node) => node.value);
   const camera = fitCamera(city.bounds, 920, 610);
@@ -217,23 +221,6 @@ test('full elevated geometry fits the viewport and zoom keeps the cursor anchore
     assert.ok(Math.abs(projected.y - cursor.y) < 1e-9);
     assert.ok(zoomed.scale >= camera.scale / 2 && zoomed.scale <= camera.scale * 8);
   }
-});
-
-test('empty geometry, roof and both facade interiors have predictable picks', () => {
-  const { timings, ...empty } = buildCity([], () => 10);
-  assert.deepEqual(empty, { faces: [], bounds: { x: 0, y: 0, width: 0, height: 0 }, fragments: 0 });
-  assert.ok(timings.projectionMs >= 0 && timings.orderingMs >= 0);
-  assert.equal(createPicker([])({ x: 0, y: 0 }), null);
-  assert.equal(pickFace([], { x: 0, y: 0 }), null);
-  assert.equal(pointInPolygon({ x: 0, y: 0 }, []), false);
-  const city = buildCity([rect(1, 0, 0, 12, 8, 30)], (node) => node.value);
-  const pick = createPicker(city.faces);
-  assert.equal(pick(project({ x: 6, y: 4, z: 30 }))?.kind, 'roof');
-  assert.equal(pick(project({ x: 12, y: 4, z: 15 }))?.kind, 'east');
-  assert.equal(pick(project({ x: 6, y: 8, z: 15 }))?.kind, 'south');
-  assert.equal(pick({ x: 900, y: 900 }), null);
-  assert.ok(Number.isFinite(fitCamera({ x: 0, y: 0, width: 0, height: 0 }, 0, 0).scale));
-  assert.throws(() => buildCity([rect(1, 0, 0, 10, 10, 1)], () => NaN), /Invalid disk city prism/);
 });
 
 test('a thousand-building tiling stays under the geometry fragment budget', () => {

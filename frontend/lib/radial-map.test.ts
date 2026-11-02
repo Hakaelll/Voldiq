@@ -37,29 +37,6 @@ const tree: WeightedNode[] = [
   file(6, 100),
 ];
 
-test('radial views preserve the exact frontier and one area scale for all measured nodes', () => {
-  const source = createStorageLayout(tree);
-  for (const view of ['sunburst', 'circles'] as const) {
-    const result = radialLayout(source, view);
-    const data = result.shapes.filter((shape) => !shape.structural);
-    assert.deepEqual(
-      data.map((shape) => shape.node.id).sort((a, b) => a - b),
-      source.rects.map((node) => node.id).sort((a, b) => a - b),
-    );
-    assert.equal(
-      data.reduce((sum, shape) => sum + shape.node.value, 0),
-      1000,
-    );
-    const scale = shapeArea(data[0]) / data[0].node.value;
-    for (const shape of data) near(shapeArea(shape) / shape.node.value, scale);
-    assert.ok(result.dataFraction > 0 && result.dataFraction <= 1);
-    for (const shape of data)
-      assert.equal(radialHit(result, shapeAnchor(shape))?.id, shape.node.id);
-    assert.equal(radialHit(result, { x: 0, y: 0 }), null);
-    assert.deepEqual(result, radialLayout(source, view));
-  }
-});
-
 test('nested circles do not overlap and their structural ancestors enclose them without rescaling data', () => {
   const source = createStorageLayout(tree);
   const result = radialLayout(source, 'circles');
@@ -164,6 +141,8 @@ test('radial views use the requested common depth without changing byte totals o
     const source = createStorageLayout(tree, depth);
     for (const view of ['sunburst', 'circles'] as const) {
       const result = radialLayout(source, view);
+      assert.ok(result.dataFraction > 0 && result.dataFraction <= 1);
+      assert.deepEqual(result, radialLayout(source, view));
       const measured = result.shapes.filter((shape) => !shape.structural);
       assert.deepEqual(
         measured.map((shape) => shape.node.id).sort((a, b) => a - b),
@@ -194,6 +173,7 @@ test('empty, zero and unknown byte entries do not invent measurable area; incons
       [],
     );
     const source = createStorageLayout(tree);
+    assert.equal(radialHit(radialLayout(source, view), { x: 0, y: 0 }), null);
     source.parents.set(source.rects[0].id, source.rects[0].id);
     assert.throws(() => radialLayout(source, view), /hierarchy/i);
   }

@@ -1,0 +1,36 @@
+{
+  "recordedUtc": "2026-11-02T18:27:13.9338370Z",
+  "baseCommit": "53241e7ebff78221aa7d739ab6bbc94b640b0673",
+  "scope": "Frontend test reduction only. Production sources and all Rust tests remain unchanged from the full saved-workspace integration gate.",
+  "frontendBefore": 82,
+  "frontendAfter": 74,
+  "rustUnchanged": 90,
+  "totalBefore": 172,
+  "totalAfter": 164,
+  "checks": [
+    {
+      "diagnostics": 0,
+      "exitCode": 0,
+      "name": "pnpm check"
+    },
+    {
+      "passed": 74,
+      "failed": 0,
+      "exitCode": 0,
+      "name": "pnpm test"
+    }
+  ],
+  "removedChecks": [
+    "cloud label/enum snapshots",
+    "depth selector enumeration",
+    "height formula snapshots",
+    "menu key arithmetic",
+    "menu placement arithmetic",
+    "duplicate Skyline simple-pick fixture",
+    "duplicate radial default-depth fixture",
+    "standalone file-query fixture (unique expression/whitespace cases retained in workspace integration fixture)"
+  ],
+  "retained": "Identity, permissions, persistence, operation exclusion, unknown accounting, stale requests, scope, bounds, numerical geometry, seeded analytic picking, contrast and filesystem behavior fixtures.",
+  "rustEvidence": "workbench-saved-workspaces-source-20261102.json",
+  "limitation": "No speedup or rendered UI/keyboard/scaling acceptance is claimed. Menu presentation and static labels retain source/manual checks."
+}

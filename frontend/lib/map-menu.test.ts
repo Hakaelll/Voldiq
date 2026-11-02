@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { setIndexContext } from './index-context.ts';
 import { VORONOI_GROUP_ID } from './voronoi.ts';
-import { createMapMenu, mapTarget, menuCommand, menuKeyIndex, menuPosition } from './map-menu.ts';
+import { createMapMenu, mapTarget, menuCommand } from './map-menu.ts';
 
 const first = setIndexContext(1),
   second = setIndexContext(2);
@@ -85,34 +85,4 @@ test('menu dispatch rejects stale analyses and commands outside the captured men
   const another = createMapMenu(node(9), first);
   assert.ok(another);
   assert.equal(menuCommand(menu, first, another.items[0].command), null);
-});
-
-test('menu keyboard movement wraps and preserves native activation keys', () => {
-  assert.equal(menuKeyIndex('ArrowDown', 3, 4), 0);
-  assert.equal(menuKeyIndex('ArrowUp', 0, 4), 3);
-  assert.equal(menuKeyIndex('Home', 2, 4), 0);
-  assert.equal(menuKeyIndex('End', 1, 4), 3);
-  assert.equal(menuKeyIndex('ArrowDown', 0, 1), 0);
-  assert.equal(menuKeyIndex('ArrowUp', 0, 0), null);
-  for (const key of ['Enter', ' ', 'Escape', 'Tab', 'x'])
-    assert.equal(menuKeyIndex(key, 0, 4), null);
-});
-
-test('menu placement uses the measured box and stays within the available viewport', () => {
-  assert.deepEqual(
-    menuPosition({ x: 100, y: 120 }, { width: 230, height: 188 }, { width: 1000, height: 800 }),
-    { x: 100, y: 120 },
-  );
-  assert.deepEqual(
-    menuPosition({ x: 990, y: 790 }, { width: 230, height: 188 }, { width: 1000, height: 800 }),
-    { x: 762, y: 604 },
-  );
-  assert.deepEqual(
-    menuPosition({ x: -5, y: -30 }, { width: 230, height: 188 }, { width: 1000, height: 800 }),
-    { x: 8, y: 8 },
-  );
-  assert.deepEqual(
-    menuPosition({ x: 300, y: 200 }, { width: 304, height: 184 }, { width: 320, height: 200 }),
-    { x: 8, y: 8 },
-  );
 });

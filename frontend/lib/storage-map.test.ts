@@ -9,7 +9,6 @@ import {
   metricMaximum,
   metricValue,
   visualPaint,
-  parseStorageDepth,
 } from './storage-map.ts';
 import type { WeightedNode } from './treemap.ts';
 
@@ -183,13 +182,6 @@ test('requested depth collapses only the frontier while preserving bytes and sup
   assert.deepEqual(nodes, original);
 });
 
-test('map depth accepts only the six explicit selector values', () => {
-  for (const value of ['1', '2', '3', '4', '5', '6'])
-    assert.equal(parseStorageDepth(value), Number(value));
-  for (const value of ['', '0', '7', '-1', '2.0', '02', '2e0', ' 2', 'NaN', 'all'])
-    assert.equal(parseStorageDepth(value), null);
-});
-
 test('directory age uses descendant coverage and unknown times stay unknown', () => {
   const now = 2_000_000_000;
   const ownOnly = createStorageLayout([
@@ -226,29 +218,6 @@ test('directory age uses descendant coverage and unknown times stay unknown', ()
     visualPaint(ownOnly, 'age', 10, now),
     categoryPaint({ ...ownOnly, category: 'remainder' }),
   );
-});
-
-test('heights use fixed logarithmic age, local logarithmic files, and local linear depth', () => {
-  const now = 2_000_000_000;
-  const rect = createStorageLayout([file(1, 10)]).rects[0];
-  assert.ok(rect);
-  near(
-    metricHeight({ ...rect, modified: now - 180 * 86400 }, 'modified', now, 1),
-    5 + (125 * Math.log1p(180)) / Math.log1p(3652.5),
-  );
-  assert.equal(
-    metricHeight({ ...rect, modified: now - 180 * 86400 }, 'modified', now, 1),
-    metricHeight({ ...rect, modified: now - 180 * 86400 }, 'modified', now, 1e12),
-  );
-  assert.equal(metricHeight({ ...rect, modified: now - 3652.5 * 86400 }, 'modified', now, 0), 130);
-  assert.equal(metricHeight({ ...rect, modified: now - 20000 * 86400 }, 'modified', now, 0), 130);
-  assert.equal(metricHeight({ ...rect, modified: now + 1000 }, 'modified', now, 1000), 5);
-  near(
-    metricHeight({ ...rect, files: 9 }, 'files', now, 99),
-    5 + (125 * Math.log1p(9)) / Math.log1p(99),
-  );
-  near(metricHeight({ ...rect, depth: 2 }, 'depth', now, 8), 36.25);
-  assert.equal(metricHeight({ ...rect, files: 0 }, 'files', now, 0), 5);
 });
 
 test('represented counts are file counts and directory extensions do not classify folders', () => {

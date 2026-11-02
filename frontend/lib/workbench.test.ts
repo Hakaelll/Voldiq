@@ -30,6 +30,8 @@ test('saved filters detach transient index and page values without mutating or l
   const query = { ...spec.query, scope: 27, offset: 500, limit: 20 };
   assert.deepEqual(detachedQuery(query), spec.query);
   assert.equal(query.scope, 27);
+  assert.deepEqual(scopedFileQuery({ scope: 7, ranked: false, text: '', expression: 'size>1GiB', sort: 'size' }), { scope: 7, text: '', expression: 'size>1GiB', sort: 'size' });
+  assert.deepEqual(scopedFileQuery({ scope: 7, ranked: false, expression: ' \t ' }), { parent: 7, expression: ' \t ' });
   assert.equal(
     scopedFileQuery({
       ...detachedQuery(spec.query),
