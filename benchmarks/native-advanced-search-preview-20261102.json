@@ -1,0 +1,118 @@
+{
+  "checkedUtc": "2026-11-02T16:52:30.0793947Z",
+  "sourceCommit": "690997ad87aa375e1521dbfc11427360385da0cc",
+  "executableSha256": "41CC98392F4ABA5DB3A5C20B04002F456E52D9C0A2621E8DFF7CBE49CCAB84AC",
+  "preview": "target/preview/41CC98392F4ABA5DB3A5C20B04002F456E52D9C0A2621E8DFF7CBE49CCAB84AC/voldiq.exe",
+  "processId": 19260,
+  "mainWindowHandle": 460416,
+  "startupEvents": [
+    {
+      "event": "process-start",
+      "pid": 19260,
+      "state": null,
+      "unixMs": 1793638348674
+    },
+    {
+      "event": "setup-start",
+      "pid": 19260,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "unavailable",
+        "snapshots": "unavailable"
+      },
+      "unixMs": 1793638348964
+    },
+    {
+      "event": "snapshot-open-start",
+      "pid": 19260,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "idle",
+        "snapshots": "unavailable"
+      },
+      "unixMs": 1793638348968
+    },
+    {
+      "event": "snapshot-open-end",
+      "pid": 19260,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793638348997
+    },
+    {
+      "event": "setup-end",
+      "pid": 19260,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793638349797
+    },
+    {
+      "event": "ready",
+      "pid": 19260,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793638349797
+    },
+    {
+      "event": "page-finished",
+      "pid": 19260,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793638349900
+    }
+  ],
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "DA7EAB7E5AF10E6991CD75A5855A62A11896C9008C784A13BC6CBB12B509814D"
+      },
+      {
+        "path": "assets/city.worker-DLxzT0Wm.js",
+        "bytes": 2879,
+        "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      },
+      {
+        "path": "assets/index-BRETYe9R.css",
+        "bytes": 61642,
+        "sha256": "65BAA4736D7C90CD8B061F15DC3938A575CFB3FD8FBB9C5A4BBB31507CDDE551"
+      },
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "assets/voronoi.worker-DwJ2QmrW.js",
+        "bytes": 5606,
+        "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+      },
+      {
+        "path": "assets/index-O-TzcyZW.js",
+        "bytes": 273942,
+        "sha256": "A7B674E1D411C2DE252FC6ACCBA563BAF9CDC2542EF9EEFBCC39E3E72D74C70B"
+      }
+    ]
+  },
+  "scope": "Actual native launch, completed page load and exact embedded production assets. Trace resource states describe mutex availability, not exclusive ownership. Advanced editor and shared map matches are source implemented; populated rendering, keyboard/focus, Windows scaling and device performance remain manual. Saved views, policy binding, offline translation and other pending coverage remain part of the active goal."
+}
