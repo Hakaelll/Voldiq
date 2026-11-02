@@ -4,6 +4,18 @@ Delivery branch: `main`, as the user explicitly requested during implementation.
 
 The complete task remains active. See the [coverage matrix](WORKBENCH-COVERAGE.md) and [execution plan](plans/storage-workbench.md). This status does not declare pending capabilities implemented.
 
+## Measured folder budgets and qualified forecasts
+
+The indexed workspace adds one compact expandable budget panel using Voldiq's existing tokens and bordered composition. It shows logical path bytes, a human-maintained limit and a written status. Partial or provisional coverage stays a lower bound; known excess is still reported. Opening the panel requests the heavier image-sample and history analysis. Current folder identity is pinned without following reparse points or recalling cloud content. Persistence has exact byte limits, optimistic versions, bounded records and the shared operation lease. Edits are human GUI actions; historical views and CLI/MCP only read.
+
+Core scan completion now records actual observation time, completeness, engine version and accounting revision. Snapshot schema 7 retains those independently of save time. Legacy observations stay unknown, repeated saves are not new measurement days and historical directory reads use bounded persisted identity evidence without restoring file-operation authority. Folder metadata and favorites reuse the same strict pinning boundary.
+
+Folder-limit forecasts use at most 30 days of compatible scoped metadata, with at least six distinct measurement days spanning a week. Missing, partial, stale, incompatible, decreasing, erratic and non-growing evidence has an explicit unavailable reason. The displayed date and interval-rate range are estimates, not statistical confidence or a prediction of volume free space. Image equivalents use at most 128 actual positive-size image-extension matches in the indexed scope, with sample count, full match count and mean logical bytes disclosed. They do not read content or assume a generic photo size.
+
+The existing persistence, snapshot, migration and real CLI/MCP fixture groups cover this unit. No test case or file was added; the prior reduction from 172 to 164 total cases is preserved. Native visual acceptance, keyboard/focus, Windows scaling and device-specific performance remain manual because the user excludes computer use. Wider app attribution, history, operations and integration rows remain pending; the full workbench goal stays active.
+
+The [full integration gate](../benchmarks/workbench-folder-budgets-source-20261102.json) passes all six stages, including 74 frontend and 90 workspace Rust cases, zero Svelte diagnostics and strict Clippy. The final disclosure-icon/layout adjustment additionally passes [Svelte checks and the production build](../benchmarks/folder-budgets-disclosure-20261102.json); it changes no test behavior. The existing snapshot fixture verifies actual scoped image sizes, repeated-save rejection, compatible measured growth, stale/partial/legacy/incompatible histories, a non-growing folder, a decrease and the horizon bound. Real CLI and SDK fixtures read the same core report and reject an agent write/bypass surface.
+
 ## Audit
 
 - Current application: Rust/Tauri 2, Svelte 5, TypeScript, SQLite, BLAKE3 and custom Canvas, version 0.2.0.

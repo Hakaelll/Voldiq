@@ -2,6 +2,7 @@ import type { IndexId } from './index-context';
 import { invoke } from '@tauri-apps/api/core';
 import { createQueryRunner, type QueryTransport } from './query-runner';
 import type { CloudFilter, FilePage, Overview, NodeId, SelectedDetails, Query } from './types';
+import type { BudgetReport } from './types';
 
 let session: Promise<number> | undefined;
 function querySession(): Promise<number> {
@@ -49,6 +50,20 @@ export const overviewQueries = createQueryRunner<
       cloud: input.cloud,
       search: input.search,
       indexId: input.indexId,
+    }),
+  cancel: transport.cancel,
+});
+export const budgetQueries = createQueryRunner<
+  BudgetReport,
+  IndexedInput<{ id: NodeId; detailed: boolean }>
+>('folder_budget', {
+  run: async (_family, requestId, input) =>
+    invoke<BudgetReport | null>('query_folder_budget', {
+      epoch: await querySession(),
+      requestId,
+      indexId: input.indexId,
+      nodeId: input.id,
+      detailed: input.detailed,
     }),
   cancel: transport.cancel,
 });

@@ -211,6 +211,22 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     };
     let stats = call(&client, "voldiq_stats", json!({"snapshot_id":snapshot})).await;
     assert_eq!(stats.structured_content.unwrap()["result"]["logical"], 11);
+    let budget = call(
+        &client,
+        "voldiq_folder_budget",
+        json!({"snapshot_id":snapshot,"node_id":0}),
+    )
+    .await;
+    assert_ne!(budget.is_error, Some(true));
+    assert_eq!(
+        budget.structured_content.unwrap()["result"]["logical_bytes"],
+        "11"
+    );
+    assert!(
+        !tools
+            .iter()
+            .any(|tool| tool.name.contains("save_budget") || tool.name.contains("remove_budget"))
+    );
     let history = call(&client, "voldiq_history", json!({})).await;
     assert_eq!(
         history.structured_content.unwrap()["result"]["items"][0]["id"],

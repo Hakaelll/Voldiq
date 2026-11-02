@@ -224,7 +224,7 @@ fn legacy_snapshots_migrate_to_unknown_and_invalid_cloud_evidence_is_rejected() 
     drop(store);
     let connection = rusqlite::Connection::open(&path).unwrap();
     connection
-        .execute_batch("ALTER TABLE snapshot_versions DROP COLUMN cloud; PRAGMA user_version=5;")
+        .execute_batch("DROP INDEX snapshots_observed; ALTER TABLE snapshots DROP COLUMN observed_at; ALTER TABLE snapshots DROP COLUMN observed_complete; ALTER TABLE snapshots DROP COLUMN engine_version; ALTER TABLE snapshots DROP COLUMN accounting_version; ALTER TABLE snapshot_versions DROP COLUMN cloud; PRAGMA user_version=5;")
         .unwrap();
     drop(connection);
     let barrier = std::sync::Arc::new(std::sync::Barrier::new(2));
@@ -259,7 +259,7 @@ fn legacy_snapshots_migrate_to_unknown_and_invalid_cloud_evidence_is_rejected() 
         connection
             .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
             .unwrap(),
-        6
+        7
     );
     assert!(
         connection
@@ -281,7 +281,7 @@ fn legacy_snapshots_migrate_to_unknown_and_invalid_cloud_evidence_is_rejected() 
     );
     drop(store);
     let connection = rusqlite::Connection::open(&path).unwrap();
-    connection.execute_batch("PRAGMA user_version=7;").unwrap();
+    connection.execute_batch("PRAGMA user_version=8;").unwrap();
     drop(connection);
     assert!(
         Store::open(&path)

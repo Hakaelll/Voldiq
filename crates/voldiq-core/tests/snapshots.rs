@@ -52,6 +52,13 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     );
     assert_eq!(history[0].id, after);
     let loaded = store.load(before, &loading).unwrap();
+    assert_eq!(loaded.observation, first.observation);
+    assert!(
+        loaded
+            .observation
+            .as_ref()
+            .is_some_and(|observation| observation.complete)
+    );
     assert_eq!(loaded.entries[0].logical, 33);
     assert_eq!(
         loaded
@@ -126,12 +133,13 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     drop(store);
     let connection = rusqlite::Connection::open(&db).unwrap();
     connection
-        .execute_batch("ALTER TABLE snapshot_versions DROP COLUMN cloud; DROP TABLE duplicate_hashes; PRAGMA user_version=4;")
+        .execute_batch("DROP INDEX snapshots_observed; ALTER TABLE snapshots DROP COLUMN observed_at; ALTER TABLE snapshots DROP COLUMN observed_complete; ALTER TABLE snapshots DROP COLUMN engine_version; ALTER TABLE snapshots DROP COLUMN accounting_version; ALTER TABLE snapshot_versions DROP COLUMN cloud; DROP TABLE duplicate_hashes; PRAGMA user_version=4;")
         .unwrap();
     drop(connection);
     let mut store = Store::open(&db).unwrap();
     assert_eq!(store.list(0, 10).unwrap().len(), 2);
     assert_eq!(store.load(after, &loading).unwrap().entries[0].logical, 61);
+    assert_eq!(store.load(after, &loading).unwrap().observation, None);
     let duplicates = tempfile::tempdir().unwrap();
     for name in ["first", "second"] {
         std::fs::write(duplicates.path().join(name), [7_u8; 16_384]).unwrap();
@@ -260,4 +268,211 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     assert!(cleared.groups.is_empty());
     assert_eq!(cleared.bytes_read, 16_384);
     assert_eq!(store.list(0, 10).unwrap().len(), 2);
+    budget_history_uses_measurements_and_real_scoped_image_samples();
+}
+
+fn budget_history_uses_measurements_and_real_scoped_image_samples() {
+    use voldiq_core::{
+        NodeId,
+        budgets::{Forecast, ForecastReason, Status, Store as Budgets},
+    };
+    let state = tempfile::tempdir().unwrap();
+    let source = tempfile::tempdir().unwrap();
+    let folder = source.path().join("photos");
+    std::fs::create_dir(&folder).unwrap();
+    let steady = source.path().join("steady");
+    std::fs::create_dir(&steady).unwrap();
+    std::fs::write(steady.join("unchanged.bin"), [0; 16]).unwrap();
+    std::fs::write(folder.join("a.jpg"), [1; 100]).unwrap();
+    std::fs::write(folder.join("b.png"), [2; 200]).unwrap();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let mut history = Store::open(&state.path().join("snapshots.db")).unwrap();
+    let mut budgets = Budgets::open(state.path()).unwrap();
+    let cancel = AtomicBool::new(false);
+    let mut ids = Vec::new();
+    for day in 0..8 {
+        std::fs::write(folder.join("growth.bin"), vec![3; 100 * (day + 1)]).unwrap();
+        let mut index = capture(source.path());
+        index.observation.as_mut().unwrap().completed_at = now - (7 - day as u64) * 86400;
+        ids.push(history.save(&index, &cancel, &[]).unwrap());
+    }
+    let mut index = history.load(*ids.last().unwrap(), &cancel).unwrap();
+    let node = index
+        .entries
+        .iter()
+        .find(|entry| entry.name == "photos")
+        .unwrap()
+        .id;
+    // Saving a limit uses a fresh indexed identity; historical reading may use only recorded evidence.
+    let fresh = capture(source.path());
+    let fresh_node = fresh
+        .entries
+        .iter()
+        .find(|entry| entry.name == "photos")
+        .unwrap()
+        .id;
+    budgets.save(&fresh, fresh_node, "0", "2KB").unwrap();
+    let steady_node = fresh
+        .entries
+        .iter()
+        .find(|entry| entry.name == "steady")
+        .unwrap()
+        .id;
+    budgets.save(&fresh, steady_node, "0", "1KB").unwrap();
+    assert!(matches!(
+        budgets
+            .read(&fresh, steady_node, &history, true, &cancel)
+            .unwrap()
+            .unwrap()
+            .forecast,
+        Forecast::Unavailable {
+            reason: ForecastReason::NotGrowing
+        }
+    ));
+    let report = budgets
+        .read(&index, node, &history, true, &cancel)
+        .unwrap()
+        .unwrap();
+    assert_eq!(report.logical_bytes, 1100);
+    let sample = report.image_equivalent.unwrap();
+    assert_eq!(
+        (
+            sample.sample_count,
+            sample.matched_images,
+            sample.mean_logical_bytes,
+            sample.approximate_images
+        ),
+        (2, 2, 150, 7)
+    );
+    match report.forecast {
+        Forecast::Estimate {
+            as_of,
+            estimated_at,
+            earliest_at,
+            latest_at,
+            samples,
+            span_days,
+            ..
+        } => {
+            assert_eq!(as_of, now);
+            assert_eq!(estimated_at, now + 9 * 86400);
+            assert_eq!(
+                (earliest_at, latest_at, samples, span_days),
+                (estimated_at, estimated_at, 8, 7)
+            );
+        }
+        _ => panic!("Expected a qualified, measured estimate"),
+    }
+    index.entries[node.0 as usize].logical = 900;
+    assert!(matches!(
+        budgets
+            .read(&index, node, &history, true, &cancel)
+            .unwrap()
+            .unwrap()
+            .forecast,
+        Forecast::Unavailable {
+            reason: ForecastReason::Volatile
+        }
+    ));
+    index.entries[node.0 as usize].logical = 1100;
+    let far = budgets
+        .save(&fresh, fresh_node, "1", "18446744073709551615B")
+        .unwrap();
+    assert!(matches!(
+        budgets
+            .read(&index, node, &history, true, &cancel)
+            .unwrap()
+            .unwrap()
+            .forecast,
+        Forecast::Unavailable {
+            reason: ForecastReason::BeyondHorizon
+        }
+    ));
+    budgets
+        .save(&fresh, fresh_node, &far.version, "2KB")
+        .unwrap();
+    index.observation.as_mut().unwrap().accounting_version = 99;
+    assert!(matches!(
+        budgets
+            .read(&index, node, &history, true, &cancel)
+            .unwrap()
+            .unwrap()
+            .forecast,
+        Forecast::Unavailable {
+            reason: ForecastReason::Incompatible
+        }
+    ));
+    index.observation.as_mut().unwrap().accounting_version = voldiq_core::index::ACCOUNTING_VERSION;
+    index.entries[node.0 as usize].incomplete = true;
+    let partial = budgets
+        .read(&index, node, &history, true, &cancel)
+        .unwrap()
+        .unwrap();
+    assert!(matches!(partial.status, Status::Unknown));
+    assert!(matches!(
+        partial.forecast,
+        Forecast::Unavailable {
+            reason: ForecastReason::Partial
+        }
+    ));
+    index.entries[node.0 as usize].logical = 2500;
+    assert!(matches!(
+        budgets
+            .read(&index, node, &history, false, &cancel)
+            .unwrap()
+            .unwrap()
+            .status,
+        Status::Exceeded
+    ));
+    index.entries[node.0 as usize].logical = 1100;
+    index.entries[node.0 as usize].incomplete = false;
+    index.observation.as_mut().unwrap().completed_at = now - 2 * 86400;
+    assert!(matches!(
+        budgets
+            .read(&index, node, &history, true, &cancel)
+            .unwrap()
+            .unwrap()
+            .forecast,
+        Forecast::Unavailable {
+            reason: ForecastReason::Stale
+        }
+    ));
+    index.observation = None;
+    assert!(matches!(
+        budgets
+            .read(&index, node, &history, true, &cancel)
+            .unwrap()
+            .unwrap()
+            .forecast,
+        Forecast::Unavailable {
+            reason: ForecastReason::Unmeasured
+        }
+    ));
+    assert!(
+        budgets
+            .read(&index, NodeId(0), &history, true, &AtomicBool::new(true))
+            .unwrap()
+            .is_none()
+    );
+    for id in ids.iter().take(7) {
+        history.delete(*id).unwrap();
+    }
+    let mut fresh = capture(source.path());
+    fresh.observation.as_mut().unwrap().completed_at = now;
+    for _ in 0..7 {
+        history.save(&fresh, &cancel, &[]).unwrap();
+    }
+    assert!(matches!(
+        budgets
+            .read(&fresh, fresh_node, &history, true, &cancel)
+            .unwrap()
+            .unwrap()
+            .forecast,
+        Forecast::Unavailable {
+            reason: ForecastReason::InsufficientHistory
+        }
+    ));
 }

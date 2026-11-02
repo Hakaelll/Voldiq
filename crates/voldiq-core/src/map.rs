@@ -380,6 +380,7 @@ mod tests {
             exclusions: Vec::new(),
             snapshot_id: None,
             captured_caches: Vec::new(),
+            observation: None,
             ntfs_checkpoint: None,
         };
         for id in [3, 4, 5, 6, 7, 8] {

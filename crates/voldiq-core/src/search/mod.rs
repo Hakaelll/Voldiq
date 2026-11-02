@@ -121,6 +121,23 @@ pub(crate) struct Search {
 }
 pub(crate) const GLOB_WORK_LIMIT: u64 = 100_000_000;
 
+pub fn storage_limit(source: &str) -> Result<u64, QueryError> {
+    if source.len() > 128 {
+        return Err(QueryError::new(
+            0,
+            "A storage limit is at most 128 UTF-8 bytes.",
+        ));
+    }
+    let value = numbers::bytes(source.trim(), 0)?;
+    if value.whole == 0 || value.fractional {
+        return Err(QueryError::new(
+            0,
+            "Use a positive whole-byte limit, such as 100GiB or 1.5GB.",
+        ));
+    }
+    Ok(value.whole)
+}
+
 impl Query {
     pub fn inspect(&self) -> SearchInspection {
         match self.compile() {

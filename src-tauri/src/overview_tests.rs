@@ -32,6 +32,7 @@ fn index(root: &Path, entries: Vec<Entry>) -> Index {
         exclusions: Vec::new(),
         snapshot_id: None,
         captured_caches: Vec::new(),
+        observation: None,
         ntfs_checkpoint: None,
     }
 }

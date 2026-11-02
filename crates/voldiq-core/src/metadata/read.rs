@@ -1,5 +1,5 @@
 use super::Store;
-use crate::{Error, Kind, NodeId, Result, agents::pin_directory, cleanup, index::Index};
+use crate::{NodeId, Result, cleanup, index::Index};
 use serde::Serialize;
 use std::path::PathBuf;
 
@@ -27,25 +27,7 @@ impl Store {
         node: NodeId,
         include_note: bool,
     ) -> Result<FolderRead> {
-        let entry = index.entry(node)?;
-        if entry.kind != Kind::Directory {
-            return Err(Error::Invalid(
-                "Folder metadata requires a directory.".into(),
-            ));
-        }
-        let root = pin_directory(&index.root)?;
-        if Some(root.identity()) != index.root_identity {
-            return Err(changed());
-        }
-        let folder = pin_directory(&index.path(node)?)?;
-        let expected = if node == NodeId(0) {
-            index.root_identity
-        } else {
-            entry.file_state.map(|state| state.identity)
-        };
-        if Some(folder.identity()) != expected {
-            return Err(changed());
-        }
+        let folder = index.pin_folder(node)?;
         let ancestors = folder.ancestor_identities()?;
         let system = cleanup::protected_identities()?;
         let protected_from_cleanup = self
@@ -71,10 +53,4 @@ impl Store {
             note,
         })
     }
-}
-
-fn changed() -> Error {
-    Error::Invalid(
-        "Folder identity changed or was not captured. Rescan before reading its note.".into(),
-    )
 }

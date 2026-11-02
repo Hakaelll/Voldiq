@@ -20,6 +20,7 @@ pub(crate) enum QueryFamily {
     FileList,
     OverviewChildren,
     Details,
+    FolderBudget,
 }
 
 #[derive(Default)]
@@ -36,7 +37,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 3],
+    slots: [Slot; 4],
 }
 
 impl QueryFamily {
@@ -45,6 +46,7 @@ impl QueryFamily {
             Self::FileList => 0,
             Self::OverviewChildren => 1,
             Self::Details => 2,
+            Self::FolderBudget => 3,
         }
     }
 }
@@ -278,6 +280,34 @@ pub(crate) async fn query_overview(
 #[tauri::command]
 pub(crate) fn inspect_search(query: Query) -> voldiq_core::search::SearchInspection {
     query.inspect()
+}
+
+#[tauri::command]
+pub(crate) async fn query_folder_budget(
+    index_id: IndexId,
+    epoch: u64,
+    node_id: NodeId,
+    detailed: bool,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+    database: State<'_, crate::SnapshotDatabase>,
+) -> Result<Option<voldiq_core::budgets::Report>, String> {
+    let directory = engine.operations.clone();
+    let history = database.0.clone();
+    run_query(
+        index_id,
+        epoch,
+        QueryFamily::FolderBudget,
+        request_id,
+        engine.inner().clone(),
+        move |index, cancelled| {
+            let history = history.lock().map_err(|e| e.to_string())?;
+            voldiq_core::budgets::Store::open(directory.directory())
+                .and_then(|store| store.read(index, node_id, &history, detailed, cancelled))
+                .map_err(|e| e.to_string())
+        },
+    )
+    .await
 }
 
 #[tauri::command]

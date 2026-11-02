@@ -321,6 +321,23 @@ impl AgentService {
         )
     }
 
+    pub fn folder_budget(
+        &self,
+        snapshot: i64,
+        node: crate::NodeId,
+    ) -> Result<crate::budgets::Report> {
+        let index = self.index(snapshot)?;
+        let registry = self.registry()?;
+        let _folder =
+            registry.authorize_index_entry(&self.principal, Capability::Metadata, &index, node)?;
+        let history = Store::open(&self.directory.directory().join("snapshots.db"))?;
+        let report = crate::budgets::Store::open(self.directory.directory())?
+            .read(&index, node, &history, true, &AtomicBool::new(false))?
+            .ok_or_else(denied)?;
+        self.registry()?.authorize_index(&self.principal, &index)?;
+        Ok(report)
+    }
+
     pub fn history(&self, offset: usize, limit: usize) -> Result<HistoryPage> {
         let registry = self.registry()?;
         let policy = registry.policy(&self.principal, Capability::Metadata)?;

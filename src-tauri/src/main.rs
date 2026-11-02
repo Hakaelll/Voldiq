@@ -17,6 +17,7 @@ use tauri::Manager;
 use tauri::{State, ipc::Channel};
 mod agent_commands;
 mod analysis_status;
+mod budget_commands;
 mod cleanup_commands;
 mod config_file;
 mod developer_commands;
@@ -818,6 +819,9 @@ fn main() {
             query_commands::query_files_cancellable,
             query_commands::query_overview,
             query_commands::inspect_search,
+            query_commands::query_folder_budget,
+            budget_commands::save_folder_budget,
+            budget_commands::remove_folder_budget,
             query_commands::translate_search,
             query_commands::query_details_cancellable,
             query_commands::cancel_query,

@@ -1,0 +1,17 @@
+{
+  "checkedUtc": "2026-11-02T19:25:47.5777074Z",
+  "scope": "Final budget disclosure-icon and layout adjustment after the full gate frontend stages; no behavior-test change.",
+  "svelteErrors": 0,
+  "svelteWarnings": 0,
+  "productionBuild": "passed",
+  "files": [
+    {
+      "path": "frontend/components/FolderBudget.svelte",
+      "sha256": "BF0D1D7FFE1012BB76A8FAC701134FC04F14BC93C820BD4CBA54E78503CA9656"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "AB889D3880704582F2F604025EC06F93B7D2CDE1AF2CF34584C5D3E043A68CB0"
+    }
+  ]
+}

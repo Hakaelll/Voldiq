@@ -185,6 +185,17 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     )
     .unwrap();
     let node = files["result"]["items"][0]["id"].as_u64().unwrap();
+    let budget = run(&["budget", &snapshot.to_string(), "0"]);
+    assert!(budget.status.success());
+    let budget: Value = serde_json::from_slice(&budget.stdout).unwrap();
+    assert_eq!(budget["result"]["logical_bytes"], "7");
+    assert_eq!(budget["result"]["budget"], Value::Null);
+    assert_eq!(
+        run(&["budget", &snapshot.to_string(), "0", "--yes"])
+            .status
+            .code(),
+        Some(2)
+    );
     let translated = run(&["translate", "archivos mayores de 1 GiB"]);
     assert!(translated.status.success());
     let translated: Value = serde_json::from_slice(&translated.stdout).unwrap();

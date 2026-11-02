@@ -1,7 +1,7 @@
 //! Human-maintained view specifications and pinned folder shortcuts. Neither grants authority.
 mod spec;
 use crate::{
-    Error, Kind, NodeId, Result,
+    Error, NodeId, Result,
     agents::{AuthorizedPath, pin_directory},
     index::Index,
     operations::Coordinator,
@@ -289,26 +289,7 @@ impl Store {
         Ok(value)
     }
     pub fn add_favorite(&mut self, expected: &str, index: &Index, node: NodeId) -> Result<Catalog> {
-        let entry = index.entry(node)?;
-        if entry.kind != Kind::Directory {
-            return Err(invalid());
-        }
-        let root = pin_directory(&index.root)?;
-        if Some(root.identity()) != index.root_identity {
-            return Err(changed());
-        }
-        let folder = pin_directory(&index.path(node)?)?;
-        let identity = if node == NodeId(0) {
-            index.root_identity
-        } else {
-            entry.file_state.map(|state| state.identity)
-        };
-        if Some(folder.identity()) != identity {
-            return Err(Error::Invalid(
-                "Folder identity changed or was not captured. Rescan before saving a favorite."
-                    .into(),
-            ));
-        }
+        let folder = index.pin_folder(node)?;
         let path = folder
             .path()
             .to_str()

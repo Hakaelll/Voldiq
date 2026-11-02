@@ -37,6 +37,7 @@
   import AgentConnections from './components/AgentConnections.svelte';
   import AgentPlanReview from './components/AgentPlanReview.svelte';
   import FolderNotes from './components/FolderNotes.svelte';
+  import FolderBudget from './components/FolderBudget.svelte';
   import ProtectedFolders from './components/ProtectedFolders.svelte';
   import { readRecentPaths, rememberPath } from './lib/recent-paths';
   import { overviewQueries, detailQueries } from './lib/queries';
@@ -1386,6 +1387,15 @@
               title="Analysis date">{date(operation.analyzed_at)}</time
             >{/if}
         </div>{/if}
+      {#if indexedView && ready && indexId !== null && directory}
+        <FolderBudget
+          {indexId}
+          id={details?.entry.kind === 'directory' ? details.entry.id : scope}
+          path={details?.entry.kind === 'directory' ? details.path : directory.path}
+          sourceKey={`${operation?.phase ?? 'saved'}:${operation?.analyzed_at ?? historical?.captured ?? 'undated'}`}
+          disabled={busy || historical !== null}
+        />
+      {/if}
       {#if view === 'settings'}
         <section class="settings-panel">
           <ProtectedFolders />

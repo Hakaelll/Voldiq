@@ -94,6 +94,8 @@ impl Store {
             .unwrap_or(5_000_000)
             .clamp(1, u32::MAX as usize);
         let index = self.resume_candidate(id, cancel, limit)?;
-        crate::ntfs::refresh(&index, limit, cancel).map(Some)
+        let mut updated = crate::ntfs::refresh(&index, limit, cancel)?;
+        updated.record_observation(cancel.load(Ordering::Relaxed));
+        Ok(Some(updated))
     }
 }

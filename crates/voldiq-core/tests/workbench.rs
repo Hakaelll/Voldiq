@@ -184,6 +184,51 @@ fn favorites_verify_indexed_and_full_current_identity_and_never_follow_replaceme
         .find(|entry| entry.name == "favorite")
         .unwrap()
         .id;
+    let history = voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db")).unwrap();
+    let mut budgets = voldiq_core::budgets::Store::open(state.path()).unwrap();
+    let budget = budgets.save(&index, node, "0", "1.5KiB").unwrap();
+    assert_eq!(budget.limit_bytes, 1536);
+    let usage = budgets
+        .read(&index, node, &history, true, &AtomicBool::new(false))
+        .unwrap()
+        .unwrap();
+    assert!(matches!(usage.status, voldiq_core::budgets::Status::Within));
+    assert_eq!(usage.logical_bytes, 0);
+    for invalid in ["0", "0.5B", "18446744073709551616B", "100 frogs"] {
+        assert!(
+            budgets
+                .save(&index, node, &budget.version, invalid)
+                .is_err()
+        );
+    }
+    let maximum = budgets
+        .save(&index, node, &budget.version, "18446744073709551615B")
+        .unwrap();
+    assert_eq!(maximum.limit_bytes, u64::MAX);
+    assert_eq!(
+        serde_json::to_value(&maximum).unwrap()["limit_bytes"],
+        u64::MAX.to_string()
+    );
+    assert!(
+        budgets
+            .remove(&index, node, maximum.id, &budget.version)
+            .is_err()
+    );
+    let coordinator = voldiq_core::operations::Coordinator::open(state.path()).unwrap();
+    let lease = coordinator.acquire().unwrap();
+    assert!(budgets.save(&index, node, &maximum.version, "1GB").is_err());
+    drop(lease);
+    budgets
+        .remove(&index, node, maximum.id, &maximum.version)
+        .unwrap();
+    assert!(
+        budgets
+            .read(&index, node, &history, false, &AtomicBool::new(false))
+            .unwrap()
+            .unwrap()
+            .budget
+            .is_none()
+    );
     let mut store = Store::open(state.path()).unwrap();
     let saved = store
         .add_favorite(&store.catalog().unwrap().revision, &index, node)
@@ -205,6 +250,11 @@ fn favorites_verify_indexed_and_full_current_identity_and_never_follow_replaceme
     drop(guard);
     std::fs::rename(&folder, root.path().join("moved")).unwrap();
     assert!(store.pin_favorite(&reference).is_err());
+    assert!(
+        budgets
+            .read(&index, node, &history, true, &AtomicBool::new(false))
+            .is_err()
+    );
     std::fs::create_dir(&folder).unwrap();
     assert!(store.pin_favorite(&reference).is_err());
     assert!(

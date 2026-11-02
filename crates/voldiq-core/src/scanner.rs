@@ -53,7 +53,8 @@ pub fn refresh_or_scan(
                 .max_entries
                 .unwrap_or(5_000_000)
                 .clamp(1, u32::MAX as usize);
-            if let Ok(updated) = crate::ntfs::refresh(&index, limit, cancel) {
+            if let Ok(mut updated) = crate::ntfs::refresh(&index, limit, cancel) {
+                updated.record_observation(cancel.load(Ordering::Relaxed));
                 let update = Progress {
                     previous: false,
                     phase: ScanPhase::Complete,
@@ -164,6 +165,7 @@ pub fn scan_live(
         exclusions: exclusions.clone(),
         snapshot_id: None,
         captured_caches: Vec::new(),
+        observation: None,
         ntfs_checkpoint: None,
     }));
     publish(shared.clone());
@@ -176,6 +178,10 @@ pub fn scan_live(
     if options.mode == crate::ScanMode::Auto
         && crate::ntfs::try_scan(&shared, limit, cancel, &mut progress, start)?
     {
+        shared
+            .write()
+            .map_err(|e| Error::Invalid(e.to_string()))?
+            .record_observation(cancel.load(Ordering::Relaxed));
         return Ok(shared);
     }
     let workers = if cancel.load(Ordering::Relaxed) {
@@ -192,6 +198,10 @@ pub fn scan_live(
         &mut progress,
         start,
     )?;
+    shared
+        .write()
+        .map_err(|e| Error::Invalid(e.to_string()))?
+        .record_observation(cancel.load(Ordering::Relaxed));
     Ok(shared)
 }
 pub(crate) fn modified(metadata: &std::fs::Metadata) -> Option<u64> {

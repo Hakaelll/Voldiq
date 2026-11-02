@@ -1,8 +1,13 @@
+mod budget_history;
 mod cache_evidence;
+pub(crate) use budget_history::HistoryPoint;
 #[cfg(windows)]
 mod resume;
 
-use crate::{Entry, Error, Issue, Kind, NodeId, Result, index::Index};
+use crate::{
+    Entry, Error, Issue, Kind, NodeId, Result,
+    index::{Index, Observation},
+};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::Serialize;
 use std::{
@@ -26,6 +31,7 @@ pub struct Scope {
 
 #[derive(Debug, Serialize)]
 pub struct Snapshot {
+    pub observation: Option<Observation>,
     pub id: i64,
     pub root_key: i64,
     pub root: String,
@@ -195,6 +201,14 @@ const NATIVE_STATE_SCHEMA: &str = "
 ALTER TABLE snapshot_versions ADD COLUMN native_state BLOB CHECK(native_state IS NULL OR length(native_state)=24);
 PRAGMA user_version=3;";
 
+const OBSERVATION_SCHEMA: &str = "
+ALTER TABLE snapshots ADD COLUMN observed_at INTEGER;
+ALTER TABLE snapshots ADD COLUMN observed_complete INTEGER;
+ALTER TABLE snapshots ADD COLUMN engine_version TEXT;
+ALTER TABLE snapshots ADD COLUMN accounting_version INTEGER;
+CREATE INDEX snapshots_observed ON snapshots(root_id,observed_at DESC,id DESC);
+PRAGMA user_version=7;";
+
 impl Store {
     pub(crate) fn history_read(&self) -> Result<rusqlite::Transaction<'_>> {
         Ok(self.connection.unchecked_transaction()?)
@@ -223,12 +237,12 @@ impl Store {
         let mut connection = Connection::open(path)?;
         crate::database::configure(&connection)?;
         let version: u32 = connection.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version < 6 {
+        if version < 7 {
             let transaction =
                 connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
             let version: u32 =
                 transaction.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-            if version > 6 {
+            if version > 7 {
                 return Err(Error::Invalid(
                     "Unsupported snapshot database version.".into(),
                 ));
@@ -251,8 +265,11 @@ impl Store {
             if version <= 5 {
                 transaction.execute_batch("ALTER TABLE snapshot_versions ADD COLUMN cloud INTEGER NOT NULL DEFAULT 0 CHECK(cloud BETWEEN 0 AND 5 AND (cloud<2 OR kind=2)); PRAGMA user_version=6;")?;
             }
+            if version <= 6 {
+                transaction.execute_batch(OBSERVATION_SCHEMA)?;
+            }
             transaction.commit()?;
-        } else if version != 6 {
+        } else if version != 7 {
             return Err(Error::Invalid(
                 "Unsupported snapshot database version.".into(),
             ));
@@ -306,6 +323,10 @@ impl Store {
             .duration_since(UNIX_EPOCH)
             .map_err(|e| Error::Invalid(e.to_string()))?
             .as_secs();
+        let observation = index.observation.as_ref();
+        if observation.is_some_and(|o| !valid_observation(o)) {
+            return Err(Error::Invalid("Invalid measurement provenance.".into()));
+        }
         self.connection.execute_batch("CREATE TEMP TABLE IF NOT EXISTS captured_paths(id INTEGER PRIMARY KEY); DELETE FROM captured_paths;")?;
         let transaction = self.connection.transaction()?;
         transaction.execute(
@@ -317,9 +338,10 @@ impl Store {
             params![encode(index.root.as_os_str()), identity, coverage],
             |r| r.get(0),
         )?;
-        transaction.execute("INSERT INTO snapshots(root_id,captured,logical,allocated,files,entries,complete,errors)
-            VALUES(?1,?2,?3,?4,?5,?6,?7,?8)", params![root_id, integer(captured)?, integer(root.logical)?, integer(root.allocated)?,
-                integer(root.files)?, position_integer(index.entries.len())?, !root.incomplete && index.error_count == 0, integer(index.error_count)?])?;
+        transaction.execute("INSERT INTO snapshots(root_id,captured,logical,allocated,files,entries,complete,errors,observed_at,observed_complete,engine_version,accounting_version)
+            VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)", params![root_id, integer(captured)?, integer(root.logical)?, integer(root.allocated)?,
+                integer(root.files)?, position_integer(index.entries.len())?, !root.incomplete && index.error_count == 0, integer(index.error_count)?,
+                observation.map(|o| integer(o.completed_at)).transpose()?, observation.map(|o| o.complete), observation.map(|o| &o.engine_version), observation.map(|o| i64::from(o.accounting_version))])?;
         let snapshot_id = transaction.last_insert_rowid();
         let mut paths = Vec::<i64>::with_capacity(index.entries.len());
         {
@@ -466,7 +488,7 @@ impl Store {
     }
 
     pub fn list(&self, offset: usize, limit: usize) -> Result<Vec<Snapshot>> {
-        let mut statement = self.connection.prepare("SELECT s.id,r.path,s.captured,s.logical,s.allocated,s.files,s.entries,s.complete,s.errors,s.root_id
+        let mut statement = self.connection.prepare("SELECT s.id,r.path,s.captured,s.logical,s.allocated,s.files,s.entries,s.complete,s.errors,s.root_id,s.observed_at,s.observed_complete,s.engine_version,s.accounting_version
             FROM snapshots s JOIN snapshot_roots r ON r.id=s.root_id ORDER BY s.id DESC LIMIT ?1 OFFSET ?2")?;
         let rows = statement.query_map(
             params![
@@ -477,6 +499,7 @@ impl Store {
                 let path: Vec<u8> = row.get(1)?;
                 Ok((
                     Snapshot {
+                        observation: read_observation(row, 10)?,
                         id: row.get(0)?,
                         root_key: row.get(9)?,
                         root: String::new(),
@@ -520,9 +543,9 @@ impl Store {
             return Err(Error::Invalid("Snapshot loading cancelled.".into()));
         }
         let _read_transaction = self.connection.unchecked_transaction()?;
-        let (root_id, path, identity, coverage, errors) = self.connection.query_row(
-            "SELECT s.root_id,r.path,r.identity,r.coverage,s.errors FROM snapshots s JOIN snapshot_roots r ON r.id=s.root_id WHERE s.id=?1",
-            [id], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Vec<u8>>(1)?, r.get::<_, Vec<u8>>(2)?, r.get::<_, Vec<u8>>(3)?, unsigned(r, 4)?)))?;
+        let (root_id, path, identity, coverage, errors, observation) = self.connection.query_row(
+            "SELECT s.root_id,r.path,r.identity,r.coverage,s.errors,s.observed_at,s.observed_complete,s.engine_version,s.accounting_version FROM snapshots s JOIN snapshot_roots r ON r.id=s.root_id WHERE s.id=?1",
+            [id], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Vec<u8>>(1)?, r.get::<_, Vec<u8>>(2)?, r.get::<_, Vec<u8>>(3)?, unsigned(r, 4)?, read_observation(r, 5)?)))?;
         if identity.len() != 16 {
             return Err(Error::Invalid("Invalid snapshot volume identity.".into()));
         }
@@ -532,6 +555,7 @@ impl Store {
             })?))
         };
         let mut index = Index {
+            observation,
             root: PathBuf::from(decode(&path)?),
             entries: Vec::new(),
             issues: Vec::new(),
@@ -852,6 +876,47 @@ fn encode_state(state: crate::FileState) -> Vec<u8> {
         state.change_time.to_le_bytes(),
     ]
     .concat()
+}
+
+fn valid_observation(value: &Observation) -> bool {
+    value.completed_at <= 253_402_300_799
+        && value.accounting_version > 0
+        && !value.engine_version.is_empty()
+        && value.engine_version.len() <= 128
+        && value.engine_version.chars().all(|ch| ch.is_ascii_graphic())
+}
+
+fn read_observation(
+    row: &rusqlite::Row<'_>,
+    start: usize,
+) -> rusqlite::Result<Option<Observation>> {
+    let at: Option<i64> = row.get(start)?;
+    let complete: Option<bool> = row.get(start + 1)?;
+    let engine: Option<String> = row.get(start + 2)?;
+    let accounting: Option<i64> = row.get(start + 3)?;
+    if at.is_none() && complete.is_none() && engine.is_none() && accounting.is_none() {
+        return Ok(None);
+    }
+    if let (Some(at), Some(complete), Some(engine_version), Some(accounting)) =
+        (at, complete, engine, accounting)
+        && let (Ok(completed_at), Ok(accounting_version)) =
+            (u64::try_from(at), u32::try_from(accounting))
+    {
+        let value = Observation {
+            completed_at,
+            complete,
+            engine_version,
+            accounting_version,
+        };
+        if valid_observation(&value) {
+            return Ok(Some(value));
+        }
+    }
+    Err(rusqlite::Error::FromSqlConversionFailure(
+        start,
+        rusqlite::types::Type::Integer,
+        Box::new(Error::Invalid("Invalid measurement provenance.".into())),
+    ))
 }
 
 fn decode_state(bytes: &[u8]) -> Result<crate::FileState> {

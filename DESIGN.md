@@ -357,6 +357,12 @@ The shared light surfaces now use warm whites and graphite text, while the exist
 
 The canonical implementation is frontend/styles.css, frontend/components/StorageMap.svelte and frontend/lib/storage-map.ts. Technical details and evidence are documented in docs/SKYLINE.md; that file does not define a second visual system.
 
+## Folder budgets and measured estimates
+
+The indexed workspace has one compact, expandable Folder budget panel above its main content. It follows the existing bordered panels, spacing, typography and theme tokens. Its summary shows logical path bytes, the saved limit, a bounded progress indicator and a written status. Partial or provisional coverage says At least; a proven excess remains visible without implying known remaining capacity. Limits belong to a verified native folder identity. Saving and removing a limit are explicit human actions with revision checks; historical views remain read-only.
+
+Opening the panel requests its detailed analysis. Forecasts use distinct, compatible measurement days rather than snapshot save times. Unavailable, stale, partial, variable and non-growing histories have specific messages. An estimate shows a calendar date, an observed-rate range and its measurement basis; it does not predict volume free space. Image-file equivalents disclose the first bounded name-ordered sample of actual indexed image-extension matches and their mean logical size. They do not identify content or assume a typical photo size. Native rendering, keyboard/focus and Windows scaling acceptance remain manual.
+
 ## Radial storage views
 
 Sunburst and Circles share the same bounded frontier, file-category palette, area metric, scope, selection, details, note previews and camera controls as Treemap. Sunburst assigns equal-area depth rings, with neutral parent bands and colored frontier sectors. Circles uses one square-root byte scale across all depths; ancestor outlines enclose descendants without counting their bytes again. Its legend discloses the measured packing fraction and distinguishes gaps from free disk space. Structural shapes remain selectable for folder navigation. Empty or unavailable geometry reports no invented packing percentage. Representation controls wrap within narrow panels, and List remains the keyboard-accessible equivalent. Geometry fixtures prove conservation, proportional area, containment, nonoverlap and picking; populated rendering, interaction and Windows scaling acceptance remain manual.

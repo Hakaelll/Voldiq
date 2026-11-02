@@ -248,6 +248,12 @@ export interface DuplicateItem {
 }
 
 export interface Snapshot {
+  observation: {
+    completed_at: number;
+    complete: boolean;
+    engine_version: string;
+    accounting_version: number;
+  } | null;
   id: number;
   root_key: number;
   root: string;
@@ -258,6 +264,53 @@ export interface Snapshot {
   entries: number;
   complete: boolean;
   errors: number;
+}
+export interface FolderBudget {
+  id: number;
+  path: string;
+  expression: string;
+  limit_bytes: string;
+  version: string;
+}
+export type ForecastReason =
+  | 'not_requested'
+  | 'no_budget'
+  | 'unmeasured'
+  | 'partial'
+  | 'insufficient_history'
+  | 'stale'
+  | 'volatile'
+  | 'not_growing'
+  | 'beyond_horizon'
+  | 'at_limit'
+  | 'incompatible';
+export interface BudgetReport {
+  detailed: boolean;
+  budget: FolderBudget | null;
+  coverage: 'complete' | 'partial' | 'provisional';
+  status: 'no_budget' | 'within' | 'at_limit' | 'exceeded' | 'unknown';
+  logical_bytes: string;
+  observed_percent: number | null;
+  source_snapshot: number | null;
+  observation: Snapshot['observation'];
+  forecast:
+    | { kind: 'unavailable'; reason: ForecastReason }
+    | {
+        kind: 'estimate';
+        as_of: number;
+        estimated_at: number;
+        earliest_at: number;
+        latest_at: number;
+        bytes_per_day: number;
+        samples: number;
+        span_days: number;
+      };
+  image_equivalent: {
+    sample_count: number;
+    matched_images: number;
+    mean_logical_bytes: string;
+    approximate_images: string;
+  } | null;
 }
 export interface SnapshotChange {
   path: string;

@@ -4,6 +4,7 @@ use std::path::PathBuf;
 mod rank;
 
 pub struct Index {
+    pub observation: Option<Observation>,
     pub root: PathBuf,
     pub entries: Vec<Entry>,
     pub issues: Vec<Issue>,
@@ -14,6 +15,16 @@ pub struct Index {
     pub snapshot_id: Option<i64>,
     pub captured_caches: Vec<crate::developer::CacheEvidence>,
     pub ntfs_checkpoint: Option<crate::ntfs::Checkpoint>,
+}
+
+pub const ACCOUNTING_VERSION: u32 = 1;
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+pub struct Observation {
+    pub completed_at: u64,
+    pub complete: bool,
+    pub engine_version: String,
+    pub accounting_version: u32,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -91,6 +102,52 @@ pub struct FileTypes {
 }
 
 impl Index {
+    pub(crate) fn record_observation(&mut self, cancelled: bool) {
+        self.observation = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .ok()
+            .map(|time| Observation {
+                completed_at: time.as_secs(),
+                complete: !cancelled
+                    && self.error_count == 0
+                    && self.entries.first().is_some_and(|root| !root.incomplete),
+                engine_version: env!("CARGO_PKG_VERSION").into(),
+                accounting_version: ACCOUNTING_VERSION,
+            });
+    }
+
+    pub(crate) fn pin_folder(&self, node: NodeId) -> Result<crate::agents::AuthorizedPath> {
+        let entry = self.entry(node)?;
+        let expected = if node == NodeId(0) {
+            self.root_identity
+        } else {
+            entry.file_state.map(|state| state.identity)
+        }
+        .ok_or_else(|| {
+            Error::Invalid("Folder identity was not captured. Rescan before continuing.".into())
+        })?;
+        self.pin_folder_expected(node, expected)
+    }
+    pub(crate) fn pin_folder_expected(
+        &self,
+        node: NodeId,
+        expected: (u64, u64),
+    ) -> Result<crate::agents::AuthorizedPath> {
+        let entry = self.entry(node)?;
+        if entry.kind != Kind::Directory {
+            return Err(Error::Invalid(
+                "This action requires an indexed local directory.".into(),
+            ));
+        }
+        let root = crate::agents::pin_directory(&self.root)?;
+        let folder = crate::agents::pin_directory(&self.path(node)?)?;
+        if Some(root.identity()) != self.root_identity || folder.identity() != expected {
+            return Err(Error::Invalid(
+                "Folder identity changed or was not captured. Rescan before continuing.".into(),
+            ));
+        }
+        Ok(folder)
+    }
     pub fn entry(&self, id: NodeId) -> Result<&Entry> {
         self.entries.get(id.0 as usize).ok_or_else(|| {
             Error::Invalid("Item is no longer in the index. Rescan and try again.".into())

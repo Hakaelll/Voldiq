@@ -58,6 +58,7 @@ fn fixture(shape: &str) -> (Index, NodeId, u64) {
         exclusions: Vec::new(),
         snapshot_id: None,
         captured_caches: Vec::new(),
+        observation: None,
         ntfs_checkpoint: None,
     };
     index.entries.push(entry(0, None, Kind::Directory));
@@ -204,6 +205,7 @@ fn check_extension_groups() -> Result<(), Box<dyn std::error::Error>> {
         exclusions: Vec::new(),
         snapshot_id: None,
         captured_caches: Vec::new(),
+        observation: None,
         ntfs_checkpoint: None,
     };
     for (position, name) in ["one.TXT", "two.txt", "three.Ä", "four.ä", "README", "file."]
