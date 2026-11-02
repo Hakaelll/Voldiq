@@ -12,6 +12,7 @@
   import { categoryPaint, type ColorMode, type StorageDepth } from '../lib/storage-map';
   import { visibleFileTypes } from '../lib/file-types';
   import { selectionOperation, type SelectionOperation, type SelectMany } from '../lib/exploration';
+  import type { MapCommandHandler } from '../lib/map-menu';
 
   let {
     volume,
@@ -23,6 +24,7 @@
     explored,
     onclearExplore,
     onselectMany,
+    oncommand,
     sizeMode,
     reduceMotion,
     animateNavigation,
@@ -51,6 +53,7 @@
     explored: ReadonlySet<number>;
     onclearExplore: () => void;
     onselectMany: SelectMany;
+    oncommand: MapCommandHandler;
     sizeMode: string;
     reduceMotion: boolean;
     animateNavigation: boolean;
@@ -193,6 +196,7 @@
           {explored}
           {onclearExplore}
           {onselectMany}
+          {oncommand}
           scopeAncestors={[directory.entry.id, ...directory.ancestors.map((entry) => entry.id)]}
           {onselect}
           onopen={(id) => onopen(id, true)}

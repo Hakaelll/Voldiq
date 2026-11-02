@@ -51,6 +51,15 @@
   import { bytes } from '../lib/types';
   import Icon from './Icon.svelte';
   import FolderNotePreview from './FolderNotePreview.svelte';
+  import MapContextMenu from './MapContextMenu.svelte';
+  import {
+    createMapMenu,
+    mapTarget,
+    menuCommand,
+    type MapMenuModel,
+    type MapCommand,
+    type MapCommandHandler,
+  } from '../lib/map-menu';
   import { getIndexContext, type IndexId } from '../lib/index-context';
   import {
     projectedSelection,
@@ -70,6 +79,7 @@
     scopeAncestors,
     onclearExplore,
     onselectMany,
+    oncommand,
     search = '',
     extension = '',
     withoutExtension = false,
@@ -93,6 +103,7 @@
     scopeAncestors: readonly number[];
     onclearExplore: () => void;
     onselectMany: SelectMany;
+    oncommand: MapCommandHandler;
     search?: string;
     extension?: string;
     withoutExtension?: boolean;
@@ -205,7 +216,48 @@
     depth,
     width,
     height,
+    heightMode,
+    relief,
   });
+  let contextMenu = $state.raw<{
+    model: MapMenuModel;
+    anchor: Point;
+    context: typeof gestureContext;
+  } | null>(null);
+  function closeMenu(restoreFocus = false): void {
+    if (!contextMenu) return;
+    contextMenu = null;
+    if (restoreFocus && canvas.isConnected) canvas.focus({ preventScroll: true });
+  }
+  function dismissMenu(owner: MapMenuModel, restoreFocus: boolean): void {
+    if (contextMenu?.model === owner) closeMenu(restoreFocus);
+  }
+  function openMenu(anchor: Point, rect: Rect | null): void {
+    cancelDrag();
+    const model = createMapMenu(rect, getIndexContext());
+    if (!model) return;
+    hovered = null;
+    lensAnchor = null;
+    contextMenu = { model, anchor, context: gestureContext };
+    schedule();
+  }
+  function keyboardMenu(): void {
+    const bounds = canvas.getBoundingClientRect();
+    openMenu(
+      { x: bounds.left + width / 2, y: bounds.top + height / 2 },
+      layout.rects.find((rect) => rect.id === selected) ??
+        layout.boundaries.find((rect) => rect.id === selected) ??
+        null,
+    );
+  }
+  function chooseMenu(owner: MapMenuModel, command: MapCommand): void {
+    const opened = contextMenu;
+    if (opened?.model !== owner) return;
+    const accepted =
+      opened.context === gestureContext ? menuCommand(owner, getIndexContext(), command) : null;
+    closeMenu(accepted !== null);
+    if (accepted) oncommand(accepted, owner.indexId);
+  }
   type Drag = {
     pointerId: number;
     start: Point;
@@ -229,6 +281,7 @@
     if (cameras.size > 48) cameras.delete(cameras.keys().next().value ?? '');
   }
   function fit(): void {
+    closeMenu();
     cancelDrag();
     camera = fitCamera(
       mode === 'city' && scene ? scene.bounds : { x: 0, y: 0, width: 1000, height: 700 },
@@ -315,6 +368,7 @@
     }
   }
   function zoom(factor: number, point = { x: width / 2, y: height / 2 }): void {
+    closeMenu();
     cancelDrag();
     camera = zoomCamera(camera, point, factor, fitted * 0.5, fitted * 12);
     saveCamera();
@@ -329,6 +383,7 @@
   }
   function pointerDown(event: PointerEvent): void {
     if (event.button !== 0 || dragging || preparing || failure) return;
+    closeMenu();
     canvas.focus({ preventScroll: true });
     const point = bounded(local(event));
     const base = {
@@ -351,6 +406,7 @@
     schedule();
   }
   function pointerMove(event: PointerEvent): void {
+    if (contextMenu) return;
     const point = local(event);
     if (dragging) {
       if (event.pointerId !== dragging.pointerId) return;
@@ -423,23 +479,23 @@
     );
   }
   function select(rect: Rect, open = false, operation: SelectionOperation = 'replace'): void {
-    if (rect.id === VORONOI_GROUP_ID) {
+    const target = mapTarget(rect.id);
+    if (!target) return;
+    if (target.kind === 'list') {
       onlist();
       return;
     }
-    if (rect.id < -1) {
-      onopen(-rect.id - 2);
-      return;
-    }
-    if (rect.id === -1) {
-      onlist();
-      return;
-    }
-    if (open && rect.directory) onopen(rect.id);
-    else onselect(rect.id, operation);
+    if (target.kind === 'contents' || (open && rect.directory)) onopen(target.id);
+    else onselect(target.id, operation);
   }
   function keyboard(event: KeyboardEvent): void {
     if (event.target !== canvas) return;
+    if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+      event.preventDefault();
+      event.stopPropagation();
+      keyboardMenu();
+      return;
+    }
     if (
       [
         '+',
@@ -471,6 +527,7 @@
       else if (explored.size) onclearExplore();
       else onback();
     } else if (event.key.startsWith('Arrow')) {
+      closeMenu();
       cancelDrag();
       camera = {
         ...camera,
@@ -485,6 +542,7 @@
     void gestureContext;
     untrack(() => {
       cancelDrag();
+      closeMenu();
       lensAnchor = null;
       toolMessage = '';
       toolIssue = false;
@@ -629,6 +687,7 @@
         camera,
       );
       if (target.x < 24 || target.x > width - 24 || target.y < 24 || target.y > height - 24) {
+        closeMenu();
         cancelDrag();
         camera = {
           ...camera,
@@ -835,8 +894,14 @@
       bind:this={canvas}
       tabindex="0"
       class:lasso={mode === 'treemap' && tool === 'lasso'}
-      aria-label={`${mode === 'city' ? 'Skyline' : mode === 'sunburst' ? 'Sunburst' : mode === 'circles' ? 'Nested circles' : mode === 'voronoi' ? 'Weighted Voronoi' : 'Treemap'}. Use the item list for keyboard selection. Arrow keys pan, plus and minus zoom, zero fits the map. Escape cancels an active gesture.`}
+      aria-label={`${mode === 'city' ? 'Skyline' : mode === 'sunburst' ? 'Sunburst' : mode === 'circles' ? 'Nested circles' : mode === 'voronoi' ? 'Weighted Voronoi' : 'Treemap'}. Use the item list for keyboard selection. Shift+F10 or the Menu key opens actions for the visible selected item or the map. Arrow keys pan, plus and minus zoom, zero fits the map. Escape cancels an active gesture.`}
       onkeydown={keyboard}
+      oncontextmenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (event.button === 0 && event.clientX === 0 && event.clientY === 0) keyboardMenu();
+        else openMenu({ x: event.clientX, y: event.clientY }, hit(local(event)));
+      }}
       onpointerdown={pointerDown}
       onpointermove={pointerMove}
       onpointerup={pointerUp}
@@ -1025,3 +1090,9 @@
     >
   </div>
 </section>
+{#if contextMenu}{#key contextMenu.model}<MapContextMenu
+      model={contextMenu.model}
+      anchor={contextMenu.anchor}
+      onchoose={chooseMenu}
+      ondismiss={dismissMenu}
+    />{/key}{/if}

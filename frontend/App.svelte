@@ -25,6 +25,7 @@
   import { overviewQueries, detailQueries } from './lib/queries';
   import { createNavigationRefresh } from './lib/navigation-refresh';
   import { scopedFileQuery } from './lib/file-query';
+  import type { MapCommand } from './lib/map-menu';
   import {
     emptyExploration,
     explorationIds,
@@ -540,21 +541,66 @@
         report(problem);
       }
   }
-  async function reveal(): Promise<void> {
-    if (details)
-      try {
-        await invokeIndexed('reveal_item', { id: details.entry.id });
-      } catch (problem) {
-        report(problem);
-      }
+  async function reveal(id: number): Promise<void> {
+    try {
+      await invokeIndexed('reveal_item', { id });
+    } catch (problem) {
+      report(problem);
+    }
   }
-  async function copy(): Promise<void> {
-    if (details?.path_exact)
-      try {
-        await navigator.clipboard.writeText(details.path);
-      } catch (problem) {
-        report(problem);
+  async function copy(id: number): Promise<void> {
+    const expectedIndex = indexId,
+      token = invalidateInteraction();
+    try {
+      const item =
+        details?.entry.id === id ? details : await detailQueries.request({ id, indexId }).result;
+      if (!item || token !== interactionToken || expectedIndex !== indexId || !ready) return;
+      if (!item.path_exact) {
+        error = 'This path contains non-Unicode characters and cannot be copied as text.';
+        return;
       }
+      await navigator.clipboard.writeText(item.path);
+    } catch (problem) {
+      if (token === interactionToken && expectedIndex === indexId) report(problem);
+    }
+  }
+  async function showFileList(): Promise<void> {
+    const token = invalidateInteraction();
+    explorerMap = false;
+    fileRepresentation = 'table';
+    view = 'explorer';
+    await tick();
+    if (
+      token === interactionToken &&
+      view === 'explorer' &&
+      !explorerMap &&
+      fileRepresentation === 'table'
+    )
+      fileWorkspace?.focus();
+  }
+  async function mapCommand(command: MapCommand, expectedIndex: IndexId): Promise<void> {
+    if (expectedIndex !== indexId || !ready) return;
+    switch (command.kind) {
+      case 'inspect':
+        await select(command.id);
+        return;
+      case 'open':
+        await open(command.id, true);
+        return;
+      case 'reveal':
+        await reveal(command.id);
+        return;
+      case 'copy':
+        await copy(command.id);
+        return;
+      case 'list':
+        await showFileList();
+        return;
+      default: {
+        const unreachable: never = command;
+        return unreachable;
+      }
+    }
   }
   async function inspectIssues(): Promise<void> {
     try {
@@ -1111,6 +1157,7 @@
                   {explored}
                   onclearExplore={clearExploration}
                   onselectMany={selectMany}
+                  oncommand={mapCommand}
                   {sizeMode}
                   {reduceMotion}
                   animateNavigation={mapNavigation}
@@ -1125,9 +1172,7 @@
                     void open(id, pointer);
                   }}
                   onlist={() => {
-                    explorerMap = false;
-                    fileRepresentation = 'table';
-                    view = 'explorer';
+                    void showFileList();
                   }}
                   ongrid={() => {
                     explorerMap = false;
@@ -1252,6 +1297,7 @@
                         : []}
                       onclearExplore={clearExploration}
                       onselectMany={selectMany}
+                      oncommand={mapCommand}
                       search={text}
                       {extension}
                       {withoutExtension}
@@ -1270,8 +1316,7 @@
                         void open(id, true);
                       }}
                       onlist={() => {
-                        explorerMap = false;
-                        fileRepresentation = 'table';
+                        void showFileList();
                       }}
                       ongrid={() => {
                         explorerMap = false;
@@ -1489,9 +1534,14 @@
                         }
                       }}><Icon name="trash" />Review cleanup</button
                     >
-                    <button onclick={reveal}><Icon name="external" />Show in Explorer</button
+                    <button
+                      onclick={() => {
+                        if (details) void reveal(details.entry.id);
+                      }}><Icon name="external" />Show in Explorer</button
                     ><button
-                      onclick={copy}
+                      onclick={() => {
+                        if (details) void copy(details.entry.id);
+                      }}
                       disabled={!details.path_exact}
                       title={details.path_exact
                         ? 'Copy path'
