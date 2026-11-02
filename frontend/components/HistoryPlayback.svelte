@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import HistoricalMap from './HistoricalMap.svelte';
   import { snapshotCaptureQueries } from '../lib/queries';
   import { bytes, date, type Snapshot, type SnapshotVisualFrame } from '../lib/types';
@@ -26,6 +26,7 @@
     | { kind: 'ready'; snapshot: number; frame: SnapshotVisualFrame }
     | { kind: 'failed'; snapshot: number; message: string };
   let model = $state.raw<Model>({ kind: 'loading' });
+  let region = $state<HTMLElement>();
   const current = $derived(
     model.kind !== 'loading' && model.snapshot === selected?.id ? model : null,
   );
@@ -45,11 +46,18 @@
   $effect(() => {
     const snapshot = selected?.id;
     void retry;
+    const retainFocus = region?.contains(document.activeElement) ?? false;
     model = { kind: 'loading' };
     if (!snapshot || disabled) return;
     let alive = true;
+    async function restoreFocus(): Promise<void> {
+      if (!retainFocus) return;
+      await tick();
+      if (alive && document.activeElement === document.body)
+        region?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus();
+    }
     void snapshotCaptureQueries.request({ snapshot }).result.then(
-      (value) => {
+      async (value) => {
         if (!alive) return;
         if (value?.snapshot === snapshot) model = { kind: 'ready', snapshot, frame: value };
         else {
@@ -60,12 +68,14 @@
           };
           playing = false;
         }
+        await restoreFocus();
       },
-      (problem: unknown) => {
+      async (problem: unknown) => {
         if (alive) {
           model = { kind: 'failed', snapshot, message: String(problem) };
           playing = false;
         }
+        await restoreFocus();
       },
     );
     return () => {
@@ -109,7 +119,7 @@
   }
 </script>
 
-<section class="panel snapshot-playback" aria-label="Recorded snapshot playback">
+<section class="panel snapshot-playback" aria-label="Recorded snapshot playback" bind:this={region}>
   <div class="snapshot-playback-toolbar">
     <button class="primary" onclick={toggle} disabled={disabled || ordered.length < 2}
       >{playing ? 'Pause' : 'Play'}</button

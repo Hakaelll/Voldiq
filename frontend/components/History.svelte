@@ -253,10 +253,17 @@
     if (alive)
       (region.querySelector<HTMLInputElement>('.snapshot-row input:checked') ?? region).focus();
   }
-  function startPlayback(): void {
+  async function startPlayback(): Promise<void> {
     resetComparison();
     focusedComparison = false;
     playback = true;
+    await tick();
+    if (alive && playback && document.activeElement === document.body)
+      (
+        region.querySelector<HTMLElement>(
+          '.snapshot-playback button:not(:disabled),.snapshot-playback select:not(:disabled)',
+        ) ?? region
+      ).focus();
   }
   async function cancelComparison(): Promise<void> {
     resetComparison();
