@@ -146,6 +146,33 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             .is_none()
     );
     assert_eq!(comparison.delta, 28);
+    let diary = store.diary(after, 0, 10, 5, &loading).unwrap().unwrap();
+    assert_eq!(diary.events.len(), 2);
+    let recorded = serde_json::to_value(&diary).unwrap();
+    assert_eq!(recorded["events"][0]["detail"]["kind"], "compared");
+    assert_eq!(recorded["events"][0]["detail"]["delta"], "28");
+    assert_eq!(recorded["events"][1]["detail"]["kind"], "baseline");
+    let scope = recorded["events"][0]["detail"]["comparison"]["changes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|entry| entry["path"].as_str().unwrap().ends_with("growth"))
+        .unwrap()["path_id"]
+        .as_str()
+        .unwrap();
+    let context = store
+        .visual_pair(before, after, Some(scope), None, false, &loading)
+        .unwrap()
+        .unwrap();
+    assert_eq!(context.before.logical.as_deref(), Some("12"));
+    assert_eq!(context.after.logical.as_deref(), Some("33"));
+    assert!(
+        store
+            .diary(after, 0, 1, 5, &loading)
+            .unwrap()
+            .unwrap()
+            .has_more
+    );
     assert_eq!(comparison.file_changes.added.logical, 14);
     assert_eq!(comparison.file_changes.added.files, 1);
     assert_eq!(comparison.file_changes.changed.delta, 21);
@@ -424,6 +451,11 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             .is_err()
     );
     assert!(store.compare(before, third, 0, 10).is_err());
+    let incompatible = store.diary(third, 0, 10, 5, &loading).unwrap().unwrap();
+    assert_eq!(
+        serde_json::to_value(&incompatible).unwrap()["events"][0]["detail"]["kind"],
+        "incompatible"
+    );
     let foreign = store
         .save(&capture(duplicates.path()), &loading, &[])
         .unwrap();
@@ -527,6 +559,127 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             .unwrap()
             .len(),
         33
+    );
+    let root = store.retention_settings(newest).unwrap().root_key;
+    connection.execute("UPDATE snapshot_versions SET modified=1709164800 WHERE path_id IN(SELECT id FROM snapshot_paths WHERE root_id=?1)", [root]).unwrap();
+    let candidates = store
+        .calendar_entries(newest, "2024-02", 29, 0, 4, &loading)
+        .unwrap()
+        .unwrap();
+    assert_eq!(candidates.total, 174);
+    for entry in &candidates.entries {
+        let id = entry.path_id.parse::<i64>().unwrap();
+        if entry.path.ends_with("UPPER.txt") {
+            connection.execute("UPDATE snapshot_versions SET kind=2,cloud=2,modified=NULL,incomplete=1 WHERE path_id=?1", [id]).unwrap();
+        }
+        if entry.path.ends_with("Résumé.txt") {
+            connection
+                .execute(
+                    "UPDATE snapshot_versions SET modified=1709251200 WHERE path_id=?1",
+                    [id],
+                )
+                .unwrap();
+        }
+        if entry.path.ends_with("added") {
+            connection
+                .execute(
+                    "UPDATE snapshot_versions SET modified=1706745600 WHERE path_id=?1",
+                    [id],
+                )
+                .unwrap();
+        }
+    }
+    connection
+        .execute(
+            "UPDATE snapshots SET complete=0,observed_complete=0 WHERE id=?1",
+            [newest],
+        )
+        .unwrap();
+    let calendar = store
+        .calendar(newest, "2024-02", &loading)
+        .unwrap()
+        .unwrap();
+    assert_eq!(calendar.days.len(), 29);
+    assert!(!calendar.capture.complete);
+    assert_eq!(
+        (calendar.total.files, calendar.total.logical.as_str()),
+        (174, "231")
+    );
+    assert_eq!(
+        (
+            calendar.days[0].totals.files,
+            calendar.days[0].totals.logical.as_str()
+        ),
+        (1, "14")
+    );
+    assert_eq!(
+        (
+            calendar.days[28].totals.files,
+            calendar.days[28].totals.logical.as_str()
+        ),
+        (171, "203")
+    );
+    assert_eq!(
+        (calendar.undated.files, calendar.undated.logical.as_str()),
+        (1, "7")
+    );
+    assert_eq!(
+        (calendar.outside.files, calendar.outside.logical.as_str()),
+        (1, "7")
+    );
+    let day = store
+        .calendar_entries(newest, "2024-02", 29, 0, 1, &loading)
+        .unwrap()
+        .unwrap();
+    assert_eq!(day.entries[0].logical, "33");
+    assert!(day.entries[0].path.ends_with("growth"));
+    assert!(day.has_more);
+    assert!(
+        store
+            .calendar_entries(newest, "2024-02", 30, 0, 1, &loading)
+            .is_err()
+    );
+    assert!(store.calendar(newest, "2024-13", &loading).is_err());
+    let epoch = candidates
+        .entries
+        .iter()
+        .find(|entry| entry.path.ends_with("Résumé.txt"))
+        .unwrap()
+        .path_id
+        .parse::<i64>()
+        .unwrap();
+    connection
+        .execute(
+            "UPDATE snapshot_versions SET modified=0 WHERE path_id=?1",
+            [epoch],
+        )
+        .unwrap();
+    let epoch = store
+        .calendar(newest, "1970-01", &loading)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        (
+            epoch.days[0].totals.files,
+            epoch.days[0].totals.logical.as_str()
+        ),
+        (1, "7")
+    );
+    assert_eq!(epoch.undated.files, 1);
+    assert!(
+        store
+            .calendar(-1, "invalid", &AtomicBool::new(true))
+            .unwrap()
+            .is_none()
+    );
+    assert_eq!(
+        store
+            .diary(foreign, 0, 10, 5, &loading)
+            .unwrap()
+            .unwrap()
+            .events
+            .len(),
+        1
     );
 }
 

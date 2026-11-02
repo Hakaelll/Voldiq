@@ -1,7 +1,12 @@
+mod activity;
 mod budget_history;
 mod cache_evidence;
 mod retention;
 mod visual;
+pub use activity::{
+    ActivityCapture, CalendarDay, CalendarEntry, CalendarPage, CalendarRead, CalendarReport,
+    CalendarRequest, CalendarTotals, CaptureAccounting, DiaryDetail, DiaryEvent, DiaryPage,
+};
 pub(crate) use budget_history::HistoryPoint;
 pub use retention::{RetentionPreview, RetentionResult, RetentionSettings};
 pub use visual::{Accounting, VisualFrame, VisualPair};
@@ -50,6 +55,7 @@ pub struct Snapshot {
 
 #[derive(Debug, Serialize)]
 pub struct Change {
+    pub path_id: String,
     pub path: String,
     pub kind: String,
     pub directory: bool,
@@ -697,6 +703,17 @@ impl Store {
             return Ok(None);
         }
         let _read_transaction = self.connection.unchecked_transaction()?;
+        self.compare_read(before, after, offset, limit, cancel)
+    }
+
+    fn compare_read(
+        &self,
+        before: i64,
+        after: i64,
+        offset: usize,
+        limit: usize,
+        cancel: &AtomicBool,
+    ) -> Result<Option<Comparison>> {
         let summary = |id| -> Result<(i64, u64, bool, Option<Observation>)> {
             Ok(self.connection.query_row(
                 "SELECT root_id,logical,complete,observed_at,observed_complete,engine_version,accounting_version FROM snapshots WHERE id=?1",
@@ -819,6 +836,7 @@ impl Store {
                 _ => "changed",
             };
             changes.push(Change {
+                path_id: path.to_string(),
                 path: self.path(root, path)?.to_string_lossy().into_owned(),
                 kind: change.into(),
                 directory: kind == 0,

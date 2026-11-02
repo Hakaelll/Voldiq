@@ -21,6 +21,12 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     let state = tempfile::tempdir().unwrap();
     let source = tempfile::tempdir().unwrap();
     std::fs::write(source.path().join("measured.txt"), [1; 11]).unwrap();
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(source.path().join("measured.txt"))
+        .unwrap()
+        .set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(1709164800))
+        .unwrap();
     let mut registry = Registry::open(&state.path().join("agents.db")).unwrap();
     let provisioned = registry
         .provision(
@@ -112,6 +118,29 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     };
     let stats = call(&client, "voldiq_stats", json!({"snapshot_id":snapshot})).await;
     assert_eq!(stats.structured_content.unwrap()["result"]["logical"], 11);
+    assert!(tools.iter().any(|tool| tool.name == "voldiq_calendar"));
+    assert!(tools.iter().any(|tool| tool.name == "voldiq_diary"));
+    let calendar = call(
+        &client,
+        "voldiq_calendar",
+        json!({"snapshot_id":snapshot,"month":"2024-02"}),
+    )
+    .await;
+    assert_ne!(calendar.is_error, Some(true));
+    assert_eq!(
+        calendar.structured_content.unwrap()["result"]["report"]["days"][28]["totals"],
+        json!({"files":1,"logical":"11"})
+    );
+    let invalid_calendar = call(
+        &client,
+        "voldiq_calendar",
+        json!({"snapshot_id":snapshot,"month":"2024-02","offset":0}),
+    )
+    .await;
+    assert_eq!(
+        invalid_calendar.structured_content.unwrap()["error"]["code"],
+        "invalid_arguments"
+    );
     let budget = call(
         &client,
         "voldiq_folder_budget",
@@ -139,6 +168,12 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     std::fs::create_dir(&private).unwrap();
     let extra = source.path().join("history-added.data");
     std::fs::write(&extra, [2; 5]).unwrap();
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(&extra)
+        .unwrap()
+        .set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(1709164800))
+        .unwrap();
     let index = voldiq_core::scanner::scan(
         source.path(),
         &Default::default(),
@@ -151,6 +186,37 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         .save(&index, &std::sync::atomic::AtomicBool::new(false), &[])
         .unwrap();
     std::fs::remove_file(extra).unwrap();
+    let day = call(
+        &client,
+        "voldiq_calendar",
+        json!({"snapshot_id":later,"month":"2024-02","day":29,"limit":100}),
+    )
+    .await;
+    assert_ne!(day.is_error, Some(true));
+    let day = day.structured_content.unwrap();
+    assert_eq!(day["result"]["page"]["total"], 2);
+    assert_eq!(
+        day["result"]["page"]["entries"].as_array().unwrap().len(),
+        1
+    );
+    let diary = call(
+        &client,
+        "voldiq_diary",
+        json!({"snapshot_id":later,"limit":10}),
+    )
+    .await;
+    assert_ne!(diary.is_error, Some(true));
+    let diary = diary.structured_content.unwrap();
+    assert_eq!(diary["result"]["events"].as_array().unwrap().len(), 1);
+    assert_eq!(diary["result"]["events"][0]["detail"]["delta"], "5");
+    assert_eq!(
+        diary["result"]["events"][0]["detail"]["comparison"]["changes"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(diary["result"]["has_more"], true);
     let compared = call(
         &client,
         "voldiq_compare",
@@ -195,6 +261,22 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
             .is_err()
     );
     let cancelled = std::sync::atomic::AtomicBool::new(true);
+    assert!(
+        reader
+            .calendar(
+                voldiq_core::snapshots::CalendarRequest::Month {
+                    snapshot,
+                    month: "2024-02".into()
+                },
+                &std::sync::atomic::AtomicBool::new(false)
+            )
+            .is_err()
+    );
+    assert!(
+        reader
+            .diary(snapshot, 0, 5, &std::sync::atomic::AtomicBool::new(false))
+            .is_err()
+    );
     let reader = voldiq_core::service::AgentService::new(
         state.path().to_owned(),
         registry
@@ -226,6 +308,19 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         .unwrap();
     for (a, b) in [(snapshot, foreign), (foreign, snapshot)] {
         let rejected = call(&client, "voldiq_compare", json!({"before":a,"after":b})).await;
+        assert_eq!(
+            rejected.structured_content.unwrap()["error"]["code"],
+            "not_authorized_or_unavailable"
+        );
+    }
+    for (name, args) in [
+        (
+            "voldiq_calendar",
+            json!({"snapshot_id":foreign,"month":"2024-02"}),
+        ),
+        ("voldiq_diary", json!({"snapshot_id":foreign})),
+    ] {
+        let rejected = call(&client, name, args).await;
         assert_eq!(
             rejected.structured_content.unwrap()["error"]["code"],
             "not_authorized_or_unavailable"
@@ -397,6 +492,19 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         [1; 11]
     );
     registry.revoke(provisioned.id).unwrap();
+    for (name, args) in [
+        (
+            "voldiq_calendar",
+            json!({"snapshot_id":snapshot,"month":"invalid"}),
+        ),
+        ("voldiq_diary", json!({"snapshot_id":snapshot})),
+    ] {
+        let rejected = call(&client, name, args).await;
+        assert_eq!(
+            rejected.structured_content.unwrap()["error"]["code"],
+            "not_authorized_or_unavailable"
+        );
+    }
     let revoked_comparison = call(
         &client,
         "voldiq_compare",

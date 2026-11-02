@@ -68,12 +68,12 @@ pub(super) fn bytes(value: &str, offset: usize) -> Result<ByteThreshold, QueryEr
     })
 }
 
-pub(super) struct DateValue {
+pub(crate) struct DateValue {
     pub start: u64,
     pub end: Option<u64>,
 }
 
-pub(super) fn date(value: &str, offset: usize) -> Result<DateValue, QueryError> {
+pub(crate) fn date(value: &str, offset: usize) -> Result<DateValue, QueryError> {
     let error = || {
         QueryError::new(
             offset,

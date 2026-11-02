@@ -435,6 +435,89 @@ impl AgentService {
         Ok(result)
     }
 
+    pub fn calendar(
+        &self,
+        request: crate::snapshots::CalendarRequest,
+        cancel: &AtomicBool,
+    ) -> Result<Option<crate::snapshots::CalendarRead>> {
+        use crate::snapshots::{CalendarRead, CalendarRequest};
+        let snapshot = match &request {
+            CalendarRequest::Month { snapshot, .. } | CalendarRequest::Day { snapshot, .. } => {
+                *snapshot
+            }
+        };
+        self.read_activity(snapshot, cancel, |store, page_size| match request {
+            CalendarRequest::Month { snapshot, month } => store
+                .calendar(snapshot, &month, cancel)
+                .map(|report| report.map(|report| CalendarRead::Month { report })),
+            CalendarRequest::Day {
+                snapshot,
+                month,
+                day,
+                offset,
+                limit,
+            } => {
+                if !(1..=100).contains(&limit) {
+                    return Err(Error::Invalid(
+                        "Calendar page limit must be from 1 to 100.".into(),
+                    ));
+                }
+                store
+                    .calendar_entries(snapshot, &month, day, offset, limit.min(page_size), cancel)
+                    .map(|page| page.map(|page| CalendarRead::Day { page }))
+            }
+        })
+    }
+
+    pub fn diary(
+        &self,
+        snapshot: i64,
+        offset: usize,
+        limit: usize,
+        cancel: &AtomicBool,
+    ) -> Result<Option<crate::snapshots::DiaryPage>> {
+        self.read_activity(snapshot, cancel, |store, page_size| {
+            if !(1..=10).contains(&limit) {
+                return Err(Error::Invalid(
+                    "Diary page limit must be from 1 to 10.".into(),
+                ));
+            }
+            store.diary(
+                snapshot,
+                offset,
+                limit.min(page_size),
+                5.min(page_size),
+                cancel,
+            )
+        })
+    }
+
+    fn read_activity<T>(
+        &self,
+        snapshot: i64,
+        cancel: &AtomicBool,
+        read: impl FnOnce(&Store, usize) -> Result<Option<T>>,
+    ) -> Result<Option<T>> {
+        let registry = self.registry()?;
+        let policy = registry.policy(&self.principal, Capability::Metadata)?;
+        if snapshot <= 0 {
+            return Err(Error::Invalid("A positive snapshot ID is required.".into()));
+        }
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        let store = Store::open(&self.directory.directory().join("snapshots.db"))?;
+        let scope = store.scope(snapshot).map_err(|_| denied())?;
+        let _pin = registry.authorize_snapshot(&self.principal, &scope)?;
+        let result = read(&store, policy.limits().page_size)?;
+        let registry = self.registry()?;
+        let _check = registry.authorize_snapshot(&self.principal, &scope)?;
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        Ok(result)
+    }
+
     pub fn stats(&self, snapshot: i64) -> Result<Stats> {
         let index = self.index(snapshot)?;
         let root = index.entry(crate::NodeId(0))?;

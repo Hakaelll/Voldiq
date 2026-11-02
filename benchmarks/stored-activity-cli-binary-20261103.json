@@ -1,0 +1,11 @@
+{
+  "checkedUtc": "2026-11-02T23:31:43.6982677Z",
+  "checkoutCommit": "77b6dbf5bfa3d3004b3b2b86938a3a552eaf4396",
+  "command": "target/release/voldiq-cli.exe --help",
+  "executableSha256": "554C8F77003A2D3820264F53D4D4AAE5B466A9846938270A67BE632F140F6B2D",
+  "activityCommands": [
+    "calendar <snapshot_id> <YYYY-MM> [day] [offset] [limit]",
+    "diary <snapshot_id> [offset] [limit]"
+  ],
+  "scope": "Actual headless binary help. Real authorized calendar/diary calls are exercised by the retained CLI and official SDK fixtures in the full integration gate."
+}

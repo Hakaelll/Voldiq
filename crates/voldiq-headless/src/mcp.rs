@@ -77,6 +77,27 @@ fn comparison_limit() -> usize {
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct CalendarArgs {
+    snapshot_id: i64,
+    month: String,
+    day: Option<u8>,
+    offset: Option<usize>,
+    limit: Option<usize>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DiaryArgs {
+    snapshot_id: i64,
+    #[serde(default)]
+    offset: usize,
+    #[serde(default = "diary_limit")]
+    limit: usize,
+}
+fn diary_limit() -> usize {
+    5
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct DetailsArgs {
     snapshot_id: i64,
     node_id: voldiq_core::NodeId,
@@ -201,6 +222,53 @@ fn invoke(
                     .map_err(unavailable)?,
             )
             .map_err(unavailable)
+        }
+        "voldiq_calendar" => {
+            use voldiq_core::snapshots::CalendarRequest;
+            let args: CalendarArgs = parse(args)?;
+            let request = if let Some(day) = args.day {
+                CalendarRequest::Day {
+                    snapshot: args.snapshot_id,
+                    month: args.month,
+                    day,
+                    offset: args.offset.unwrap_or(0),
+                    limit: args.limit.unwrap_or(100),
+                }
+            } else {
+                if args.offset.is_some() || args.limit.is_some() {
+                    return Err(super::failure(
+                        "invalid_arguments",
+                        "Day is required when paging calendar entries.",
+                    ));
+                }
+                CalendarRequest::Month {
+                    snapshot: args.snapshot_id,
+                    month: args.month,
+                }
+            };
+            let result = service
+                .calendar(request, cancel)
+                .map_err(query_unavailable)?
+                .ok_or_else(|| {
+                    super::failure(
+                        "calendar_cancelled",
+                        "Calendar query cancelled; no partial result is returned.",
+                    )
+                })?;
+            serde_json::to_value(result).map_err(unavailable)
+        }
+        "voldiq_diary" => {
+            let args: DiaryArgs = parse(args)?;
+            let result = service
+                .diary(args.snapshot_id, args.offset, args.limit, cancel)
+                .map_err(query_unavailable)?
+                .ok_or_else(|| {
+                    super::failure(
+                        "diary_cancelled",
+                        "Diary query cancelled; no partial result is returned.",
+                    )
+                })?;
+            serde_json::to_value(result).map_err(unavailable)
         }
         "voldiq_compare" => {
             let args: ComparisonArgs = parse(args)?;
@@ -361,7 +429,10 @@ impl ServerHandler for Server {
             .into());
         }
         let service = self.service.clone();
-        let comparison = request.name == "voldiq_compare";
+        let cancellable_read = matches!(
+            request.name.as_ref(),
+            "voldiq_compare" | "voldiq_calendar" | "voldiq_diary"
+        );
         let cancel = Arc::new(AtomicBool::new(false));
         let _cancel_on_drop = CancelReadOnDrop(cancel.clone());
         let worker_cancel = cancel.clone();
@@ -375,7 +446,7 @@ impl ServerHandler for Server {
             let _permit = permit;
             invoke(&service, &request.name, args, &worker_cancel)
         });
-        let result = if comparison {
+        let result = if cancellable_read {
             tokio::select! {
                 result = &mut worker => result,
                 _ = context.ct.cancelled() => { cancel.store(true, Ordering::Relaxed); worker.await }
@@ -420,6 +491,8 @@ fn tools() -> Vec<Tool> {
         ("voldiq_folder_budget", "Read current logical-byte folder limit, scoped indexed usage, disclosed image-extension sample and a qualified observed-rate forecast. Requires Metadata and the exact current folder identity. Unavailable history never becomes a deadline. Cannot change limits or approve/execute operations.", json!({"snapshot_id":integer,"node_id":{"type":"integer","minimum":0,"maximum":4294967295u64}}), json!(["snapshot_id","node_id"])),
         ("voldiq_history", "List only snapshots with authorized native identity and exclusion coverage, including desktop captures. Offsets count visible captures; limited indicates a metadata work cap.", json!({"offset":{"type":"integer","minimum":0,"maximum":10000},"limit":{"type":"integer","minimum":1,"maximum":100}}), json!([])),
         ("voldiq_compare", "Compare two independently authorized snapshots with the same native root and exclusions. Returns bounded recorded logical-size changes, coverage and accounting qualification; missing records do not prove deletion. Metadata only; no file operation or approval. Request cancellation is cooperative.", json!({"before":integer,"after":integer,"offset":{"type":"integer","minimum":0,"maximum":10000},"limit":{"type":"integer","minimum":1,"maximum":200,"default":50}}), json!(["before","after"])),
+        ("voldiq_calendar", "Read UTC last-modification cohorts from one authorized stored capture. Logical file-path sizes are not bytes written. Includes unknown dates, outside-month metadata, coverage and accounting. Add day to page recorded file/placeholder metadata; day is required for offset/limit. No content reads or file operation.", json!({"snapshot_id":integer,"month":{"type":"string","pattern":"^[0-9]{4}-[0-9]{2}$","maxLength":7},"day":{"type":"integer","minimum":1,"maximum":31},"offset":{"type":"integer","minimum":0,"maximum":10000},"limit":{"type":"integer","minimum":1,"maximum":100}}), json!(["snapshot_id","month"])),
+        ("voldiq_diary", "Read adjacent retained observations in the authorized capture's root/identity/exclusion group, through that capture. Paged baselines/comparisons retain partial/unknown/incompatible evidence and opaque historical context IDs. Does not establish who caused a change, bytes written, current paths or file-operation authority.", json!({"snapshot_id":integer,"offset":{"type":"integer","minimum":0,"maximum":10000},"limit":{"type":"integer","minimum":1,"maximum":10,"default":5}}), json!(["snapshot_id"])),
         ("voldiq_plan_prepare", "Prepare an immutable recycling manifest from exact indexed file IDs, with fresh scope/identity/protection validation. Changes no files and grants no approval.", json!({"snapshot_id":integer,"node_ids":{"type":"array","minItems":1,"maxItems":500,"uniqueItems":true,"items":{"type":"integer","minimum":0,"maximum":4294967295u64}}}), json!(["snapshot_id","node_ids"])),
         ("voldiq_plan_get", "Read this connection's exact manifest and current state. An approved row is not execution authority.", json!({"plan_id":plan_id}), json!(["plan_id"])),
         ("voldiq_plan_execute", "Queue one exact human-approved recycling plan in the open Voldiq desktop. Requires ExecuteApproved and a live independent human session; cannot approve, expand or permanently delete. Poll plan_get for actual results; repeat calls do not repeat execution.", json!({"plan_id":plan_id,"manifest_hash":{"type":"string","pattern":"^[a-f0-9]{64}$"}}), json!(["plan_id","manifest_hash"])),

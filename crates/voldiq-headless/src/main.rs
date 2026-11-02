@@ -36,7 +36,7 @@ type CliError = (&'static str, String, i32);
 async fn run(args: &mut Vec<String>) -> Result<Option<Value>, CliError> {
     if args.is_empty() || args == &["--help"] {
         return Ok(Some(success(
-            json!({"commands":["capabilities","translate <description>","scan <root> [--wait]","query <snapshot_id> [JSON filters]","stats <snapshot_id>","history [offset] [limit]","compare <before_id> <after_id> [offset] [limit]","details <snapshot_id> <node_id>","folder <snapshot_id> <node_id> [--note]","budget <snapshot_id> <node_id>","jobs <job_id>","cancel <job_id>","plan prepare <snapshot_id> <JSON node IDs>","plan get <plan_id>","plan request <plan_id>","plan execute <plan_id> <manifest_hash>","plan cancel <plan_id> <manifest_hash>","plan audit <plan_id> [after_sequence] [limit]","mcp serve --stdio"],"state":"--state <directory> before command (default: Voldiq local application data)","authentication":"Human-provisioned VOLDIQ_AGENT_TOKEN environment variable. No credential arguments or approval bypass."}),
+            json!({"commands":["capabilities","translate <description>","scan <root> [--wait]","query <snapshot_id> [JSON filters]","stats <snapshot_id>","history [offset] [limit]","compare <before_id> <after_id> [offset] [limit]","calendar <snapshot_id> <YYYY-MM> [day] [offset] [limit]","diary <snapshot_id> [offset] [limit]","details <snapshot_id> <node_id>","folder <snapshot_id> <node_id> [--note]","budget <snapshot_id> <node_id>","jobs <job_id>","cancel <job_id>","plan prepare <snapshot_id> <JSON node IDs>","plan get <plan_id>","plan request <plan_id>","plan execute <plan_id> <manifest_hash>","plan cancel <plan_id> <manifest_hash>","plan audit <plan_id> [after_sequence] [limit]","mcp serve --stdio"],"state":"--state <directory> before command (default: Voldiq local application data)","authentication":"Human-provisioned VOLDIQ_AGENT_TOKEN environment variable. No credential arguments or approval bypass."}),
         )));
     }
     let directory = if args.first().is_some_and(|arg| arg == "--state") {
@@ -150,26 +150,76 @@ async fn run(args: &mut Vec<String>) -> Result<Option<Value>, CliError> {
             if before == after || offset > 10_000 || !(1..=200).contains(&limit) {
                 return Err(arguments());
             }
-            let cancel = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
-            let worker_cancel = cancel.clone();
-            let reading = service.clone();
-            let mut worker = tokio::task::spawn_blocking(move || {
-                reading.compare_snapshots(before, after, offset, limit, &worker_cancel)
-            });
-            let result = tokio::select! {
-                result = &mut worker => result,
-                signal = tokio::signal::ctrl_c() => {
-                    signal.map_err(|_| operation())?;
-                    cancel.store(true, std::sync::atomic::Ordering::Relaxed);
-                    worker.await
+            read_history(
+                service.clone(),
+                ("comparison_cancelled", "Comparison cancelled."),
+                move |service, cancel| {
+                    service.compare_snapshots(before, after, offset, limit, cancel)
+                },
+            )
+            .await?
+        }
+        ("calendar", 3..=6) => {
+            use voldiq_core::snapshots::CalendarRequest;
+            let snapshot = number(&args[1])?;
+            let month = args[2].clone();
+            let request = if let Some(day) = args.get(3) {
+                let day = day.parse::<u8>().map_err(|_| arguments())?;
+                let offset = args
+                    .get(4)
+                    .map(|value| value.parse::<usize>())
+                    .transpose()
+                    .map_err(|_| arguments())?
+                    .unwrap_or(0);
+                let limit = args
+                    .get(5)
+                    .map(|value| value.parse::<usize>())
+                    .transpose()
+                    .map_err(|_| arguments())?
+                    .unwrap_or(100);
+                if !(1..=31).contains(&day) || offset > 10000 || !(1..=100).contains(&limit) {
+                    return Err(arguments());
                 }
+                CalendarRequest::Day {
+                    snapshot,
+                    month,
+                    day,
+                    offset,
+                    limit,
+                }
+            } else {
+                CalendarRequest::Month { snapshot, month }
+            };
+            read_history(
+                service.clone(),
+                ("calendar_cancelled", "Calendar query cancelled."),
+                move |service, cancel| service.calendar(request, cancel),
+            )
+            .await?
+        }
+        ("diary", 2..=4) => {
+            let snapshot = number(&args[1])?;
+            let offset = args
+                .get(2)
+                .map(|value| value.parse::<usize>())
+                .transpose()
+                .map_err(|_| arguments())?
+                .unwrap_or(0);
+            let limit = args
+                .get(3)
+                .map(|value| value.parse::<usize>())
+                .transpose()
+                .map_err(|_| arguments())?
+                .unwrap_or(5);
+            if offset > 10000 || !(1..=10).contains(&limit) {
+                return Err(arguments());
             }
-            .map_err(|_| operation())?
-            .map_err(|_| operation())?;
-            if cancel.load(std::sync::atomic::Ordering::Relaxed) || result.is_none() {
-                return Err(("comparison_cancelled", "Comparison cancelled.".into(), 130));
-            }
-            serde_json::to_value(result).map_err(|_| operation())?
+            read_history(
+                service.clone(),
+                ("diary_cancelled", "Diary query cancelled."),
+                move |service, cancel| service.diary(snapshot, offset, limit, cancel),
+            )
+            .await?
         }
         ("stats", 2) => {
             serde_json::to_value(service.stats(number(&args[1])?).map_err(|_| operation())?)
@@ -264,6 +314,32 @@ async fn run(args: &mut Vec<String>) -> Result<Option<Value>, CliError> {
         _ => return Err(arguments()),
     };
     Ok(Some(success(value)))
+}
+
+async fn read_history<T: serde::Serialize + Send + 'static>(
+    service: AgentService,
+    cancelled: (&'static str, &'static str),
+    read: impl FnOnce(&AgentService, &std::sync::atomic::AtomicBool) -> voldiq_core::Result<Option<T>>
+    + Send
+    + 'static,
+) -> Result<Value, CliError> {
+    let cancel = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let worker_cancel = cancel.clone();
+    let mut worker = tokio::task::spawn_blocking(move || read(&service, &worker_cancel));
+    let result = tokio::select! {
+        result = &mut worker => result,
+        signal = tokio::signal::ctrl_c() => {
+            signal.map_err(|_| operation())?;
+            cancel.store(true,std::sync::atomic::Ordering::Relaxed);
+            worker.await
+        }
+    }
+    .map_err(|_| operation())?
+    .map_err(query_operation)?;
+    if cancel.load(std::sync::atomic::Ordering::Relaxed) || result.is_none() {
+        return Err((cancelled.0, cancelled.1.into(), 130));
+    }
+    serde_json::to_value(result).map_err(|_| operation())
 }
 
 fn number(value: &str) -> Result<i64, CliError> {

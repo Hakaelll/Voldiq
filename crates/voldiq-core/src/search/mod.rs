@@ -2,6 +2,7 @@ mod glob;
 mod lexer;
 mod numbers;
 mod translation;
+pub(crate) use numbers::date as utc_date;
 pub use translation::{Translation, UnparsedSpan, translate};
 
 use crate::{Entry, Kind, cloud::CloudFilter, index::Query};

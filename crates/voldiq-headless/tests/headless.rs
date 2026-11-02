@@ -7,6 +7,12 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     let state = tempfile::tempdir().unwrap();
     let source = tempfile::tempdir().unwrap();
     std::fs::write(source.path().join("selected.data"), b"fixture").unwrap();
+    std::fs::OpenOptions::new()
+        .write(true)
+        .open(source.path().join("selected.data"))
+        .unwrap()
+        .set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(1709164800))
+        .unwrap();
     let mut registry = Registry::open(&state.path().join("agents.db")).unwrap();
     let provisioned = registry
         .provision(
@@ -50,6 +56,23 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     )
     .unwrap();
     let node = files["result"]["items"][0]["id"].as_u64().unwrap();
+    let calendar = run(&["calendar", &snapshot.to_string(), "2024-02"]);
+    assert!(calendar.status.success());
+    let calendar: Value = serde_json::from_slice(&calendar.stdout).unwrap();
+    assert_eq!(
+        calendar["result"]["report"]["days"][28]["totals"],
+        json!({"files":1,"logical":"7"})
+    );
+    let day = run(&["calendar", &snapshot.to_string(), "2024-02", "29", "0", "1"]);
+    assert!(day.status.success());
+    let day: Value = serde_json::from_slice(&day.stdout).unwrap();
+    assert_eq!(day["result"]["page"]["entries"][0]["logical"], "7");
+    assert_eq!(
+        run(&["calendar", &snapshot.to_string(), "2024-02", "30"])
+            .status
+            .code(),
+        Some(2)
+    );
     let budget = run(&["budget", &snapshot.to_string(), "0"]);
     assert!(budget.status.success());
     let budget: Value = serde_json::from_slice(&budget.stdout).unwrap();
@@ -75,6 +98,10 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
         .save(&next_index, &std::sync::atomic::AtomicBool::new(false), &[])
         .unwrap();
     std::fs::remove_file(extra).unwrap();
+    let diary = run(&["diary", &later.to_string()]);
+    assert!(diary.status.success());
+    let diary: Value = serde_json::from_slice(&diary.stdout).unwrap();
+    assert_eq!(diary["result"]["events"][0]["detail"]["delta"], "5");
     let compared = run(&[
         "compare",
         &snapshot.to_string(),
@@ -139,6 +166,13 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
             Some(4)
         );
     }
+    assert_eq!(
+        run(&["calendar", &foreign.to_string(), "2024-02"])
+            .status
+            .code(),
+        Some(4)
+    );
+    assert_eq!(run(&["diary", &foreign.to_string()]).status.code(), Some(4));
     let translated = run(&["translate", "archivos mayores de 1 GiB"]);
     assert!(translated.status.success());
     let translated: Value = serde_json::from_slice(&translated.stdout).unwrap();

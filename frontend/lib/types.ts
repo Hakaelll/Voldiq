@@ -313,6 +313,7 @@ export interface BudgetReport {
   } | null;
 }
 export interface SnapshotChange {
+  path_id: string;
   path: string;
   kind: 'added' | 'removed' | 'changed' | 'unobserved' | 'newly_observed';
   directory: boolean;
