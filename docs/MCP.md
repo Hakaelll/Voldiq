@@ -47,7 +47,7 @@ This example forwards an environment variable by name, without embedding its val
 | `voldiq_job_get` | Metadata | Owner-scoped job, progress, terminal state, snapshot ID |
 | `voldiq_job_cancel` | Scan | Cooperative cancellation request for an owned job |
 | `voldiq_stats` | Metadata | Indexed logical bytes, unique known allocation or null, counts and coverage |
-| `voldiq_query` | Metadata | Bounded page with explicit structured filters |
+| `voldiq_query` | Metadata | Bounded page with shared structured filters and advanced expression |
 | `voldiq_details` | Metadata | One indexed entry, path and ancestor metadata |
 | `voldiq_folder_metadata` | Metadata; ReadContent to include note text | Current protection status and optional plain-text note for the exact indexed directory identity |
 | `voldiq_history` | Metadata | Paged compatible snapshots, including desktop captures |
@@ -58,13 +58,35 @@ This example forwards an environment variable by name, without embedding its val
 | `voldiq_plan_execute` | ExecuteApproved + Metadata | Queues the exact plan ID and manifest hash for the desktop; returns `dispatch: queued` or an existing state |
 | `voldiq_plan_cancel` | ExecuteApproved + Metadata | Cancels an owned queued plan or requests a running worker to stop safely |
 
-All calls authorize in the backend. A client name, root announcement or snapshot ID grants no permission. Query pages use `query.offset` and `query.limit`; `total` and `largest` refer only to the authorized indexed dataset. Unknown fields and unsupported sort names are rejected. The advanced text query parser is still pending; `query.text` currently means literal name search.
+All calls authorize in the backend. A client name, root announcement or snapshot ID grants no permission. Query pages use `query.offset` and `query.limit`; `total` and `largest` refer only to the authorized indexed dataset. Unknown fields and unsupported sort names are rejected. `query.text` remains literal name search. Optional `query.expression` uses the bounded core parser below; it intersects with structured filters, parent/scope and pagination rather than replacing them. The same compiler builds all metadata predicates, and a borrowed compiled query retains its exact source query.
+
+An expression combines terms with AND using whitespace. Double quotes group spaces and make a whole quoted term literal. Backslashes are literal, including immediately before a closing quote; no shell expansion or escape processing is performed. Property names, name/path text and glob matching are case insensitive using lowercase Unicode scalar sequences. Expression/text are each limited to 4096 UTF-8 bytes, extension to 128 bytes, and an expression to 64 terms. An empty expression adds no predicate.
+
+| Condition | Meaning/example |
+| --- | --- |
+| `report` or `"final report"` | Name contains the term or phrase |
+| `name:"report (final)"` | Explicit literal name substring |
+| `glob:report*.bin` | Full basename glob; `*` is any sequence and `?` one lowercase Unicode scalar |
+| `path:"C:\Users\Example\Archive"` | Substring of the indexed absolute native path, never an authorization root |
+| `pathglob:*Archive*movie.mp4` | Full indexed path glob; `*` may cross separators and backslashes stay literal |
+| `ext:bin`, `ext:none` | Final extension, or no extension on a metadata file; `ext:.none` means the literal extension `none` |
+| `size>=1.5GiB` | Indexed logical bytes; decimal KB/MB/GB and binary KiB/MiB/GiB are distinct |
+| `modified>=2024-02-29` | UTC calendar-day boundary |
+| `modified=2024-02-29T23:59:59Z` | Exact captured UTC second |
+| `type:file`, `type:folder`, `type:link` | Metadata file/folder classification, or raw reparse record |
+| `cloud:placeholder` | One of the same five observed cloud filters described below |
+
+Size and modification conditions accept `=`, `!=`, `<`, `<=`, `>` and `>=`; a colon on those two properties means equality. Byte units are case insensitive, through EB/EiB, and decimal fractions allow at most nine places. Checked integer arithmetic preserves fractional byte thresholds without floating-point rounding. Values outside u64 byte range are rejected. Date-only equality spans that UTC day; `>day` starts at the next day, `<=day` ends before the next day, `<day` ends before its start and `>=day` includes its start. Exact timestamps compare one second. Dates must be valid Gregorian dates from 1970 through 9999, with `Z` and no offset or fraction for timestamps.
+
+Unknown dates never satisfy a date condition, including `!=`. A reparse record without observed file length never satisfies a size predicate. An incomplete folder exposes a lower bound: only `>` or `>=` can match when its observed bytes already prove that condition; equality, inequality and upper-bound predicates do not claim a complete total. Confirmed placeholder files retain their observed advertised length despite unknown allocation. Path predicates do not match native paths that cannot be represented losslessly as text. These are metadata conditions, never content reads or permission grants.
+
+Globs are limited to 256 source characters. Character classes, brace expansion, boolean operators/parentheses, unknown properties and unavailable app attribution are rejected. Quote literal names containing expression punctuation. General glob matching has a shared 100,000,000-step query budget and cooperative cancellation; common exact/prefix/suffix/substring patterns use direct string matching. Exceeding a work limit fails the complete query without returning a partial page. Syntax/work errors use `invalid_query` (CLI exit 2), a UTF-8 byte position and static guidance without echoing user values. Unavailable snapshots and revoked/missing capabilities retain the existing non-disclosing operation errors. This stage exposes expressions through the existing native query bridge, CLI and MCP; the GUI advanced editor, saved views, policy binding and offline natural-language preview remain pending.
 
 Supported sort values are `size` (logical bytes, default), `allocated` (known allocation), `name` and `modified`. Allocation ordering includes explicitly partial positive evidence and keeps wholly unknown allocation after measured zero. Callers must retain `allocation_known`; ordering does not turn partial evidence into a complete measurement. `min_size` and `largest` remain logical bytes for every sort. CLI JSON queries use the same contract.
 
 Optional `query.cloud` accepts `placeholder`, `recall_required`, `no_recall_flag`, `not_placeholder` and `unknown`; null/omission leaves it unrestricted. Every entry returns its captured `cloud` classification. Known placeholders distinguish file/folder and recall/no-recall-flag observations. Unknown includes legacy snapshots, unsupported providers/tags and unavailable evidence. `not_placeholder` concerns the detected Windows Cloud Files placeholder representation, not remote synchronization or backup ownership. No flag absence or pin intent proves that content is fully local. The handle-only classifier excludes the EA/RECALL_ON_OPEN alias and uses unambiguous offline/data-access indicators; see [Microsoft's attribute definitions](https://learn.microsoft.com/en-us/windows/win32/fileio/file-attribute-constants).
 
-Metadata file queries and file-type totals include the observed logical length of confirmed placeholder files. Their serialized `kind` remains `link`, with incomplete coverage/allocation; this does not grant content access or make them cleanup candidates. `files_only` and `kind:file` describe metadata file classification, while `kind:link` retains the reparse-record view. Cloud folders remain untraversed with incomplete subtree coverage. Snapshot schema 6 preserves classifications; old records migrate to `unknown` and need another scan for observation. CLI and MCP use the same filters, scope checks and cancellation. GUI cloud controls use these same predicates, with a bounded core projection for map totals. The advanced text parser and live provider acceptance remain pending.
+Metadata file queries and file-type totals include the observed logical length of confirmed placeholder files. Their serialized `kind` remains `link`, with incomplete coverage/allocation; this does not grant content access or make them cleanup candidates. `files_only` and `kind:file` describe metadata file classification, while `kind:link` retains the reparse-record view. Cloud folders remain untraversed with incomplete subtree coverage. Snapshot schema 6 preserves classifications; old records migrate to `unknown` and need another scan for observation. CLI and MCP use the same filters, scope checks and cancellation. GUI cloud controls use these same predicates, with a bounded core projection for map totals. Live provider acceptance remains pending.
 
 Incoming protocol lines are bounded to 64 KiB, tool arguments to 16 KiB and structured responses to 512 KiB. The fixed fifteen-tool catalogue fits one page. At most four tool workers execute concurrently; their permits remain held even if a request disconnects before its blocking worker finishes. Query pages respect the connection limit, at most 500 entries. The service caches one loaded index, never serializes the entire tree, and rejects snapshots whose exclusion coverage no longer satisfies the current policy.
 

@@ -274,16 +274,6 @@ impl AgentService {
     }
 
     pub fn query(&self, snapshot: i64, query: &Query) -> Result<Page> {
-        if !matches!(
-            query.sort.as_str(),
-            "size" | "allocated" | "name" | "modified"
-        ) || query.text.len() > 4096
-            || query.extension.len() > 128
-        {
-            return Err(Error::Invalid(
-                "Query requires a supported sort and bounded text/extension filters.".into(),
-            ));
-        }
         let policy = self
             .registry()?
             .policy(&self.principal, Capability::Metadata)?;
@@ -291,7 +281,13 @@ impl AgentService {
             limit: query.limit.min(policy.limits().page_size).max(1),
             ..query.clone()
         };
-        self.index(snapshot)?.query(&query).map_err(|_| denied())
+        let compiled = query.compile()?;
+        self.index(snapshot)?
+            .query_compiled(&compiled)
+            .map_err(|error| match error {
+                Error::Query(_) => error,
+                _ => denied(),
+            })
     }
 
     pub fn details(&self, snapshot: i64, node: crate::NodeId) -> Result<Details> {

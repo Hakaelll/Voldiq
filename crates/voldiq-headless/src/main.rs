@@ -108,7 +108,7 @@ async fn run(args: &mut Vec<String>) -> Result<Option<Value>, CliError> {
             serde_json::to_value(
                 service
                     .query(number(&args[1])?, &query)
-                    .map_err(|_| operation())?,
+                    .map_err(query_operation)?,
             )
             .map_err(|_| operation())?
         }
@@ -237,6 +237,13 @@ fn unauthorized() -> CliError {
 }
 fn operation() -> CliError {
     ("operation_failed", "Operation unavailable or outside this connection's scope. Check capability and job status.".into(), 4)
+}
+
+fn query_operation(error: voldiq_core::Error) -> CliError {
+    match error {
+        voldiq_core::Error::Query(error) => ("invalid_query", error.to_string(), 2),
+        _ => operation(),
+    }
 }
 
 fn plan_operation(error: voldiq_core::Error) -> CliError {

@@ -1,4 +1,4 @@
-use crate::{Entry, Error, Issue, Kind, NodeId, Result};
+use crate::{Entry, Error, Issue, Kind, NodeId, Result, search::CompiledQuery};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 mod rank;
@@ -22,6 +22,7 @@ pub struct Query {
     pub parent: Option<NodeId>,
     pub scope: Option<NodeId>,
     pub text: String,
+    pub expression: String,
     pub extension: String,
     pub without_extension: bool,
     pub min_size: u64,
@@ -40,6 +41,7 @@ impl Default for Query {
             parent: None,
             scope: None,
             text: String::new(),
+            expression: String::new(),
             extension: String::new(),
             without_extension: false,
             min_size: 0,
@@ -199,6 +201,10 @@ impl Index {
     }
 
     pub fn query(&self, query: &Query) -> Result<Page> {
+        self.query_compiled(&query.compile()?)
+    }
+
+    pub fn query_compiled(&self, query: &CompiledQuery<'_>) -> Result<Page> {
         self.query_inner(query, || false, false)?
             .ok_or_else(|| Error::Invalid("Query cancelled.".into()))
     }
@@ -208,26 +214,26 @@ impl Index {
         query: &Query,
         cancelled: impl FnMut() -> bool,
     ) -> Result<Option<Page>> {
-        self.query_inner(query, cancelled, true)
+        self.query_inner(&query.compile()?, cancelled, true)
     }
 
     fn query_inner(
         &self,
-        query: &Query,
+        compiled: &CompiledQuery<'_>,
         mut cancelled: impl FnMut() -> bool,
         cancellable_ranking: bool,
     ) -> Result<Option<Page>> {
         if cancelled() {
             return Ok(None);
         }
+        let query = compiled.query;
         if let Some(id) = query.parent {
             self.entry(id)?;
         }
         if let Some(id) = query.scope {
             self.entry(id)?;
         }
-        let text = query.text.to_lowercase();
-        let extension = query.extension.trim_start_matches('.').to_lowercase();
+        let mut budget = crate::search::GLOB_WORK_LIMIT;
         let mut matches = Vec::new();
         let mut largest = 0;
         for (position, entry) in self.entries.iter().skip(1).enumerate() {
@@ -244,29 +250,29 @@ impl Index {
                     Some(true) => {}
                 }
             }
-            if (!query.files_only || entry.is_metadata_file())
-                && query.kind.is_none_or(|kind| match kind {
-                    Kind::File => entry.is_metadata_file(),
-                    Kind::Directory => entry.is_metadata_directory(),
-                    Kind::Link => entry.kind == Kind::Link,
-                })
-                && query.cloud.is_none_or(|filter| filter.matches(entry.cloud))
-                && entry.logical >= query.min_size
-                && (text.is_empty() || contains_name(&entry.name, &text))
-                && (!query.without_extension
-                    || (entry.is_metadata_file()
-                        && std::path::Path::new(&entry.name).extension().is_none()))
-                && (extension.is_empty()
-                    || std::path::Path::new(&entry.name)
-                        .extension()
-                        .is_some_and(|ext| ext.to_string_lossy().to_lowercase() == extension))
-                && query
-                    .modified_before
-                    .is_none_or(|before| entry.modified.is_some_and(|date| date < before))
+            match compiled
+                .search
+                .matches_entry(entry, &mut budget, &mut cancelled)?
             {
-                matches.push(entry);
-                largest = largest.max(entry.logical);
+                None => return Ok(None),
+                Some(false) => continue,
+                Some(true) => {}
             }
+            if compiled.search.needs_path() {
+                let Some(path) = self.path_cancellable(entry.id, &mut cancelled)? else {
+                    return Ok(None);
+                };
+                match compiled
+                    .search
+                    .matches_path(path.to_str(), &mut budget, &mut cancelled)?
+                {
+                    None => return Ok(None),
+                    Some(false) => continue,
+                    Some(true) => {}
+                }
+            }
+            matches.push(entry);
+            largest = largest.max(entry.logical);
         }
         if cancelled() {
             return Ok(None);
@@ -452,14 +458,6 @@ impl Index {
             entry.incomplete |= child.incomplete;
             parent = entry.parent;
         }
-    }
-}
-
-fn contains_name(name: &str, lowercase_text: &str) -> bool {
-    if name.is_ascii() && !name.bytes().any(|byte| byte.is_ascii_uppercase()) {
-        name.contains(lowercase_text)
-    } else {
-        name.to_lowercase().contains(lowercase_text)
     }
 }
 

@@ -132,6 +132,16 @@ fn authorized_service_scans_once_persists_and_queries_only_the_current_scope() {
             .is_err()
     );
     assert!(service.query(i64::MAX, &Query::default()).is_err());
+    assert!(matches!(
+        service.query(
+            snapshot,
+            &Query {
+                expression: "size>private-secret".into(),
+                ..Query::default()
+            }
+        ),
+        Err(voldiq_core::Error::Query(_))
+    ));
     let other = registry
         .provision(
             "Another reader",
@@ -162,6 +172,17 @@ fn authorized_service_scans_once_persists_and_queries_only_the_current_scope() {
         voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db")).unwrap();
     let desktop_snapshot = store.save(&broad, &AtomicBool::new(false), &[]).unwrap();
     assert!(service.stats(desktop_snapshot).is_err());
+    assert!(
+        service
+            .query(
+                desktop_snapshot,
+                &Query {
+                    expression: "type:file glob:*".into(),
+                    ..Query::default()
+                }
+            )
+            .is_err()
+    );
     assert_eq!(other.stats(desktop_snapshot).unwrap().logical, 26);
     let restricted_history = service.history(0, 100).unwrap();
     assert_eq!(
@@ -200,6 +221,17 @@ fn authorized_service_scans_once_persists_and_queries_only_the_current_scope() {
     assert!(forbidden.details(snapshot, voldiq_core::NodeId(0)).is_err());
     assert!(forbidden.history(0, 100).unwrap().items.is_empty());
     registry.revoke(provisioned.id).unwrap();
+    let revoked_query = service
+        .query(
+            snapshot,
+            &Query {
+                expression: "size>bad".into(),
+                ..Query::default()
+            },
+        )
+        .err()
+        .unwrap();
+    assert!(!matches!(revoked_query, voldiq_core::Error::Query(_)));
     assert!(service.query(snapshot, &Query::default()).is_err());
     assert!(service.job(job).is_err());
     assert_eq!(

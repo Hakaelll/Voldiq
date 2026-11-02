@@ -12,6 +12,7 @@ pub mod ntfs;
 pub mod operations;
 pub mod plans;
 pub mod scanner;
+pub mod search;
 pub mod service;
 pub mod snapshots;
 pub mod windows;
@@ -20,6 +21,8 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
+    #[error(transparent)]
+    Query(#[from] search::QueryError),
     #[error("needs_human_approval")]
     NeedsHumanApproval,
     #[error("{0}")]

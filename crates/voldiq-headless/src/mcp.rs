@@ -115,6 +115,13 @@ fn unavailable<E>(_: E) -> Value {
     )
 }
 
+fn query_unavailable(error: voldiq_core::Error) -> Value {
+    match error {
+        voldiq_core::Error::Query(error) => super::failure("invalid_query", &error.to_string()),
+        error => unavailable(error),
+    }
+}
+
 fn plan_unavailable(error: voldiq_core::Error) -> Value {
     match error {
         voldiq_core::Error::NeedsHumanApproval => super::failure(
@@ -169,7 +176,7 @@ fn invoke(service: &AgentService, name: &str, args: Value) -> Result<Value, Valu
             serde_json::to_value(
                 service
                     .query(args.snapshot_id, &args.query)
-                    .map_err(unavailable)?,
+                    .map_err(query_unavailable)?,
             )
             .map_err(unavailable)
         }
@@ -319,6 +326,7 @@ fn tools() -> Vec<Tool> {
     let query = json!({"type":"object","additionalProperties":false,"properties":{
         "parent":{"type":["integer","null"],"minimum":0},"scope":{"type":["integer","null"],"minimum":0},
         "text":{"type":"string","maxLength":4096},"extension":{"type":"string","maxLength":128},
+        "expression":{"type":"string","maxLength":4096},
         "without_extension":{"type":"boolean"},"min_size":{"type":"integer","minimum":0},
         "modified_before":{"type":["integer","null"],"minimum":0},"files_only":{"type":"boolean"},
         "kind":{"enum":["directory","file","link",null]},"sort":{"enum":["size","allocated","name","modified"]},

@@ -183,6 +183,7 @@ export interface Progress {
   method: string;
 }
 export interface Query {
+  expression?: string;
   cloud?: CloudFilter;
   parent?: NodeId;
   scope?: NodeId;

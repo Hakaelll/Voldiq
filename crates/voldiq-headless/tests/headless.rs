@@ -204,6 +204,24 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     let cloud: Value = serde_json::from_slice(&cloud.stdout).unwrap();
     assert_eq!(cloud["result"]["items"][0]["cloud"], filter);
     assert_eq!(cloud["result"]["items"][0]["id"], node);
+    let expression = run(&[
+        "query",
+        &snapshot.to_string(),
+        r#"{"expression":"glob:*.DATA size=7B type:file"}"#,
+    ]);
+    assert!(expression.status.success());
+    let expression: Value = serde_json::from_slice(&expression.stdout).unwrap();
+    assert_eq!(expression["result"]["items"][0]["id"], node);
+    for query in [
+        r#"{"expression":"size>private-secret"}"#,
+        r#"{"expression":"app:private-secret"}"#,
+    ] {
+        let invalid = run(&["query", &snapshot.to_string(), query]);
+        assert_eq!(invalid.status.code(), Some(2));
+        let value: Value = serde_json::from_slice(&invalid.stdout).unwrap();
+        assert_eq!(value["error"]["code"], "invalid_query");
+        assert!(!String::from_utf8_lossy(&invalid.stdout).contains("private-secret"));
+    }
     let output = run(&[
         "plan",
         "prepare",

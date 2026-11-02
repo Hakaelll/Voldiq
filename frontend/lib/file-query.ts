@@ -8,6 +8,7 @@ export function scopedFileQuery({
   const recursive =
     ranked ||
     Boolean(filters.text) ||
+    Boolean(filters.expression?.trim()) ||
     Boolean(filters.extension) ||
     filters.without_extension ||
     Boolean(filters.cloud);

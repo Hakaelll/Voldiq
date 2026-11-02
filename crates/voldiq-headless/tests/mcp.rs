@@ -224,6 +224,33 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     let cloud = cloud.structured_content.unwrap();
     assert_eq!(cloud["result"]["items"][0]["cloud"], filter);
     assert_eq!(cloud["result"]["items"][0]["id"], selected);
+    let expression = call(
+        &client,
+        "voldiq_query",
+        json!({"snapshot_id":snapshot,"query":{"expression":"type:file size=11B"}}),
+    )
+    .await;
+    assert_ne!(expression.is_error, Some(true));
+    assert_eq!(
+        expression.structured_content.unwrap()["result"]["items"][0]["id"],
+        selected
+    );
+    for expression in [
+        "size>private-secret",
+        "app:private-secret",
+        "modified=2023-02-29",
+    ] {
+        let invalid = call(
+            &client,
+            "voldiq_query",
+            json!({"snapshot_id":snapshot,"query":{"expression":expression}}),
+        )
+        .await;
+        assert_eq!(invalid.is_error, Some(true));
+        let value = invalid.structured_content.unwrap();
+        assert_eq!(value["error"]["code"], "invalid_query");
+        assert!(!value.to_string().contains("private-secret"));
+    }
     let prepared = call(
         &client,
         "voldiq_plan_prepare",
