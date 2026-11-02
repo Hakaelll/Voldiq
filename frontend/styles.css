@@ -1789,6 +1789,15 @@ button:active:not(:disabled) {
 .storage-viewport canvas:active {
   cursor: grabbing;
 }
+.storage-viewport canvas.lasso,
+.storage-viewport canvas.lasso:active {
+  cursor: crosshair;
+}
+.map-tool-status {
+  font-size: 12px;
+  color: var(--secondary);
+  padding: 8px 0;
+}
 .storage-viewport canvas:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: -3px;

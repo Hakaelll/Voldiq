@@ -11,7 +11,7 @@
   import type { WeightedNode } from '../lib/treemap';
   import { categoryPaint, type ColorMode, type StorageDepth } from '../lib/storage-map';
   import { visibleFileTypes } from '../lib/file-types';
-  import { selectionOperation, type SelectionOperation } from '../lib/exploration';
+  import { selectionOperation, type SelectionOperation, type SelectMany } from '../lib/exploration';
 
   let {
     volume,
@@ -22,6 +22,7 @@
     selected,
     explored,
     onclearExplore,
+    onselectMany,
     sizeMode,
     reduceMotion,
     animateNavigation,
@@ -49,6 +50,7 @@
     selected: Details | null;
     explored: ReadonlySet<number>;
     onclearExplore: () => void;
+    onselectMany: SelectMany;
     sizeMode: string;
     reduceMotion: boolean;
     animateNavigation: boolean;
@@ -190,6 +192,7 @@
           selected={selected?.entry.id ?? null}
           {explored}
           {onclearExplore}
+          {onselectMany}
           scopeAncestors={[directory.entry.id, ...directory.ancestors.map((entry) => entry.id)]}
           {onselect}
           onopen={(id) => onopen(id, true)}

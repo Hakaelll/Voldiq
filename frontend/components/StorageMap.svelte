@@ -34,7 +34,14 @@
     type Camera,
     type Point,
   } from '../lib/disk-city';
-  import { paintCity, paintFlat, prepareShadows, type MapStyle } from '../lib/map-painter';
+  import {
+    paintCity,
+    paintFlat,
+    paintTreemapLens,
+    prepareShadows,
+    type MapStyle,
+  } from '../lib/map-painter';
+  import { appendLassoPoint, selectLasso } from '../lib/treemap-tools';
   import { radialLayout, radialHit, shapeAnchor } from '../lib/radial-map';
   import { paintRadial } from '../lib/radial-painter';
   import { voronoiHit, VORONOI_GROUP_ID, type VoronoiLayout } from '../lib/voronoi';
@@ -44,11 +51,12 @@
   import { bytes } from '../lib/types';
   import Icon from './Icon.svelte';
   import FolderNotePreview from './FolderNotePreview.svelte';
-  import { getIndexContext } from '../lib/index-context';
+  import { getIndexContext, type IndexId } from '../lib/index-context';
   import {
     projectedSelection,
     selectionOperation,
     type SelectionOperation,
+    type SelectMany,
   } from '../lib/exploration';
 
   let {
@@ -61,6 +69,7 @@
     explored,
     scopeAncestors,
     onclearExplore,
+    onselectMany,
     search = '',
     extension = '',
     withoutExtension = false,
@@ -83,6 +92,7 @@
     explored: ReadonlySet<number>;
     scopeAncestors: readonly number[];
     onclearExplore: () => void;
+    onselectMany: SelectMany;
     search?: string;
     extension?: string;
     withoutExtension?: boolean;
@@ -182,13 +192,44 @@
   let frame = 0,
     generation = 0,
     worker: Worker | null = null;
-  let dragging: { x: number; y: number; camera: Camera; moved: boolean } | null = null;
+  let tool = $state<'pan' | 'lasso'>('pan');
+  let lens = $state(false);
+  let lensAnchor: Point | null = null;
+  let toolMessage = $state('');
+  let toolIssue = $state(false);
+  const gestureContext = $derived({
+    identity,
+    revision: layout.revision,
+    mode,
+    sizeMode,
+    depth,
+    width,
+    height,
+  });
+  type Drag = {
+    pointerId: number;
+    start: Point;
+    camera: Camera;
+    moved: boolean;
+    context: typeof gestureContext;
+    indexId: IndexId | null;
+    operation: SelectionOperation;
+  } & ({ kind: 'pan' } | { kind: 'lasso'; points: readonly Point[] });
+  let dragging: Drag | null = null;
+  function cancelDrag(): void {
+    const previous = dragging;
+    dragging = null;
+    if (previous && canvas.hasPointerCapture(previous.pointerId))
+      canvas.releasePointerCapture(previous.pointerId);
+    if (previous) schedule();
+  }
   let style: MapStyle = { text: '#202523', surface: '#f7f7f4', border: '#d5d9d5', dark: false };
   function saveCamera(): void {
     if (currentKey) cameras.set(currentKey, { camera: { ...camera }, fitted, width, height });
     if (cameras.size > 48) cameras.delete(cameras.keys().next().value ?? '');
   }
   function fit(): void {
+    cancelDrag();
     camera = fitCamera(
       mode === 'city' && scene ? scene.bounds : { x: 0, y: 0, width: 1000, height: 700 },
       width,
@@ -244,12 +285,37 @@
               : radial.kind === 'ready'
                 ? paintRadial(ctx, radial.value, options)
                 : 0;
+      if (mode === 'treemap' && lens && lensAnchor && !dragging)
+        paintTreemapLens(ctx, options, lensAnchor);
+      if (dragging?.kind === 'lasso') {
+        ctx.save();
+        ctx.beginPath();
+        for (let i = 0; i < dragging.points.length; i++) {
+          const point = dragging.points[i];
+          if (i === 0) ctx.moveTo(point.x, point.y);
+          else ctx.lineTo(point.x, point.y);
+        }
+        ctx.closePath();
+        ctx.globalAlpha = 0.16;
+        ctx.fillStyle = style.surface;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        ctx.strokeStyle = style.text;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.setLineDash([5, 3]);
+        ctx.strokeStyle = style.surface;
+        ctx.lineWidth = 1;
+        ctx.stroke();
+        ctx.restore();
+      }
       drawTime = performance.now() - start;
     } catch (error) {
       failure = error instanceof Error ? error.message : String(error);
     }
   }
   function zoom(factor: number, point = { x: width / 2, y: height / 2 }): void {
+    cancelDrag();
     camera = zoomCamera(camera, point, factor, fitted * 0.5, fitted * 12);
     saveCamera();
     schedule();
@@ -257,6 +323,89 @@
   function local(event: MouseEvent): Point {
     const bounds = canvas.getBoundingClientRect();
     return { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+  }
+  function bounded(point: Point): Point {
+    return { x: Math.max(0, Math.min(width, point.x)), y: Math.max(0, Math.min(height, point.y)) };
+  }
+  function pointerDown(event: PointerEvent): void {
+    if (event.button !== 0 || dragging || preparing || failure) return;
+    canvas.focus({ preventScroll: true });
+    const point = bounded(local(event));
+    const base = {
+      pointerId: event.pointerId,
+      start: point,
+      camera: { ...camera },
+      moved: false,
+      context: gestureContext,
+      indexId: getIndexContext(),
+      operation: selectionOperation(event),
+    };
+    dragging =
+      mode === 'treemap' && tool === 'lasso'
+        ? { ...base, kind: 'lasso', points: [point] }
+        : { ...base, kind: 'pan' };
+    hovered = null;
+    toolMessage = '';
+    toolIssue = false;
+    canvas.setPointerCapture(event.pointerId);
+    schedule();
+  }
+  function pointerMove(event: PointerEvent): void {
+    const point = local(event);
+    if (dragging) {
+      if (event.pointerId !== dragging.pointerId) return;
+      const dx = point.x - dragging.start.x,
+        dy = point.y - dragging.start.y;
+      if (Math.hypot(dx, dy) > 5) dragging.moved = true;
+      if (dragging.kind === 'lasso')
+        dragging.points = appendLassoPoint(dragging.points, bounded(point));
+      else if (dragging.moved)
+        camera = { ...dragging.camera, x: dragging.camera.x + dx, y: dragging.camera.y + dy };
+      hovered = null;
+      schedule();
+    } else {
+      lensAnchor = point;
+      hovered = lens && mode === 'treemap' ? null : hit(point);
+      tooltip = {
+        x: Math.max(8, Math.min(width - 260, point.x + 14)),
+        y: Math.max(8, Math.min(height - 100, point.y + 14)),
+      };
+      if (lens && mode === 'treemap') schedule();
+    }
+  }
+  function pointerUp(event: PointerEvent): void {
+    const active = dragging;
+    if (!active || event.pointerId !== active.pointerId) return;
+    cancelDrag();
+    if (active.context !== gestureContext || active.indexId !== getIndexContext()) return;
+    const raw = local(event),
+      point = bounded(raw);
+    lensAnchor = raw.x >= 0 && raw.y >= 0 && raw.x <= width && raw.y <= height ? point : null;
+    const moved = active.moved || Math.hypot(raw.x - active.start.x, raw.y - active.start.y) > 5;
+    if (!moved) {
+      const rect = hit(point);
+      if (rect) select(rect, false, active.operation);
+    } else if (active.kind === 'pan') {
+      camera = {
+        ...active.camera,
+        x: active.camera.x + raw.x - active.start.x,
+        y: active.camera.y + raw.y - active.start.y,
+      };
+      saveCamera();
+    } else {
+      const points = appendLassoPoint(active.points, point, true).map((p) =>
+        screenToWorld(p, active.camera),
+      );
+      const result = selectLasso(layout.rects, points);
+      toolIssue = result.kind === 'invalid';
+      if (result.kind === 'invalid') toolMessage = result.message;
+      else if (!onselectMany(result.ids, active.operation, active.indexId)) {
+        toolIssue = true;
+        toolMessage = 'Inspection selection unchanged. Check the notice above.';
+      } else
+        toolMessage = `${result.ids.length} frontier items matched${result.skippedGroups ? ` · ${result.skippedGroups} grouped regions skipped. Open grouped contents in the item list.` : ''}`;
+    }
+    schedule();
   }
   function hit(point: Point): Rect | null {
     if (preparing || failure) return null;
@@ -310,6 +459,7 @@
     else if (event.key === '-') zoom(1 / 1.2);
     else if (event.key === '0') fit();
     else if (event.key === 'Enter') {
+      cancelDrag();
       const rect =
         layout.rects.find((r) => r.id === selected) ??
         layout.boundaries.find((r) => r.id === selected);
@@ -317,9 +467,11 @@
     } else if (event.key === 'Escape') {
       hovered = null;
       event.stopPropagation();
-      if (explored.size) onclearExplore();
+      if (dragging) cancelDrag();
+      else if (explored.size) onclearExplore();
       else onback();
     } else if (event.key.startsWith('Arrow')) {
+      cancelDrag();
       camera = {
         ...camera,
         x: camera.x + (event.key === 'ArrowLeft' ? 40 : event.key === 'ArrowRight' ? -40 : 0),
@@ -329,6 +481,15 @@
       schedule();
     }
   }
+  $effect(() => {
+    void gestureContext;
+    untrack(() => {
+      cancelDrag();
+      lensAnchor = null;
+      toolMessage = '';
+      toolIssue = false;
+    });
+  });
   $effect(() => {
     const rects = layout.rects;
     const currentIdentity = identity;
@@ -468,6 +629,7 @@
         camera,
       );
       if (target.x < 24 || target.x > width - 24 || target.y < 24 || target.y > height - 24) {
+        cancelDrag();
         camera = {
           ...camera,
           x: camera.x + width / 2 - target.x,
@@ -503,6 +665,12 @@
       zoom(Math.exp(-Math.max(-150, Math.min(150, event.deltaY)) * 0.006), local(event));
     };
     const resolution = () => schedule();
+    const blur = () => {
+      cancelDrag();
+      lensAnchor = null;
+      hovered = null;
+      schedule();
+    };
     resize.observe(container);
     appearance.observe(document.documentElement, {
       attributes: true,
@@ -510,6 +678,7 @@
     });
     canvas.addEventListener('wheel', wheel, { passive: false });
     window.addEventListener('resize', resolution);
+    window.addEventListener('blur', blur);
     theme();
     return () => {
       generation++;
@@ -519,6 +688,7 @@
       appearance.disconnect();
       canvas.removeEventListener('wheel', wheel);
       window.removeEventListener('resize', resolution);
+      window.removeEventListener('blur', blur);
     };
   });
 </script>
@@ -547,6 +717,33 @@
       <button onclick={onlist}>List</button>
       {#if ongrid}<button onclick={ongrid}>Grid</button>{/if}
     </div>
+    {#if mode === 'treemap'}<div class="map-switch" role="group" aria-label="Treemap tools">
+        <button
+          aria-pressed={tool === 'pan'}
+          onclick={() => {
+            cancelDrag();
+            tool = 'pan';
+          }}>Pan</button
+        >
+        <button
+          aria-pressed={tool === 'lasso'}
+          title="Draw a freehand loop to select visible items for inspection"
+          onclick={() => {
+            cancelDrag();
+            tool = 'lasso';
+          }}>Lasso</button
+        >
+        <button
+          aria-pressed={lens}
+          title="Redraw Treemap geometry at twice the scale around the pointer"
+          onclick={() => {
+            lens = !lens;
+            lensAnchor = lens ? { x: width / 2, y: height / 2 } : null;
+            hovered = null;
+            schedule();
+          }}>Lens 2×</button
+        >
+      </div>{/if}
     <label
       >Area<select
         aria-label="Map area metric"
@@ -627,56 +824,46 @@
         ><Icon name="file" size={14} />Inspector</button
       >{/if}
   </div>
+  {#if mode === 'treemap' && (tool === 'lasso' || toolMessage)}<div
+      class="map-tool-status"
+      role={toolIssue ? 'alert' : 'status'}
+    >
+      {toolMessage || 'Draw a loop. Ctrl toggles; Shift adds. Escape cancels.'}
+    </div>{/if}
   <div class="map storage-viewport" bind:this={container}>
     <canvas
       bind:this={canvas}
       tabindex="0"
-      aria-label={`${mode === 'city' ? 'Skyline' : mode === 'sunburst' ? 'Sunburst' : mode === 'circles' ? 'Nested circles' : mode === 'voronoi' ? 'Weighted Voronoi' : 'Treemap'}. Use the item list for keyboard selection. Arrow keys pan, plus and minus zoom, zero fits the map.`}
+      class:lasso={mode === 'treemap' && tool === 'lasso'}
+      aria-label={`${mode === 'city' ? 'Skyline' : mode === 'sunburst' ? 'Sunburst' : mode === 'circles' ? 'Nested circles' : mode === 'voronoi' ? 'Weighted Voronoi' : 'Treemap'}. Use the item list for keyboard selection. Arrow keys pan, plus and minus zoom, zero fits the map. Escape cancels an active gesture.`}
       onkeydown={keyboard}
-      onpointerdown={(event) => {
-        if (event.button !== 0) return;
-        canvas.focus({ preventScroll: true });
-        const p = local(event);
-        dragging = { ...p, camera: { ...camera }, moved: false };
-        canvas.setPointerCapture(event.pointerId);
+      onpointerdown={pointerDown}
+      onpointermove={pointerMove}
+      onpointerup={pointerUp}
+      onpointercancel={(event) => {
+        if (dragging?.pointerId === event.pointerId) cancelDrag();
       }}
-      onpointermove={(event) => {
-        const p = local(event);
-        if (dragging) {
-          const dx = p.x - dragging.x,
-            dy = p.y - dragging.y;
-          if (Math.hypot(dx, dy) > 5) dragging.moved = true;
-          if (dragging.moved) {
-            camera = { ...dragging.camera, x: dragging.camera.x + dx, y: dragging.camera.y + dy };
-            hovered = null;
-            schedule();
-          }
-        } else {
-          hovered = hit(p);
-          tooltip = {
-            x: Math.max(8, Math.min(width - 260, p.x + 14)),
-            y: Math.max(8, Math.min(height - 100, p.y + 14)),
-          };
+      onlostpointercapture={(event) => {
+        if (dragging?.pointerId === event.pointerId) cancelDrag();
+      }}
+      onfocus={() => {
+        if (lens) {
+          lensAnchor = { x: width / 2, y: height / 2 };
+          schedule();
         }
       }}
-      onpointerup={(event) => {
-        if (!dragging) return;
-        const moved = dragging.moved;
-        dragging = null;
-        canvas.releasePointerCapture(event.pointerId);
-        if (moved) saveCamera();
-        else {
-          const rect = hit(local(event));
-          if (rect) select(rect, false, selectionOperation(event));
-        }
-      }}
-      onpointercancel={() => {
-        dragging = null;
+      onblur={() => {
+        cancelDrag();
+        lensAnchor = null;
+        schedule();
       }}
       onpointerleave={() => {
         hovered = null;
+        lensAnchor = null;
+        schedule();
       }}
       ondblclick={(event) => {
+        if (mode === 'treemap' && tool === 'lasso') return;
         if (event.ctrlKey || event.metaKey || event.shiftKey) return;
         const rect = hit(local(event));
         if (rect) select(rect, true);
@@ -751,6 +938,9 @@
       </div>{/if}
   </div>
   <div class="map-encoding">
+    {#if mode === 'treemap' && lens}<span
+        >Lens 2× magnifies a local area. The base map keeps its byte scale.</span
+      >{/if}
     {#if mode === 'voronoi' && voronoi?.cells.length && voronoi.totalError !== null && voronoi.maximumError !== null}<span
       >
         Approximate weighted Voronoi · <span

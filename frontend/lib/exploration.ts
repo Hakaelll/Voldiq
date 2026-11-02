@@ -1,6 +1,11 @@
 import type { IndexId } from './index-context.ts';
 
 export type SelectionOperation = 'replace' | 'add' | 'toggle';
+export type SelectMany = (
+  ids: readonly number[],
+  operation: SelectionOperation,
+  expectedIndex: IndexId | null,
+) => boolean;
 export interface Exploration {
   readonly indexId: IndexId | null;
   readonly ids: ReadonlySet<number>;

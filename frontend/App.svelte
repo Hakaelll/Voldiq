@@ -147,6 +147,17 @@
     exploration = emptyExploration(indexId);
     details = null;
   }
+  function selectMany(
+    ids: readonly number[],
+    operation: SelectionOperation,
+    expectedIndex: IndexId | null,
+  ): boolean {
+    if (expectedIndex !== indexId) return false;
+    invalidateInteraction();
+    if (!explore(ids, operation)) return false;
+    details = null;
+    return true;
+  }
   function checkFile(id: number, checked: boolean): void {
     const next = new Set(selection);
     if (checked) {
@@ -1099,6 +1110,7 @@
                   selected={details}
                   {explored}
                   onclearExplore={clearExploration}
+                  onselectMany={selectMany}
                   {sizeMode}
                   {reduceMotion}
                   animateNavigation={mapNavigation}
@@ -1239,6 +1251,7 @@
                         ? [directory.entry.id, ...directory.ancestors.map((entry) => entry.id)]
                         : []}
                       onclearExplore={clearExploration}
+                      onselectMany={selectMany}
                       search={text}
                       {extension}
                       {withoutExtension}

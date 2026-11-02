@@ -8,6 +8,7 @@ import {
 } from './disk-city.ts';
 import { bytes } from './types.ts';
 import { visualPaint, type ColorMode, type Rect } from './storage-map.ts';
+import { lensCamera } from './treemap-tools.ts';
 
 type Scene = ReturnType<typeof import('./disk-city').buildCity>;
 const pickers = new WeakMap<Scene, ReturnType<typeof createPicker>>();
@@ -214,6 +215,49 @@ export function paintFlat(ctx: CanvasRenderingContext2D, options: PaintOptions):
   ))
     label(ctx, rect, box, options, occupied);
   return visible.length;
+}
+
+export function paintTreemapLens(
+  ctx: CanvasRenderingContext2D,
+  options: PaintOptions,
+  anchor: Point,
+): void {
+  const radius = Math.min(88, options.width / 2, options.height / 2);
+  if (radius < 16) return;
+  ctx.save();
+  try {
+    ctx.beginPath();
+    ctx.arc(anchor.x, anchor.y, radius, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.translate(anchor.x - radius, anchor.y - radius);
+    ctx.fillStyle = options.style.surface;
+    ctx.fillRect(0, 0, radius * 2, radius * 2);
+    paintFlat(ctx, {
+      ...options,
+      width: radius * 2,
+      height: radius * 2,
+      camera: lensCamera(options.camera, anchor, { x: radius, y: radius }),
+    });
+  } finally {
+    ctx.restore();
+  }
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(anchor.x, anchor.y, radius, 0, Math.PI * 2);
+  ctx.strokeStyle = options.style.text;
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.strokeStyle = options.style.surface;
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(anchor.x - 4, anchor.y);
+  ctx.lineTo(anchor.x + 4, anchor.y);
+  ctx.moveTo(anchor.x, anchor.y - 4);
+  ctx.lineTo(anchor.x, anchor.y + 4);
+  ctx.strokeStyle = options.style.text;
+  ctx.stroke();
+  ctx.restore();
 }
 
 export function paintCity(
