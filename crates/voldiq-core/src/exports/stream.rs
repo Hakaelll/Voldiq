@@ -109,7 +109,7 @@ pub fn stream_csv(
             "observation":index.observation, "root_path":request.include_paths.then(|| index.root.to_string_lossy()),
             "exclusions":index.exclusions.len(), "access_issues":index.error_count, "root_incomplete":root.incomplete,
             "coverage":match index.observation.as_ref() { None=>"unknown",Some(value) if value.complete && !root.incomplete && index.error_count==0=>"complete",_=>"partial" },
-            "filter":filter,"items":request.items,"include_paths":request.include_paths,"order":"recorded_index",
+            "filter":super::filter_metadata(filter,request.include_paths)?,"filter_text_included":request.include_paths,"items":request.items,"include_paths":request.include_paths,"order":"recorded_index",
             "units":"bytes; Unix seconds UTC", "text_encoding":"Name/path/context cells retain literal text: prefixes; keep them in spreadsheet workflows. Import large numeric values as text.",
             "limitations":"Recorded metadata, not a fresh scan or file authority. Names are display strings. Allocation requires allocation_known; blank dates are unknown. Cloud metadata does not establish resident content. A completion record establishes encoder completion only, not durable publication."
         }),

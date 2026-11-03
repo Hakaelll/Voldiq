@@ -38,7 +38,8 @@ pub struct CsvPage {
     pub scope_root: Option<String>,
     pub exclusions: usize,
     pub scope_incomplete: bool,
-    pub query: Query,
+    pub query: serde_json::Value,
+    pub filter_text_included: bool,
     pub items: CsvItems,
     pub units: &'static str,
     pub text_encoding: &'static str,
@@ -52,6 +53,23 @@ pub struct CsvPage {
 
 fn text(value: &str) -> String {
     format!("\"text: {}\"", value.replace('"', "\"\""))
+}
+
+fn filter_metadata(filter: &impl Serialize, include_text: bool) -> Result<serde_json::Value> {
+    let mut value = serde_json::to_value(filter)
+        .map_err(|_| Error::Invalid("Unable to encode CSV filter metadata.".into()))?;
+    if !include_text {
+        for field in ["text", "expression", "extension"] {
+            if value
+                .get(field)
+                .and_then(serde_json::Value::as_str)
+                .is_some_and(|text| !text.is_empty())
+            {
+                value[field] = serde_json::Value::Null;
+            }
+        }
+    }
+    Ok(value)
 }
 
 fn row(
@@ -147,7 +165,8 @@ pub fn csv(index: &Index, request: &CsvRequest, cancelled: &AtomicBool) -> Resul
         total_matching: page.total,
         next_offset: (query.offset.saturating_add(page.items.len()) < page.total)
             .then_some(query.offset.saturating_add(page.items.len())),
-        query,
+        query: filter_metadata(&query, request.include_paths)?,
+        filter_text_included: request.include_paths,
         csv,
     }))
 }

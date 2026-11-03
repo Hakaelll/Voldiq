@@ -23,6 +23,7 @@ mod config_file;
 mod developer_commands;
 mod docker_commands;
 mod embedded_ui;
+mod export_commands;
 mod lifecycle_trace;
 mod live_commands;
 mod metadata_commands;
@@ -46,6 +47,7 @@ struct Engine {
     operations: voldiq_core::operations::Coordinator,
     queries: query_commands::Queries,
     live: live_commands::Sessions,
+    exports: export_commands::Sessions,
     index: Mutex<Option<analysis_status::LoadedAnalysis>>,
     active: Mutex<Option<(u64, Arc<AtomicBool>)>>,
     sequence: AtomicU64,
@@ -84,6 +86,7 @@ impl Engine {
             operations: voldiq_core::operations::Coordinator::open(directory)?,
             queries: Default::default(),
             live: Default::default(),
+            exports: Default::default(),
             index: Default::default(),
             active: Default::default(),
             sequence: Default::default(),
@@ -821,6 +824,9 @@ fn main() {
             plan_commands::cancel_agent_plan,
             get_volumes,
             choose_folder,
+            export_commands::save_csv_report,
+            export_commands::csv_report_progress,
+            export_commands::cancel_csv_report,
             start_scan,
             live_commands::start_live,
             live_commands::stop_live,

@@ -4,6 +4,13 @@ import { updateCleanupSelection } from './cleanup-selection.ts';
 import { createNavigationRefresh } from './navigation-refresh.ts';
 import { resolveZoom, zoomBox, createTreemapAnimator } from './treemap-motion.ts';
 import { getIndexContext, setIndexContext, invokeIndexed } from './index-context.ts';
+import {
+  createCsvExport,
+  csvRequest,
+  type CsvReceipt,
+  type CsvEvent,
+  type CsvState,
+} from './csv-export.ts';
 import type { CleanupRulePage } from './types';
 import {
   createLiveSession,
@@ -263,4 +270,96 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   await thirdLive;
   assert.deepEqual(liveCalls, ['ack:2:16', 'resync:2', 'stop:2', 'stop:3']);
   assert.equal(liveStates.length, visibleStates);
+  const csvIndex = setIndexContext(21);
+  assert.ok(csvIndex);
+  const csvContext = { indexId: csvIndex, requestId: '00000000-0000-4000-8000-000000000001' };
+  const reportRequest = csvRequest(
+    { parent: 3, sort: 'size', offset: 500, limit: 1, text: 'notes', min_size: 10 },
+    3,
+    'files',
+    true,
+    false,
+  );
+  assert.deepEqual(reportRequest, {
+    items: 'files',
+    filter: {
+      scope: 3,
+      text: 'notes',
+      expression: undefined,
+      extension: undefined,
+      without_extension: undefined,
+      min_size: 10,
+      modified_before: undefined,
+      cloud: undefined,
+    },
+    include_paths: false,
+  });
+  assert.deepEqual(csvRequest({ text: 'private' }, 0, 'folders', false, false), {
+    items: 'folders',
+    filter: { scope: 0 },
+    include_paths: false,
+  });
+  let completeExport: (receipt: CsvReceipt) => void = () => {
+    throw new Error('Missing export');
+  };
+  let completeRead: (event: CsvEvent | null) => void = () => {
+    throw new Error('Missing progress');
+  };
+  const csvStates: CsvState[] = [];
+  const csvCancels: string[] = [];
+  const csvSession = createCsvExport(
+    {
+      save: async () =>
+        new Promise((resolve) => {
+          completeExport = resolve;
+        }),
+      read: async () =>
+        new Promise((resolve) => {
+          completeRead = resolve;
+        }),
+      cancel: async (context) => {
+        csvCancels.push(context.requestId);
+        return csvCancels.length > 1;
+      },
+    },
+    (state) => csvStates.push(state),
+    60_000,
+  );
+  const savingCsv = csvSession.save(csvContext, reportRequest);
+  assert.deepEqual(csvStates, [{ kind: 'choosing', cancelling: false }]);
+  const progress = { rows: 1, inspected: 3, total_entries: 3 };
+  completeExport({
+    index_id: csvIndex,
+    request_id: csvContext.requestId,
+    outcome: { kind: 'complete', path: 'owned-report.csv', progress },
+  });
+  await savingCsv;
+  assert.equal(csvStates.at(-1)?.kind, 'finished');
+  const settledStates = csvStates.length;
+  completeRead({
+    index_id: csvIndex,
+    request_id: csvContext.requestId,
+    phase: { kind: 'running', id: 7, progress },
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(csvStates.length, settledStates);
+  const cancelledContext = { ...csvContext, requestId: '00000000-0000-4000-8000-000000000002' };
+  const cancellingCsv = csvSession.save(cancelledContext, reportRequest);
+  csvSession.dispose();
+  const disposedStates = csvStates.length;
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  completeRead({
+    index_id: csvIndex,
+    request_id: cancelledContext.requestId,
+    phase: { kind: 'running', id: 8, progress },
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.deepEqual(csvCancels, [cancelledContext.requestId, cancelledContext.requestId]);
+  completeExport({
+    index_id: csvIndex,
+    request_id: cancelledContext.requestId,
+    outcome: { kind: 'cancelled', progress },
+  });
+  await cancellingCsv;
+  assert.equal(csvStates.length, disposedStates);
 });

@@ -39,6 +39,7 @@
   import FolderNotes from './components/FolderNotes.svelte';
   import FolderBudget from './components/FolderBudget.svelte';
   import LiveControl from './components/LiveControl.svelte';
+  import CsvExport from './components/CsvExport.svelte';
   import { volumeMeasurement, volumeCaller } from './lib/volume-space';
   import type { LiveObservation } from './lib/live-session';
   import ProtectedFolders from './components/ProtectedFolders.svelte';
@@ -419,9 +420,11 @@
   let volume = $derived(volumes.find((v) => v.path === volumePath));
   const volumeSpace = $derived(volumeMeasurement(volume));
   const volumeAvailability = $derived(volumeCaller(volume));
+  let exportBusy = $state(false);
   let busy = $derived(
     operation?.phase === 'scanning' ||
       liveBusy ||
+      exportBusy ||
       analysisBusy ||
       agentOperation !== null ||
       restoreReceipt !== null,
@@ -1099,6 +1102,7 @@
         })
         .catch(report);
     const keyboard = (event: KeyboardEvent): void => {
+      if (exportBusy) return;
       if (
         !event.defaultPrevented &&
         !event.repeat &&
@@ -1380,12 +1384,29 @@
                 · Snapshot · {date(historical.captured)}{/if}
             </p>{/if}
         </div>
-        {#if view !== 'settings' && view !== 'history'}<button
-            class="primary"
-            onclick={() => start(scanPath || volumePath)}
-            disabled={!isTauri() || busy || !(scanPath || volumePath)}
-            ><Icon name="scan" />{ready ? 'Rescan' : 'Scan drive'}</button
-          >{/if}
+        <div class="page-actions">
+          {#if ready && indexId !== null}{#key indexId}<CsvExport
+                {indexId}
+                {scope}
+                root={scanPath}
+                folder={directory?.entry.id === scope
+                  ? directory.path
+                  : scope === 0
+                    ? scanPath
+                    : 'Current folder'}
+                {query}
+                disabled={busy || !indexedView || !isTauri()}
+                onbusy={(value) => {
+                  exportBusy = value;
+                }}
+              />{/key}{/if}
+          {#if view !== 'settings' && view !== 'history'}<button
+              class="primary"
+              onclick={() => start(scanPath || volumePath)}
+              disabled={!isTauri() || busy || !(scanPath || volumePath)}
+              ><Icon name="scan" />{ready ? 'Rescan' : 'Scan drive'}</button
+            >{/if}
+        </div>
       </div>
       {#if error}<div class="error" role="alert">
           <Icon name="warning" /><span>{error}</span><button

@@ -723,6 +723,12 @@ main {
 .page-heading > button {
   flex-shrink: 0;
 }
+.page-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
 .scan-status {
   display: flex;
   align-items: center;

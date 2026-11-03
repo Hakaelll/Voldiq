@@ -1032,6 +1032,31 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     assert!(encoded.contains("\"text: =1+1\"\",\n@x\""));
     assert!(encoded.contains("\"\"root_path\"\":null"));
     assert!(encoded.contains("\r\ncomplete,"));
+    assert!(exported.query["text"].is_null());
+    assert!(!exported.filter_text_included);
+    assert_eq!(with_paths.query["text"], "=1+1");
+    let private_filter = voldiq_core::exports::CsvStreamRequest {
+        items: streaming.items,
+        filter: voldiq_core::exports::CsvFilter {
+            text: "https://private.invalid/secret".into(),
+            ..Default::default()
+        },
+        include_paths: false,
+    };
+    let mut private_report = Vec::new();
+    voldiq_core::exports::stream_csv(
+        &export_index,
+        &private_filter,
+        &mut private_report,
+        &loading,
+        |_| {},
+    )
+    .unwrap();
+    assert!(
+        !String::from_utf8(private_report)
+            .unwrap()
+            .contains("private.invalid")
+    );
     #[cfg(windows)]
     {
         let destination = tempfile::tempdir().unwrap();

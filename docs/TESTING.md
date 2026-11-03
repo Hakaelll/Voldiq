@@ -6,7 +6,7 @@ The routine Windows suite contains eight behavior tests: one frontend case and s
 
 | Case | Existing source | Behavior |
 |---|---|---|
-| Frontend interaction | `frontend/lib/cleanup-selection.test.ts` | Atomic selection limits, navigation ownership, stale indexed IPC replies, bounded/interrupted map motion and Live startup/delivery/acknowledgement/stop ownership |
+| Frontend interaction | `frontend/lib/cleanup-selection.test.ts` | Atomic selection limits, navigation ownership, stale indexed IPC replies, bounded/interrupted map motion, Live lifecycle and complete CSV scope/paging separation, final receipt, late progress and disposal/cancellation ownership |
 | Native authorization | `crates/voldiq-core/tests/agents.rs` | Allowed file identity, sibling and excluded-path denial, renamed exclusions, pinned directories and replaced roots |
 | Saved storage evidence | `crates/voldiq-core/tests/snapshots.rs` | Reopened/cancelled snapshots, migration, playback/comparison/context, ranked remainders, coordinated folder pages, qualified budgets, duplicate hashes, reviewed retention, UTC/null/epoch/placeholder cohorts, retained-capture diary, Live lifecycle, quota/whole-volume counters, signed indexed reconciliation, VSS discovery/date/root evidence, complete CSV streaming and Windows publication/collision/cancellation/owned-temp/protection behavior |
 | Duplicate execution | `crates/voldiq-core/src/cleanup/execute/tests.rs` | A changed retained copy prevents deletion; cancellation preserves pending files and retained copies |
