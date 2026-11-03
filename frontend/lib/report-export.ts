@@ -65,12 +65,8 @@ export function reportSelection(
   };
 }
 
-interface Transport {
-  save(
-    context: ReportContext,
-    request: ReportSelection,
-    format: ReportFormat,
-  ): Promise<ReportReceipt>;
+interface Transport<Request, Format extends string> {
+  save(context: ReportContext, request: Request, format: Format): Promise<ReportReceipt>;
   read(context: ReportContext): Promise<ReportEvent | null>;
   cancel(context: ReportContext): Promise<boolean>;
 }
@@ -83,8 +79,8 @@ interface Run {
   cancelling: boolean;
 }
 
-export function createReportExport(
-  transport: Transport,
+export function createReportExport<Request = ReportSelection, Format extends string = ReportFormat>(
+  transport: Transport<Request, Format>,
   changed: (state: ReportState) => void,
   delayMs = 250,
 ) {
@@ -128,11 +124,7 @@ export function createReportExport(
     if (!run.stopped && active === run) run.timer = setTimeout(() => void poll(run), delayMs);
   }
   return {
-    async save(
-      context: ReportContext,
-      request: ReportSelection,
-      format: ReportFormat = 'csv',
-    ): Promise<void> {
+    async save(context: ReportContext, request: Request, format: Format): Promise<void> {
       if (!alive || active) return;
       const run: Run = {
         context,

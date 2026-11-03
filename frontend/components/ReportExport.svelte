@@ -9,6 +9,7 @@
     type ReportReceipt,
     type ReportEvent,
     type ReportFormat,
+    type ReportSelection,
   } from '../lib/report-export';
   import type { IndexId } from '../lib/index-context';
   import type { Query } from '../lib/types';
@@ -43,7 +44,7 @@
   let filtered = $state(true),
     paths = $state(false);
   const result = $derived(model.kind === 'finished' ? model.receipt.outcome : null);
-  const exportSession = createReportExport(
+  const exportSession = createReportExport<ReportSelection, ReportFormat>(
     {
       save: (context, request, format) =>
         invoke<ReportReceipt>('save_report', { ...context, request, format }),

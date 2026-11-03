@@ -1,0 +1,84 @@
+{
+  "input": "C:/Users/yagol/AppData/Local/Temp/.tmpXBXksd",
+  "output": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\native-svg-render-m0ykqO",
+  "renderer": "Bundled @napi-rs/canvas Skia SVG decoder",
+  "records": [
+    {
+      "name": "treemap",
+      "filename": "map.svg",
+      "svgSha256": "B6690C569EB0CA82D847FF151DAC616160F53ED73A43CFFFDB74191EF2A83ED8",
+      "renderSha256": "D23F8749D98F512770155C41CAB4448E67D76BD8A1A3BE4ABA55C4B52F635A24",
+      "sameRenderedPngAsInputDrawing": true,
+      "bytes": 8644,
+      "sourceContextChecks": {
+        "scopeCount": 10005,
+        "unknownCoverage": true,
+        "pathsAndFilterTextWithheld": true,
+        "nativeContextReplacesClient": true,
+        "noActiveExternalContent": true
+      }
+    },
+    {
+      "name": "sunburst",
+      "filename": "sunburst.svg",
+      "svgSha256": "965B9A238E3622BCB82F79995928700175B6F773ABC19A7991A120374279800C",
+      "renderSha256": "A999431BA108C69474FBD723FD6B26D2D4A7EBB55A2342CE06776AC418ED0E0E",
+      "sameRenderedPngAsInputDrawing": true,
+      "bytes": 10931,
+      "sourceContextChecks": {
+        "scopeCount": 10005,
+        "unknownCoverage": true,
+        "pathsAndFilterTextWithheld": true,
+        "nativeContextReplacesClient": true,
+        "noActiveExternalContent": true
+      }
+    },
+    {
+      "name": "circles",
+      "filename": "circles.svg",
+      "svgSha256": "349DD34C3C41CCFED041B206953DAD1DD124F789DB8E72A130A0EDAB616220D2",
+      "renderSha256": "AB1EC4E01A570D77CAE4EDA98211B2765091DA960CA67526B28982A82426C43F",
+      "sameRenderedPngAsInputDrawing": true,
+      "bytes": 8152,
+      "sourceContextChecks": {
+        "scopeCount": 10005,
+        "unknownCoverage": true,
+        "pathsAndFilterTextWithheld": true,
+        "nativeContextReplacesClient": true,
+        "noActiveExternalContent": true
+      }
+    },
+    {
+      "name": "voronoi",
+      "filename": "voronoi.svg",
+      "svgSha256": "F10B8E66D4798C905B86E73DF18ED1BA206F3A3697B971365DFBA0D180FA01D0",
+      "renderSha256": "F3A846DBDD5A4DEBE36CBA691DF959607E47C6C886F9DD96A945E4EBC9B38CBC",
+      "sameRenderedPngAsInputDrawing": true,
+      "bytes": 7469,
+      "sourceContextChecks": {
+        "scopeCount": 10005,
+        "unknownCoverage": true,
+        "pathsAndFilterTextWithheld": true,
+        "nativeContextReplacesClient": true,
+        "noActiveExternalContent": true
+      }
+    },
+    {
+      "name": "city",
+      "filename": "city.svg",
+      "svgSha256": "5D30C06A216B5AD289678E486DB9F28EA65C77A54BD725CF6ADE6827E5D866FA",
+      "renderSha256": "ADEB3B21D4B4F9415496B86C8EC5312D4AD0A335A799BC4E64F6C54348216AB6",
+      "sameRenderedPngAsInputDrawing": true,
+      "bytes": 239467,
+      "sourceContextChecks": {
+        "scopeCount": 10005,
+        "unknownCoverage": true,
+        "pathsAndFilterTextWithheld": true,
+        "nativeContextReplacesClient": true,
+        "noActiveExternalContent": true
+      }
+    }
+  ],
+  "checkedUtc": "2026-11-03T20:19:11.452533+00:00",
+  "scope": "Five owned SVG files published by the core destination owner in the retained storage-history flow. Independent XML/metadata validation and Skia rendering; no native save-dialog interaction, WebView keyboard/focus/scaling or device performance acceptance."
+}

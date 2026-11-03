@@ -5,7 +5,8 @@ import { createNavigationRefresh } from './navigation-refresh.ts';
 import { resolveZoom, zoomBox, createTreemapAnimator } from './treemap-motion.ts';
 import { getIndexContext, setIndexContext, invokeIndexed } from './index-context.ts';
 import { SvgSurface } from './svg-surface.ts';
-import { paintFlat, paintTreemapLens, type PaintOptions } from './map-painter.ts';
+import type { PaintOptions } from './map-painter.ts';
+import { mapSvg } from './graphic-export.ts';
 import { createStorageLayout } from './storage-map.ts';
 import {
   createReportExport,
@@ -13,6 +14,8 @@ import {
   type ReportReceipt,
   type ReportEvent,
   type ReportState,
+  type ReportSelection,
+  type ReportFormat,
 } from './report-export.ts';
 import type { CleanupRulePage } from './types';
 import {
@@ -311,7 +314,7 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   const csvStates: ReportState[] = [];
   const csvCancels: string[] = [];
   const reportFormats: string[] = [];
-  const csvSession = createReportExport(
+  const csvSession = createReportExport<ReportSelection, ReportFormat>(
     {
       save: async (_context, _selection, format) => {
         reportFormats.push(format);
@@ -388,13 +391,10 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
     detail: true,
     style: { text: '#242c29', surface: '#fcfcf9', border: '#dce1d9', dark: false },
   };
-  const vector = new SvgSurface(1000, 700, (text) => ({
-    width: text.length * 6,
-    actualBoundingBoxAscent: 9,
-  }));
-  assert.equal(paintFlat(vector, mapOptions), 2);
-  paintTreemapLens(vector, mapOptions, { x: 500, y: 350 });
-  const drawing = vector.finish();
+  const drawing = await mapSvg(
+    { kind: 'treemap', options: mapOptions, lens: { x: 500, y: 350 } },
+    (text) => ({ width: text.length * 6, actualBoundingBoxAscent: 9 }),
+  );
   assert.ok(drawing.includes('<rect x="0" y="0" width="600" height="700"'));
   assert.ok(drawing.includes('&lt;script&gt;A &amp; B&lt;/script&gt;'));
   assert.ok(drawing.includes('<clipPath') && drawing.includes('clip-path="url(#map-clip-'));

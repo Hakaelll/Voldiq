@@ -49,15 +49,47 @@ pub fn save_report(
     cancelled: &AtomicBool,
     progress: impl FnMut(StreamProgress),
 ) -> Result<StreamOutcome> {
+    save_generated(
+        format.extension(),
+        destination,
+        lease,
+        cancelled,
+        |writer| match format {
+            ReportFormat::Csv => stream_csv(index, request, writer, cancelled, progress),
+            ReportFormat::Xlsx => stream_xlsx(index, request, writer, cancelled, progress),
+            ReportFormat::Pdf => stream_pdf(index, request, writer, cancelled, progress),
+        },
+    )
+}
+
+pub fn save_svg(
+    index: &Index,
+    request: &super::SvgRequest,
+    destination: &Path,
+    lease: &Lease,
+    cancelled: &AtomicBool,
+    progress: impl FnMut(StreamProgress),
+) -> Result<StreamOutcome> {
+    save_generated("svg", destination, lease, cancelled, |writer| {
+        super::stream_svg(index, request, writer, cancelled, progress)
+    })
+}
+
+fn save_generated(
+    extension: &'static str,
+    destination: &Path,
+    lease: &Lease,
+    cancelled: &AtomicBool,
+    encode: impl FnOnce(&mut BufWriter<&mut File>) -> Result<StreamOutcome>,
+) -> Result<StreamOutcome> {
     let destination = ordinary_path(destination)?;
     if !destination
         .extension()
         .and_then(std::ffi::OsStr::to_str)
-        .is_some_and(|extension| extension.eq_ignore_ascii_case(format.extension()))
+        .is_some_and(|value| value.eq_ignore_ascii_case(extension))
     {
         return Err(Error::Invalid(format!(
-            "Choose a new .{} report filename.",
-            format.extension()
+            "Choose a new .{extension} report filename."
         )));
     }
     let leaf = destination.file_name().ok_or_else(invalid)?;
@@ -77,11 +109,7 @@ pub fn save_report(
         .map_err(|error| Error::Invalid(format!("Report temporary creation failed: {error}")))?;
     let result: Result<StreamOutcome> = (|| {
         let mut writer = BufWriter::with_capacity(64 * 1024, &mut temporary.file);
-        let outcome = match format {
-            ReportFormat::Csv => stream_csv(index, request, &mut writer, cancelled, progress)?,
-            ReportFormat::Xlsx => stream_xlsx(index, request, &mut writer, cancelled, progress)?,
-            ReportFormat::Pdf => stream_pdf(index, request, &mut writer, cancelled, progress)?,
-        };
+        let outcome = encode(&mut writer)?;
         if let StreamOutcome::Complete(state) = outcome {
             writer.flush()?;
             drop(writer);

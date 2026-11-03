@@ -10,7 +10,9 @@ pub use stream::{ReportFilter, ReportSelection, StreamOutcome, StreamProgress, s
 mod xlsx;
 pub use xlsx::stream_xlsx;
 mod summary;
+mod svg;
 pub use summary::{LogicalTotal, ReportSummary, SummaryPath, SummaryRow, ranked_summary};
+pub use svg::{SvgCamera, SvgHeight, SvgHeightMetric, SvgRequest, SvgView, stream_svg};
 #[cfg(windows)]
 mod pdf;
 #[cfg(windows)]
@@ -18,7 +20,7 @@ pub use pdf::{render_pdf, stream_pdf};
 #[cfg(windows)]
 mod file;
 #[cfg(windows)]
-pub use file::save_report;
+pub use file::{save_report, save_svg};
 
 #[derive(Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]

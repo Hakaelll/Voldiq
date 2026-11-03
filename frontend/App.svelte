@@ -40,6 +40,9 @@
   import FolderBudget from './components/FolderBudget.svelte';
   import LiveControl from './components/LiveControl.svelte';
   import ReportExport from './components/ReportExport.svelte';
+  import SvgExport from './components/SvgExport.svelte';
+  import type { SvgCapture, SvgRequest } from './lib/graphic-export';
+  import { reportSelection } from './lib/report-export';
   import { volumeMeasurement, volumeCaller } from './lib/volume-space';
   import type { LiveObservation } from './lib/live-session';
   import ProtectedFolders from './components/ProtectedFolders.svelte';
@@ -421,6 +424,32 @@
   const volumeSpace = $derived(volumeMeasurement(volume));
   const volumeAvailability = $derived(volumeCaller(volume));
   let exportBusy = $state(false);
+  let graphicExport = $state.raw<{ indexId: IndexId; request: SvgRequest } | null>(null);
+  function exportMap(capture: SvgCapture): boolean {
+    if (
+      !ready ||
+      busy ||
+      indexId === null ||
+      capture.indexId !== indexId ||
+      capture.scope !== scope ||
+      capture.cloud !== cloudFilter ||
+      capture.searchIdentity !== mapSearchKey ||
+      !isTauri()
+    )
+      return false;
+    graphicExport = {
+      indexId,
+      request: {
+        scope: capture.scope,
+        cloud: capture.cloud,
+        highlight: reportSelection(mapSearch ?? {}, scope, 'files', true, false).filter,
+        view: capture.view,
+        drawing: capture.drawing,
+        include_paths: false,
+      },
+    };
+    return true;
+  }
   let busy = $derived(
     operation?.phase === 'scanning' ||
       liveBusy ||
@@ -1385,6 +1414,16 @@
             </p>{/if}
         </div>
         <div class="page-actions">
+          {#if graphicExport}<SvgExport
+              indexId={graphicExport.indexId}
+              request={graphicExport.request}
+              onclose={() => {
+                graphicExport = null;
+              }}
+              onbusy={(value) => {
+                exportBusy = value;
+              }}
+            />{/if}
           {#if ready && indexId !== null}{#key indexId}<ReportExport
                 {indexId}
                 {scope}
@@ -1662,6 +1701,8 @@
             >
               {#if view === 'overview'}
                 <Overview
+                  onexport={isTauri() ? exportMap : undefined}
+                  exportDisabled={busy || !ready || indexId === null}
                   {indexId}
                   paused={busy}
                   {volume}
@@ -1821,6 +1862,8 @@
                     </div>{/if}
                   {#if view === 'explorer' && explorerMap}
                     <StorageMap
+                      onexport={isTauri() ? exportMap : undefined}
+                      exportDisabled={busy || !ready || indexId === null}
                       {nodes}
                       identity={`${indexId}:${scope}:${cloudFilter ?? 'all'}`}
                       {cloudFilter}

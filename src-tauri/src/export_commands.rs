@@ -156,14 +156,78 @@ pub(crate) async fn save_report(
 ) -> Result<Receipt, String> {
     #[cfg(windows)]
     {
+        save_file(
+            index_id,
+            request_id,
+            FileRequest::Records {
+                selection: request,
+                format,
+            },
+            engine,
+        )
+        .await
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (index_id, request_id, request, format, engine);
+        Err("Report file export is available on Windows only.".into())
+    }
+}
+
+#[tauri::command]
+pub(crate) async fn save_svg(
+    index_id: IndexId,
+    request_id: String,
+    request: voldiq_core::exports::SvgRequest,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Receipt, String> {
+    #[cfg(windows)]
+    {
+        save_file(index_id, request_id, FileRequest::Svg(request), engine).await
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (index_id, request_id, request, engine);
+        Err("Report file export is available on Windows only.".into())
+    }
+}
+
+#[cfg(windows)]
+enum FileRequest {
+    Records {
+        selection: ReportSelection,
+        format: ReportFormat,
+    },
+    Svg(voldiq_core::exports::SvgRequest),
+}
+#[cfg(windows)]
+impl FileRequest {
+    fn extension(&self) -> &'static str {
+        match self {
+            Self::Records { format, .. } => format.extension(),
+            Self::Svg(_) => "svg",
+        }
+    }
+}
+
+#[cfg(windows)]
+async fn save_file(
+    index_id: IndexId,
+    request_id: String,
+    request: FileRequest,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Receipt, String> {
+    #[cfg(windows)]
+    {
         let engine = engine.inner().clone();
         let session = Session::begin(engine.clone(), request_id, index_id)?;
         engine.index_for(index_id)?;
+        let extension = request.extension();
         let path = tauri::async_runtime::spawn_blocking(move || {
             rfd::FileDialog::new()
                 .set_title("Save report · existing files are preserved")
-                .add_filter("Report", &[format.extension()])
-                .set_file_name(format!("voldiq-report.{}", format.extension()))
+                .add_filter("Report", &[extension])
+                .set_file_name(format!("voldiq-report.{extension}"))
                 .save_file()
         })
         .await
@@ -194,15 +258,25 @@ pub(crate) async fn save_report(
         // The blocking worker owns both the session and operation until every file handle is closed.
         tauri::async_runtime::spawn_blocking(move || {
             let index = index.read().map_err(|error| error.to_string())?;
-            let result = voldiq_core::exports::save_report(
-                &index,
-                format,
-                &request,
-                &path,
-                &operation._lease,
-                &operation.cancel,
-                |value| session.progress(value),
-            )
+            let result = match &request {
+                FileRequest::Records { selection, format } => voldiq_core::exports::save_report(
+                    &index,
+                    *format,
+                    selection,
+                    &path,
+                    &operation._lease,
+                    &operation.cancel,
+                    |value| session.progress(value),
+                ),
+                FileRequest::Svg(selection) => voldiq_core::exports::save_svg(
+                    &index,
+                    selection,
+                    &path,
+                    &operation._lease,
+                    &operation.cancel,
+                    |value| session.progress(value),
+                ),
+            }
             .map_err(|error| error.to_string())?;
             let outcome = match result {
                 StreamOutcome::Complete(progress) => Outcome::Complete { progress, path },
@@ -215,7 +289,7 @@ pub(crate) async fn save_report(
     }
     #[cfg(not(windows))]
     {
-        let _ = (index_id, request_id, request, format, engine);
+        let _ = (index_id, request_id, request, engine);
         Err("Report file export is available on Windows only.".into())
     }
 }

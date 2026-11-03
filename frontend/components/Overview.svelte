@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { SvgCapture } from '../lib/graphic-export';
   import StorageMap from './StorageMap.svelte';
   import SpaceAccount from './SpaceAccount.svelte';
   import RecoveryCopies from './RecoveryCopies.svelte';
@@ -55,6 +56,8 @@
     queryState,
     oncloudfilter,
     onretry,
+    onexport,
+    exportDisabled = false,
   }: {
     indexId: IndexId | null;
     paused: boolean;
@@ -90,6 +93,8 @@
     queryState: 'ready' | 'loading' | 'failed';
     oncloudfilter: (value: CloudFilter | null) => void;
     onretry: () => void;
+    onexport?: (capture: SvgCapture) => boolean;
+    exportDisabled?: boolean;
   } = $props();
   const distribution = $derived(visibleFileTypes(types));
   const space = $derived(volumeMeasurement(volume));
@@ -225,6 +230,8 @@
   <div class="overview-main">
     <section class="map-panel" aria-busy={!directory}>
       {#if directory}<StorageMap
+          {onexport}
+          {exportDisabled}
           {nodes}
           {cloudFilter}
           {queryState}

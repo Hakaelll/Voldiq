@@ -1478,6 +1478,214 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             );
         }
     }
+    #[cfg(windows)]
+    {
+        use voldiq_core::{
+            NodeId,
+            exports::{StreamOutcome, SvgCamera, SvgRequest, SvgView},
+            workbench::{Color, Metric, Representation},
+        };
+        let destination = tempfile::tempdir().unwrap();
+        let export_state = tempfile::tempdir().unwrap();
+        let lease = voldiq_core::operations::Lease::acquire(export_state.path()).unwrap();
+        let mut request = SvgRequest {
+            scope: NodeId(0),
+            cloud: None,
+            include_paths: false,
+            highlight: voldiq_core::exports::ReportFilter {
+                text: "https://private.invalid/?token=secret".into(),
+                ..Default::default()
+            },
+            view: SvgView {
+                representation: Representation::Treemap,
+                metric: Metric::Logical,
+                color: Color::Type,
+                color_maximum: 70.0,
+                reference_time: 0.0,
+                dark: false,
+                depth: 3,
+                width: 1000.0,
+                height: 700.0,
+                camera: SvgCamera {
+                    x: 0.0,
+                    y: 0.0,
+                    scale: 1.0,
+                },
+                detail: true,
+                city_height: None,
+                lens: false,
+            },
+            drawing: include_str!("fixtures/storage-map.svg").into(),
+        };
+        let report = destination.path().join("map.svg");
+        assert!(
+            matches!(voldiq_core::exports::save_svg(&export_index,&request,&report,&lease,&loading,|_|{}).unwrap(), StreamOutcome::Complete(value) if value.rows==10_005)
+        );
+        let saved = std::fs::read_to_string(&report).unwrap();
+        assert!(
+            !saved.contains("private.invalid") && !saved.contains("Export integration supplies")
+        );
+        assert!(
+            saved.contains("&lt;script&gt;archive.zip&lt;/script&gt;") && !saved.contains("<image")
+        );
+        let mut reader = quick_xml::Reader::from_str(&saved);
+        let mut inside = false;
+        let mut metadata = String::new();
+        loop {
+            match reader.read_event().unwrap() {
+                quick_xml::events::Event::Start(element)
+                    if element.name().as_ref() == "metadata" =>
+                {
+                    inside = true
+                }
+                quick_xml::events::Event::Text(text) if inside => metadata.push_str(text.as_ref()),
+                quick_xml::events::Event::GeneralRef(value) if inside => {
+                    if let Some(character) = value.resolve_char_ref().unwrap() {
+                        metadata.push(character);
+                    } else {
+                        metadata.push_str(
+                            quick_xml::escape::resolve_predefined_entity(value.as_ref()).unwrap(),
+                        );
+                    }
+                }
+                quick_xml::events::Event::End(element) if element.name().as_ref() == "metadata" => {
+                    break;
+                }
+                quick_xml::events::Event::Eof => panic!("Published SVG lacks core context"),
+                _ => {}
+            }
+        }
+        let context: serde_json::Value = serde_json::from_str(&metadata).unwrap();
+        assert_eq!(context["scope_file_matches"], 10_005);
+        assert_eq!(context["scope_node"], 0);
+        assert_eq!(context["highlight_filter"]["text"], serde_json::Value::Null);
+        assert_eq!(context["root_path"], serde_json::Value::Null);
+        assert_eq!(context["scope_path"], serde_json::Value::Null);
+        assert_eq!(context["client_declared_view"]["representation"], "treemap");
+        assert_eq!(context["coverage"], "unknown");
+        assert!(
+            voldiq_core::exports::save_svg(
+                &export_index,
+                &request,
+                &report,
+                &lease,
+                &loading,
+                |_| {}
+            )
+            .is_err()
+        );
+        assert_eq!(std::fs::read_to_string(&report).unwrap(), saved);
+        let original = request.drawing.clone();
+        for attack in [
+            original.replacen("<defs>", "<script>bad</script><defs>", 1),
+            original.replacen(
+                "fill=\"#fcfcf9\"",
+                "fill=\"url(https://private.invalid/image)\"",
+                1,
+            ),
+            format!("<!DOCTYPE svg [<!ENTITY stolen SYSTEM 'file:///private'>]>{original}"),
+        ] {
+            request.drawing = attack;
+            assert!(
+                voldiq_core::exports::save_svg(
+                    &export_index,
+                    &request,
+                    &destination.path().join("unsafe.svg"),
+                    &lease,
+                    &loading,
+                    |_| {}
+                )
+                .is_err()
+            );
+            assert!(!destination.path().join("unsafe.svg").exists());
+        }
+        request.drawing = original;
+        for (representation, drawing, filename) in [
+            (
+                Representation::Sunburst,
+                include_str!("fixtures/storage-sunburst.svg"),
+                "sunburst.svg",
+            ),
+            (
+                Representation::Circles,
+                include_str!("fixtures/storage-circles.svg"),
+                "circles.svg",
+            ),
+            (
+                Representation::Voronoi,
+                include_str!("fixtures/storage-voronoi.svg"),
+                "voronoi.svg",
+            ),
+            (
+                Representation::City,
+                include_str!("fixtures/storage-city.svg"),
+                "city.svg",
+            ),
+        ] {
+            request.view.representation = representation;
+            request.view.city_height = (representation == Representation::City).then_some(
+                voldiq_core::exports::SvgHeight {
+                    metric: voldiq_core::exports::SvgHeightMetric::Modified,
+                    relief: 1.0,
+                    maximum: 70.0,
+                },
+            );
+            request.drawing = drawing.into();
+            assert!(
+                matches!(voldiq_core::exports::save_svg(&export_index,&request,&destination.path().join(filename),&lease,&loading,|_|{}).unwrap(),StreamOutcome::Complete(value) if value.rows==10_005)
+            );
+        }
+        request.drawing = include_str!("fixtures/storage-map.svg").into();
+        request.view.representation = Representation::Treemap;
+        request.view.city_height = None;
+        let stop = AtomicBool::new(false);
+        assert!(matches!(
+            voldiq_core::exports::save_svg(
+                &export_index,
+                &request,
+                &destination.path().join("stopped.svg"),
+                &lease,
+                &stop,
+                |value| {
+                    if value.rows > 0 {
+                        stop.store(true, std::sync::atomic::Ordering::Relaxed);
+                    }
+                }
+            )
+            .unwrap(),
+            StreamOutcome::Cancelled(_)
+        ));
+        assert!(!destination.path().join("stopped.svg").exists());
+        let mut pre_cancelled = Vec::new();
+        assert!(matches!(
+            voldiq_core::exports::stream_svg(
+                &export_index,
+                &request,
+                &mut pre_cancelled,
+                &AtomicBool::new(true),
+                |_| {}
+            )
+            .unwrap(),
+            StreamOutcome::Cancelled(_)
+        ));
+        assert!(pre_cancelled.is_empty());
+        request.include_paths = true;
+        let mut opted_in = Vec::new();
+        voldiq_core::exports::stream_svg(&export_index, &request, &mut opted_in, &loading, |_| {})
+            .unwrap();
+        assert!(
+            String::from_utf8(opted_in)
+                .unwrap()
+                .contains("private.invalid")
+        );
+        assert_eq!(std::fs::read_dir(destination.path()).unwrap().count(), 5);
+        if std::env::var("VOLDIQ_KEEP_SVG_FIXTURE").as_deref() == Ok("1") {
+            println!(
+                "SVG fixture: {}",
+                destination.keep().join("map.svg").display()
+            );
+        }
+    }
     let stopped_summary = AtomicBool::new(false);
     assert!(
         voldiq_core::exports::ranked_summary(&export_index, &all, &stopped_summary, |value| {
