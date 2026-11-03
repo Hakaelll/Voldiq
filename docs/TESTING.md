@@ -12,8 +12,8 @@ The routine Windows suite contains eight behavior tests: one frontend case and s
 | Duplicate execution | `crates/voldiq-core/src/cleanup/execute/tests.rs` | A changed retained copy prevents deletion; cancellation preserves pending files and retained copies |
 | Interrupted result recording | `crates/voldiq-core/src/cleanup/execute/tests.rs` | A journal write failure stops further removal and retains explicit partial/unknown outcomes |
 | Human-approved dispatch | `crates/voldiq-core/src/plans/desktop/tests.rs` | Exact live grant, wrong-hash denial, helper refusal, persisted result, replay without another attempt and closed-session denial |
-| CLI transport | `crates/voldiq-headless/tests/headless.rs` | Real binary, scoped exact-plan/budget/comparison reads, reversed differences, foreign-scope denial, independent approval requests, cancellation and rejected approval bypasses |
-| MCP transport | `crates/voldiq-headless/tests/mcp.rs` | Official SDK stdio negotiation, real scan/query/history/budget/comparison calls, both-source authorization, exclusion coverage, page caps, strict arguments, exact plan intents and revocation |
+| CLI transport | `crates/voldiq-headless/tests/headless.rs` | Real binary, scoped exact-plan/space/budget/comparison reads, withheld volume context, reversed differences, foreign-scope denial, independent approval requests, cancellation and rejected approval bypasses |
+| MCP transport | `crates/voldiq-headless/tests/mcp.rs` | Official SDK stdio negotiation, real scan/query/history/space/budget/comparison calls, withheld volume context, both-source authorization, exclusion coverage, page caps, strict arguments, exact plan intents and revocation |
 
 These are retained existing cases. They do not preserve the former suite's full parser, geometry, race, migration, protection, attribution or metadata edge-case coverage. Earlier green receipts remain historical evidence, not proof that deleted cases still run. See [workbench status](WORKBENCH-STATUS.md) and the [coverage matrix](WORKBENCH-COVERAGE.md).
 

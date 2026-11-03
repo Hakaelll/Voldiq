@@ -518,6 +518,33 @@ impl AgentService {
         Ok(result)
     }
 
+    pub fn space_account(
+        &self,
+        snapshot: i64,
+        cancel: &AtomicBool,
+    ) -> Result<Option<crate::space::Report>> {
+        self.registry()?
+            .policy(&self.principal, Capability::Metadata)?;
+        if snapshot <= 0 {
+            return Err(Error::Invalid("A positive snapshot ID is required.".into()));
+        }
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        let index = self.index(snapshot)?;
+        let Some(indexed) = crate::space::summarize(&index, cancel)? else {
+            return Ok(None);
+        };
+        let _check = self.registry()?.authorize_index(&self.principal, &index)?;
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        Ok(Some(crate::space::Report::compare(
+            indexed,
+            crate::space::VolumeContext::ScopedOnly,
+        )))
+    }
+
     pub fn stats(&self, snapshot: i64) -> Result<Stats> {
         let index = self.index(snapshot)?;
         let root = index.entry(crate::NodeId(0))?;

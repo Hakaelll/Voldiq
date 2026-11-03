@@ -1,0 +1,38 @@
+{
+  "checkedUtc": "2026-11-03T04:00:41.4455558Z",
+  "checkoutCommit": "30adc499d005379c0ff55c1c0eb180bdca85fc7c",
+  "executable": "target/release/voldiq-cli.exe",
+  "executableSha256": "0F30540C7AE1015A5E102C4108C7B89A8DB4C34C321EDB11590DFF45A96B1986",
+  "help": {
+    "result": {
+      "authentication": "Human-provisioned VOLDIQ_AGENT_TOKEN environment variable. No credential arguments or approval bypass.",
+      "commands": [
+        "capabilities",
+        "translate <description>",
+        "scan <root> [--wait]",
+        "query <snapshot_id> [JSON filters]",
+        "stats <snapshot_id>",
+        "space <snapshot_id>",
+        "history [offset] [limit]",
+        "compare <before_id> <after_id> [offset] [limit]",
+        "calendar <snapshot_id> <YYYY-MM> [day] [offset] [limit]",
+        "diary <snapshot_id> [offset] [limit]",
+        "details <snapshot_id> <node_id>",
+        "folder <snapshot_id> <node_id> [--note]",
+        "budget <snapshot_id> <node_id>",
+        "jobs <job_id>",
+        "cancel <job_id>",
+        "plan prepare <snapshot_id> <JSON node IDs>",
+        "plan get <plan_id>",
+        "plan request <plan_id>",
+        "plan execute <plan_id> <manifest_hash>",
+        "plan cancel <plan_id> <manifest_hash>",
+        "plan audit <plan_id> [after_sequence] [limit]",
+        "mcp serve --stdio"
+      ],
+      "state": "--state <directory> before command (default: Voldiq local application data)"
+    },
+    "schema_version": 1
+  },
+  "scope": "Actual CLI help and binary identity. Scoped reports, denial and official SDK behavior are verified by the retained integration cases. This probe reads no application state or credentials."
+}

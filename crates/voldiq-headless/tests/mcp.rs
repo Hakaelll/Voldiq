@@ -118,6 +118,32 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     };
     let stats = call(&client, "voldiq_stats", json!({"snapshot_id":snapshot})).await;
     assert_eq!(stats.structured_content.unwrap()["result"]["logical"], 11);
+    assert!(tools.iter().any(|tool| tool.name == "voldiq_space_account"));
+    let space = call(
+        &client,
+        "voldiq_space_account",
+        json!({"snapshot_id":snapshot}),
+    )
+    .await;
+    assert_ne!(space.is_error, Some(true));
+    let space = space.structured_content.unwrap();
+    assert_eq!(space["result"]["indexed"]["logical_paths"], "11");
+    assert_eq!(space["result"]["indexed"]["snapshot"], snapshot);
+    assert_eq!(space["result"]["volume"], json!({"kind":"scoped_only"}));
+    assert_eq!(
+        space["result"]["residual"],
+        json!({"kind":"unavailable","reason":"scoped_only"})
+    );
+    let invalid_space = call(
+        &client,
+        "voldiq_space_account",
+        json!({"snapshot_id":snapshot,"whole_volume":true}),
+    )
+    .await;
+    assert_eq!(
+        invalid_space.structured_content.unwrap()["error"]["code"],
+        "invalid_arguments"
+    );
     assert!(tools.iter().any(|tool| tool.name == "voldiq_calendar"));
     assert!(tools.iter().any(|tool| tool.name == "voldiq_diary"));
     let calendar = call(
@@ -277,6 +303,11 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
             .diary(snapshot, 0, 5, &std::sync::atomic::AtomicBool::new(false))
             .is_err()
     );
+    assert!(
+        reader
+            .space_account(snapshot, &std::sync::atomic::AtomicBool::new(false))
+            .is_err()
+    );
     let reader = voldiq_core::service::AgentService::new(
         state.path().to_owned(),
         registry
@@ -287,6 +318,12 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     assert!(
         reader
             .compare_snapshots(snapshot, later, 0, 10, &cancelled)
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        reader
+            .space_account(snapshot, &cancelled)
             .unwrap()
             .is_none()
     );
@@ -319,6 +356,7 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
             json!({"snapshot_id":foreign,"month":"2024-02"}),
         ),
         ("voldiq_diary", json!({"snapshot_id":foreign})),
+        ("voldiq_space_account", json!({"snapshot_id":foreign})),
     ] {
         let rejected = call(&client, name, args).await;
         assert_eq!(
@@ -527,6 +565,16 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     );
     let revoked = call(&client, "voldiq_stats", json!({"snapshot_id":snapshot})).await;
     assert_eq!(revoked.is_error, Some(true));
+    let revoked_space = call(
+        &client,
+        "voldiq_space_account",
+        json!({"snapshot_id":snapshot}),
+    )
+    .await;
+    assert_eq!(
+        revoked_space.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
+    );
     assert_eq!(
         call(&client, "voldiq_plan_get", json!({"plan_id":plan_id}))
             .await

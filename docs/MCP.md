@@ -47,6 +47,7 @@ This example forwards an environment variable by name, without embedding its val
 | `voldiq_job_get` | Metadata | Owner-scoped job, progress, terminal state, snapshot ID |
 | `voldiq_job_cancel` | Scan | Cooperative cancellation request for an owned job |
 | `voldiq_stats` | Metadata | Indexed logical bytes, unique known allocation or null, counts and coverage |
+| `voldiq_space_account` | Metadata | Scoped indexed allocation, logical path bytes, cloud/reparse metadata, accounting and coverage; whole-volume context and residual withheld |
 | `voldiq_query` | Metadata | Bounded page with shared structured filters and advanced expression |
 | `voldiq_query_translate` | Metadata | Offline expression proposal and exact unparsed input spans; no snapshot/query execution |
 | `voldiq_details` | Metadata | One indexed entry, path and ancestor metadata |
@@ -106,7 +107,7 @@ Optional `query.cloud` accepts `placeholder`, `recall_required`, `no_recall_flag
 
 Metadata file queries and file-type totals include the observed logical length of confirmed placeholder files. Their serialized `kind` remains `link`, with incomplete coverage/allocation; this does not grant content access or make them cleanup candidates. `files_only` and `kind:file` describe metadata file classification, while `kind:link` retains the reparse-record view. Cloud folders remain untraversed with incomplete subtree coverage. Snapshot schema 6 preserves classifications; old records migrate to `unknown` and need another scan for observation. CLI and MCP use the same filters, scope checks and cancellation. GUI cloud controls use these same predicates, with a bounded core projection for map totals. Live provider acceptance remains pending.
 
-Incoming protocol lines are bounded to 64 KiB, tool arguments to 16 KiB and structured responses to 512 KiB. The fixed twenty-tool catalogue fits one page. At most four tool workers execute concurrently; their permits remain held even if a request disconnects before its blocking worker finishes. Query pages respect the connection limit, at most 500 entries. The service caches one loaded index, never serializes the entire tree, and rejects snapshots whose exclusion coverage no longer satisfies the current policy.
+Incoming protocol lines are bounded to 64 KiB, tool arguments to 16 KiB and structured responses to 512 KiB. The fixed twenty-one-tool catalogue fits one page. At most four tool workers execute concurrently; their permits remain held even if a request disconnects before its blocking worker finishes. Query pages respect the connection limit, at most 500 entries. The service caches one loaded index, never serializes the entire tree, and rejects snapshots whose exclusion coverage no longer satisfies the current policy.
 
 Connections can query saved snapshots from the desktop or another connection only when the current native root identity and exclusion coverage satisfy their own policy. The service checks small scope metadata before loading the index. Broader captures are rejected as a whole, not silently filtered into misleading totals. A snapshot ID grants no authority. Jobs remain private to their initiating connection.
 
@@ -114,9 +115,17 @@ Connections can query saved snapshots from the desktop or another connection onl
 
 Agent scan results persist in the existing compact snapshot database. Desktop scans, duplicate verification, cleanup, restoration and snapshot work now use the same core OS operation lease as headless scans. A native guard retains it until the worker exits, including after cancellation or local completion acknowledgement. The existing `scan.lock` filename is retained for compatibility with earlier scan clients; it is not approval proof. Durable job history retains at most 10,000 agent scan records. GUI job mirroring and automatic shared-index persistence remain pending. The job table is not the file-operation security audit ledger.
 
-CLI commands are listed by `voldiq-cli --help`. JSON envelopes have `schema_version: 1`. Exit codes are 0 success, 2 invalid arguments, 3 missing/invalid credential, 4 unavailable/failed operation, 5 independent human approval required and 130 cancelled foreground scan or comparison. CLI scans remain in the foreground; `--wait` is accepted explicitly. Initial job identity goes to stderr, final JSON to stdout. Ctrl+C requests cancellation and waits for the worker to finish. MCP reserves stdout entirely for the protocol.
+CLI commands are listed by `voldiq-cli --help`. JSON envelopes have `schema_version: 1`. Exit codes are 0 success, 2 invalid arguments, 3 missing/invalid credential, 4 unavailable/failed operation, 5 independent human approval required and 130 cancelled foreground scan or cancellable metadata read. CLI scans remain in the foreground; `--wait` is accepted explicitly. Initial job identity goes to stderr, final JSON to stdout. Ctrl+C requests cancellation and waits for the worker to finish. MCP reserves stdout entirely for the protocol.
 
 CLI `folder <snapshot_id> <node_id> [--note]` and MCP `voldiq_folder_metadata` with `include_note` omitted or false never read note text. Their `not_requested` value does not mean an empty note. Requesting text requires `ReadContent`; the human-only connection screen grants it explicitly. Notes remain literal untrusted text and cannot grant permissions or approve work. Reads verify the current native directory against scan evidence, so replacement or missing legacy evidence requires a rescan. A returned note is current; `source_snapshot` identifies folder evidence rather than a historical note. See [folder metadata](FOLDER-METADATA.md).
+
+## Scoped space account
+
+CLI `voldiq-cli space <snapshot_id>` and MCP `voldiq_space_account({"snapshot_id":123})` explain one authorized stored capture through the shared core. The result keeps exact decimal byte strings, observation date, coverage, exclusions, accounting status, known file allocation, logical path totals and cloud/reparse metadata. Missing evidence remains unavailable. Current accounting already assigns hardlink allocation once; logical path totals can count multiple names for the same file.
+
+The service requires Metadata, checks the snapshot's native root identity and exclusion coverage, and repeats authorization before returning. A cached snapshot does not preserve revoked permission. The report always has `volume: {"kind":"scoped_only"}` and `residual: {"kind":"unavailable","reason":"scoped_only"}`. A folder grant does not authorize the containing volume's usage, free space, reserves or caller allowance. There is no whole-volume option and this adapter never invokes the native volume reader.
+
+CLI Ctrl+C and MCP request cancellation use the existing cooperative worker lifetime. Initial snapshot loading may finish before observing cancellation; cancelled summaries return no partial report. Signal/notification delivery remains separate runtime acceptance. This call does not scan, read file contents, hydrate placeholders, request approval or modify files.
 
 ## Snapshot comparison
 
@@ -156,7 +165,7 @@ Metadata and explicitly permitted note content stay local until the client recei
 
 These checks control operations through Voldiq. They do not sandbox an agent that independently has filesystem access under the same Windows account. Local SQLite state and hashes are not claimed tamper-proof against such a process. No tool treats file names, notes or other indexed text as instructions.
 
-Verification status: transport, fourteen analysis tools and six plan tools are implemented. Real CLI and official SDK clients check shared budget/comparison reads, exact-hash execution/cancellation intents, absence of a human channel, rejected approval injection, replay and unchanged owned source files. A core dispatch fixture exercises independent human approval, helper refusal, persisted result and closed-session denial. Native provisioning, review, event presentation and the full elevated/Shell route await manual acceptance. User clients are not configured.
+Verification status: transport, fifteen analysis tools and six plan tools are implemented. Real CLI and official SDK clients check shared space-account/budget/comparison reads, exact-hash execution/cancellation intents, absence of a human channel, rejected approval injection, replay and unchanged owned source files. A core dispatch fixture exercises independent human approval, helper refusal, persisted result and closed-session denial. Native provisioning, review, event presentation and the full elevated/Shell route await manual acceptance. User clients are not configured.
 
 ## Recorded calendar and diary reads
 

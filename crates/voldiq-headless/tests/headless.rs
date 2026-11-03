@@ -56,6 +56,28 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     )
     .unwrap();
     let node = files["result"]["items"][0]["id"].as_u64().unwrap();
+    let space = run(&["space", &snapshot.to_string()]);
+    assert!(space.status.success());
+    let space: Value = serde_json::from_slice(&space.stdout).unwrap();
+    assert_eq!(space["schema_version"], 1);
+    assert_eq!(space["result"]["indexed"]["logical_paths"], "7");
+    assert_eq!(space["result"]["indexed"]["snapshot"], snapshot);
+    assert_eq!(space["result"]["volume"], json!({"kind":"scoped_only"}));
+    assert_eq!(
+        space["result"]["residual"],
+        json!({"kind":"unavailable","reason":"scoped_only"})
+    );
+    #[cfg(windows)]
+    assert_eq!(
+        space["result"]["indexed"]["allocation"]["known"],
+        index.entries[0].allocated.to_string()
+    );
+    assert_eq!(
+        run(&["space", &snapshot.to_string(), "--volume"])
+            .status
+            .code(),
+        Some(2)
+    );
     let calendar = run(&["calendar", &snapshot.to_string(), "2024-02"]);
     assert!(calendar.status.success());
     let calendar: Value = serde_json::from_slice(&calendar.stdout).unwrap();
@@ -173,6 +195,7 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
         Some(4)
     );
     assert_eq!(run(&["diary", &foreign.to_string()]).status.code(), Some(4));
+    assert_eq!(run(&["space", &foreign.to_string()]).status.code(), Some(4));
     let translated = run(&["translate", "archivos mayores de 1 GiB"]);
     assert!(translated.status.success());
     let translated: Value = serde_json::from_slice(&translated.stdout).unwrap();

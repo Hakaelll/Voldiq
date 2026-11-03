@@ -283,6 +283,19 @@ fn invoke(
                 })?;
             serde_json::to_value(result).map_err(unavailable)
         }
+        "voldiq_space_account" => {
+            let args: SnapshotArgs = parse(args)?;
+            let result = service
+                .space_account(args.snapshot_id, cancel)
+                .map_err(unavailable)?
+                .ok_or_else(|| {
+                    super::failure(
+                        "space_cancelled",
+                        "Space account query cancelled; no partial result is returned.",
+                    )
+                })?;
+            serde_json::to_value(result).map_err(unavailable)
+        }
         "voldiq_stats" => {
             let args: SnapshotArgs = parse(args)?;
             serde_json::to_value(service.stats(args.snapshot_id).map_err(unavailable)?)
@@ -431,7 +444,7 @@ impl ServerHandler for Server {
         let service = self.service.clone();
         let cancellable_read = matches!(
             request.name.as_ref(),
-            "voldiq_compare" | "voldiq_calendar" | "voldiq_diary"
+            "voldiq_compare" | "voldiq_calendar" | "voldiq_diary" | "voldiq_space_account"
         );
         let cancel = Arc::new(AtomicBool::new(false));
         let _cancel_on_drop = CancelReadOnDrop(cancel.clone());
@@ -484,6 +497,7 @@ fn tools() -> Vec<Tool> {
         ("voldiq_job_get", "Read this connection's durable scan status and snapshot ID.", json!({"job_id":integer}), json!(["job_id"])),
         ("voldiq_job_cancel", "Request cooperative cancellation of this connection's active scan.", json!({"job_id":integer}), json!(["job_id"])),
         ("voldiq_stats", "Read logical path bytes and unique known allocation from an authorized snapshot. Unknown allocation is null.", json!({"snapshot_id":integer}), json!(["snapshot_id"])),
+        ("voldiq_space_account", "Explain known indexed file allocation, logical path bytes, cloud/reparse metadata and coverage in one authorized stored capture. Requires Metadata; current root identity and exclusion coverage are checked again before return. Whole-volume counters and residuals are withheld because a folder grant does not grant volume scope. No content read, file action or approval. Request cancellation is cooperative.", json!({"snapshot_id":integer}), json!(["snapshot_id"])),
         ("voldiq_query", "Page an authorized indexed snapshot using explicit structured filters; changing view does not scan.", json!({"snapshot_id":integer,"query":query}), json!(["snapshot_id"])),
         ("voldiq_query_translate", "Propose an offline Spanish/English search expression and exact unparsed input spans. Requires Metadata. Does not inspect a snapshot, run a query, grant scope, change files or approve anything. Review and edit before using the expression in voldiq_query.", json!({"source":{"type":"string","maxLength":4096}}), json!(["source"])),
         ("voldiq_details", "Read indexed metadata and ancestors for one authorized snapshot item.", json!({"snapshot_id":integer,"node_id":{"type":"integer","minimum":0}}), json!(["snapshot_id","node_id"])),
