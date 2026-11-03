@@ -1,0 +1,87 @@
+{
+  "checkedUtc": "2026-11-03T15:28:40.6112478Z",
+  "sourceCommit": "9c8ae17a9aceeb0d38eea62a4461a2ca252a1e12",
+  "executableSha256": "8C46003580F4DD2FDB867E81422C1EB7C2662B0E714F7823116B718CE4003DE8",
+  "preview": "target/preview/8C46003580F4DD2FDB867E81422C1EB7C2662B0E714F7823116B718CE4003DE8/voldiq.exe",
+  "processId": 22408,
+  "mainWindowHandle": 8586966,
+  "startupEvents": [
+    {
+      "event": "process-start",
+      "pid": 22408,
+      "unixMs": 1793719719159
+    },
+    {
+      "event": "setup-start",
+      "pid": 22408,
+      "unixMs": 1793719719480
+    },
+    {
+      "event": "snapshot-open-start",
+      "pid": 22408,
+      "unixMs": 1793719719484
+    },
+    {
+      "event": "snapshot-open-end",
+      "pid": 22408,
+      "unixMs": 1793719719509
+    },
+    {
+      "event": "setup-end",
+      "pid": 22408,
+      "unixMs": 1793719720271
+    },
+    {
+      "event": "ready",
+      "pid": 22408,
+      "unixMs": 1793719720272
+    },
+    {
+      "event": "page-finished",
+      "pid": 22408,
+      "unixMs": 1793719720338
+    }
+  ],
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "assets/index-D_tyUgWv.js",
+        "bytes": 377718,
+        "sha256": "1DA09244B911A19E68C71C2F472D7B97D9923413076CFF99395A8F62D1367B6F"
+      },
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "4A8CE0C90B1A99878315EF70407FD1F114B2992198E1D304AAA943B3046C8E62"
+      },
+      {
+        "path": "assets/index-CrJaKuCi.css",
+        "bytes": 79628,
+        "sha256": "F7CDD7460D330A68B9935BA9C42645A016E36F944DD6CC3E5CF4632C372644B1"
+      },
+      {
+        "path": "assets/city.worker-DLxzT0Wm.js",
+        "bytes": 2879,
+        "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      },
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "assets/voronoi.worker-DwJ2QmrW.js",
+        "bytes": 5606,
+        "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+      }
+    ]
+  },
+  "scope": "Production startup, native window and exact assets only. Application-state event payloads omitted. No connection provisioned, permission granted, credential revealed, export, scan or file action requested. Consent interaction, visual/keyboard/scaling acceptance remain manual."
+}
