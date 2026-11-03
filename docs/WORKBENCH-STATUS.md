@@ -4,6 +4,14 @@ Delivery branch: `main`, as the user explicitly requested during implementation.
 
 The complete task remains active. See the [coverage matrix](WORKBENCH-COVERAGE.md) and [execution plan](plans/storage-workbench.md). This status does not declare pending capabilities implemented.
 
+## Explicit Export permission correction
+
+Review found that the CSV facade checked Metadata but omitted the already-defined independent Export capability. A retained real CLI case reproduced the defect: a valid Metadata-only connection exported CSV with exit 0 where exit 4 was required. The [red/green evidence](../benchmarks/export-permission-red-green-20261103.json) records that owned-fixture observation. `AgentService::export_csv` now checks Export before loading/generation and again before delivery, alongside current Metadata/native root/exclusion authorization. Both CLI and MCP use that facade. Metadata-only connections retain ordinary metadata queries and cannot use Voldiq's CSV endpoint. This corrects the preceding unit's Metadata-only permission claim; it is not a restriction on clients formatting metadata already returned by permitted queries.
+
+Connection creation now offers an initially unchecked Export indexed metadata as CSV option and passes the explicit choice to the existing native confirmation. Missing fields default to false and existing credentials are not upgraded. The native permission summary already includes Export. No agent provisioning, approval or file-operation permission is added.
+
+The two retained adapter cases pass after the correction, followed by the [six-stage integration gate](../benchmarks/workbench-export-permission-source-20261103.json): all eight tests pass, zero Svelte diagnostics, production frontend build and strict Clippy. Fixtures explicitly grant Export for successful exports, reject a Metadata-only CLI request, and prove a Metadata-only service can still read stats while CSV is denied. No test declaration was added. An erroneous text replacement was repaired with a selective, transformation-checked patch after automatic review rejected whole-file restoration; the final narrow diff and all checks pass. Resources are `index-D_tyUgWv.js` and `index-CrJaKuCi.css`. Native build/startup and consent interaction remain pending for this unit; the complete workbench goal remains active.
+
 ## Authorized CSV export pages
 
 The shared `exports::csv` service now provides bounded files/folders CSV pages through CLI `export <snapshot_id> <JSON request>` and MCP `voldiq_export_csv`. Item class, filters, sort and pagination use the existing cancellable query. The service applies current policy limits and repeats native identity/exclusion/permission checks before returning. Full paths and the scope root require explicit `include_paths`; default output contains captured display names. No file is written and no content, note, credential, operation or new dependency is involved.

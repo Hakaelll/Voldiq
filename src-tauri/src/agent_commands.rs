@@ -15,6 +15,8 @@ pub struct ConnectionRequest {
     content: bool,
     #[serde(default)]
     execute: bool,
+    #[serde(default)]
+    export: bool,
     page_size: usize,
     scan_entries: usize,
     plan_files: usize,
@@ -69,6 +71,7 @@ pub async fn create_agent_connection(
         if request.scan { capabilities.push(Capability::Scan); }
         if request.content { capabilities.push(Capability::ReadContent); }
         if request.execute { capabilities.push(Capability::ExecuteApproved); }
+        if request.export { capabilities.push(Capability::Export); }
         if request.plan { capabilities.extend([Capability::PreparePlans, Capability::RequestApproval]); }
         let permission_names = capabilities.iter().map(|capability| match capability { Capability::Metadata => "metadata", Capability::Scan => "scanning", Capability::PreparePlans => "prepare recycling plans", Capability::RequestApproval => "request human review", Capability::ReadContent => "read folder notes and file content", Capability::ExecuteApproved => "execute human-approved plans", Capability::Export => "export metadata" }).collect::<Vec<_>>().join(", ");
         let policy = Policy::new(request.roots.clone(), request.exclusions.clone(), capabilities, Limits { page_size: request.page_size, scan_entries: request.scan_entries, plan_files: request.plan_files, plan_bytes: request.plan_bytes }).map_err(|error| error.to_string())?;

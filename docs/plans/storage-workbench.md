@@ -131,6 +131,8 @@ CSV adapter unit: add shared bounded spreadsheet-facing CSV pages for files or f
 
 ## G. Transfer, recovery and supervised policies
 
+Export permission correction: the existing Export capability must gate CSV separately from Metadata. Reproduce metadata-only CLI export succeeding, then require Export before loading/generating and again before delivery, alongside current native metadata authorization. Keep metadata queries available to metadata-only clients. Expose a default-off grant in the existing human connection form and native confirmation, without upgrading credentials. Extend retained adapter flows rather than adding test declarations. Verify source checks and the updated native application before claiming consent interaction acceptance.
+
 - [ ] Implement exact transfer and restore manifests, stable destination volume identity, no-overwrite copy/readback verification and approved original handling.
 - [ ] Add bounded recovery catalogue, quotas, retention and collision recovery. No agent purge.
 - [ ] Add scheduled authorized scans and prepare-only policies with limits/cooldowns/history; each modifying batch needs a new human approval.

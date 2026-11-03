@@ -22,6 +22,7 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
                 vec![],
                 vec![
                     Capability::Metadata,
+                    Capability::Export,
                     Capability::PreparePlans,
                     Capability::RequestApproval,
                     Capability::ExecuteApproved,
@@ -56,6 +57,26 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     )
     .unwrap();
     let node = files["result"]["items"][0]["id"].as_u64().unwrap();
+    let reader = registry
+        .provision(
+            "Metadata reader",
+            Policy::new(
+                vec![source.path().to_owned()],
+                vec![],
+                vec![Capability::Metadata],
+                Limits::default(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let denied_export = Command::new(env!("CARGO_BIN_EXE_voldiq-cli"))
+        .arg("--state")
+        .arg(state.path())
+        .args(["export", &snapshot.to_string(), r#"{"items":"files"}"#])
+        .env("VOLDIQ_AGENT_TOKEN", reader.credential.expose())
+        .output()
+        .unwrap();
+    assert_eq!(denied_export.status.code(), Some(4));
     let exported = run(&["export", &snapshot.to_string(), r#"{"items":"files"}"#]);
     assert!(exported.status.success());
     let exported: Value = serde_json::from_slice(&exported.stdout).unwrap();

@@ -456,6 +456,10 @@ The populated Overview adds an initially closed Space account section below the 
 
 Context and possible contributors is a secondary disclosure for hardlink paths, cloud metadata, unmeasured records, caller availability and independent reserve counters. Unmeasured explanations are labelled as possibilities. Unknown allocation and unavailable native reads remain explicit. Opening, reload, cancellation, pause and failure have distinct states; no idle query or file action is added. Controls reuse existing tokens and restore displaced focus only for the owning request. Rendered composition, keyboard/focus, assistive technology and Windows scaling remain manual acceptance under the user's no-computer-use instruction.
 
+## Agent export permission
+
+Agent connection creation exposes an independent, initially unchecked Export indexed metadata as CSV permission beside the existing metadata/scan controls. The native confirmation includes the resulting export capability. Existing connections are not upgraded. The backend enforces this permission independently of the form; rendering and native consent interaction remain manual acceptance.
+
 ## Recovery copy discovery
 
 Overview places a closed Recovery copies section beside the existing space explanation. Query copies explicitly requests Windows metadata for the analyzed root's containing volume. The root and check date remain visible, with distinct loading, cancellation, pause, transport failure and native-unavailable states. The section reuses existing typography, panels, borders, buttons and focus styles. No copy query runs while closed or on an idle timer.

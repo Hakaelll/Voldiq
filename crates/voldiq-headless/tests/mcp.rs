@@ -36,6 +36,7 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
                 vec![],
                 vec![
                     Capability::Metadata,
+                    Capability::Export,
                     Capability::Scan,
                     Capability::PreparePlans,
                     Capability::RequestApproval,
@@ -117,6 +118,33 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         tokio::time::sleep(std::time::Duration::from_millis(25)).await;
     };
     let stats = call(&client, "voldiq_stats", json!({"snapshot_id":snapshot})).await;
+    let readonly = registry
+        .provision(
+            "Read without export",
+            Policy::new(
+                vec![source.path().to_owned()],
+                vec![],
+                vec![Capability::Metadata],
+                Limits::default(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let reader = voldiq_core::service::AgentService::new(
+        state.path().to_owned(),
+        registry.authenticate(readonly.credential.expose()).unwrap(),
+    )
+    .unwrap();
+    assert_eq!(reader.stats(snapshot).unwrap().logical, 11);
+    assert!(
+        reader
+            .export_csv(
+                snapshot,
+                serde_json::from_value(json!({"items":"files"})).unwrap(),
+                &std::sync::atomic::AtomicBool::new(false)
+            )
+            .is_err()
+    );
     assert_eq!(stats.structured_content.unwrap()["result"]["logical"], 11);
     let exported = call(
         &client,

@@ -302,9 +302,9 @@ impl AgentService {
         mut request: crate::exports::CsvRequest,
         cancel: &AtomicBool,
     ) -> Result<Option<crate::exports::CsvPage>> {
-        let policy = self
-            .registry()?
-            .policy(&self.principal, Capability::Metadata)?;
+        let registry = self.registry()?;
+        registry.policy(&self.principal, Capability::Export)?;
+        let policy = registry.policy(&self.principal, Capability::Metadata)?;
         if snapshot <= 0
             || request.query.offset > 10_000
             || !(1..=500).contains(&request.query.limit)
@@ -320,7 +320,9 @@ impl AgentService {
         }
         let index = self.index(snapshot)?;
         let result = crate::exports::csv(&index, &request, cancel)?;
-        let _check = self.registry()?.authorize_index(&self.principal, &index)?;
+        let current = self.registry()?;
+        current.policy(&self.principal, Capability::Export)?;
+        let _check = current.authorize_index(&self.principal, &index)?;
         if cancel.load(Ordering::Relaxed) {
             return Ok(None);
         }

@@ -36,6 +36,7 @@
     planBytes = $state(10_000_000_000);
   let allowContent = $state(false);
   let allowExecution = $state(false);
+  let allowExport = $state(false);
   let credential = $state<Credential | null>(null),
     revealed = $state(false);
   let alive = true;
@@ -84,6 +85,7 @@
           plan: allowPlans,
           content: allowContent,
           execute: allowExecution,
+          export: allowExport,
           page_size: pageSize,
           scan_entries: scanEntries,
           plan_files: planFiles,
@@ -263,6 +265,9 @@
       >
       <label class="agent-check"
         ><input type="checkbox" bind:checked={allowScan} />Scan allowed folders</label
+      >
+      <label class="agent-check"
+        ><input type="checkbox" bind:checked={allowExport} />Export indexed metadata as CSV</label
       >
       <label class="agent-check"
         ><input type="checkbox" bind:checked={allowContent} />Read folder notes and file content</label

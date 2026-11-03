@@ -11,7 +11,7 @@ cargo test -p voldiq-headless
 
 The executable is `target/release/voldiq-cli.exe`, separate from the desktop `voldiq.exe`. Its normal dependency tree includes `voldiq-core` and the official [`rmcp` Rust SDK](https://github.com/modelcontextprotocol/rust-sdk), locked to 3.8.0. It has no Tauri, WebView or production Node dependency. The SDK handles standard MCP negotiation; the retained SDK-client fixture verifies a real stdio handshake and tool calls against the executable. Broader client-version compatibility is not yet certified.
 
-In the desktop application, open Settings, then Agents and permissions. Enter a connection name, allowed existing folders, optional exclusions and limits. Scanning, content reading, planning and execution requests are separate permissions. Content, planning and execution are off by default. Review the separate native confirmation dialog. Voldiq reveals the credential once for you to save in the client environment. The section lists connections and their last use, and provides rotation and revocation. This UI is source-checked; native interaction acceptance remains manual. The CLI and MCP do not expose provisioning, rotation or approval grants. Do not create credentials by editing a database or configuration file.
+In the desktop application, open Settings, then Agents and permissions. Enter a connection name, allowed existing folders, optional exclusions and limits. Scanning, content reading, planning and execution requests are separate permissions. Export, content, planning and execution are off by default. Review the separate native confirmation dialog. Voldiq reveals the credential once for you to save in the client environment. The section lists connections and their last use, and provides rotation and revocation. This UI is source-checked; native interaction acceptance remains manual. The CLI and MCP do not expose provisioning, rotation or approval grants. Do not create credentials by editing a database or configuration file.
 
 ## Connect a stdio client
 
@@ -49,7 +49,7 @@ This example forwards an environment variable by name, without embedding its val
 | `voldiq_stats` | Metadata | Indexed logical bytes, unique known allocation or null, counts and coverage |
 | `voldiq_space_account` | Metadata | Scoped indexed allocation, logical path bytes, cloud/reparse metadata, accounting and coverage; whole-volume context and residual withheld |
 | `voldiq_query` | Metadata | Bounded page with shared structured filters and advanced expression |
-| `voldiq_export_csv` | Metadata | Bounded files/folders CSV page and scope/filter/coverage metadata; full paths require explicit opt-in |
+| `voldiq_export_csv` | Metadata + Export | Bounded files/folders CSV page and scope/filter/coverage metadata; full paths require explicit opt-in |
 | `voldiq_query_translate` | Metadata | Offline expression proposal and exact unparsed input spans; no snapshot/query execution |
 | `voldiq_details` | Metadata | One indexed entry, path and ancestor metadata |
 | `voldiq_folder_metadata` | Metadata; ReadContent to include note text | Current protection status and optional plain-text note for the exact indexed directory identity |
@@ -121,6 +121,8 @@ CLI commands are listed by `voldiq-cli --help`. JSON envelopes have `schema_vers
 CLI `folder <snapshot_id> <node_id> [--note]` and MCP `voldiq_folder_metadata` with `include_note` omitted or false never read note text. Their `not_requested` value does not mean an empty note. Requesting text requires `ReadContent`; the human-only connection screen grants it explicitly. Notes remain literal untrusted text and cannot grant permissions or approve work. Reads verify the current native directory against scan evidence, so replacement or missing legacy evidence requires a rescan. A returned note is current; `source_snapshot` identifies folder evidence rather than a historical note. See [folder metadata](FOLDER-METADATA.md).
 
 ## CSV export pages
+
+CSV export requires both `Metadata` and the independently human-granted `Export` capability. In Settings, Agents and permissions, select Export indexed metadata as CSV when creating a connection, then review the native confirmation. The option defaults to off. Existing connections gain no permission automatically. A metadata-only client can still query authorized metadata but Voldiq's CSV export endpoint denies it. This permission controls the export operation, not what a client does with metadata already returned by other authorized queries.
 
 CLI `voldiq-cli export <snapshot_id> '{"items":"files"}'` and MCP `voldiq_export_csv({"snapshot_id":123,"request":{"items":"files"}})` return CSV inside the normal versioned JSON envelope. `items` accepts `files` or `folders`; optional `query` uses the existing filters, ordering, offset and limit. Item class is set by `items`. Results respect the connection page limit, at most 500 rows, offset up to 10000 and 256 KiB CSV per page. Follow `next_offset` with the same capture/filters. No file is written. Full paths and the scope root are omitted unless `include_paths` is explicitly true.
 

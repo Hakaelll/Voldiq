@@ -1,0 +1,12 @@
+{
+  "checkedUtc": "2026-11-03T15:05:36.7211293Z",
+  "baselineCommit": "5a0c6db",
+  "retainedCase": "cli_queues_exact_plans_but_never_accepts_agent_approval",
+  "scenario": "Authenticated Metadata-only credential, allowed owned root, CSV export request",
+  "expectedExitCode": 4,
+  "observedBeforeFixExitCode": 0,
+  "redRunExitCode": 1,
+  "fixedFocusedCases": 2,
+  "fixedFocusedExitCode": 0,
+  "scope": "Owned temporary fixtures only. This records the observed red/green adapter runs; full integration is a separate receipt."
+}
