@@ -1,10 +1,11 @@
+import type { PaintSurface } from './paint-surface.ts';
 import { shapeAnchor, type RadialLayout, type RadialShape } from './radial-map.ts';
 import { worldToScreen } from './disk-city.ts';
 import { visualPaint } from './storage-map.ts';
 import { bytes } from './types.ts';
 import type { PaintOptions } from './map-painter.ts';
 
-function trace(ctx: CanvasRenderingContext2D, shape: RadialShape, options: PaintOptions): void {
+function trace(ctx: PaintSurface, shape: RadialShape, options: PaintOptions): void {
   const center = worldToScreen(shape, options.camera);
   const scale = options.camera.scale;
   ctx.beginPath();
@@ -21,7 +22,7 @@ function trace(ctx: CanvasRenderingContext2D, shape: RadialShape, options: Paint
 }
 
 export function paintRadial(
-  ctx: CanvasRenderingContext2D,
+  ctx: PaintSurface,
   layout: RadialLayout,
   options: PaintOptions,
 ): number {

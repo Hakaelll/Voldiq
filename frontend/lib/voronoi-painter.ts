@@ -1,3 +1,4 @@
+import type { PaintSurface } from './paint-surface.ts';
 import { worldToScreen } from './disk-city.ts';
 import { visualPaint } from './storage-map.ts';
 import { bytes } from './types.ts';
@@ -5,7 +6,7 @@ import { polygonContains, type VoronoiLayout } from './voronoi.ts';
 import type { PaintOptions } from './map-painter.ts';
 
 export function paintVoronoi(
-  ctx: CanvasRenderingContext2D,
+  ctx: PaintSurface,
   layout: VoronoiLayout,
   options: PaintOptions,
 ): number {

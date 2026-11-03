@@ -21,6 +21,7 @@ Rust fixtures modify only their own disposable temporary folders. The two execut
 
 The saved-storage flow also checks ranked report preparation over 10,005 matching records: stable top-50 ordering, explicit omissions, exact observed file-path totals beyond u64, independent unknown/partial/alias counters, cancellation and a nonnumeric overlapping-folder state. On Windows it writes a synthetic PDF through the safe destination owner, using mixed Latin/Arabic text and a long unbroken name, and checks pre-cancellation and cancellation without publication. Independent PDF parsing/rendering is recorded separately in workbench status. Developer opt-in `VOLDIQ_KEEP_PDF_FIXTURE=1` retains only that owned temporary PDF directory for this review; normal runs remove it.
 
+The retained frontend flow also paints an actual treemap and lens through the SVG target, checking literal rectangle dimensions, escaped names, local clips/full-circle arcs, absence of embedded images/active markup and rejection of external paint URLs. The developer-only `scripts/render_svg_fixture.mjs` produces all five map representations through both Canvas and SVG using the bundled Canvas runtime, without adding routine test declarations or production packages. Independent XML inspection and rendered pair review remain separate evidence.
 ## Run the source gate
 
 Use the Rust MSVC toolchain, C++ Build Tools and installed project dependencies:

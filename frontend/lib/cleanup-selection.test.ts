@@ -4,6 +4,9 @@ import { updateCleanupSelection } from './cleanup-selection.ts';
 import { createNavigationRefresh } from './navigation-refresh.ts';
 import { resolveZoom, zoomBox, createTreemapAnimator } from './treemap-motion.ts';
 import { getIndexContext, setIndexContext, invokeIndexed } from './index-context.ts';
+import { SvgSurface } from './svg-surface.ts';
+import { paintFlat, paintTreemapLens, type PaintOptions } from './map-painter.ts';
+import { createStorageLayout } from './storage-map.ts';
 import {
   createReportExport,
   reportSelection,
@@ -367,4 +370,39 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   await cancellingCsv;
   assert.deepEqual(reportFormats, ['xlsx', 'pdf']);
   assert.equal(csvStates.length, disposedStates);
+  const map = createStorageLayout([
+    { id: 1, name: '<script>A & B</script>', value: 60, directory: false },
+    { id: 2, name: 'Other', value: 40, directory: false },
+  ]);
+  const mapOptions: PaintOptions = {
+    rects: map.rects,
+    camera: { x: 0, y: 0, scale: 1 },
+    width: 1000,
+    height: 700,
+    selected: 1,
+    hovered: null,
+    matches: null,
+    color: 'type',
+    maximum: 60,
+    now: 0,
+    detail: true,
+    style: { text: '#242c29', surface: '#fcfcf9', border: '#dce1d9', dark: false },
+  };
+  const vector = new SvgSurface(1000, 700, (text) => ({
+    width: text.length * 6,
+    actualBoundingBoxAscent: 9,
+  }));
+  assert.equal(paintFlat(vector, mapOptions), 2);
+  paintTreemapLens(vector, mapOptions, { x: 500, y: 350 });
+  const drawing = vector.finish();
+  assert.ok(drawing.includes('<rect x="0" y="0" width="600" height="700"'));
+  assert.ok(drawing.includes('&lt;script&gt;A &amp; B&lt;/script&gt;'));
+  assert.ok(drawing.includes('<clipPath') && drawing.includes('clip-path="url(#map-clip-'));
+  assert.ok((drawing.match(/A88 88 0 0 1 /g) ?? []).length >= 2);
+  assert.ok(
+    !drawing.includes('<script>') && !drawing.includes('<image') && !drawing.includes('href='),
+  );
+  const unsafeColor = new SvgSurface(10, 10, () => ({ width: 1, actualBoundingBoxAscent: 9 }));
+  unsafeColor.fillStyle = 'url(https://private.invalid/image)';
+  assert.throws(() => unsafeColor.fillRect(0, 0, 10, 10), /explicit RGB/);
 });

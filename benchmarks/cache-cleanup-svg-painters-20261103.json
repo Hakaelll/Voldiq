@@ -1,0 +1,77 @@
+{
+  "checkedUtc": "2026-11-03T19:37:01.0563794Z",
+  "sourceBase": "9f812d9d3f0b2461e18bef08ad20e3a60810714b",
+  "existingUiSource": "150d6b3cf5d4067a71d39260eb6383649a27452f",
+  "existingUiPreviewOpen": true,
+  "processId": 752,
+  "mainWindowHandle": 8390080,
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "assets/index-DoZyoqAE.css",
+        "bytes": 81036,
+        "sha256": "2C55B7B8EC3D8A65AC5E860EB0C416CCD37943C91D71C638CED23ED15B32CAB0"
+      },
+      {
+        "path": "assets/city.worker-DLxzT0Wm.js",
+        "bytes": 2879,
+        "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+      },
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "assets/index-DS0u63cp.js",
+        "bytes": 386555,
+        "sha256": "7A2709CE0267F3C300BE72CAFBA2E577E674344A394D3666CAA100F4F9C1D534"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      },
+      {
+        "path": "assets/voronoi.worker-DwJ2QmrW.js",
+        "bytes": 5606,
+        "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+      },
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "812580AE6B167E02C25732210407F9D6B848717484BF1D6AAA81D5315D890433"
+      }
+    ]
+  },
+  "provisionalSvgArtifacts": {
+    "removedFiles": 30,
+    "removedLogicalBytes": 1607685,
+    "finalFixturesPreserved": true
+  },
+  "previewCleanup": {
+    "applied": true,
+    "removedBytes": 33691648,
+    "previews": [
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\430DA86FB24E1F2DA3FF7A3771080FA4576FAF46CB699F70A475C9F049037021",
+        "bytes": 16714240,
+        "status": "Removed"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\5942B5857138E97194D370ECC6B36FCD817881345EC932F55EC6A2248D0CABE1",
+        "bytes": 16977408,
+        "status": "Removed"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\D76ED96396787F18EFC1D6639ACAF9A2E435AA62213881F2C14F2FE7F97B7FFB",
+        "bytes": 23944192,
+        "status": "KeptCurrent"
+      }
+    ]
+  },
+  "debugArtifactsPresent": false,
+  "scope": "Drawing-target source unit; existing PDF UI still open with exact current production resources. Cleanup only the two explicitly named owned provisional SVG fixture directories and verified inactive previews. Final render fixtures, current/running/reusable builds, state, Windows and other applications preserved. No measured volume free-space gain."
+}

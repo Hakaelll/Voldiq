@@ -1,3 +1,4 @@
+import type { PaintSurface } from './paint-surface.ts';
 import {
   project,
   worldToScreen,
@@ -31,7 +32,7 @@ export type PaintOptions = {
 };
 const light: Vec3 = { x: -0.65, y: -0.4, z: -1 };
 
-function path(ctx: CanvasRenderingContext2D, points: Point[], begin = true): void {
+function path(ctx: PaintSurface, points: Point[], begin = true): void {
   if (begin) ctx.beginPath();
   for (let i = 0; i < points.length; i++) {
     if (i === 0) ctx.moveTo(points[i].x, points[i].y);
@@ -138,7 +139,7 @@ export function prepareShadows(scene: Scene): Map<string, Point[][]> {
 }
 
 function label(
-  ctx: CanvasRenderingContext2D,
+  ctx: PaintSurface,
   rect: Rect,
   box: Box,
   options: PaintOptions,
@@ -178,7 +179,7 @@ function label(
   void camera;
 }
 
-export function paintFlat(ctx: CanvasRenderingContext2D, options: PaintOptions): number {
+export function paintFlat(ctx: PaintSurface, options: PaintOptions): number {
   const visible: { rect: Rect; box: Box }[] = [];
   for (const rect of options.rects) {
     const p = worldToScreen(rect, options.camera);
@@ -217,11 +218,7 @@ export function paintFlat(ctx: CanvasRenderingContext2D, options: PaintOptions):
   return visible.length;
 }
 
-export function paintTreemapLens(
-  ctx: CanvasRenderingContext2D,
-  options: PaintOptions,
-  anchor: Point,
-): void {
+export function paintTreemapLens(ctx: PaintSurface, options: PaintOptions, anchor: Point): void {
   const radius = Math.min(88, options.width / 2, options.height / 2);
   if (radius < 16) return;
   ctx.save();
@@ -261,7 +258,7 @@ export function paintTreemapLens(
 }
 
 export function paintCity(
-  ctx: CanvasRenderingContext2D,
+  ctx: PaintSurface,
   scene: Scene,
   shadows: Map<string, Point[][]>,
   options: PaintOptions,

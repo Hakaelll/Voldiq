@@ -1,0 +1,184 @@
+{
+  "checkedUtc": "2026-11-03T19:29:08.944Z",
+  "output": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\svg-painters-fNsdyc",
+  "width": 1000,
+  "height": 700,
+  "files": [
+    {
+      "mode": "treemap",
+      "drawn": 4,
+      "bytes": 5945,
+      "sha256": "6AA1FAB01CD04CCE0D82D20F635148F15F3FA483E420181834AD6450D9C41622",
+      "xmlInspection": {
+        "tags": {
+          "svg": 1,
+          "title": 1,
+          "desc": 1,
+          "defs": 1,
+          "clipPath": 4,
+          "path": 12,
+          "rect": 9,
+          "g": 8,
+          "text": 8
+        },
+        "internalClipReferences": 8,
+        "noImagesScriptsEventsExternalReferences": true
+      },
+      "renderedImages": [
+        {
+          "name": "treemap-canvas.png",
+          "bytes": 13513,
+          "sha256": "070AECAFAC0CFB22B32002B5A64796C5C941C7B83AA910C15DC5508265571166"
+        },
+        {
+          "name": "treemap-svg.png",
+          "bytes": 15134,
+          "sha256": "D23F8749D98F512770155C41CAB4448E67D76BD8A1A3BE4ABA55C4B52F635A24"
+        }
+      ]
+    },
+    {
+      "mode": "sunburst",
+      "drawn": 4,
+      "bytes": 8231,
+      "sha256": "967D3EA445157A52805CA770F59C64FDCA6F8B766E2BA092C6E36797878FBC7B",
+      "xmlInspection": {
+        "tags": {
+          "svg": 1,
+          "title": 1,
+          "desc": 1,
+          "defs": 1,
+          "clipPath": 5,
+          "path": 15,
+          "rect": 1,
+          "g": 9,
+          "text": 9
+        },
+        "internalClipReferences": 9,
+        "noImagesScriptsEventsExternalReferences": true
+      },
+      "renderedImages": [
+        {
+          "name": "sunburst-canvas.png",
+          "bytes": 47925,
+          "sha256": "8EDC1596A00A7B6ADC37EAFE5DA9D28698F413DF0C23714812F7B0DA643CB7C7"
+        },
+        {
+          "name": "sunburst-svg.png",
+          "bytes": 49126,
+          "sha256": "A999431BA108C69474FBD723FD6B26D2D4A7EBB55A2342CE06776AC418ED0E0E"
+        }
+      ]
+    },
+    {
+      "mode": "circles",
+      "drawn": 4,
+      "bytes": 5453,
+      "sha256": "25DC8DC07064CACD8BB90EC758DB4348B35D2AA8C28B2FD9A20B2BCFEBBD6D2A",
+      "xmlInspection": {
+        "tags": {
+          "svg": 1,
+          "title": 1,
+          "desc": 1,
+          "defs": 1,
+          "clipPath": 3,
+          "path": 12,
+          "rect": 1,
+          "g": 6,
+          "text": 6
+        },
+        "internalClipReferences": 6,
+        "noImagesScriptsEventsExternalReferences": true
+      },
+      "renderedImages": [
+        {
+          "name": "circles-canvas.png",
+          "bytes": 39986,
+          "sha256": "72CDAC39419E8D9828F6D8B5F4F40191CD1E91B4A84346A237EE8BF1921A4B35"
+        },
+        {
+          "name": "circles-svg.png",
+          "bytes": 40623,
+          "sha256": "AB1EC4E01A570D77CAE4EDA98211B2765091DA960CA67526B28982A82426C43F"
+        }
+      ]
+    },
+    {
+      "mode": "voronoi",
+      "drawn": 4,
+      "bytes": 4770,
+      "sha256": "AECDA8918A5E89DFD816F733BBDEF98EA070502AED8AC06BBC2ECC6BA68E46EB",
+      "xmlInspection": {
+        "tags": {
+          "svg": 1,
+          "title": 1,
+          "desc": 1,
+          "defs": 1,
+          "clipPath": 4,
+          "path": 12,
+          "rect": 1,
+          "g": 8,
+          "text": 8
+        },
+        "internalClipReferences": 8,
+        "noImagesScriptsEventsExternalReferences": true
+      },
+      "renderedImages": [
+        {
+          "name": "voronoi-canvas.png",
+          "bytes": 28714,
+          "sha256": "83062FE729C66EEA91D17756B25A3FFBB60F5D6F96E853918E32E213C047E266"
+        },
+        {
+          "name": "voronoi-svg.png",
+          "bytes": 29940,
+          "sha256": "F3A846DBDD5A4DEBE36CBA691DF959607E47C6C886F9DD96A945E4EBC9B38CBC"
+        }
+      ]
+    },
+    {
+      "mode": "city",
+      "drawn": 4,
+      "bytes": 236686,
+      "sha256": "DBAEFCC613AF34EFCDA087E842A482AE53C387DEB2C21F3412BBE3B888FD2442",
+      "xmlInspection": {
+        "tags": {
+          "svg": 1,
+          "title": 1,
+          "desc": 1,
+          "defs": 1,
+          "clipPath": 17,
+          "path": 923,
+          "rect": 17,
+          "g": 921,
+          "text": 8
+        },
+        "internalClipReferences": 921,
+        "noImagesScriptsEventsExternalReferences": true
+      },
+      "renderedImages": [
+        {
+          "name": "city-canvas.png",
+          "bytes": 149844,
+          "sha256": "764AD49F0B609B3E92954DDAFFA82F32AC23A9C94B5590A4DF95D2EC021C606E"
+        },
+        {
+          "name": "city-svg.png",
+          "bytes": 151491,
+          "sha256": "ADEB3B21D4B4F9415496B86C8EC5312D4AD0A335A799BC4E64F6C54348216AB6"
+        }
+      ]
+    }
+  ],
+  "scope": "Owned synthetic source painters on Canvas and SVG targets, using bundled Skia font measurement and rendering. No native WebView, save workflow, metadata/privacy binding or Windows scaling acceptance.",
+  "renderedReview": {
+    "pairsReviewed": 5,
+    "result": "Same synthetic scenes reviewed on Canvas and SVG targets. Geometry, fills, clipping, labels, centered baselines and city transparency match visibly after correcting font shorthand, baseline and alpha encoding. Native WebView/scaling and other fonts/viewers remain unverified.",
+    "renderer": "Bundled @napi-rs/canvas Skia SVG/image decoder; independent Python XML parser",
+    "dimensions": [
+      1000,
+      700
+    ]
+  },
+  "consumerExportImplemented": false
+}
