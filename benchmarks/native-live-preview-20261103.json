@@ -1,0 +1,118 @@
+{
+  "checkedUtc": "2026-11-03T01:48:18.9688778Z",
+  "sourceCommit": "21c30d8bbad4c876be25cb9501a766ba503bc9c4",
+  "executableSha256": "7A13CEAC9967B340E2AE6D785AA64D79690DDDC63A4CE4EF6BC9C1583839B2E4",
+  "preview": "target/preview/7A13CEAC9967B340E2AE6D785AA64D79690DDDC63A4CE4EF6BC9C1583839B2E4/voldiq.exe",
+  "processId": 10120,
+  "mainWindowHandle": 54722714,
+  "startupEvents": [
+    {
+      "event": "process-start",
+      "pid": 10120,
+      "state": null,
+      "unixMs": 1793670497789
+    },
+    {
+      "event": "setup-start",
+      "pid": 10120,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "unavailable",
+        "snapshots": "unavailable"
+      },
+      "unixMs": 1793670498475
+    },
+    {
+      "event": "snapshot-open-start",
+      "pid": 10120,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "idle",
+        "snapshots": "unavailable"
+      },
+      "unixMs": 1793670498478
+    },
+    {
+      "event": "snapshot-open-end",
+      "pid": 10120,
+      "state": {
+        "cleanupJournal": "unavailable",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793670498551
+    },
+    {
+      "event": "setup-end",
+      "pid": 10120,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793670498580
+    },
+    {
+      "event": "ready",
+      "pid": 10120,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793670498580
+    },
+    {
+      "event": "page-finished",
+      "pid": 10120,
+      "state": {
+        "cleanupJournal": "available",
+        "operation": "idle",
+        "snapshots": "available"
+      },
+      "unixMs": 1793670498728
+    }
+  ],
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "assets/city.worker-DLxzT0Wm.js",
+        "bytes": 2879,
+        "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+      },
+      {
+        "path": "assets/index-C8Fe_4QZ.js",
+        "bytes": 358965,
+        "sha256": "D6BD8F7C663257F9CA0F5AA4EB097758F8491C2225C74ACE94160FE98F945DFD"
+      },
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "72AE471D2A38CEAF707B9DEFEBEA6B2EE726D3729E0812E87FDC457BC9904764"
+      },
+      {
+        "path": "assets/index-DUbuIbyK.css",
+        "bytes": 77257,
+        "sha256": "E180017DDBDF175EC31F092281862018BFAB1FF2D26389453298DF1B99D112FD"
+      },
+      {
+        "path": "assets/voronoi.worker-DwJ2QmrW.js",
+        "bytes": 5606,
+        "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      }
+    ]
+  },
+  "scope": "Actual production native launch, ready/page-finished events, nonzero window handle and exact final embedded assets for Live controls. Startup/resources only. This verification did not activate a real-root Live monitor or request a capture/file modification. Real Tauri delivery, native visibility/lifecycle interaction, rendered composition, pointer/keyboard/focus, assistive technology, Windows scaling and device performance remain manual. The complete workbench goal remains active."
+}
