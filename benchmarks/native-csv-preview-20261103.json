@@ -1,0 +1,88 @@
+{
+  "checkedUtc": "2026-11-03T17:02:50.9291509Z",
+  "sourceCommit": "7f864e1b9c28285947d9291394b9946421e6cf6a",
+  "executableSha256": "430DA86FB24E1F2DA3FF7A3771080FA4576FAF46CB699F70A475C9F049037021",
+  "preview": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\430DA86FB24E1F2DA3FF7A3771080FA4576FAF46CB699F70A475C9F049037021\\voldiq.exe",
+  "processId": 13344,
+  "mainWindowHandle": 1509150,
+  "observation": "ready",
+  "startupEvents": [
+    {
+      "event": "process-start",
+      "pid": 13344,
+      "unixMs": 1793725369510
+    },
+    {
+      "event": "setup-start",
+      "pid": 13344,
+      "unixMs": 1793725369906
+    },
+    {
+      "event": "snapshot-open-start",
+      "pid": 13344,
+      "unixMs": 1793725369909
+    },
+    {
+      "event": "snapshot-open-end",
+      "pid": 13344,
+      "unixMs": 1793725369930
+    },
+    {
+      "event": "setup-end",
+      "pid": 13344,
+      "unixMs": 1793725370712
+    },
+    {
+      "event": "ready",
+      "pid": 13344,
+      "unixMs": 1793725370718
+    },
+    {
+      "event": "page-finished",
+      "pid": 13344,
+      "unixMs": 1793725370784
+    }
+  ],
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "assets/city.worker-DLxzT0Wm.js",
+        "bytes": 2879,
+        "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+      },
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "assets/index-BACYy4bz.js",
+        "bytes": 385106,
+        "sha256": "E9BEDBB49E039DC9C145C41939281E1DF961C8B312140593517680E3476BC137"
+      },
+      {
+        "path": "assets/index-Dk7jJ2uS.css",
+        "bytes": 81005,
+        "sha256": "78A4FF867174CF9B0F99F4C54F50C66AD796890114018EDCBA8884C0F07C48F9"
+      },
+      {
+        "path": "assets/voronoi.worker-DwJ2QmrW.js",
+        "bytes": 5606,
+        "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+      },
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "A312D0140399DE77480BFE89DC5EC0D3E4E329DCA3AA76EC830CCC2400D3BA17"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      }
+    ]
+  },
+  "scope": "Production startup, native window and exact current resources only. No UI interaction or user-data export requested. Save-dialog, keyboard/focus, visual, scaling and device acceptance remain manual."
+}
