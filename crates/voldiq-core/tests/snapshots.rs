@@ -984,7 +984,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         .unwrap()
         .name = "=1+1\",\n@x".into();
     let request = voldiq_core::exports::CsvRequest {
-        items: voldiq_core::exports::CsvItems::Files,
+        items: voldiq_core::exports::ReportItems::Files,
         query: Query {
             text: "=1+1".into(),
             ..Default::default()
@@ -1012,9 +1012,9 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             .unwrap()
             .is_none()
     );
-    let streaming = voldiq_core::exports::CsvStreamRequest {
-        items: voldiq_core::exports::CsvItems::Files,
-        filter: voldiq_core::exports::CsvFilter {
+    let streaming = voldiq_core::exports::ReportSelection {
+        items: voldiq_core::exports::ReportItems::Files,
+        filter: voldiq_core::exports::ReportFilter {
             text: "=1+1".into(),
             ..Default::default()
         },
@@ -1035,9 +1035,9 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     assert!(exported.query["text"].is_null());
     assert!(!exported.filter_text_included);
     assert_eq!(with_paths.query["text"], "=1+1");
-    let private_filter = voldiq_core::exports::CsvStreamRequest {
+    let private_filter = voldiq_core::exports::ReportSelection {
         items: streaming.items,
-        filter: voldiq_core::exports::CsvFilter {
+        filter: voldiq_core::exports::ReportFilter {
             text: "https://private.invalid/secret".into(),
             ..Default::default()
         },
@@ -1068,21 +1068,54 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         let lease = voldiq_core::operations::Lease::acquire(export_state.path()).unwrap();
         let report = destination.path().join("report.csv");
         assert!(matches!(
-            voldiq_core::exports::save_csv(
-                &export_index, &streaming, &report, &lease, &loading, |_| {}
+            voldiq_core::exports::save_report(
+                &export_index, voldiq_core::exports::ReportFormat::Csv, &streaming, &report, &lease, &loading, |_| {}
             ).unwrap(),
             voldiq_core::exports::StreamOutcome::Complete(value) if value.rows == 1
         ));
         let saved = std::fs::read_to_string(&report).unwrap();
         assert!(saved.contains("\"text: =1+1\"\",\n@x\""));
         assert!(saved.contains("\r\ncomplete,"));
+        let workbook = destination.path().join("report.xlsx");
+        assert!(matches!(voldiq_core::exports::save_report(
+            &export_index, voldiq_core::exports::ReportFormat::Xlsx, &streaming, &workbook, &lease, &loading, |_| {}
+        ).unwrap(), voldiq_core::exports::StreamOutcome::Complete(value) if value.rows == 1));
+        let bytes = std::fs::read(&workbook).unwrap();
+        assert!(bytes.starts_with(b"PK"));
+        assert_eq!(
+            zip::ZipArchive::new(std::io::Cursor::new(&bytes))
+                .unwrap()
+                .len(),
+            7
+        );
+        std::fs::remove_file(&workbook).unwrap();
+        let workbook_stop = AtomicBool::new(false);
+        assert!(matches!(
+            voldiq_core::exports::save_report(
+                &export_index,
+                voldiq_core::exports::ReportFormat::Xlsx,
+                &streaming,
+                &workbook,
+                &lease,
+                &workbook_stop,
+                |value| {
+                    if value.rows > 0 {
+                        workbook_stop.store(true, std::sync::atomic::Ordering::Relaxed);
+                    }
+                }
+            )
+            .unwrap(),
+            voldiq_core::exports::StreamOutcome::Cancelled(_)
+        ));
+        assert!(!workbook.exists());
         let collision = destination.path().join("collision.csv");
         let sentinel = b"Owned fixture: preserve these bytes";
         let unrelated = destination.path().join(".voldiq-export-unrelated.tmp");
         std::fs::write(&unrelated, sentinel).unwrap();
         assert!(
-            voldiq_core::exports::save_csv(
+            voldiq_core::exports::save_report(
                 &export_index,
+                voldiq_core::exports::ReportFormat::Csv,
                 &streaming,
                 &collision,
                 &lease,
@@ -1100,8 +1133,9 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         let stopped = AtomicBool::new(false);
         let cancelled_path = destination.path().join("cancelled.csv");
         assert!(matches!(
-            voldiq_core::exports::save_csv(
+            voldiq_core::exports::save_report(
                 &export_index,
+                voldiq_core::exports::ReportFormat::Csv,
                 &streaming,
                 &cancelled_path,
                 &lease,
@@ -1131,8 +1165,9 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             destination.path().join("report.csv:stream"),
         ] {
             assert!(
-                voldiq_core::exports::save_csv(
+                voldiq_core::exports::save_report(
                     &export_index,
+                    voldiq_core::exports::ReportFormat::Csv,
                     &streaming,
                     &denied,
                     &lease,
@@ -1143,17 +1178,18 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             );
             assert!(!denied.exists());
         }
-        let invalid = voldiq_core::exports::CsvStreamRequest {
+        let invalid = voldiq_core::exports::ReportSelection {
             items: streaming.items,
-            filter: voldiq_core::exports::CsvFilter {
+            filter: voldiq_core::exports::ReportFilter {
                 expression: "size:invalid".into(),
                 ..Default::default()
             },
             include_paths: false,
         };
         assert!(
-            voldiq_core::exports::save_csv(
+            voldiq_core::exports::save_report(
                 &export_index,
+                voldiq_core::exports::ReportFormat::Csv,
                 &invalid,
                 &destination.path().join("invalid.csv"),
                 &lease,
@@ -1164,6 +1200,91 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         );
         assert_eq!(std::fs::read_dir(destination.path()).unwrap().count(), 4);
     }
+    let mut workbook_index = capture(fixture.path());
+    let workbook_entry = workbook_index
+        .entries
+        .iter_mut()
+        .find(|entry| entry.kind == voldiq_core::Kind::File)
+        .unwrap();
+    workbook_entry.name = "=1+1\"<&>\n_x000D_\u{1} _X000D_".into();
+    workbook_entry.logical = u64::MAX;
+    workbook_entry.allocation_known = false;
+    workbook_entry.allocated = 0;
+    workbook_entry.modified = None;
+    let mut workbook = std::io::Cursor::new(Vec::new());
+    assert!(
+        matches!(voldiq_core::exports::stream_xlsx(&workbook_index, &streaming, &mut workbook, &loading, |_| {}).unwrap(), voldiq_core::exports::StreamOutcome::Complete(value) if value.rows == 1)
+    );
+    {
+        use std::io::Read;
+        let mut archive = zip::ZipArchive::new(std::io::Cursor::new(workbook.get_ref())).unwrap();
+        let names: Vec<String> = archive.file_names().map(str::to_owned).collect();
+        assert_eq!(names.len(), 7);
+        let mut data = String::new();
+        let mut metadata = String::new();
+        for name in names {
+            let mut xml = String::new();
+            archive
+                .by_name(&name)
+                .unwrap()
+                .read_to_string(&mut xml)
+                .unwrap();
+            let mut reader = quick_xml::Reader::from_str(&xml);
+            loop {
+                match reader.read_event().unwrap() {
+                    quick_xml::events::Event::Eof => break,
+                    quick_xml::events::Event::Start(element)
+                    | quick_xml::events::Event::Empty(element) => {
+                        assert_ne!(element.name().as_ref(), "f");
+                        assert_ne!(element.name().as_ref(), "hyperlink");
+                    }
+                    _ => {}
+                }
+            }
+            assert!(!xml.contains("TargetMode=\"External\""));
+            if name == "xl/worksheets/sheet2.xml" {
+                data = xml;
+            } else if name == "xl/worksheets/sheet1.xml" {
+                metadata = xml;
+            }
+        }
+        assert!(data.contains("=1+1&quot;&lt;&amp;&gt;\n_x005F_x000D__x0001_"));
+        assert!(data.contains(" _X000D_"));
+        assert!(data.contains("r=\"D2\" t=\"inlineStr\""));
+        assert!(data.contains("18446744073709551615"));
+        assert!(data.contains("<c r=\"E2\"/>") && data.contains("<c r=\"G2\"/>"));
+        assert!(!metadata.contains(workbook_index.root.to_str().unwrap()));
+        assert!(metadata.contains("Withheld") && metadata.contains("filter_text_included"));
+    }
+    let mut stopped_workbook = std::io::Cursor::new(Vec::new());
+    assert!(matches!(
+        voldiq_core::exports::stream_xlsx(
+            &workbook_index,
+            &streaming,
+            &mut stopped_workbook,
+            &AtomicBool::new(true),
+            |_| {}
+        )
+        .unwrap(),
+        voldiq_core::exports::StreamOutcome::Cancelled(_)
+    ));
+    assert!(stopped_workbook.get_ref().is_empty());
+    workbook_index
+        .entries
+        .iter_mut()
+        .find(|entry| entry.kind == voldiq_core::Kind::File)
+        .unwrap()
+        .name = format!("=1+1{}", "x".repeat(32_768));
+    assert!(
+        voldiq_core::exports::stream_xlsx(
+            &workbook_index,
+            &streaming,
+            std::io::Cursor::new(Vec::new()),
+            &loading,
+            |_| {}
+        )
+        .is_err()
+    );
     struct FailingSink;
     impl std::io::Write for FailingSink {
         fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
@@ -1216,7 +1337,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         entry.name = format!("record-{id}");
         export_index.entries.push(entry);
     }
-    let all = voldiq_core::exports::CsvStreamRequest {
+    let all = voldiq_core::exports::ReportSelection {
         items: request.items,
         filter: Default::default(),
         include_paths: false,
@@ -1238,9 +1359,25 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             .count(),
         10_005
     );
-    let no_matches = voldiq_core::exports::CsvStreamRequest {
+    let mut full_workbook = std::io::Cursor::new(Vec::new());
+    assert!(
+        matches!(voldiq_core::exports::stream_xlsx(&export_index, &all, &mut full_workbook, &loading, |_| {}).unwrap(), voldiq_core::exports::StreamOutcome::Complete(value) if value.rows == 10_005)
+    );
+    {
+        use std::io::Read;
+        let mut archive = zip::ZipArchive::new(full_workbook).unwrap();
+        let mut sheet = String::new();
+        archive
+            .by_name("xl/worksheets/sheet2.xml")
+            .unwrap()
+            .read_to_string(&mut sheet)
+            .unwrap();
+        assert_eq!(sheet.matches("<row r=").count(), 10_006);
+        assert!(sheet.contains("record-10005") && sheet.contains("autoFilter ref=\"A1:J10006\""));
+    }
+    let no_matches = voldiq_core::exports::ReportSelection {
         items: request.items,
-        filter: voldiq_core::exports::CsvFilter {
+        filter: voldiq_core::exports::ReportFilter {
             min_size: 2,
             ..Default::default()
         },

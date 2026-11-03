@@ -5,12 +5,12 @@ import { createNavigationRefresh } from './navigation-refresh.ts';
 import { resolveZoom, zoomBox, createTreemapAnimator } from './treemap-motion.ts';
 import { getIndexContext, setIndexContext, invokeIndexed } from './index-context.ts';
 import {
-  createCsvExport,
-  csvRequest,
-  type CsvReceipt,
-  type CsvEvent,
-  type CsvState,
-} from './csv-export.ts';
+  createReportExport,
+  reportSelection,
+  type ReportReceipt,
+  type ReportEvent,
+  type ReportState,
+} from './report-export.ts';
 import type { CleanupRulePage } from './types';
 import {
   createLiveSession,
@@ -273,7 +273,7 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   const csvIndex = setIndexContext(21);
   assert.ok(csvIndex);
   const csvContext = { indexId: csvIndex, requestId: '00000000-0000-4000-8000-000000000001' };
-  const reportRequest = csvRequest(
+  const reportRequest = reportSelection(
     { parent: 3, sort: 'size', offset: 500, limit: 1, text: 'notes', min_size: 10 },
     3,
     'files',
@@ -294,25 +294,28 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
     },
     include_paths: false,
   });
-  assert.deepEqual(csvRequest({ text: 'private' }, 0, 'folders', false, false), {
+  assert.deepEqual(reportSelection({ text: 'private' }, 0, 'folders', false, false), {
     items: 'folders',
     filter: { scope: 0 },
     include_paths: false,
   });
-  let completeExport: (receipt: CsvReceipt) => void = () => {
+  let completeExport: (receipt: ReportReceipt) => void = () => {
     throw new Error('Missing export');
   };
-  let completeRead: (event: CsvEvent | null) => void = () => {
+  let completeRead: (event: ReportEvent | null) => void = () => {
     throw new Error('Missing progress');
   };
-  const csvStates: CsvState[] = [];
+  const csvStates: ReportState[] = [];
   const csvCancels: string[] = [];
-  const csvSession = createCsvExport(
+  const reportFormats: string[] = [];
+  const csvSession = createReportExport(
     {
-      save: async () =>
-        new Promise((resolve) => {
+      save: async (_context, _selection, format) => {
+        reportFormats.push(format);
+        return new Promise((resolve) => {
           completeExport = resolve;
-        }),
+        });
+      },
       read: async () =>
         new Promise((resolve) => {
           completeRead = resolve;
@@ -325,13 +328,14 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
     (state) => csvStates.push(state),
     60_000,
   );
-  const savingCsv = csvSession.save(csvContext, reportRequest);
+  const savingCsv = csvSession.save(csvContext, reportRequest, 'xlsx');
+  assert.deepEqual(reportFormats, ['xlsx']);
   assert.deepEqual(csvStates, [{ kind: 'choosing', cancelling: false }]);
   const progress = { rows: 1, inspected: 3, total_entries: 3 };
   completeExport({
     index_id: csvIndex,
     request_id: csvContext.requestId,
-    outcome: { kind: 'complete', path: 'owned-report.csv', progress },
+    outcome: { kind: 'complete', path: 'owned-report.xlsx', progress },
   });
   await savingCsv;
   assert.equal(csvStates.at(-1)?.kind, 'finished');
@@ -361,5 +365,6 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
     outcome: { kind: 'cancelled', progress },
   });
   await cancellingCsv;
+  assert.deepEqual(reportFormats, ['xlsx', 'csv']);
   assert.equal(csvStates.length, disposedStates);
 });

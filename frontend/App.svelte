@@ -39,7 +39,7 @@
   import FolderNotes from './components/FolderNotes.svelte';
   import FolderBudget from './components/FolderBudget.svelte';
   import LiveControl from './components/LiveControl.svelte';
-  import CsvExport from './components/CsvExport.svelte';
+  import ReportExport from './components/ReportExport.svelte';
   import { volumeMeasurement, volumeCaller } from './lib/volume-space';
   import type { LiveObservation } from './lib/live-session';
   import ProtectedFolders from './components/ProtectedFolders.svelte';
@@ -1385,7 +1385,7 @@
             </p>{/if}
         </div>
         <div class="page-actions">
-          {#if ready && indexId !== null}{#key indexId}<CsvExport
+          {#if ready && indexId !== null}{#key indexId}<ReportExport
                 {indexId}
                 {scope}
                 root={scanPath}

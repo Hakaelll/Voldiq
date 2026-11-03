@@ -3,12 +3,13 @@
   import { invoke } from '@tauri-apps/api/core';
   import Icon from './Icon.svelte';
   import {
-    createCsvExport,
-    csvRequest,
-    type CsvState,
-    type CsvReceipt,
-    type CsvEvent,
-  } from '../lib/csv-export';
+    createReportExport,
+    reportSelection,
+    type ReportState,
+    type ReportReceipt,
+    type ReportEvent,
+    type ReportFormat,
+  } from '../lib/report-export';
   import type { IndexId } from '../lib/index-context';
   import type { Query } from '../lib/types';
   let {
@@ -32,19 +33,21 @@
   let trigger: HTMLButtonElement;
   let closeButton: HTMLButtonElement;
   let mounted = false;
-  let model = $state.raw<CsvState>({ kind: 'idle' });
+  let model = $state.raw<ReportState>({ kind: 'idle' });
   let opened = $state(false),
     pending = $state(false);
   let items = $state<'files' | 'folders'>('files');
+  let format = $state<ReportFormat>('csv');
   let scopeChoice = $state<'folder' | 'root'>('folder');
   let filtered = $state(true),
     paths = $state(false);
   const result = $derived(model.kind === 'finished' ? model.receipt.outcome : null);
-  const exportSession = createCsvExport(
+  const exportSession = createReportExport(
     {
-      save: (context, request) => invoke<CsvReceipt>('save_csv_report', { ...context, request }),
-      read: (context) => invoke<CsvEvent | null>('csv_report_progress', { ...context }),
-      cancel: (context) => invoke<boolean>('cancel_csv_report', { ...context }),
+      save: (context, request, format) =>
+        invoke<ReportReceipt>('save_report', { ...context, request, format }),
+      read: (context) => invoke<ReportEvent | null>('report_progress', { ...context }),
+      cancel: (context) => invoke<boolean>('cancel_report', { ...context }),
     },
     (value) => {
       model = value;
@@ -76,11 +79,17 @@
   }
   async function save(): Promise<void> {
     if (pending || disabled || !mounted) return;
-    const request = csvRequest(query, scopeChoice === 'folder' ? scope : 0, items, filtered, paths);
+    const request = reportSelection(
+      query,
+      scopeChoice === 'folder' ? scope : 0,
+      items,
+      filtered,
+      paths,
+    );
     pending = true;
     onbusy(true);
     try {
-      await exportSession.save({ indexId, requestId: crypto.randomUUID() }, request);
+      await exportSession.save({ indexId, requestId: crypto.randomUUID() }, request, format);
     } finally {
       if (mounted) {
         pending = false;
@@ -97,9 +106,9 @@
 >
 <dialog
   bind:this={dialog}
-  class="csv-export"
-  aria-labelledby="csv-title"
-  aria-describedby="csv-summary"
+  class="report-export"
+  aria-labelledby="report-title"
+  aria-describedby="report-summary"
   oncancel={(event) => {
     event.preventDefault();
     close();
@@ -107,7 +116,7 @@
   onkeydown={(event) => event.stopPropagation()}
 >
   <header>
-    <h2 id="csv-title">Export CSV</h2>
+    <h2 id="report-title">Export report</h2>
     <button
       bind:this={closeButton}
       onclick={close}
@@ -115,7 +124,7 @@
       >{pending ? 'Cancel' : 'Close'}</button
     >
   </header>
-  <p id="csv-summary">A report of the loaded analysis. Existing files are preserved.</p>
+  <p id="report-summary">A report of the loaded analysis. Existing files are preserved.</p>
   <form
     onsubmit={(event) => {
       event.preventDefault();
@@ -124,6 +133,12 @@
   >
     <fieldset disabled={pending || disabled}>
       <legend>Report content</legend>
+      <label
+        >Format<select bind:value={format}
+          ><option value="csv">CSV</option><option value="xlsx">Excel workbook (.xlsx)</option
+          ></select
+        ></label
+      >
       <label
         >Records<select bind:value={items}
           ><option value="files">Files</option><option value="folders">Folders</option></select
@@ -147,12 +162,14 @@
     <details>
       <summary>Report details</summary>
       <p>
-        Every matching record, in analysis order. Sizes are bytes; dates are UTC. Scope, filters and
-        coverage are included. Text cells carry a safety prefix; import large numbers as text in
-        spreadsheets.
+        Every matching record, in analysis order. Sizes are bytes; dates are UTC. Scope, filter
+        privacy settings and coverage are included.
+        {#if format === 'csv'}Text cells carry a safety prefix; import large numbers as text in
+          spreadsheets.{:else}Text cells are literal. Integers above 15 digits are stored as exact
+          text; unknown values stay blank. Large datasets continue on additional sheets.{/if}
       </p>
     </details>
-    <div class="csv-status" aria-live="polite" aria-atomic="true">
+    <div class="report-status" aria-live="polite" aria-atomic="true">
       {#if model.kind === 'choosing'}<p>
           {model.cancelling
             ? 'Cancellation requested. Close the Windows save dialog to return.'
@@ -169,7 +186,7 @@
           {model.progress.rows.toLocaleString()} rows · {model.progress.inspected.toLocaleString()} of
           {model.progress.total_entries.toLocaleString()} records inspected
         </p>
-      {:else if model.kind === 'failed'}<p class="csv-error" role="alert">{model.message}</p>
+      {:else if model.kind === 'failed'}<p class="report-error" role="alert">{model.message}</p>
       {:else if result?.kind === 'complete'}<p>
           Saved {result.progress.rows.toLocaleString()} rows.
         </p>
@@ -190,7 +207,7 @@
 </dialog>
 
 <style>
-  .csv-export {
+  .report-export {
     width: min(470px, calc(100vw - 32px));
     max-height: calc(100dvh - 48px);
     overflow: auto;
@@ -200,7 +217,7 @@
     background: var(--canvas);
     color: var(--text);
   }
-  .csv-export::backdrop {
+  .report-export::backdrop {
     background: #0005;
   }
   header,
@@ -258,11 +275,11 @@
     font-size: 12px;
     color: var(--secondary);
   }
-  .csv-status {
+  .report-status {
     min-height: 28px;
     margin-top: 14px;
   }
-  .csv-error {
+  .report-error {
     color: var(--error);
     overflow-wrap: anywhere;
   }

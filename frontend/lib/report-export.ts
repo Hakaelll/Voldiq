@@ -1,16 +1,17 @@
 import type { IndexId } from './index-context';
 import type { Query } from './types';
+export type ReportFormat = 'csv' | 'xlsx';
 
-export interface CsvProgress {
+export interface ReportProgress {
   inspected: number;
   rows: number;
   total_entries: number;
 }
-export interface CsvContext {
+export interface ReportContext {
   indexId: IndexId;
   requestId: string;
 }
-export interface CsvRequest {
+export interface ReportSelection {
   items: 'files' | 'folders';
   filter: Pick<
     Query,
@@ -25,34 +26,34 @@ export interface CsvRequest {
   >;
   include_paths: boolean;
 }
-export interface CsvEvent {
+export interface ReportEvent {
   index_id: IndexId;
   request_id: string;
-  phase: { kind: 'choosing' } | { kind: 'running'; id: number; progress: CsvProgress };
+  phase: { kind: 'choosing' } | { kind: 'running'; id: number; progress: ReportProgress };
 }
-export interface CsvReceipt {
+export interface ReportReceipt {
   index_id: IndexId;
   request_id: string;
   outcome:
     | { kind: 'dialog_cancelled' }
-    | { kind: 'cancelled'; progress: CsvProgress }
-    | { kind: 'complete'; progress: CsvProgress; path: string };
+    | { kind: 'cancelled'; progress: ReportProgress }
+    | { kind: 'complete'; progress: ReportProgress; path: string };
 }
-export type CsvState =
+export type ReportState =
   | { kind: 'idle' }
   | { kind: 'choosing'; cancelling: boolean }
-  | { kind: 'running'; progress: CsvProgress; cancelling: boolean }
-  | { kind: 'finished'; receipt: CsvReceipt }
+  | { kind: 'running'; progress: ReportProgress; cancelling: boolean }
+  | { kind: 'finished'; receipt: ReportReceipt }
   | { kind: 'failed'; message: string };
 
 /** Complete reports recurse beneath the explicitly chosen folder, independently of UI paging/sort. */
-export function csvRequest(
+export function reportSelection(
   query: Query,
   scope: number,
-  items: CsvRequest['items'],
+  items: ReportSelection['items'],
   filtered: boolean,
   includePaths: boolean,
-): CsvRequest {
+): ReportSelection {
   const { text, expression, extension, without_extension, min_size, modified_before, cloud } =
     query;
   return {
@@ -65,12 +66,16 @@ export function csvRequest(
 }
 
 interface Transport {
-  save(context: CsvContext, request: CsvRequest): Promise<CsvReceipt>;
-  read(context: CsvContext): Promise<CsvEvent | null>;
-  cancel(context: CsvContext): Promise<boolean>;
+  save(
+    context: ReportContext,
+    request: ReportSelection,
+    format: ReportFormat,
+  ): Promise<ReportReceipt>;
+  read(context: ReportContext): Promise<ReportEvent | null>;
+  cancel(context: ReportContext): Promise<boolean>;
 }
 interface Run {
-  context: CsvContext;
+  context: ReportContext;
   timer: ReturnType<typeof setTimeout> | null;
   stopped: boolean;
   cancelAcknowledged: boolean;
@@ -78,15 +83,15 @@ interface Run {
   cancelling: boolean;
 }
 
-export function createCsvExport(
+export function createReportExport(
   transport: Transport,
-  changed: (state: CsvState) => void,
+  changed: (state: ReportState) => void,
   delayMs = 250,
 ) {
   let alive = true;
   let active: Run | null = null;
-  let last: CsvState = { kind: 'idle' };
-  function emit(state: CsvState): void {
+  let last: ReportState = { kind: 'idle' };
+  function emit(state: ReportState): void {
     last = state;
     if (alive) changed(state);
   }
@@ -123,7 +128,11 @@ export function createCsvExport(
     if (!run.stopped && active === run) run.timer = setTimeout(() => void poll(run), delayMs);
   }
   return {
-    async save(context: CsvContext, request: CsvRequest): Promise<void> {
+    async save(
+      context: ReportContext,
+      request: ReportSelection,
+      format: ReportFormat = 'csv',
+    ): Promise<void> {
       if (!alive || active) return;
       const run: Run = {
         context,
@@ -136,7 +145,7 @@ export function createCsvExport(
       active = run;
       emit({ kind: 'choosing', cancelling: false });
       try {
-        const pending = transport.save(context, request);
+        const pending = transport.save(context, request, format);
         void poll(run);
         const receipt = await pending;
         if (active !== run) return;

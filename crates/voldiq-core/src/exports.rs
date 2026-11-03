@@ -1,4 +1,4 @@
-//! Bounded spreadsheet-facing exports. Text prefixes are part of the exported data.
+//! Paged and streaming reports with explicit privacy and literal spreadsheet text.
 use crate::{
     Error, Kind, Result,
     index::{Index, Query},
@@ -6,17 +6,34 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 mod stream;
-pub use stream::{CsvFilter, CsvStreamRequest, StreamOutcome, StreamProgress, stream_csv};
+pub use stream::{ReportFilter, ReportSelection, StreamOutcome, StreamProgress, stream_csv};
+mod xlsx;
+pub use xlsx::stream_xlsx;
 #[cfg(windows)]
 mod file;
 #[cfg(windows)]
-pub use file::save_csv;
+pub use file::save_report;
+
+#[derive(Clone, Copy, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ReportFormat {
+    Csv,
+    Xlsx,
+}
+impl ReportFormat {
+    pub fn extension(self) -> &'static str {
+        match self {
+            Self::Csv => "csv",
+            Self::Xlsx => "xlsx",
+        }
+    }
+}
 
 const HEADER: &str = "node_id,kind,name,logical_bytes,recorded_allocated_bytes,allocation_known,modified_unix_seconds,path,path_exact";
 
 #[derive(Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
-pub enum CsvItems {
+pub enum ReportItems {
     Files,
     Folders,
 }
@@ -24,7 +41,7 @@ pub enum CsvItems {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CsvRequest {
-    pub items: CsvItems,
+    pub items: ReportItems,
     #[serde(default)]
     pub query: Query,
     #[serde(default)]
@@ -40,7 +57,7 @@ pub struct CsvPage {
     pub scope_incomplete: bool,
     pub query: serde_json::Value,
     pub filter_text_included: bool,
-    pub items: CsvItems,
+    pub items: ReportItems,
     pub units: &'static str,
     pub text_encoding: &'static str,
     pub paths_included: bool,
@@ -57,7 +74,7 @@ fn text(value: &str) -> String {
 
 fn filter_metadata(filter: &impl Serialize, include_text: bool) -> Result<serde_json::Value> {
     let mut value = serde_json::to_value(filter)
-        .map_err(|_| Error::Invalid("Unable to encode CSV filter metadata.".into()))?;
+        .map_err(|_| Error::Invalid("Unable to encode report filter metadata.".into()))?;
     if !include_text {
         for field in ["text", "expression", "extension"] {
             if value
@@ -116,8 +133,8 @@ pub fn csv(index: &Index, request: &CsvRequest, cancelled: &AtomicBool) -> Resul
     }
     let query = Query {
         kind: Some(match request.items {
-            CsvItems::Files => Kind::File,
-            CsvItems::Folders => Kind::Directory,
+            ReportItems::Files => Kind::File,
+            ReportItems::Folders => Kind::Directory,
         }),
         files_only: false,
         ..request.query.clone()

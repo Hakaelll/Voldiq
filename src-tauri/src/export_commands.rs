@@ -5,7 +5,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 use tauri::State;
-use voldiq_core::exports::{CsvStreamRequest, StreamOutcome, StreamProgress};
+use voldiq_core::exports::{ReportFormat, ReportSelection, StreamOutcome, StreamProgress};
 
 #[derive(Default)]
 pub(crate) struct Sessions {
@@ -67,7 +67,7 @@ impl Session {
             .lock()
             .map_err(|error| error.to_string())?;
         if slot.is_some() {
-            return Err("Another CSV export is active.".into());
+            return Err("Another report export is active.".into());
         }
         *slot = Some(Run {
             event: Event {
@@ -107,7 +107,7 @@ impl Session {
             .run
             .lock()
             .map_err(|error| error.to_string())?;
-        let run = slot.as_mut().ok_or("CSV export session ended.")?;
+        let run = slot.as_mut().ok_or("report export session ended.")?;
         if run.cancel.load(Ordering::Relaxed) {
             cancel.store(true, Ordering::Relaxed);
         }
@@ -147,10 +147,11 @@ impl Drop for Session {
 }
 
 #[tauri::command]
-pub(crate) async fn save_csv_report(
+pub(crate) async fn save_report(
     index_id: IndexId,
     request_id: String,
-    request: CsvStreamRequest,
+    request: ReportSelection,
+    format: ReportFormat,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<Receipt, String> {
     #[cfg(windows)]
@@ -158,11 +159,11 @@ pub(crate) async fn save_csv_report(
         let engine = engine.inner().clone();
         let session = Session::begin(engine.clone(), request_id, index_id)?;
         engine.index_for(index_id)?;
-        let path = tauri::async_runtime::spawn_blocking(|| {
+        let path = tauri::async_runtime::spawn_blocking(move || {
             rfd::FileDialog::new()
-                .set_title("Save CSV report · existing files are preserved")
-                .add_filter("CSV report", &["csv"])
-                .set_file_name("voldiq-report.csv")
+                .set_title("Save report · existing files are preserved")
+                .add_filter("Report", &[format.extension()])
+                .set_file_name(format!("voldiq-report.{}", format.extension()))
                 .save_file()
         })
         .await
@@ -193,8 +194,9 @@ pub(crate) async fn save_csv_report(
         // The blocking worker owns both the session and operation until every file handle is closed.
         tauri::async_runtime::spawn_blocking(move || {
             let index = index.read().map_err(|error| error.to_string())?;
-            let result = voldiq_core::exports::save_csv(
+            let result = voldiq_core::exports::save_report(
                 &index,
+                format,
                 &request,
                 &path,
                 &operation._lease,
@@ -213,13 +215,13 @@ pub(crate) async fn save_csv_report(
     }
     #[cfg(not(windows))]
     {
-        let _ = (index_id, request_id, request, engine);
-        Err("CSV file export is available on Windows only.".into())
+        let _ = (index_id, request_id, request, format, engine);
+        Err("Report file export is available on Windows only.".into())
     }
 }
 
 #[tauri::command]
-pub(crate) fn csv_report_progress(
+pub(crate) fn report_progress(
     index_id: IndexId,
     request_id: String,
     engine: State<'_, Arc<Engine>>,
@@ -236,7 +238,7 @@ pub(crate) fn csv_report_progress(
 }
 
 #[tauri::command]
-pub(crate) fn cancel_csv_report(
+pub(crate) fn cancel_report(
     index_id: IndexId,
     request_id: String,
     engine: State<'_, Arc<Engine>>,

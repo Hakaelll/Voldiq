@@ -1,4 +1,6 @@
-use super::{CsvStreamRequest, StreamOutcome, StreamProgress, stream_csv};
+use super::{
+    ReportFormat, ReportSelection, StreamOutcome, StreamProgress, stream_csv, stream_xlsx,
+};
 use crate::{
     Error, Result,
     agents::{AuthorizedPath, ordinary_path, pin_directory},
@@ -37,15 +39,26 @@ use windows_sys::{
 
 /// Human-selected destination only. The caller retains the shared operation lease until return.
 /// Existing files are never replaced. Cancellation/error prefixes are never published.
-pub fn save_csv(
+pub fn save_report(
     index: &Index,
-    request: &CsvStreamRequest,
+    format: ReportFormat,
+    request: &ReportSelection,
     destination: &Path,
     lease: &Lease,
     cancelled: &AtomicBool,
     progress: impl FnMut(StreamProgress),
 ) -> Result<StreamOutcome> {
     let destination = ordinary_path(destination)?;
+    if !destination
+        .extension()
+        .and_then(std::ffi::OsStr::to_str)
+        .is_some_and(|extension| extension.eq_ignore_ascii_case(format.extension()))
+    {
+        return Err(Error::Invalid(format!(
+            "Choose a new .{} report filename.",
+            format.extension()
+        )));
+    }
     let leaf = destination.file_name().ok_or_else(invalid)?;
     let parent = pin_directory(destination.parent().ok_or_else(invalid)?)?;
     let mut policy = Store::open(lease.directory())?;
@@ -58,19 +71,22 @@ pub fn save_csv(
         &handle,
         FILE_READ_ATTRIBUTES | FILE_LIST_DIRECTORY | FILE_ADD_FILE | FILE_TRAVERSE,
     )
-    .map_err(|error| Error::Invalid(format!("CSV parent access failed: {error}")))?;
+    .map_err(|error| Error::Invalid(format!("Report parent access failed: {error}")))?;
     let mut temporary = Temporary::create(&handle)
-        .map_err(|error| Error::Invalid(format!("CSV temporary creation failed: {error}")))?;
+        .map_err(|error| Error::Invalid(format!("Report temporary creation failed: {error}")))?;
     let result: Result<StreamOutcome> = (|| {
         let mut writer = BufWriter::with_capacity(64 * 1024, &mut temporary.file);
-        let outcome = stream_csv(index, request, &mut writer, cancelled, progress)?;
+        let outcome = match format {
+            ReportFormat::Csv => stream_csv(index, request, &mut writer, cancelled, progress)?,
+            ReportFormat::Xlsx => stream_xlsx(index, request, &mut writer, cancelled, progress)?,
+        };
         if let StreamOutcome::Complete(state) = outcome {
             writer.flush()?;
             drop(writer);
             temporary
                 .file
                 .sync_all()
-                .map_err(|error| Error::Invalid(format!("CSV sync failed: {error}")))?;
+                .map_err(|error| Error::Invalid(format!("Report sync failed: {error}")))?;
             if cancelled.load(Ordering::Relaxed) {
                 return Ok(StreamOutcome::Cancelled(state));
             }
@@ -88,7 +104,7 @@ pub fn save_csv(
                 &handle,
                 &leaf.encode_wide().collect::<Vec<_>>(),
             )
-            .map_err(|error| Error::Invalid(format!("CSV publication failed: {error}")))?;
+            .map_err(|error| Error::Invalid(format!("Report publication failed: {error}")))?;
             temporary.finished = true;
         }
         Ok(outcome)
@@ -97,7 +113,7 @@ pub fn save_csv(
         && let Err(cleanup) = temporary.abort()
     {
         return Err(Error::Invalid(format!(
-            "CSV was not published. Temporary report cleanup is uncertain for {}: {cleanup}. Export result: {}",
+            "Report was not published. Temporary report cleanup is uncertain for {}: {cleanup}. Export result: {}",
             parent.path().join(&temporary.name).display(),
             match result {
                 Ok(_) => "cancelled".into(),
@@ -280,14 +296,14 @@ fn publish(file: &File, parent: &File, name: &[u16]) -> Result<()> {
     }
     if status != 0 {
         return Err(Error::Invalid(format!(
-            "Unexpected CSV rename status: {status:#x}"
+            "Unexpected Report rename status: {status:#x}"
         )));
     }
     Ok(())
 }
 
 fn invalid() -> Error {
-    Error::Invalid("CSV destination is protected, unavailable or changed.".into())
+    Error::Invalid("Report destination is protected, unavailable or changed.".into())
 }
 
 fn identity(file: &File) -> Result<cleanup_stage::StageIdentity> {
