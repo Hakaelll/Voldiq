@@ -681,6 +681,131 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             .len(),
         1
     );
+    #[cfg(windows)]
+    {
+        use voldiq_core::{
+            ScanConcurrency,
+            live::{Control, Reason, Session},
+        };
+        let mut store = store;
+        let watched = fixture.path().join("live");
+        let excluded = watched.join("ignored");
+        std::fs::create_dir_all(&excluded).unwrap();
+        std::fs::write(watched.join("payload"), [1; 4]).unwrap();
+        std::fs::write(excluded.join("secret"), [2; 1024]).unwrap();
+        let options = ScanOptions {
+            mode: voldiq_core::ScanMode::Directory,
+            exclusions: vec![excluded.to_str().unwrap().to_owned()],
+            ..Default::default()
+        };
+        let baseline = scan(&watched, &options, &loading, |_| {}).unwrap();
+        let control = Control::new().unwrap();
+        let mut live =
+            Session::start(&baseline, ScanConcurrency::default(), control.clone()).unwrap();
+        let initial = live.observe().unwrap().unwrap();
+        assert_eq!(initial.report.reason, Reason::Initial);
+        assert_eq!(initial.report.after.logical, "4");
+        assert_eq!(initial.report.net_change.as_deref(), Some("0"));
+        let saved_initial = store.save(&initial.index, &loading, &[]).unwrap();
+
+        std::fs::write(watched.join("payload"), [3; 11]).unwrap();
+        std::fs::rename(watched.join("payload"), watched.join("renamed")).unwrap();
+        std::fs::create_dir(watched.join("nested")).unwrap();
+        std::fs::write(watched.join("nested/extra"), [4; 3]).unwrap();
+        std::fs::write(excluded.join("secret"), [5; 9999]).unwrap();
+        let changed = live.observe().unwrap().unwrap();
+        assert_eq!(changed.report.reason, Reason::Changes);
+        assert_eq!(changed.report.after.logical, "14");
+        assert_eq!(changed.report.net_change.as_deref(), Some("10"));
+        assert!(changed.report.after.complete);
+        let saved_changed = store.save(&changed.index, &loading, &[]).unwrap();
+        assert_eq!(
+            store
+                .compare(saved_initial, saved_changed, 0, 10)
+                .unwrap()
+                .delta,
+            10
+        );
+
+        // Leave the pending notification unread while exceeding its bounded kernel buffer.
+        for ordinal in 0..640 {
+            let name = format!("{ordinal:04}-{}", "x".repeat(90));
+            std::fs::write(watched.join(name), [6]).unwrap();
+        }
+        let recovered = live.observe().unwrap().unwrap();
+        assert_eq!(recovered.report.reason, Reason::LostEvents);
+        assert_eq!(recovered.report.after.logical, "654");
+        assert_eq!(recovered.report.net_change.as_deref(), Some("640"));
+        control.resynchronize().unwrap();
+        let refreshed = live.observe().unwrap().unwrap();
+        assert_eq!(refreshed.report.reason, Reason::Requested);
+        assert_eq!(refreshed.report.after.logical, "654");
+        assert_eq!(refreshed.report.net_change.as_deref(), Some("0"));
+        assert!(
+            Session::start(
+                &store.load(saved_changed, &loading).unwrap(),
+                ScanConcurrency::default(),
+                Control::new().unwrap()
+            )
+            .is_err()
+        );
+
+        let mut partial = changed.index;
+        partial.observation.as_mut().unwrap().complete = false;
+        let partial_control = Control::new().unwrap();
+        let mut partial_live = Session::start(
+            &partial,
+            ScanConcurrency::default(),
+            partial_control.clone(),
+        )
+        .unwrap();
+        assert_eq!(
+            partial_live.observe().unwrap().unwrap().report.net_change,
+            None
+        );
+        partial_control.stop().unwrap();
+        drop(partial_live);
+        partial.root_identity = Some((0, 0));
+        assert!(
+            Session::start(
+                &partial,
+                ScanConcurrency::default(),
+                Control::new().unwrap()
+            )
+            .is_err()
+        );
+
+        let stopping = control.clone();
+        let stopper = std::thread::spawn(move || {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+            stopping.stop().unwrap();
+        });
+        assert!(live.observe().unwrap().is_none());
+        stopper.join().unwrap();
+        drop(live);
+        assert!(Session::start(&refreshed.index, ScanConcurrency::default(), control).is_err());
+        let restart_control = Control::new().unwrap();
+        let mut restarted = Session::start(
+            &refreshed.index,
+            ScanConcurrency::default(),
+            restart_control.clone(),
+        )
+        .unwrap();
+        assert_eq!(
+            restarted
+                .observe()
+                .unwrap()
+                .unwrap()
+                .report
+                .net_change
+                .as_deref(),
+            Some("0")
+        );
+        restart_control.stop().unwrap();
+        assert!(restarted.observe().unwrap().is_none());
+        drop(restarted);
+        std::fs::rename(&watched, fixture.path().join("live-stopped")).unwrap();
+    }
 }
 
 fn budget_history_uses_measurements_and_real_scoped_image_samples() {

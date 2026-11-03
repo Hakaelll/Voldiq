@@ -1,0 +1,18 @@
+{
+  "checkedUtc": "2026-11-03T00:56:55.3409039Z",
+  "scope": "Verified obsolete Voldiq preview artifacts only. Reusable release/build/test caches and the running production preview are retained. Application state, Windows caches and other applications are untouched. Artifact lengths are not an observed volume free-space delta.",
+  "debugArtifactsAbsent": true,
+  "previewProcess": 4216,
+  "previewWindow": 2951126,
+  "previewCleanup": {
+    "applied": true,
+    "removedBytes": 0,
+    "previews": [
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\DC250FEF617EDA9BD19F170F28744F7F575EC0AE3856AB372E1978DAD60D4AD6",
+        "bytes": 16158720,
+        "status": "KeptCurrent"
+      }
+    ]
+  }
+}
