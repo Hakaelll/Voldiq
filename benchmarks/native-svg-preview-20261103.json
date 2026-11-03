@@ -1,0 +1,94 @@
+{
+  "checkedUtc": "2026-11-03T20:32:12.6027377Z",
+  "sourceCommit": "1d8bac90494779be9d2baaadfdf724d75ca3bbe0",
+  "executableSha256": "09F1B91D6D3D8724780BF903D71F3EDC9E15ED6D37262A28B3CE1396D20CBF1B",
+  "executableBytes": 24115712,
+  "preview": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\09F1B91D6D3D8724780BF903D71F3EDC9E15ED6D37262A28B3CE1396D20CBF1B\\voldiq.exe",
+  "processId": 15456,
+  "mainWindowHandle": 8389276,
+  "observation": "ready",
+  "startupEvents": [
+    {
+      "event": "process-start",
+      "pid": 15456,
+      "unixMs": 1793737931911
+    },
+    {
+      "event": "setup-start",
+      "pid": 15456,
+      "unixMs": 1793737932280
+    },
+    {
+      "event": "snapshot-open-start",
+      "pid": 15456,
+      "unixMs": 1793737932282
+    },
+    {
+      "event": "snapshot-open-end",
+      "pid": 15456,
+      "unixMs": 1793737932291
+    },
+    {
+      "event": "setup-end",
+      "pid": 15456,
+      "unixMs": 1793737932310
+    },
+    {
+      "event": "ready",
+      "pid": 15456,
+      "unixMs": 1793737932311
+    },
+    {
+      "event": "page-finished",
+      "pid": 15456,
+      "unixMs": 1793737932407
+    }
+  ],
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      },
+      {
+        "path": "assets/index-cypBIxvR.css",
+        "bytes": 81996,
+        "sha256": "C05C6FC6FD20FB23EFF1531DFC6BBD57701DCB42B7F30499D8AFB29566BF81A4"
+      },
+      {
+        "path": "assets/index-nOXIj6tK.js",
+        "bytes": 394855,
+        "sha256": "E9FECB09A775D9B0C33EAB319B8F1381D557F26F95C7B3B3F64CE4B1D37533EB"
+      },
+      {
+        "path": "assets/svg-surface-D3Yw6xZb.js",
+        "bytes": 6995,
+        "sha256": "16031B0D00F7998ED47803E71C5F769269D4295083881302DD52A7B7F3A450AA"
+      },
+      {
+        "path": "assets/voronoi.worker-DwJ2QmrW.js",
+        "bytes": 5606,
+        "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+      },
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "assets/city.worker-DLxzT0Wm.js",
+        "bytes": 2879,
+        "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+      },
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "03DD00A7F8AC64473EAF574DB7CB16C55B21B84961BDD181951BCAA28BCFFAEE"
+      }
+    ]
+  },
+  "scope": "Production native SVG source startup and exact current UI resources only. No native export/save-dialog click, user-data export, rendered app comparison, keyboard/focus, scaling or device performance acceptance automated."
+}
