@@ -9,6 +9,8 @@ mod stream;
 pub use stream::{ReportFilter, ReportSelection, StreamOutcome, StreamProgress, stream_csv};
 mod xlsx;
 pub use xlsx::stream_xlsx;
+mod summary;
+pub use summary::{LogicalTotal, ReportSummary, SummaryPath, SummaryRow, ranked_summary};
 #[cfg(windows)]
 mod file;
 #[cfg(windows)]

@@ -1,5 +1,5 @@
 use super::{
-    ReportFormat, ReportSelection, StreamOutcome, StreamProgress,
+    ReportSelection, StreamOutcome, StreamProgress,
     stream::{Record, walk},
 };
 use crate::{Error, Kind, Result, index::Index};
@@ -47,68 +47,63 @@ pub fn stream_xlsx<W: Write + Seek>(
         row: 0,
         scope: serde_json::Value::Null,
     };
-    let result = walk(
-        index,
-        selection,
-        ReportFormat::Xlsx,
-        cancelled,
-        progress,
-        |record| {
-            match record {
-                Record::Scope(scope) => {
-                    book.scope = scope;
+    let result = walk(index, selection, cancelled, progress, |record| {
+        match record {
+            Record::Scope(mut scope) => {
+                scope["format"] = "xlsx".into();
+                scope["text_encoding"] = "Text cells are explicit inline strings, never formulas or links. Integers above 15 decimal digits are exact text. XML control characters use SpreadsheetML escapes. Incomplete logical totals are observed lower bounds; zero unknown allocation is blank.".into();
+                book.scope = scope;
+                book.start_data()?;
+            }
+            Record::Item(entry) => {
+                let details = if selection.include_paths {
+                    let Some(details) = index
+                        .details_cancellable(entry.id, || cancelled.load(Ordering::Relaxed))?
+                    else {
+                        return Ok(false);
+                    };
+                    Some(details)
+                } else {
+                    None
+                };
+                if book.row == ROW_LIMIT {
+                    book.end_data()?;
                     book.start_data()?;
                 }
-                Record::Item(entry) => {
-                    let details = if selection.include_paths {
-                        let Some(details) = index
-                            .details_cancellable(entry.id, || cancelled.load(Ordering::Relaxed))?
-                        else {
-                            return Ok(false);
-                        };
-                        Some(details)
-                    } else {
-                        None
-                    };
-                    if book.row == ROW_LIMIT {
-                        book.end_data()?;
-                        book.start_data()?;
-                    }
-                    book.row += 1;
-                    write!(book.zip, "<row r=\"{}\">", book.row)?;
-                    let row = book.row;
-                    let kind = match entry.kind {
-                        Kind::File => "file",
-                        Kind::Directory => "directory",
-                        Kind::Link => "link",
-                    };
-                    number(&mut book.zip, 'A', row, Some(entry.id.0.into()))?;
-                    string(&mut book.zip, 'B', row, kind, false)?;
-                    string(&mut book.zip, 'C', row, &entry.name, false)?;
-                    number(&mut book.zip, 'D', row, Some(entry.logical))?;
-                    number(
-                        &mut book.zip,
-                        'E',
-                        row,
-                        (entry.allocation_known || entry.allocated > 0).then_some(entry.allocated),
-                    )?;
-                    boolean(&mut book.zip, 'F', row, Some(entry.allocation_known))?;
-                    number(&mut book.zip, 'G', row, entry.modified)?;
-                    if let Some(details) = details {
-                        string(&mut book.zip, 'H', row, &details.path, false)?;
-                        boolean(&mut book.zip, 'I', row, Some(details.path_exact))?;
-                    }
-                    boolean(&mut book.zip, 'J', row, Some(entry.incomplete))?;
-                    book.zip.write_all(b"</row>")?;
+                book.row += 1;
+                write!(book.zip, "<row r=\"{}\">", book.row)?;
+                let row = book.row;
+                let kind = match entry.kind {
+                    Kind::File => "file",
+                    Kind::Directory => "directory",
+                    Kind::Link => "link",
+                };
+                number(&mut book.zip, 'A', row, Some(entry.id.0.into()))?;
+                string(&mut book.zip, 'B', row, kind, false)?;
+                string(&mut book.zip, 'C', row, &entry.name, false)?;
+                number(&mut book.zip, 'D', row, Some(entry.logical))?;
+                number(
+                    &mut book.zip,
+                    'E',
+                    row,
+                    (entry.allocation_known || entry.allocated > 0).then_some(entry.allocated),
+                )?;
+                boolean(&mut book.zip, 'F', row, Some(entry.allocation_known))?;
+                number(&mut book.zip, 'G', row, entry.modified)?;
+                if let Some(details) = details {
+                    string(&mut book.zip, 'H', row, &details.path, false)?;
+                    boolean(&mut book.zip, 'I', row, Some(details.path_exact))?;
                 }
-                Record::Complete(state) => {
-                    book.end_data()?;
-                    book.metadata(state)?;
-                }
+                boolean(&mut book.zip, 'J', row, Some(entry.incomplete))?;
+                book.zip.write_all(b"</row>")?;
             }
-            Ok(true)
-        },
-    )?;
+            Record::Complete(state) => {
+                book.end_data()?;
+                book.metadata(state)?;
+            }
+        }
+        Ok(true)
+    })?;
     if matches!(result, StreamOutcome::Complete(_)) {
         book.finish()?;
     }

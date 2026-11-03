@@ -1375,6 +1375,79 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         assert_eq!(sheet.matches("<row r=").count(), 10_006);
         assert!(sheet.contains("record-10005") && sheet.contains("autoFilter ref=\"A1:J10006\""));
     }
+    for entry in export_index.entries.iter_mut().skip(1) {
+        entry.modified = Some(0);
+        entry.hard_link = false;
+        entry.incomplete = false;
+    }
+    export_index.entries[10_000].logical = u64::MAX;
+    export_index.entries[10_001].logical = u64::MAX;
+    export_index.entries[10_001].hard_link = true;
+    export_index.entries[10_001].incomplete = true;
+    export_index.entries[10_001].modified = None;
+    let summary = voldiq_core::exports::ranked_summary(&export_index, &all, &loading, |_| {})
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        (summary.progress.rows, summary.rows.len(), summary.omitted),
+        (10_005, 50, 9_955)
+    );
+    assert_eq!(
+        summary
+            .rows
+            .iter()
+            .take(3)
+            .map(|row| row.entry.id.0)
+            .collect::<Vec<_>>(),
+        [10_000, 10_001, 1]
+    );
+    assert!(summary.rows.iter().all(|row| row.path.is_none()));
+    assert!(
+        matches!(summary.logical, voldiq_core::exports::LogicalTotal::FilePaths { bytes } if bytes == 36_893_488_147_419_113_233)
+    );
+    assert_eq!(
+        (
+            summary.incomplete_matches,
+            summary.unknown_allocation_matches,
+            summary.unknown_date_matches,
+            summary.recorded_hard_link_matches
+        ),
+        (1, 10_005, 1, 1)
+    );
+    assert_eq!(
+        summary.scope["order"],
+        "recorded_logical_bytes_descending_then_id"
+    );
+    assert_eq!(summary.scope["traversal_order"], "recorded_index");
+    assert_eq!(summary.scope["coverage"], "unknown");
+    let stopped_summary = AtomicBool::new(false);
+    assert!(
+        voldiq_core::exports::ranked_summary(&export_index, &all, &stopped_summary, |value| {
+            if value.rows > 0 {
+                stopped_summary.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
+        })
+        .unwrap()
+        .is_none()
+    );
+    let folder_summary = voldiq_core::exports::ranked_summary(
+        &first,
+        &voldiq_core::exports::ReportSelection {
+            items: voldiq_core::exports::ReportItems::Folders,
+            filter: Default::default(),
+            include_paths: false,
+        },
+        &loading,
+        |_| {},
+    )
+    .unwrap()
+    .unwrap();
+    assert!(matches!(
+        folder_summary.logical,
+        voldiq_core::exports::LogicalTotal::OverlappingFolders
+    ));
+    export_index.entries[10_000].logical = 1;
+    export_index.entries[10_001].logical = 1;
     let no_matches = voldiq_core::exports::ReportSelection {
         items: request.items,
         filter: voldiq_core::exports::ReportFilter {

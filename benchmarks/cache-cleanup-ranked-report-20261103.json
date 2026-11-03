@@ -1,0 +1,23 @@
+{
+  "checkedUtc": "2026-11-03T18:27:38.4622521Z",
+  "sourceCommit": "297d23040c6555a3f183a0a589facb0f9a3295c0",
+  "existingUiPreviewOpen": true,
+  "cleanup": {
+    "applied": true,
+    "removedBytes": 0,
+    "previews": [
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\430DA86FB24E1F2DA3FF7A3771080FA4576FAF46CB699F70A475C9F049037021",
+        "bytes": 16714240,
+        "status": "KeptRunning"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\5942B5857138E97194D370ECC6B36FCD817881345EC932F55EC6A2248D0CABE1",
+        "bytes": 16977408,
+        "status": "KeptCurrent"
+      }
+    ]
+  },
+  "debugArtifactsPresent": false,
+  "scope": "Core-only report preparation; no new native UI build claimed. Cleanup only verified inactive Voldiq preview artifacts. Current/running images, reusable release artifacts, application state, Windows and other applications excluded; logical bytes are not measured volume free-space change."
+}

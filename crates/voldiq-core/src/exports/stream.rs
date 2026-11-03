@@ -1,4 +1,4 @@
-use super::{HEADER, ReportFormat, ReportItems, row, text};
+use super::{HEADER, ReportItems, row, text};
 use crate::{
     NodeId, Result,
     cloud::CloudFilter,
@@ -67,36 +67,30 @@ pub fn stream_csv(
     cancelled: &AtomicBool,
     progress: impl FnMut(StreamProgress),
 ) -> Result<StreamOutcome> {
-    walk(
-        index,
-        request,
-        ReportFormat::Csv,
-        cancelled,
-        progress,
-        |record| {
-            match record {
-                Record::Scope(data) => {
-                    writer
-                        .write_all(format!("record_type,{HEADER},context_json\r\n").as_bytes())?;
-                    context(writer, "scope", data)?;
-                }
-                Record::Item(entry) => {
-                    let Some(line) = row(index, entry, request.include_paths, cancelled)? else {
-                        return Ok(false);
-                    };
-                    writer.write_all(b"item,")?;
-                    writer.write_all(line.as_bytes())?;
-                    writer.write_all(b",\r\n")?;
-                }
-                Record::Complete(state) => context(
-                    writer,
-                    "complete",
-                    serde_json::json!({"rows":state.rows,"inspected":state.inspected}),
-                )?,
+    walk(index, request, cancelled, progress, |record| {
+        match record {
+            Record::Scope(mut data) => {
+                data["format"] = "csv".into();
+                data["text_encoding"] = "Name/path/context cells retain literal text: prefixes; keep them in spreadsheet workflows. Import large numeric values as text.".into();
+                writer.write_all(format!("record_type,{HEADER},context_json\r\n").as_bytes())?;
+                context(writer, "scope", data)?;
             }
-            Ok(true)
-        },
-    )
+            Record::Item(entry) => {
+                let Some(line) = row(index, entry, request.include_paths, cancelled)? else {
+                    return Ok(false);
+                };
+                writer.write_all(b"item,")?;
+                writer.write_all(line.as_bytes())?;
+                writer.write_all(b",\r\n")?;
+            }
+            Record::Complete(state) => context(
+                writer,
+                "complete",
+                serde_json::json!({"rows":state.rows,"inspected":state.inspected}),
+            )?,
+        }
+        Ok(true)
+    })
 }
 
 pub(super) enum Record<'a> {
@@ -108,7 +102,6 @@ pub(super) enum Record<'a> {
 pub(super) fn walk(
     index: &Index,
     request: &ReportSelection,
-    format: ReportFormat,
     cancelled: &AtomicBool,
     mut progress: impl FnMut(StreamProgress),
     mut output: impl FnMut(Record<'_>) -> Result<bool>,
@@ -146,13 +139,13 @@ pub(super) fn walk(
         return Ok(StreamOutcome::Cancelled(state));
     }
     if !output(Record::Scope(serde_json::json!({
-        "schema_version":1, "format":format, "snapshot_id":index.snapshot_id,
+        "schema_version":1, "snapshot_id":index.snapshot_id,
         "generated_at":SystemTime::now().duration_since(UNIX_EPOCH).ok().map(|time|time.as_secs()),
         "observation":index.observation, "root_path":request.include_paths.then(|| index.root.to_string_lossy()),
         "exclusions":index.exclusions.len(), "access_issues":index.error_count, "root_incomplete":root.incomplete,
         "coverage":match index.observation.as_ref() { None=>"unknown",Some(value) if value.complete && !root.incomplete && index.error_count==0=>"complete",_=>"partial" },
         "filter":super::filter_metadata(filter,request.include_paths)?,"filter_text_included":request.include_paths,"items":request.items,"include_paths":request.include_paths,"order":"recorded_index",
-        "units":"bytes; Unix seconds UTC", "text_encoding":match format { ReportFormat::Csv=>"Name/path/context cells retain literal text: prefixes; keep them in spreadsheet workflows. Import large numeric values as text.",ReportFormat::Xlsx=>"Text cells are explicit inline strings, never formulas or links. Integers above 15 decimal digits are exact text. XML control characters use SpreadsheetML escapes. Incomplete logical totals are observed lower bounds; zero unknown allocation is blank." },
+        "units":"bytes; Unix seconds UTC",
         "limitations":"Recorded metadata, not a fresh scan or file authority. Names are display strings. Allocation requires allocation_known; blank dates are unknown. Cloud metadata does not establish resident content. A completion record establishes encoder completion only, not durable publication."
     })))? {
         return Ok(StreamOutcome::Cancelled(state));

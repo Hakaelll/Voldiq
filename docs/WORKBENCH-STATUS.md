@@ -4,6 +4,16 @@ Delivery branch: `main`, as the user explicitly requested during implementation.
 
 The complete task remains active. See the [coverage matrix](WORKBENCH-COVERAGE.md) and [execution plan](plans/storage-workbench.md). This status does not declare pending capabilities implemented.
 
+## Ranked report preparation for PDF
+
+The core now prepares a bounded summary using the shared compiled report selection. It visits and counts all matching records while retaining at most 50 ranking IDs. Largest recorded logical sizes lead, with lower index IDs winning ties; shown/omitted counts and traversal versus presentation order are explicit. Optional paths are resolved only for retained rows after the complete read. The model records incomplete, unknown-allocation/date and recorded-hard-link counters across all matches. Observed file-path sums use checked u128 arithmetic and include aliases; overlapping folder rows have a distinct nonnumeric total state. No physical-resident or reclaimed-byte total is inferred.
+
+The existing retained metadata flow passes 10,005 synthetic matches, deterministic largest-size ties, 50 shown/9,955 omitted, an exact total beyond u64, unknown/partial/alias counters, coverage, default path omission, cancellation and the overlapping-folder state. CSV and XLSX still attach their own format/encoding metadata to the same now format-neutral walk. The [six-stage integration gate](../benchmarks/workbench-ranked-report-source-20261103.json) passes all eight retained tests, zero Svelte diagnostics, the frontend build and strict workspace Clippy. No PDF file encoder or native PDF option is claimed by this data-preparation unit.
+
+Library investigation of [simple-text drawing](https://docs.rs/krilla/0.8.2/krilla/surface/struct.Surface.html#method.draw_text) confirmed that it does not provide bidirectional layout, mixed-script handling or font fallback. `krilla` 0.8.2 and `parley` 0.11.1 source/metadata were fetched for inspection, but neither was added to the project manifest or startup. Their licenses are MIT/Apache-2.0; the installed Rust toolchain meets their stated minimum versions. The PDF font, licensing/embedding checks, shaping, pagination, render verification and native publication pipeline remain pending. The full workbench goal stays active.
+
+The [host/cache review](../benchmarks/cache-cleanup-ranked-report-20261103.json) confirms the existing XLSX UI preview remains open. It removes zero bytes and preserves current/running/reusable artifacts; debug artifacts remain absent. No new UI build or PDF file is claimed by this core-only unit. Application state, Windows and other applications were excluded from cleanup. Font/layout/encoding work remains active.
+
 ## Shared CSV and XLSX reports
 
 Export now offers CSV or an Excel workbook in the same compact dialog. The private desktop/controller/component API was migrated together to report terminology; no legacy command wrapper or separate scanner was kept. `ReportSelection` and one compiled record walk share scope, current-filter behavior, privacy, cancellation and progress. The selected format controls the native chooser filter and required filename extension. Both formats use the same retained destination handles, operation lease, private temporary, no-replacement publication and explicit cleanup uncertainty.
