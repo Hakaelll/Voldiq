@@ -8,7 +8,10 @@ export type QueryFamily =
   | 'snapshot_visual'
   | 'snapshot_changes'
   | 'snapshot_capture'
-  | 'snapshot_retention';
+  | 'snapshot_retention'
+  | 'snapshot_calendar'
+  | 'snapshot_calendar_entries'
+  | 'snapshot_diary';
 export type QueryTransport<T = Page, Q = Query, F extends string = QueryFamily> = {
   run: (family: F, requestId: number, query: Q) => Promise<T | null>;
   cancel: (family: F, requestId: number) => Promise<void>;

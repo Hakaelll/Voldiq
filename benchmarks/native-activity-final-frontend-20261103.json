@@ -1,0 +1,28 @@
+{
+  "checkedUtc": "2026-11-03T00:13:06.5643485Z",
+  "startedUtc": "2026-11-03T00:12:26.1606692Z",
+  "commands": [
+    "pnpm check",
+    "pnpm build"
+  ],
+  "scope": "Final native activity interface labels distinguish each diary comparison and historical context for keyboard/assistive use. Source diagnostics and production bundle only; actual native interaction/rendering remains manual.",
+  "exitCode": 0,
+  "assets": [
+    {
+      "Name": "city.worker-DLxzT0Wm.js",
+      "Length": 2879
+    },
+    {
+      "Name": "index-B-hxPEih.css",
+      "Length": 76514
+    },
+    {
+      "Name": "index-BMs6h-It.js",
+      "Length": 352256
+    },
+    {
+      "Name": "voronoi.worker-DwJ2QmrW.js",
+      "Length": 5606
+    }
+  ]
+}

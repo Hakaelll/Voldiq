@@ -4,6 +4,14 @@ Delivery branch: `main`, as the user explicitly requested during implementation.
 
 The complete task remains active. See the [coverage matrix](WORKBENCH-COVERAGE.md) and [execution plan](plans/storage-workbench.md). This status does not declare pending capabilities implemented.
 
+## Native calendar and diary workspace
+
+History now offers Calendar and Diary beside Compare/Playback, reusing Voldiq's existing sidebar, tokens and controls. Calendar reads a selected saved capture, displays UTC modification cohorts, distinct unknown/outside-month totals and a bounded day table with the existing cloud labels. Save time, measurement time, coverage and accounting remain separate. Creation dates, bytes written, file use and content availability are not inferred. Capture choices cover the loaded history page; the selected capture's complete stored metadata is queried. Reload captures recovers from externally retired history.
+
+Diary renders retained observations with baseline, partial, unknown and incompatible states. Its ranked paths open the coordinated historical comparison at their opaque scope. A tagged workspace retains the explicit pair independently of the loaded selectors, including older diary pairs, and Back to diary restores the anchor/page. The comparison is keyed by pair/scope and initializes that scope once. Metadata views leave the active index intact; opening a full snapshot remains explicit. Three independent query families reuse the existing bounded queue/worker lifetime. Context checks and live owners suppress late replies and displaced-focus restoration; cancelled/failed/empty/paused states stay distinct.
+
+The [full integration gate](../benchmarks/workbench-native-activity-source-20261103.json) passes all six stages with one frontend and seven Rust cases, zero Svelte diagnostics, production frontend build and strict Clippy. No test declaration was added. The final per-path/per-pair accessible labels also pass the [frontend check/build](../benchmarks/native-activity-final-frontend-20261103.json), producing `index-BMs6h-It.js` and `index-B-hxPEih.css`. These are source/build results. Native rendered composition, actual pointer/keyboard/focus, assistive technology, Windows scaling and device performance remain manual under the user's no-Computer-Use instruction. Other pending workbench rows remain part of the active goal.
+
 ## Stored calendar and diary reads
 
 The core now queries immutable interval metadata for UTC last-modification cohorts and bounded day pages. It reuses the shared date parser, keeps at most 31 bins, and separates unknown dates from records outside the month. Logical file-path sizes include confirmed file-placeholder metadata without reading content or following links. They do not represent bytes written, physical allocation, file use or creation dates. Partial coverage and supported/unknown/unsupported accounting are explicit.

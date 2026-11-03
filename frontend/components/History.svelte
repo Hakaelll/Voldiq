@@ -7,6 +7,13 @@
   import SnapshotVisualCompare from './SnapshotVisualCompare.svelte';
   import HistoryPlayback from './HistoryPlayback.svelte';
   import SnapshotRetention from './SnapshotRetention.svelte';
+  import HistoryCalendar from './HistoryCalendar.svelte';
+  import HistoryDiary from './HistoryDiary.svelte';
+  import type {
+    HistoryWorkspace,
+    HistoricalComparison,
+    DiaryLocation,
+  } from '../lib/history-activity';
   import type { SnapshotRetentionSettings, SnapshotRetentionResult } from '../lib/types';
   import { snapshotChangeQueries } from '../lib/queries';
   import { historyTrend } from '../lib/history-trend';
@@ -32,10 +39,12 @@
     after = $state(0),
     changeOffset = $state(0);
   let comparison = $state<SnapshotComparison | null>(null);
-  let focusedComparison = $state(false),
-    comparisonLoading = $state(false),
+  let workspace = $state<HistoryWorkspace>({ kind: 'captures' });
+  const focusedComparison = $derived(workspace.kind === 'comparison');
+  const playback = $derived(workspace.kind === 'playback');
+  const comparisonContext = $derived(workspace.kind === 'comparison' ? workspace : null);
+  let comparisonLoading = $state(false),
     comparisonProblem = $state('');
-  let playback = $state(false);
   let retentionOpen = $state(false),
     retentionResult = $state('');
   let deleting = $state<number | null>(null);
@@ -117,7 +126,8 @@
       offset = next;
       comparison = null;
       comparisonRequest += 1;
-      focusedComparison = comparisonLoading = playback = false;
+      workspace = { kind: 'captures' };
+      comparisonLoading = false;
       comparisonProblem = '';
       const latest = items[0];
       const older =
@@ -242,16 +252,25 @@
     await tick();
     region.querySelector<HTMLButtonElement>(`[data-delete-snapshot="${id}"]`)?.focus();
   }
-  async function compare(next = 0): Promise<void> {
-    if (!before || !after || before === after || working) return;
-    playback = false;
-    focusedComparison = comparisonLoading = true;
+  async function compare(next = 0, explicit?: HistoricalComparison): Promise<void> {
+    const selected = explicit ??
+      comparisonContext ?? { before, after, scope: null, returnTo: null };
+    if (!selected.before || !selected.after || selected.before === selected.after || working)
+      return;
+    workspace = {
+      kind: 'comparison',
+      before: selected.before,
+      after: selected.after,
+      scope: selected.scope,
+      returnTo: selected.returnTo,
+    };
+    comparisonLoading = true;
     comparisonProblem = '';
     const token = ++comparisonRequest;
     try {
       const result = await snapshotChangeQueries.request({
-        before,
-        after,
+        before: selected.before,
+        after: selected.after,
         offset: next,
         limit: 50,
       }).result;
@@ -268,6 +287,7 @@
     } finally {
       if (token === comparisonRequest) comparisonLoading = false;
     }
+    if (token === comparisonRequest) await focusWorkspace('comparison');
   }
   function resetComparison(): void {
     comparison = null;
@@ -288,28 +308,59 @@
     snapshotChangeQueries.cancel();
   });
   async function showCaptures(): Promise<void> {
-    if (comparisonLoading) resetComparison();
-    focusedComparison = playback = false;
+    if (comparisonLoading || comparisonContext?.returnTo) resetComparison();
+    workspace = { kind: 'captures' };
     await tick();
     if (alive)
       (region.querySelector<HTMLInputElement>('.snapshot-row input:checked') ?? region).focus();
   }
-  async function startPlayback(): Promise<void> {
+  async function enterActivity(kind: 'playback' | 'calendar' | 'diary'): Promise<void> {
+    if (working || !compatible.length) return;
     resetComparison();
-    focusedComparison = false;
-    playback = true;
+    workspace =
+      kind === 'diary'
+        ? {
+            kind,
+            location: {
+              snapshot: compatible.find((capture) => capture.id === after)?.id ?? compatible[0].id,
+              offset: 0,
+            },
+          }
+        : { kind };
+    await focusWorkspace(kind);
+  }
+  async function focusWorkspace(kind: HistoryWorkspace['kind']): Promise<void> {
     await tick();
-    if (alive && playback && document.activeElement === document.body)
+    if (alive && workspace.kind === kind && document.activeElement === document.body)
       (
         region.querySelector<HTMLElement>(
-          '.snapshot-playback button:not(:disabled),.snapshot-playback select:not(:disabled)',
+          '.history-comparison select:not(:disabled),.history-comparison .snapshot-visual button:not(:disabled),.history-comparison button:not(:disabled)',
         ) ?? region
       ).focus();
+  }
+  async function inspectDiary(context: HistoricalComparison): Promise<void> {
+    resetComparison();
+    await compare(0, context);
+  }
+  function diaryLocation(location: DiaryLocation): void {
+    if (workspace.kind === 'diary' && !working) workspace = { kind: 'diary', location };
+  }
+  async function returnToDiary(): Promise<void> {
+    const target = comparisonContext?.returnTo;
+    if (!target || working) return;
+    resetComparison();
+    workspace = { kind: 'diary', location: target };
+    await focusWorkspace('diary');
   }
   async function cancelComparison(): Promise<void> {
     resetComparison();
     await tick();
-    if (alive) region.querySelector<HTMLButtonElement>('[data-compare-snapshots]')?.focus();
+    if (alive && document.activeElement === document.body)
+      (
+        region.querySelector<HTMLButtonElement>(
+          '[data-compare-context],[data-compare-snapshots]',
+        ) ?? region
+      ).focus();
   }
 </script>
 
@@ -321,6 +372,10 @@
   bind:this={region}
 >
   <div class="history-toolbar">
+    <button
+      onclick={() => refresh(offset)}
+      disabled={working || !isTauri() || loadState === 'loading'}>Reload captures</button
+    >
     <button
       bind:this={saveButton}
       class="primary"
@@ -358,6 +413,28 @@
       <h2>No snapshots yet</h2>
     </section>
   {:else}
+    <div class="history-modes" role="group" aria-label="History view">
+      <button
+        aria-pressed={workspace.kind === 'captures' || focusedComparison}
+        onclick={showCaptures}
+        disabled={working}>Compare</button
+      >
+      <button
+        aria-pressed={workspace.kind === 'calendar'}
+        onclick={() => enterActivity('calendar')}
+        disabled={working || !compatible.length}>Calendar</button
+      >
+      <button
+        aria-pressed={workspace.kind === 'diary'}
+        onclick={() => enterActivity('diary')}
+        disabled={working || !compatible.length}>Diary</button
+      >
+      <button
+        aria-pressed={playback}
+        onclick={() => enterActivity('playback')}
+        disabled={working || !compatible.length}>Playback</button
+      >
+    </div>
     {#if compatible.length}<details
         class="panel snapshot-retention-disclosure"
         bind:open={retentionOpen}
@@ -370,7 +447,7 @@
               onapply={applyRetention}
             />{/key}{/if}
       </details>{/if}
-    <div class="history-layout" class:comparing={focusedComparison || playback}>
+    <div class="history-layout" class:comparing={workspace.kind !== 'captures'}>
       <div class="history-captures">
         <h2>Snapshots</h2>
         <section class="panel snapshot-list" aria-label="Saved snapshots">
@@ -510,59 +587,92 @@
       </div>
       <div class="history-comparison">
         <div class="history-compare-heading">
-          <h2>{playback ? 'History playback' : 'Compare snapshots'}</h2>
-          {#if !playback}<button onclick={startPlayback} disabled={working || !compatible.length}
-              >Playback</button
+          <h2>
+            {workspace.kind === 'calendar'
+              ? 'Modification calendar'
+              : workspace.kind === 'diary'
+                ? 'Observed diary'
+                : playback
+                  ? 'History playback'
+                  : 'Compare snapshots'}
+          </h2>
+          {#if comparisonContext?.returnTo}<button onclick={returnToDiary} disabled={working}
+              >Back to diary</button
             >{/if}
-          {#if focusedComparison || playback}<button onclick={showCaptures}>Back to captures</button
+          {#if workspace.kind !== 'captures'}<button onclick={showCaptures}>Back to captures</button
             >{/if}
         </div>
-        {#if playback}
+        {#if workspace.kind === 'calendar'}
+          {#key compatible.map((capture) => capture.id).join(':')}<HistoryCalendar
+              captures={compatible}
+              initialSnapshot={after}
+              disabled={working}
+              onopen={open}
+            />{/key}
+        {:else if workspace.kind === 'diary'}
+          {#key compatible.map((capture) => capture.id).join(':')}<HistoryDiary
+              captures={compatible}
+              location={workspace.location}
+              disabled={working}
+              onlocation={diaryLocation}
+              oncompare={inspectDiary}
+            />{/key}
+        {:else if playback}
           {#key compatible.map((snapshot) => snapshot.id).join(':')}
             <HistoryPlayback captures={compatible} disabled={working} onopen={open} />
           {/key}
         {:else}
-          <div class="history-compare">
-            <label
-              >Before<select
-                bind:value={before}
-                onchange={() => {
-                  resetComparison();
-                  after =
-                    snapshots.find((s) => s.root_key === previous?.root_key && s.id !== before)
-                      ?.id ?? before;
-                }}
-                disabled={working}
+          {#if comparisonContext?.returnTo}<p class="activity-help">
+              Diary context · capture #{comparisonContext.before} → #{comparisonContext.after}
+              <button
+                data-compare-context
+                onclick={() => compare(0)}
+                disabled={working || comparisonLoading}>Reload comparison</button
               >
-                <option value={0}>Select snapshot</option>
-                {#each snapshots as s}<option value={s.id}
-                    >{s.root} · {date(s.captured)} · {bytes(s.logical)}</option
-                  >{/each}
-              </select></label
-            >
-            <label
-              >After<select bind:value={after} onchange={resetComparison} disabled={working}>
-                <option value={0}>Select snapshot</option>
-                {#each compatible as s}<option value={s.id}
-                    >{date(s.captured)} · {bytes(s.logical)}</option
-                  >{/each}
-              </select></label
-            >
-            <button
-              data-compare-snapshots
-              onclick={() => compare()}
-              disabled={working || comparisonLoading || !before || !after || before === after}
-              >{comparisonLoading ? 'Comparing…' : 'Compare'}</button
-            >
-          </div>
+            </p>{:else}
+            <div class="history-compare">
+              <label
+                >Before<select
+                  bind:value={before}
+                  onchange={() => {
+                    resetComparison();
+                    after =
+                      snapshots.find((s) => s.root_key === previous?.root_key && s.id !== before)
+                        ?.id ?? before;
+                  }}
+                  disabled={working}
+                >
+                  <option value={0}>Select snapshot</option>
+                  {#each snapshots as s}<option value={s.id}
+                      >{s.root} · {date(s.captured)} · {bytes(s.logical)}</option
+                    >{/each}
+                </select></label
+              >
+              <label
+                >After<select bind:value={after} onchange={resetComparison} disabled={working}>
+                  <option value={0}>Select snapshot</option>
+                  {#each compatible as s}<option value={s.id}
+                      >{date(s.captured)} · {bytes(s.logical)}</option
+                    >{/each}
+                </select></label
+              >
+              <button
+                data-compare-snapshots
+                onclick={() => compare(0, { before, after, scope: null, returnTo: null })}
+                disabled={working || comparisonLoading || !before || !after || before === after}
+                >{comparisonLoading ? 'Comparing…' : 'Compare'}</button
+              >
+            </div>
+          {/if}
           {#if comparisonLoading}<p role="status">
               Reading recorded changes… <button onclick={cancelComparison}>Cancel comparison</button
               >
             </p>{/if}
           {#if comparisonProblem}<p role="alert">{comparisonProblem}</p>{/if}
-          {#if comparison && focusedComparison}{#key `${comparison.before}:${comparison.after}`}<SnapshotVisualCompare
+          {#if comparison && focusedComparison}{#key `${comparison.before}:${comparison.after}:${comparisonContext?.scope ?? 'root'}`}<SnapshotVisualCompare
                 before={comparison.before}
                 after={comparison.after}
+                initialScope={comparisonContext?.scope ?? null}
                 disabled={working}
               />{/key}{/if}
           {#if comparison}<section class="panel change-list">

@@ -374,6 +374,62 @@ export interface SnapshotVisualPair {
   };
 }
 
+export interface ActivityCapture {
+  id: number;
+  captured: number;
+  logical: string;
+  observation: Snapshot['observation'];
+  complete: boolean;
+  accounting: 'supported' | 'unknown' | 'unsupported';
+}
+export interface CalendarTotals {
+  files: number;
+  logical: string;
+}
+export interface CalendarDay {
+  day: number;
+  date: string;
+  totals: CalendarTotals;
+}
+export interface CalendarReport {
+  capture: ActivityCapture;
+  root: string;
+  month: string;
+  days: CalendarDay[];
+  total: CalendarTotals;
+  undated: CalendarTotals;
+  outside: CalendarTotals;
+}
+export interface CalendarEntry {
+  path_id: string;
+  path: string;
+  logical: string;
+  modified: number;
+  cloud: Entry['cloud'];
+}
+export interface CalendarPage {
+  snapshot: number;
+  date: string;
+  offset: number;
+  total: number;
+  entries: CalendarEntry[];
+  has_more: boolean;
+}
+export interface DiaryEvent {
+  before: ActivityCapture | null;
+  after: ActivityCapture;
+  detail:
+    | { kind: 'baseline' }
+    | { kind: 'incompatible' }
+    | { kind: 'compared'; delta: string; comparison: SnapshotComparison };
+}
+export interface DiaryPage {
+  anchor: number;
+  root: string;
+  events: DiaryEvent[];
+  has_more: boolean;
+}
+
 export interface SnapshotRetentionSettings {
   root_key: number;
   root: string;

@@ -8,6 +8,9 @@ import type {
   SnapshotComparison,
   SnapshotVisualFrame,
   SnapshotRetentionPreview,
+  CalendarReport,
+  CalendarPage,
+  DiaryPage,
 } from './types';
 
 let session: Promise<number> | undefined;
@@ -37,6 +40,46 @@ export const snapshotVisualQueries = createQueryRunner<
 });
 
 type IndexedInput<T> = T & { indexId: IndexId | null };
+
+export const calendarQueries = createQueryRunner<
+  CalendarReport,
+  { snapshot: number; month: string }
+>('snapshot_calendar', {
+  run: async (_family, requestId, input) =>
+    invoke<CalendarReport | null>('query_snapshot_calendar', {
+      ...input,
+      epoch: await querySession(),
+      requestId,
+    }),
+  cancel: async (family, requestId) =>
+    invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+});
+export const calendarEntryQueries = createQueryRunner<
+  CalendarPage,
+  { snapshot: number; month: string; day: number; offset: number; limit: number }
+>('snapshot_calendar_entries', {
+  run: async (_family, requestId, query) =>
+    invoke<CalendarPage | null>('query_snapshot_calendar_entries', {
+      query,
+      epoch: await querySession(),
+      requestId,
+    }),
+  cancel: async (family, requestId) =>
+    invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+});
+export const diaryQueries = createQueryRunner<
+  DiaryPage,
+  { snapshot: number; offset: number; limit: number }
+>('snapshot_diary', {
+  run: async (_family, requestId, query) =>
+    invoke<DiaryPage | null>('query_snapshot_diary', {
+      query,
+      epoch: await querySession(),
+      requestId,
+    }),
+  cancel: async (family, requestId) =>
+    invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+});
 
 export const retentionQueries = createQueryRunner<SnapshotRetentionPreview, { snapshot: number }>(
   'snapshot_retention',

@@ -1,6 +1,6 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { snapshotVisualQueries } from '../lib/queries';
   import HistoricalMap from './HistoricalMap.svelte';
   import { bytes, date, type SnapshotVisualPair, type SnapshotVisualFrame } from '../lib/types';
@@ -8,9 +8,10 @@
   let {
     before,
     after,
+    initialScope = null,
     disabled = false,
-  }: { before: number; after: number; disabled?: boolean } = $props();
-  let scope = $state<string | null>(null);
+  }: { before: number; after: number; initialScope?: string | null; disabled?: boolean } = $props();
+  let scope = $state<string | null>(untrack(() => initialScope));
   let folderCursor = $state<string | null>(null),
     reverse = $state(false),
     retry = $state(0);

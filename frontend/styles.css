@@ -1952,6 +1952,214 @@ main {
   gap: 16px;
   margin-bottom: 18px;
 }
+.history-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 18px;
+}
+.history-modes button[aria-pressed='true'] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.history-activity {
+  padding: 16px;
+}
+.activity-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+.activity-toolbar label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  font-size: 12px;
+}
+.activity-toolbar label:first-child {
+  flex: 1 1 220px;
+}
+.activity-toolbar select {
+  width: 100%;
+  min-width: 0;
+}
+.activity-toolbar h3 {
+  flex: 1 1 180px;
+  margin: 0;
+  align-self: center;
+  font-size: 14px;
+}
+.activity-help,
+.activity-capture-summary {
+  color: var(--secondary);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.activity-root {
+  overflow-wrap: anywhere;
+  font-size: 15px;
+  margin: 18px 0 10px;
+}
+.activity-capture-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 4px 16px;
+  margin: 10px 0;
+  font-variant-numeric: tabular-nums;
+}
+.activity-warning {
+  color: var(--error);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.calendar-cohort-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px 32px;
+  padding: 12px 0;
+  border-block: 1px solid var(--border);
+  margin: 16px 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.calendar-cohort-summary > span {
+  display: grid;
+  gap: 5px;
+}
+.calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 16px;
+}
+.calendar-weekday {
+  text-align: center;
+  font-size: 11px;
+  color: var(--secondary);
+  padding: 6px 0;
+}
+.calendar-grid .calendar-day {
+  display: grid;
+  position: relative;
+  overflow: hidden;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 6px 13px;
+  text-align: left;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.calendar-day > span,
+.calendar-day > small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+.calendar-day > i {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--accent);
+  opacity: 0.6;
+}
+.calendar-day.selected {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.calendar-day-records {
+  border-top: 1px solid var(--border);
+  padding-top: 16px;
+  margin-top: 18px;
+}
+.activity-table {
+  max-height: 360px;
+  overflow: auto;
+}
+.activity-table table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.activity-table th,
+.activity-table td {
+  padding: 9px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.activity-table td:first-child {
+  overflow-wrap: anywhere;
+  min-width: 180px;
+  max-width: 420px;
+}
+.activity-table td:nth-child(2),
+.activity-table td:nth-child(3) {
+  white-space: nowrap;
+}
+.activity-table th {
+  color: var(--secondary);
+  font-weight: 500;
+}
+.diary-event {
+  border-top: 1px solid var(--border);
+  margin-top: 20px;
+  padding-top: 16px;
+}
+.diary-event-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 16px;
+}
+.diary-event-heading h3 {
+  font-size: 15px;
+  margin: 0;
+}
+.diary-event-heading > span {
+  color: var(--secondary);
+  font-size: 12px;
+}
+.diary-difference {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+.diary-changes {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.diary-changes li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.diary-changes li > div {
+  display: grid;
+  gap: 4px;
+  flex: 1 1 240px;
+  min-width: 0;
+  font-size: 12px;
+}
+.diary-changes li span {
+  overflow-wrap: anywhere;
+}
+.diary-changes li small {
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
 .snapshot-retention-disclosure {
   margin-bottom: 18px;
 }

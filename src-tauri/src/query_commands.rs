@@ -25,6 +25,9 @@ pub(crate) enum QueryFamily {
     SnapshotChanges,
     SnapshotCapture,
     SnapshotRetention,
+    SnapshotCalendar,
+    SnapshotCalendarEntries,
+    SnapshotDiary,
 }
 
 #[derive(Default)]
@@ -41,7 +44,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 8],
+    slots: [Slot; 11],
 }
 
 impl QueryFamily {
@@ -55,6 +58,9 @@ impl QueryFamily {
             Self::SnapshotChanges => 5,
             Self::SnapshotCapture => 6,
             Self::SnapshotRetention => 7,
+            Self::SnapshotCalendar => 8,
+            Self::SnapshotCalendarEntries => 9,
+            Self::SnapshotDiary => 10,
         }
     }
 }
@@ -142,6 +148,91 @@ struct Request {
     epoch: u64,
     family: QueryFamily,
     id: u64,
+}
+
+#[tauri::command]
+pub(crate) async fn query_snapshot_calendar(
+    snapshot: i64,
+    month: String,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+    database: State<'_, crate::snapshot_commands::SnapshotDatabase>,
+) -> Result<Option<voldiq_core::snapshots::CalendarReport>, String> {
+    run_stored_query(
+        epoch,
+        QueryFamily::SnapshotCalendar,
+        request_id,
+        engine.inner().clone(),
+        database.0.clone(),
+        move |store, cancel| store.calendar(snapshot, &month, cancel),
+    )
+    .await
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct CalendarEntriesQuery {
+    snapshot: i64,
+    month: String,
+    day: u8,
+    offset: usize,
+    limit: usize,
+}
+
+#[tauri::command]
+pub(crate) async fn query_snapshot_calendar_entries(
+    query: CalendarEntriesQuery,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+    database: State<'_, crate::snapshot_commands::SnapshotDatabase>,
+) -> Result<Option<voldiq_core::snapshots::CalendarPage>, String> {
+    run_stored_query(
+        epoch,
+        QueryFamily::SnapshotCalendarEntries,
+        request_id,
+        engine.inner().clone(),
+        database.0.clone(),
+        move |store, cancel| {
+            store.calendar_entries(
+                query.snapshot,
+                &query.month,
+                query.day,
+                query.offset,
+                query.limit,
+                cancel,
+            )
+        },
+    )
+    .await
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct DiaryQuery {
+    snapshot: i64,
+    offset: usize,
+    limit: usize,
+}
+
+#[tauri::command]
+pub(crate) async fn query_snapshot_diary(
+    query: DiaryQuery,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+    database: State<'_, crate::snapshot_commands::SnapshotDatabase>,
+) -> Result<Option<voldiq_core::snapshots::DiaryPage>, String> {
+    run_stored_query(
+        epoch,
+        QueryFamily::SnapshotDiary,
+        request_id,
+        engine.inner().clone(),
+        database.0.clone(),
+        move |store, cancel| store.diary(query.snapshot, query.offset, query.limit, 5, cancel),
+    )
+    .await
 }
 
 #[tauri::command]
