@@ -1,4 +1,5 @@
 import type { IndexId } from './index-context';
+import type { SpaceReport } from './space-account';
 import { invoke } from '@tauri-apps/api/core';
 import { createQueryRunner, type QueryTransport } from './query-runner';
 import type { CloudFilter, FilePage, Overview, NodeId, SelectedDetails, Query } from './types';
@@ -18,6 +19,20 @@ function querySession(): Promise<number> {
   session ??= invoke<number>('open_query_session');
   return session;
 }
+
+export const spaceAccountQueries = createQueryRunner<SpaceReport, { indexId: IndexId }>(
+  'space_account',
+  {
+    run: async (_family, requestId, query) =>
+      invoke<SpaceReport | null>('query_space_account', {
+        ...query,
+        epoch: await querySession(),
+        requestId,
+      }),
+    cancel: async (family, requestId) =>
+      invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+  },
+);
 
 export const snapshotVisualQueries = createQueryRunner<
   SnapshotVisualPair,

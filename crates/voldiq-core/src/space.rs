@@ -2,7 +2,12 @@
 //! Identifiers here describe observations; they never authorize a filesystem action.
 #[cfg(windows)]
 mod native;
+mod reconcile;
 use crate::{Error, Result};
+pub use reconcile::{
+    Accounting, Allocation, AllocationReason, Coverage, Indexed, Report, Residual, ResidualReason,
+    VolumeContext, read_desktop, summarize,
+};
 use serde::{Serialize, Serializer};
 use std::path::Path;
 

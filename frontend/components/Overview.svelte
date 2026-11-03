@@ -1,5 +1,7 @@
 <script lang="ts">
   import StorageMap from './StorageMap.svelte';
+  import SpaceAccount from './SpaceAccount.svelte';
+  import type { IndexId } from '../lib/index-context';
   import { volumeMeasurement, volumeCaller, volumeObservationLabel } from '../lib/volume-space';
   import {
     bytes,
@@ -18,6 +20,8 @@
   import type { MapCommandHandler } from '../lib/map-menu';
 
   let {
+    indexId,
+    paused,
     volume,
     directory,
     children,
@@ -51,6 +55,8 @@
     oncloudfilter,
     onretry,
   }: {
+    indexId: IndexId | null;
+    paused: boolean;
     volume: Volume | null | undefined;
     directory: Details | null;
     children: Page;
@@ -112,7 +118,7 @@
     {#if volume?.accessible}
       <section class="volume-summary">
         <div class="summary-heading">
-          <h2>Volume</h2>
+          <h2>Selected drive</h2>
           <span title={volume.path}>{volume.name || volume.path}</span>
         </div>
         <div class="overview-volume-body">
@@ -262,6 +268,7 @@
           </div>
         </div>{/if}
     </section>
+    {#if indexId !== null}<SpaceAccount {indexId} {paused} />{/if}
     <section class="type-panel">
       <div class="panel-heading"><h2>File types</h2></div>
       <div class="type-bar" role="group" aria-label="Filter by file type">

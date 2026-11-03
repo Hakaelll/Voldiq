@@ -681,6 +681,242 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             .len(),
         1
     );
+    let account_root = fixture.path().join("space-account");
+    let account_excluded = account_root.join("excluded");
+    std::fs::create_dir_all(&account_excluded).unwrap();
+    let mut account_data = vec![0_u8; 8192];
+    getrandom::fill(&mut account_data).unwrap();
+    std::fs::write(account_root.join("data.bin"), &account_data).unwrap();
+    std::fs::hard_link(
+        account_root.join("data.bin"),
+        account_root.join("alias.bin"),
+    )
+    .unwrap();
+    std::fs::write(account_excluded.join("outside.bin"), [1; 1024]).unwrap();
+    let mut account_index = scan(
+        &account_root,
+        &ScanOptions {
+            mode: voldiq_core::ScanMode::Directory,
+            exclusions: vec![account_excluded.to_str().unwrap().into()],
+            ..Default::default()
+        },
+        &loading,
+        |_| {},
+    )
+    .unwrap();
+    let indexed_space = voldiq_core::space::summarize(&account_index, &loading)
+        .unwrap()
+        .unwrap();
+    assert_eq!(indexed_space.logical_paths.0, 16_384);
+    assert_eq!(
+        (
+            indexed_space.file_paths,
+            indexed_space.hardlink_paths,
+            indexed_space.exclusions
+        ),
+        (2, 2, 1)
+    );
+    let voldiq_core::space::Allocation::Measured {
+        known: known_allocation,
+        complete: true,
+        ..
+    } = indexed_space.allocation
+    else {
+        panic!("Expected complete allocation for the owned hardlink fixture");
+    };
+    assert_eq!(
+        known_allocation.0,
+        voldiq_core::windows::identity(&account_root.join("data.bin"))
+            .unwrap()
+            .allocated
+    );
+    assert!(known_allocation.0 > 100);
+    let account_volume = voldiq_core::space::VolumeIdentity {
+        guid_root: "fixture-volume".into(),
+        serial: indexed_space.volume_serial.clone().unwrap(),
+    };
+    let account_units = voldiq_core::space::AllocationUnits {
+        total: known_allocation.0 + 1000,
+        used: known_allocation.0 + 100,
+        free: 200,
+        caller_total: 500,
+        caller_available: 50,
+        reserved: 10,
+        storage_reserve: 5,
+        pool_unavailable: 0,
+    };
+    let positive_measurement = voldiq_core::space::Measurement::from_units(
+        account_volume.clone(),
+        Some(123),
+        1,
+        account_units,
+    )
+    .unwrap();
+    let positive_report = voldiq_core::space::Report::compare(
+        indexed_space.clone(),
+        voldiq_core::space::VolumeContext::Observed {
+            observation: voldiq_core::space::Observation::Measured {
+                measurement: positive_measurement.clone(),
+            },
+        },
+    );
+    assert!(
+        matches!(positive_report.residual, voldiq_core::space::Residual::Compared { ref bytes, against_complete_scope: true } if bytes == "100")
+    );
+    let negative_measurement = voldiq_core::space::Measurement::from_units(
+        account_volume,
+        Some(123),
+        1,
+        voldiq_core::space::AllocationUnits {
+            used: known_allocation.0 - 100,
+            ..account_units
+        },
+    )
+    .unwrap();
+    let negative_report = voldiq_core::space::Report::compare(
+        indexed_space.clone(),
+        voldiq_core::space::VolumeContext::Observed {
+            observation: voldiq_core::space::Observation::Measured {
+                measurement: negative_measurement,
+            },
+        },
+    );
+    assert!(
+        matches!(negative_report.residual, voldiq_core::space::Residual::Compared { ref bytes, .. } if bytes == "-100")
+    );
+    let mut foreign_measurement = positive_measurement.clone();
+    foreign_measurement.volume.serial = "foreign".into();
+    assert!(matches!(
+        voldiq_core::space::Report::compare(
+            indexed_space.clone(),
+            voldiq_core::space::VolumeContext::Observed {
+                observation: voldiq_core::space::Observation::Measured {
+                    measurement: foreign_measurement
+                },
+            }
+        )
+        .residual,
+        voldiq_core::space::Residual::Unavailable {
+            reason: voldiq_core::space::ResidualReason::VolumeMismatch
+        }
+    ));
+    assert!(matches!(
+        voldiq_core::space::Report::compare(
+            indexed_space,
+            voldiq_core::space::VolumeContext::ScopedOnly
+        )
+        .residual,
+        voldiq_core::space::Residual::Unavailable {
+            reason: voldiq_core::space::ResidualReason::ScopedOnly
+        }
+    ));
+    assert!(
+        voldiq_core::space::summarize(&account_index, &AtomicBool::new(true))
+            .unwrap()
+            .is_none()
+    );
+    #[cfg(windows)]
+    {
+        let desktop_space = voldiq_core::space::read_desktop(&account_index, &loading)
+            .unwrap()
+            .unwrap();
+        match desktop_space.volume {
+            voldiq_core::space::VolumeContext::Observed {
+                observation: voldiq_core::space::Observation::Measured { .. },
+            } => assert!(matches!(
+                desktop_space.residual,
+                voldiq_core::space::Residual::Compared { .. }
+            )),
+            voldiq_core::space::VolumeContext::Observed {
+                observation:
+                    voldiq_core::space::Observation::Unavailable {
+                        reason: voldiq_core::space::Unavailable::Unsupported,
+                        ..
+                    },
+            } => assert!(matches!(
+                desktop_space.residual,
+                voldiq_core::space::Residual::Unavailable {
+                    reason: voldiq_core::space::ResidualReason::VolumeUnavailable
+                }
+            )),
+            other => panic!("Unexpected volume context for the owned local fixture: {other:?}"),
+        }
+    }
+    let alias_record = account_index
+        .entries
+        .iter_mut()
+        .find(|entry| entry.kind == voldiq_core::Kind::File && entry.allocated == 0)
+        .unwrap();
+    alias_record.kind = voldiq_core::Kind::Link;
+    alias_record.cloud = voldiq_core::cloud::CloudState::FileRecallRequired;
+    alias_record.allocation_known = false;
+    account_index.entries[0].incomplete = true;
+    account_index.entries[0].allocation_known = false;
+    account_index.observation.as_mut().unwrap().complete = false;
+    let partial_space = voldiq_core::space::summarize(&account_index, &loading)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        (
+            partial_space.cloud_file_paths,
+            partial_space.cloud_logical_paths.0,
+            partial_space.recall_required_file_paths
+        ),
+        (1, 8192, 1)
+    );
+    assert!(matches!(
+        partial_space.allocation,
+        voldiq_core::space::Allocation::Measured {
+            complete: false,
+            unknown_file_records: 1,
+            ..
+        }
+    ));
+    assert!(
+        matches!(voldiq_core::space::Report::compare(partial_space, voldiq_core::space::VolumeContext::Observed {
+        observation: voldiq_core::space::Observation::Measured { measurement: positive_measurement },
+    }).residual, voldiq_core::space::Residual::Compared { ref bytes, against_complete_scope: false } if bytes == "100")
+    );
+    for entry in account_index
+        .entries
+        .iter_mut()
+        .filter(|entry| entry.is_metadata_file())
+    {
+        entry.allocation_known = false;
+        entry.file_state = None;
+    }
+    assert!(matches!(
+        voldiq_core::space::summarize(&account_index, &loading)
+            .unwrap()
+            .unwrap()
+            .allocation,
+        voldiq_core::space::Allocation::Unavailable {
+            reason: voldiq_core::space::AllocationReason::NoEvidence
+        }
+    ));
+    let mut recorded_account_observation = account_index.observation.take().unwrap();
+    let legacy_space = voldiq_core::space::summarize(&account_index, &loading)
+        .unwrap()
+        .unwrap();
+    assert_eq!(legacy_space.coverage, voldiq_core::space::Coverage::Unknown);
+    assert!(matches!(
+        legacy_space.allocation,
+        voldiq_core::space::Allocation::Unavailable {
+            reason: voldiq_core::space::AllocationReason::AccountingUnknown
+        }
+    ));
+    recorded_account_observation.accounting_version += 1;
+    account_index.observation = Some(recorded_account_observation);
+    assert!(matches!(
+        voldiq_core::space::summarize(&account_index, &loading)
+            .unwrap()
+            .unwrap()
+            .allocation,
+        voldiq_core::space::Allocation::Unavailable {
+            reason: voldiq_core::space::AllocationReason::AccountingUnsupported
+        }
+    ));
+
     let volume_identity = voldiq_core::space::VolumeIdentity {
         guid_root: "fixture-volume".into(),
         serial: "fixture".into(),

@@ -28,6 +28,7 @@ pub(crate) enum QueryFamily {
     SnapshotCalendar,
     SnapshotCalendarEntries,
     SnapshotDiary,
+    SpaceAccount,
 }
 
 #[derive(Default)]
@@ -44,7 +45,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 11],
+    slots: [Slot; 12],
 }
 
 impl QueryFamily {
@@ -61,6 +62,7 @@ impl QueryFamily {
             Self::SnapshotCalendar => 8,
             Self::SnapshotCalendarEntries => 9,
             Self::SnapshotDiary => 10,
+            Self::SpaceAccount => 11,
         }
     }
 }
@@ -547,6 +549,26 @@ pub(crate) async fn query_folder_budget(
             voldiq_core::budgets::Store::open(directory.directory())
                 .and_then(|store| store.read(index, node_id, &history, detailed, cancelled))
                 .map_err(|e| e.to_string())
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn query_space_account(
+    index_id: IndexId,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<voldiq_core::space::Report>, String> {
+    run_query(
+        index_id,
+        epoch,
+        QueryFamily::SpaceAccount,
+        request_id,
+        engine.inner().clone(),
+        |index, cancelled| {
+            voldiq_core::space::read_desktop(index, cancelled).map_err(|error| error.to_string())
         },
     )
     .await

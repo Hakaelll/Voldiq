@@ -1641,6 +1641,8 @@
             >
               {#if view === 'overview'}
                 <Overview
+                  {indexId}
+                  paused={busy}
                   {volume}
                   {directory}
                   {children}
