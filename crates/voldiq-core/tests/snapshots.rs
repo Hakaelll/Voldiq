@@ -698,6 +698,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             exclusions: vec![excluded.to_str().unwrap().to_owned()],
             ..Default::default()
         };
+        std::fs::create_dir(watched.join("nested")).unwrap();
         let baseline = scan(&watched, &options, &loading, |_| {}).unwrap();
         let control = Control::new().unwrap();
         let mut live =
@@ -710,14 +711,35 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
 
         std::fs::write(watched.join("payload"), [3; 11]).unwrap();
         std::fs::rename(watched.join("payload"), watched.join("renamed")).unwrap();
-        std::fs::create_dir(watched.join("nested")).unwrap();
-        std::fs::write(watched.join("nested/extra"), [4; 3]).unwrap();
+        std::fs::rename(watched.join("nested"), watched.join("moved")).unwrap();
+        std::fs::write(watched.join("moved/extra"), [4; 3]).unwrap();
         std::fs::write(excluded.join("secret"), [5; 9999]).unwrap();
         let changed = live.observe().unwrap().unwrap();
         assert_eq!(changed.report.reason, Reason::Changes);
         assert_eq!(changed.report.after.logical, "14");
         assert_eq!(changed.report.net_change.as_deref(), Some("10"));
         assert!(changed.report.after.complete);
+        let previous_folder = initial
+            .index
+            .entries
+            .iter()
+            .find(|entry| entry.name == "nested")
+            .unwrap()
+            .id;
+        let rebased = voldiq_core::live::corresponding_directory(
+            &initial.index,
+            &changed.index,
+            previous_folder,
+        );
+        assert_eq!(changed.index.entries[rebased.0 as usize].name, "moved");
+        assert_eq!(
+            voldiq_core::live::corresponding_directory(
+                &initial.index,
+                &changed.index,
+                voldiq_core::NodeId(u32::MAX)
+            ),
+            voldiq_core::NodeId(0)
+        );
         let saved_changed = store.save(&changed.index, &loading, &[]).unwrap();
         assert_eq!(
             store

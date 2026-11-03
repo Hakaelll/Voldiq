@@ -38,6 +38,8 @@
   import AgentPlanReview from './components/AgentPlanReview.svelte';
   import FolderNotes from './components/FolderNotes.svelte';
   import FolderBudget from './components/FolderBudget.svelte';
+  import LiveControl from './components/LiveControl.svelte';
+  import type { LiveObservation } from './lib/live-session';
   import ProtectedFolders from './components/ProtectedFolders.svelte';
   import { readRecentPaths, rememberPath } from './lib/recent-paths';
   import { overviewQueries, detailQueries } from './lib/queries';
@@ -163,6 +165,9 @@
   let showMapList = $state(false);
   const navigationRefresh = createNavigationRefresh();
   let analysisBusy = $state(false);
+  let liveBusy = $state(false);
+  let liveObservation = $state<{ entries: number; measured_at: number | null } | null>(null);
+  const entryCount = $derived(liveObservation?.entries ?? operation?.entries ?? null);
   let agentOperation = $state<number | null>(null);
   let agentNotice = $state('');
   let historical = $state<Snapshot | null>(null);
@@ -413,6 +418,7 @@
   let volume = $derived(volumes.find((v) => v.path === volumePath));
   let busy = $derived(
     operation?.phase === 'scanning' ||
+      liveBusy ||
       analysisBusy ||
       agentOperation !== null ||
       restoreReceipt !== null,
@@ -562,6 +568,7 @@
     const next = setIndexContext(value);
     if (next === indexId) return;
     indexId = next;
+    liveObservation = null;
     invalidateInteraction();
     invalidateRefresh();
     scope = 0;
@@ -639,6 +646,44 @@
     } finally {
       if (token === refreshToken) pendingSearchKey = null;
     }
+  }
+  async function observeLive(event: LiveObservation): Promise<void> {
+    if (indexId !== event.before_index) throw new Error('Live analysis changed. Scan again.');
+    const restoreFocus =
+      fileWorkspace?.contains(document.activeElement) ||
+      detailsPanel?.contains(document.activeElement);
+    const previousScope = scope;
+    scanRequest += 1;
+    adoptIndex(event.index_id);
+    const owner = interactionToken;
+    operation = null;
+    scanId = null;
+    historical = null;
+    ready = true;
+    liveObservation = { entries: event.entries, measured_at: event.report.after.measured_at };
+    let nextScope = 0;
+    if (previousScope !== 0) {
+      try {
+        nextScope = await invoke<number>('live_directory', {
+          id: event.id,
+          beforeIndex: event.before_index,
+          indexId: event.index_id,
+          scope: previousScope,
+        });
+      } catch {
+        /* A stopped session no longer retains its previous folder context. */
+      }
+    }
+    if (indexId !== event.index_id || !ready) return;
+    await refresh(owner === interactionToken ? nextScope : scope);
+    await tick();
+    if (
+      restoreFocus &&
+      indexId === event.index_id &&
+      owner === interactionToken &&
+      document.activeElement === document.body
+    )
+      fileWorkspace?.focus({ preventScroll: true });
   }
   function closeAdvanced(restore: boolean): void {
     const owner = interactionToken;
@@ -1355,7 +1400,19 @@
               }}>Dismiss</button
             >{/if}
         </div>{/if}
-      {#if operation && view !== 'settings' && view !== 'duplicates' && view !== 'history'}<div
+      {#if ready && historical === null && indexId !== null}
+        <LiveControl
+          {indexId}
+          path={scanPath}
+          disabled={busy}
+          concurrency={scanConcurrency}
+          onbusy={(value) => {
+            liveBusy = value;
+          }}
+          onobserved={observeLive}
+        />
+      {/if}
+      {#if operation && !liveBusy && !liveObservation && view !== 'settings' && view !== 'duplicates' && view !== 'history'}<div
           class="scan-status"
           aria-live="polite"
         >
@@ -1392,7 +1449,7 @@
           {indexId}
           id={details?.entry.kind === 'directory' ? details.entry.id : scope}
           path={details?.entry.kind === 'directory' ? details.path : directory.path}
-          sourceKey={`${operation?.phase ?? 'saved'}:${operation?.analyzed_at ?? historical?.captured ?? 'undated'}`}
+          sourceKey={`${operation?.phase ?? 'saved'}:${operation?.analyzed_at ?? liveObservation?.measured_at ?? historical?.captured ?? 'undated'}`}
           disabled={busy || historical !== null}
         />
       {/if}
@@ -2047,7 +2104,7 @@
     </main>
     <footer class="app-footer">
       <span>{isTauri() ? 'Voldiq 0.2.0' : 'Browser preview'}</span><span
-        >{ready ? `${operation?.entries.toLocaleString()} entries` : ''}</span
+        >{ready && entryCount !== null ? `${entryCount.toLocaleString()} entries` : ''}</span
       >
     </footer>
   </div>

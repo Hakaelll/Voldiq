@@ -5,6 +5,12 @@ import { createNavigationRefresh } from './navigation-refresh.ts';
 import { resolveZoom, zoomBox, createTreemapAnimator } from './treemap-motion.ts';
 import { getIndexContext, setIndexContext, invokeIndexed } from './index-context.ts';
 import type { CleanupRulePage } from './types';
+import {
+  createLiveSession,
+  type LiveEvent,
+  type LiveReport,
+  type LiveState,
+} from './live-session.ts';
 
 function item(id: number): CleanupRulePage['items'][number] {
   return {
@@ -49,12 +55,19 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   assert.equal(getIndexContext(), 10);
   const previousWindow = Object.getOwnPropertyDescriptor(globalThis, 'window');
   const reply: { release: ((value: unknown) => void) | null } = { release: null };
-  Object.defineProperty(globalThis, 'window', { configurable: true, value: {
-    __TAURI_INTERNALS__: { invoke: (_command: string, args: { indexId: number }) => {
-      assert.equal(args.indexId, getIndexContext());
-      return new Promise<unknown>((resolve) => { reply.release = resolve; });
-    } },
-  } });
+  Object.defineProperty(globalThis, 'window', {
+    configurable: true,
+    value: {
+      __TAURI_INTERNALS__: {
+        invoke: (_command: string, args: { indexId: number }) => {
+          assert.equal(args.indexId, getIndexContext());
+          return new Promise<unknown>((resolve) => {
+            reply.release = resolve;
+          });
+        },
+      },
+    },
+  });
   try {
     const stale = invokeIndexed<unknown[]>('get_issues', { indexId: 999 });
     setIndexContext(11);
@@ -71,7 +84,16 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
     else Reflect.deleteProperty(globalThis, 'window');
   }
   assert.equal(getIndexContext(), null);
-  const anchor = { id: 2, name: 'nested', value: 10, directory: true, x: 20, y: 10, width: 40, height: 20 };
+  const anchor = {
+    id: 2,
+    name: 'nested',
+    value: 10,
+    directory: true,
+    x: 20,
+    y: 10,
+    width: 40,
+    height: 20,
+  };
   const entering = resolveZoom(0, 2, [anchor], []);
   const leaving = resolveZoom(2, 0, [], [anchor]);
   assert.ok(entering && leaving);
@@ -88,11 +110,22 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   let now = 100;
   const callbacks = new Map<number, FrameRequestCallback>();
   const frames: number[] = [];
-  const animation = createTreemapAnimator({
-    now: () => now,
-    request: (callback) => { const id = nextFrame++; callbacks.set(id, callback); return id; },
-    cancel: (id) => { callbacks.delete(id); },
-  }, (progress) => { frames.push(progress); });
+  const animation = createTreemapAnimator(
+    {
+      now: () => now,
+      request: (callback) => {
+        const id = nextFrame++;
+        callbacks.set(id, callback);
+        return id;
+      },
+      cancel: (id) => {
+        callbacks.delete(id);
+      },
+    },
+    (progress) => {
+      frames.push(progress);
+    },
+  );
   animation.start();
   animation.stop();
   assert.equal(callbacks.size, 0);
@@ -127,4 +160,107 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   staleFrame(380);
   assert.deepEqual(frames, completedFrames);
   assert.equal(callbacks.size, 0);
+
+  const liveStates: LiveState[] = [],
+    liveCalls: string[] = [],
+    adopted: number[] = [];
+  const receivers: ((event: LiveEvent) => Promise<void>)[] = [];
+  let completeStart = (_id: number) => {},
+    completeThird = (_id: number) => {},
+    finishAdoption = () => {};
+  const pendingStart = new Promise<number>((resolve) => {
+    completeStart = resolve;
+  });
+  const pendingThird = new Promise<number>((resolve) => {
+    completeThird = resolve;
+  });
+  const adoption = new Promise<void>((resolve) => {
+    finishAdoption = resolve;
+  });
+  const report = {
+    reason: 'changes',
+    before: { logical: '4', files: 1, measured_at: 100, complete: true, accounting_version: 1 },
+    after: { logical: '14', files: 2, measured_at: 110, complete: true, accounting_version: 1 },
+    net_change: '10',
+  } satisfies LiveReport;
+  const live = createLiveSession(
+    {
+      start: (_index, _concurrency, receive) => {
+        receivers.push(receive);
+        return receivers.length === 1
+          ? pendingStart
+          : receivers.length === 2
+            ? Promise.resolve(2)
+            : pendingThird;
+      },
+      stop: async (id) => {
+        liveCalls.push(`stop:${id}`);
+      },
+      acknowledge: async (id, index) => {
+        liveCalls.push(`ack:${id}:${index}`);
+      },
+      resynchronize: async (id) => {
+        liveCalls.push(`resync:${id}`);
+      },
+    },
+    (value) => {
+      liveStates.push(value);
+    },
+    async (event) => {
+      adopted.push(event.index_id);
+      await adoption;
+    },
+  );
+  const firstLive = live.start(10, 'auto');
+  await live.stop('hidden');
+  const receiveFirst = receivers[0];
+  assert.ok(receiveFirst);
+  await receiveFirst({ kind: 'started', id: 1 });
+  assert.deepEqual(liveCalls, ['stop:1']);
+  completeStart(1);
+  await firstLive;
+  await receiveFirst({ kind: 'ended', id: 1, error: null });
+  assert.deepEqual(liveStates.at(-1), { kind: 'idle', reason: 'hidden', report: null });
+  await live.start(10, 'auto');
+  const receiveSecond = receivers[1];
+  assert.ok(receiveSecond);
+  await receiveSecond({ kind: 'started', id: 2 });
+  liveCalls.length = 0;
+  const delivering = receiveSecond({
+    kind: 'observed',
+    id: 2,
+    before_index: 10,
+    index_id: 16,
+    entries: 3,
+    report,
+  });
+  assert.deepEqual(adopted, [16]);
+  assert.deepEqual(liveCalls, []);
+  finishAdoption();
+  await delivering;
+  assert.deepEqual(liveCalls, ['ack:2:16']);
+  await live.resynchronize();
+  assert.deepEqual(liveCalls, ['ack:2:16', 'resync:2']);
+  const finalDelivery = receiveSecond({
+    kind: 'observed',
+    id: 2,
+    before_index: 16,
+    index_id: 17,
+    entries: 3,
+    report,
+  });
+  const stoppingLive = live.stop();
+  await Promise.all([finalDelivery, stoppingLive]);
+  await receiveSecond({ kind: 'ended', id: 2, error: null });
+  assert.deepEqual(adopted, [16, 17]);
+  assert.deepEqual(liveCalls, ['ack:2:16', 'resync:2', 'stop:2']);
+  const thirdLive = live.start(17, 'auto');
+  const visibleStates = liveStates.length;
+  await receiveSecond({ kind: 'ended', id: 2, error: 'late error' });
+  assert.equal(liveStates.length, visibleStates);
+  live.dispose();
+  completeThird(3);
+  await thirdLive;
+  assert.deepEqual(liveCalls, ['ack:2:16', 'resync:2', 'stop:2', 'stop:3']);
+  assert.equal(liveStates.length, visibleStates);
 });

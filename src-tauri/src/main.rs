@@ -24,6 +24,7 @@ mod developer_commands;
 mod docker_commands;
 mod embedded_ui;
 mod lifecycle_trace;
+mod live_commands;
 mod metadata_commands;
 mod overview;
 mod plan_commands;
@@ -44,6 +45,7 @@ use voldiq_core::{
 struct Engine {
     operations: voldiq_core::operations::Coordinator,
     queries: query_commands::Queries,
+    live: live_commands::Sessions,
     index: Mutex<Option<analysis_status::LoadedAnalysis>>,
     active: Mutex<Option<(u64, Arc<AtomicBool>)>>,
     sequence: AtomicU64,
@@ -81,6 +83,7 @@ impl Engine {
         Ok(Self {
             operations: voldiq_core::operations::Coordinator::open(directory)?,
             queries: Default::default(),
+            live: Default::default(),
             index: Default::default(),
             active: Default::default(),
             sequence: Default::default(),
@@ -334,6 +337,7 @@ fn launch_scan(
 
 #[tauri::command]
 fn cancel_operation(id: u64, engine: State<'_, Arc<Engine>>) -> Result<(), String> {
+    engine.live.stop(Some(id))?;
     if let Some((active, cancel)) = &*engine.active.lock().map_err(|e| e.to_string())?
         && *active == id
     {
@@ -771,11 +775,26 @@ fn main() {
             Ok(())
         })
         .on_page_load(move |webview, payload| {
+            if payload.event() == tauri::webview::PageLoadEvent::Started
+                && let Some(engine) = webview.try_state::<Arc<Engine>>()
+            {
+                let _ = engine.live.stop(None);
+            }
             if payload.event() == tauri::webview::PageLoadEvent::Finished {
                 page_trace.record("page-finished", Some(webview.app_handle()));
             }
         })
         .on_window_event(|window, event| {
+            if (matches!(event, tauri::WindowEvent::Destroyed)
+                || (matches!(
+                    event,
+                    tauri::WindowEvent::Resized(_) | tauri::WindowEvent::Focused(_)
+                ) && (window.is_minimized().unwrap_or(true)
+                    || !window.is_visible().unwrap_or(false))))
+                && let Some(engine) = window.try_state::<Arc<Engine>>()
+            {
+                let _ = engine.live.stop(None);
+            }
             if matches!(event, tauri::WindowEvent::Destroyed)
                 && let Some(reviews) = window.try_state::<plan_commands::PlanReviews>()
             {
@@ -803,6 +822,11 @@ fn main() {
             get_volumes,
             choose_folder,
             start_scan,
+            live_commands::start_live,
+            live_commands::stop_live,
+            live_commands::resynchronize_live,
+            live_commands::acknowledge_live,
+            live_commands::live_directory,
             workbench_commands::list_workspaces,
             workbench_commands::save_workspace,
             workbench_commands::load_workspace,

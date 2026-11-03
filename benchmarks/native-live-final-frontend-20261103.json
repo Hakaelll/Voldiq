@@ -1,0 +1,36 @@
+{
+  "checkedUtc": "2026-11-03T01:27:33.7608671Z",
+  "scope": "Final frontend owned-focus and known-count follow-up after the integrated frontend stage. Existing single frontend flow; no rendered/native interaction acceptance.",
+  "checks": [
+    {
+      "command": "pnpm check",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm test",
+      "exitCode": 0
+    },
+    {
+      "command": "pnpm build",
+      "exitCode": 0
+    }
+  ],
+  "assets": [
+    {
+      "Name": "city.worker-DLxzT0Wm.js",
+      "Length": 2879
+    },
+    {
+      "Name": "index-C8Fe_4QZ.js",
+      "Length": 358965
+    },
+    {
+      "Name": "index-DUbuIbyK.css",
+      "Length": 77257
+    },
+    {
+      "Name": "voronoi.worker-DwJ2QmrW.js",
+      "Length": 5606
+    }
+  ]
+}

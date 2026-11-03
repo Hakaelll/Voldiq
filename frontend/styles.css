@@ -736,6 +736,58 @@ main {
   color: var(--secondary);
   font-variant-numeric: tabular-nums;
 }
+.live-control {
+  border-block: 1px solid var(--border);
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  background: var(--surface);
+  font-size: 12px;
+  color: var(--secondary);
+  font-variant-numeric: tabular-nums;
+}
+.live-heading,
+.live-measurement,
+.live-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.live-heading strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.live-root {
+  flex: 1 1 160px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.live-phase {
+  color: var(--text);
+}
+.live-actions {
+  margin-left: auto;
+  gap: 6px;
+}
+.live-actions button {
+  min-height: 28px;
+  padding: 3px 8px;
+  font-size: 12px;
+}
+.live-measurement {
+  margin-top: 8px;
+  gap: 6px 18px;
+}
+.live-measurement span {
+  overflow-wrap: anywhere;
+}
+.live-problem {
+  color: var(--error);
+  margin: 8px 0 0;
+  overflow-wrap: anywhere;
+}
 .scan-status > span:nth-child(3) {
   margin-left: auto;
 }
