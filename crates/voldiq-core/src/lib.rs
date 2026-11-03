@@ -5,6 +5,7 @@ pub mod cloud;
 mod database;
 pub mod developer;
 pub mod duplicates;
+pub mod exports;
 pub mod index;
 pub mod jobs;
 pub mod live;

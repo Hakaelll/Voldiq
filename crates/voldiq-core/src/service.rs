@@ -296,6 +296,37 @@ impl AgentService {
             })
     }
 
+    pub fn export_csv(
+        &self,
+        snapshot: i64,
+        mut request: crate::exports::CsvRequest,
+        cancel: &AtomicBool,
+    ) -> Result<Option<crate::exports::CsvPage>> {
+        let policy = self
+            .registry()?
+            .policy(&self.principal, Capability::Metadata)?;
+        if snapshot <= 0
+            || request.query.offset > 10_000
+            || !(1..=500).contains(&request.query.limit)
+        {
+            return Err(Error::Invalid(
+                "CSV requires a positive snapshot, offset up to 10000 and limit from 1 to 500."
+                    .into(),
+            ));
+        }
+        request.query.limit = request.query.limit.min(policy.limits().page_size);
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        let index = self.index(snapshot)?;
+        let result = crate::exports::csv(&index, &request, cancel)?;
+        let _check = self.registry()?.authorize_index(&self.principal, &index)?;
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        Ok(result)
+    }
+
     pub fn details(&self, snapshot: i64, node: crate::NodeId) -> Result<Details> {
         self.index(snapshot)?.details(node).map_err(|_| denied())
     }

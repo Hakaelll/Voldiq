@@ -118,6 +118,23 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     };
     let stats = call(&client, "voldiq_stats", json!({"snapshot_id":snapshot})).await;
     assert_eq!(stats.structured_content.unwrap()["result"]["logical"], 11);
+    let exported = call(
+        &client,
+        "voldiq_export_csv",
+        json!({"snapshot_id":snapshot,"request":{"items":"files","query":{"limit":100}}}),
+    )
+    .await;
+    assert_ne!(exported.is_error, Some(true));
+    let exported = exported.structured_content.unwrap();
+    assert_eq!(exported["result"]["rows"], 1);
+    assert_eq!(exported["result"]["query"]["limit"], 1);
+    assert_eq!(exported["result"]["scope_root"], Value::Null);
+    assert!(
+        exported["result"]["csv"]
+            .as_str()
+            .unwrap()
+            .contains("\"text: measured.txt\"")
+    );
     assert!(tools.iter().any(|tool| tool.name == "voldiq_space_account"));
     let space = call(
         &client,
@@ -357,6 +374,10 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         ),
         ("voldiq_diary", json!({"snapshot_id":foreign})),
         ("voldiq_space_account", json!({"snapshot_id":foreign})),
+        (
+            "voldiq_export_csv",
+            json!({"snapshot_id":foreign,"request":{"items":"files"}}),
+        ),
     ] {
         let rejected = call(&client, name, args).await;
         assert_eq!(
@@ -564,6 +585,16 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         "not_authorized_or_unavailable"
     );
     let revoked = call(&client, "voldiq_stats", json!({"snapshot_id":snapshot})).await;
+    assert_eq!(
+        call(
+            &client,
+            "voldiq_export_csv",
+            json!({"snapshot_id":snapshot,"request":{"items":"files"}})
+        )
+        .await
+        .is_error,
+        Some(true)
+    );
     assert_eq!(revoked.is_error, Some(true));
     let revoked_space = call(
         &client,

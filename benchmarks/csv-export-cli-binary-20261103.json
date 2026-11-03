@@ -1,0 +1,39 @@
+{
+  "checkedUtc": "2026-11-03T14:46:18.1344262Z",
+  "checkoutCommit": "9f1b90e1bde1d29b2fbeb659d835883f9e7fbe03",
+  "executable": "target/release/voldiq-cli.exe",
+  "sha256": "C56002F0B155AFB26D8381470C613C27F00B979E40F82B0543B7123D4BC4E899",
+  "help": {
+    "result": {
+      "authentication": "Human-provisioned VOLDIQ_AGENT_TOKEN environment variable. No credential arguments or approval bypass.",
+      "commands": [
+        "capabilities",
+        "translate <description>",
+        "scan <root> [--wait]",
+        "query <snapshot_id> [JSON filters]",
+        "stats <snapshot_id>",
+        "export <snapshot_id> <JSON CSV request>",
+        "space <snapshot_id>",
+        "history [offset] [limit]",
+        "compare <before_id> <after_id> [offset] [limit]",
+        "calendar <snapshot_id> <YYYY-MM> [day] [offset] [limit]",
+        "diary <snapshot_id> [offset] [limit]",
+        "details <snapshot_id> <node_id>",
+        "folder <snapshot_id> <node_id> [--note]",
+        "budget <snapshot_id> <node_id>",
+        "jobs <job_id>",
+        "cancel <job_id>",
+        "plan prepare <snapshot_id> <JSON node IDs>",
+        "plan get <plan_id>",
+        "plan request <plan_id>",
+        "plan execute <plan_id> <manifest_hash>",
+        "plan cancel <plan_id> <manifest_hash>",
+        "plan audit <plan_id> [after_sequence] [limit]",
+        "mcp serve --stdio"
+      ],
+      "state": "--state <directory> before command (default: Voldiq local application data)"
+    },
+    "schema_version": 1
+  },
+  "scope": "Actual CLI help and binary identity only. Scoped CSV behavior is verified by retained core/CLI/official SDK fixtures; no user credentials or file data recorded."
+}

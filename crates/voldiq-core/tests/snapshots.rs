@@ -976,6 +976,49 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         }
     ));
 
+    let mut export_index = capture(fixture.path());
+    export_index
+        .entries
+        .iter_mut()
+        .find(|entry| entry.kind == voldiq_core::Kind::File)
+        .unwrap()
+        .name = "=1+1\",\n@x".into();
+    let request = voldiq_core::exports::CsvRequest {
+        items: voldiq_core::exports::CsvItems::Files,
+        query: Query {
+            text: "=1+1".into(),
+            ..Default::default()
+        },
+        include_paths: false,
+    };
+    let exported = voldiq_core::exports::csv(&export_index, &request, &loading)
+        .unwrap()
+        .unwrap();
+    assert_eq!(exported.rows, 1);
+    assert!(exported.csv.contains("\"text: =1+1\"\",\n@x\""));
+    assert!(exported.scope_root.is_none());
+    let path_request = voldiq_core::exports::CsvRequest {
+        include_paths: true,
+        query: request.query.clone(),
+        items: request.items,
+    };
+    let with_paths = voldiq_core::exports::csv(&export_index, &path_request, &loading)
+        .unwrap()
+        .unwrap();
+    assert_eq!(with_paths.scope_root.as_deref(), export_index.root.to_str());
+    assert!(with_paths.paths_included);
+    assert!(
+        voldiq_core::exports::csv(&export_index, &request, &AtomicBool::new(true))
+            .unwrap()
+            .is_none()
+    );
+    export_index
+        .entries
+        .iter_mut()
+        .find(|entry| entry.kind == voldiq_core::Kind::File)
+        .unwrap()
+        .name = format!("=1+1{}", "x".repeat(262_144));
+    assert!(voldiq_core::exports::csv(&export_index, &request, &loading).is_err());
     let volume_identity = voldiq_core::space::VolumeIdentity {
         guid_root: "fixture-volume".into(),
         serial: "fixture".into(),

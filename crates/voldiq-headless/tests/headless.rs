@@ -56,6 +56,18 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     )
     .unwrap();
     let node = files["result"]["items"][0]["id"].as_u64().unwrap();
+    let exported = run(&["export", &snapshot.to_string(), r#"{"items":"files"}"#]);
+    assert!(exported.status.success());
+    let exported: Value = serde_json::from_slice(&exported.stdout).unwrap();
+    assert_eq!(exported["result"]["rows"], 1);
+    assert_eq!(exported["result"]["scope_root"], Value::Null);
+    assert_eq!(exported["result"]["paths_included"], false);
+    assert!(
+        exported["result"]["csv"]
+            .as_str()
+            .unwrap()
+            .contains("\"text: selected.data\"")
+    );
     let space = run(&["space", &snapshot.to_string()]);
     assert!(space.status.success());
     let space: Value = serde_json::from_slice(&space.stdout).unwrap();
@@ -196,6 +208,12 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     );
     assert_eq!(run(&["diary", &foreign.to_string()]).status.code(), Some(4));
     assert_eq!(run(&["space", &foreign.to_string()]).status.code(), Some(4));
+    assert_eq!(
+        run(&["export", &foreign.to_string(), r#"{"items":"files"}"#])
+            .status
+            .code(),
+        Some(4)
+    );
     let translated = run(&["translate", "archivos mayores de 1 GiB"]);
     assert!(translated.status.success());
     let translated: Value = serde_json::from_slice(&translated.stdout).unwrap();
