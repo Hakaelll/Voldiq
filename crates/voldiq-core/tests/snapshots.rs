@@ -1012,6 +1012,128 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             .unwrap()
             .is_none()
     );
+    let streaming = voldiq_core::exports::CsvStreamRequest {
+        items: voldiq_core::exports::CsvItems::Files,
+        filter: voldiq_core::exports::CsvFilter {
+            text: "=1+1".into(),
+            ..Default::default()
+        },
+        include_paths: false,
+    };
+    let mut encoded = Vec::new();
+    let result =
+        voldiq_core::exports::stream_csv(&export_index, &streaming, &mut encoded, &loading, |_| {})
+            .unwrap();
+    assert!(
+        matches!(result, voldiq_core::exports::StreamOutcome::Complete(value) if value.rows == 1)
+    );
+    let encoded = String::from_utf8(encoded).unwrap();
+    assert!(encoded.starts_with("record_type,node_id,kind,name,"));
+    assert!(encoded.contains("\"text: =1+1\"\",\n@x\""));
+    assert!(encoded.contains("\"\"root_path\"\":null"));
+    assert!(encoded.contains("\r\ncomplete,"));
+    struct FailingSink;
+    impl std::io::Write for FailingSink {
+        fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {
+            Err(std::io::Error::other("Owned fixture output failure"))
+        }
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+    assert!(
+        voldiq_core::exports::stream_csv(
+            &export_index,
+            &streaming,
+            &mut FailingSink,
+            &loading,
+            |_| {}
+        )
+        .is_err()
+    );
+    let mut empty = Vec::new();
+    assert!(matches!(
+        voldiq_core::exports::stream_csv(
+            &export_index,
+            &streaming,
+            &mut empty,
+            &AtomicBool::new(true),
+            |_| {}
+        )
+        .unwrap(),
+        voldiq_core::exports::StreamOutcome::Cancelled(_)
+    ));
+    assert!(empty.is_empty());
+    let mut model = export_index
+        .entries
+        .iter()
+        .find(|entry| entry.kind == voldiq_core::Kind::File)
+        .unwrap()
+        .clone();
+    model.file_state = None;
+    model.logical = 1;
+    model.allocation_known = false;
+    model.allocated = 0;
+    export_index.entries.truncate(1);
+    export_index.native_names.clear();
+    export_index.observation = None;
+    for id in 1..=10_005 {
+        let mut entry = model.clone();
+        entry.id = voldiq_core::NodeId(id);
+        entry.parent = Some(voldiq_core::NodeId(0));
+        entry.name = format!("record-{id}");
+        export_index.entries.push(entry);
+    }
+    let all = voldiq_core::exports::CsvStreamRequest {
+        items: request.items,
+        filter: Default::default(),
+        include_paths: false,
+    };
+    let mut full = Vec::new();
+    assert_eq!(
+        voldiq_core::exports::stream_csv(&export_index, &all, &mut full, &loading, |_| {}).unwrap(),
+        voldiq_core::exports::StreamOutcome::Complete(voldiq_core::exports::StreamProgress {
+            inspected: 10_005,
+            rows: 10_005,
+            total_entries: 10_005
+        })
+    );
+    assert_eq!(
+        String::from_utf8(full)
+            .unwrap()
+            .lines()
+            .filter(|line| line.starts_with("item,"))
+            .count(),
+        10_005
+    );
+    let no_matches = voldiq_core::exports::CsvStreamRequest {
+        items: request.items,
+        filter: voldiq_core::exports::CsvFilter {
+            min_size: 2,
+            ..Default::default()
+        },
+        include_paths: false,
+    };
+    let mut no_rows = Vec::new();
+    assert!(
+        matches!(voldiq_core::exports::stream_csv(&export_index, &no_matches, &mut no_rows, &loading, |_| {}).unwrap(), voldiq_core::exports::StreamOutcome::Complete(value) if value.rows == 0)
+    );
+    let no_rows = String::from_utf8(no_rows).unwrap();
+    assert!(no_rows.contains("\r\nscope,") && no_rows.contains("\r\ncomplete,"));
+    assert!(!no_rows.lines().any(|line| line.starts_with("item,")));
+    let stopped = AtomicBool::new(false);
+    let mut prefix = Vec::new();
+    assert!(matches!(
+        voldiq_core::exports::stream_csv(&export_index, &all, &mut prefix, &stopped, |value| {
+            if value.rows > 0 {
+                stopped.store(true, std::sync::atomic::Ordering::Relaxed);
+            }
+        })
+        .unwrap(),
+        voldiq_core::exports::StreamOutcome::Cancelled(_)
+    ));
+    assert!(!String::from_utf8(prefix).unwrap().contains("\r\ncomplete,"));
+    export_index.entries[1].name = "=1+1".into();
     export_index
         .entries
         .iter_mut()

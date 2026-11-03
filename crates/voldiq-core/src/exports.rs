@@ -5,6 +5,10 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
+mod stream;
+pub use stream::{CsvFilter, CsvStreamRequest, StreamOutcome, StreamProgress, stream_csv};
+
+const HEADER: &str = "node_id,kind,name,logical_bytes,recorded_allocated_bytes,allocation_known,modified_unix_seconds,path,path_exact";
 
 #[derive(Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -46,6 +50,44 @@ fn text(value: &str) -> String {
     format!("\"text: {}\"", value.replace('"', "\"\""))
 }
 
+fn row(
+    index: &Index,
+    entry: &crate::Entry,
+    include_paths: bool,
+    cancelled: &AtomicBool,
+) -> Result<Option<String>> {
+    let (path, exact) = if include_paths {
+        let Some(details) =
+            index.details_cancellable(entry.id, || cancelled.load(Ordering::Relaxed))?
+        else {
+            return Ok(None);
+        };
+        (text(&details.path), details.path_exact.to_string())
+    } else {
+        (String::new(), String::new())
+    };
+    let kind = match entry.kind {
+        Kind::File => "file",
+        Kind::Directory => "directory",
+        Kind::Link => "link",
+    };
+    Ok(Some(format!(
+        "{},{},{},{},{},{},{},{},{}",
+        entry.id.0,
+        kind,
+        text(&entry.name),
+        entry.logical,
+        entry.allocated,
+        entry.allocation_known,
+        entry
+            .modified
+            .map(|value| value.to_string())
+            .unwrap_or_default(),
+        path,
+        exact
+    )))
+}
+
 pub fn csv(index: &Index, request: &CsvRequest, cancelled: &AtomicBool) -> Result<Option<CsvPage>> {
     if cancelled.load(Ordering::Relaxed) {
         return Ok(None);
@@ -67,43 +109,16 @@ pub fn csv(index: &Index, request: &CsvRequest, cancelled: &AtomicBool) -> Resul
     if cancelled.load(Ordering::Relaxed) {
         return Ok(None);
     }
-    let mut csv = String::from(
-        "node_id,kind,name,logical_bytes,recorded_allocated_bytes,allocation_known,modified_unix_seconds,path,path_exact\r\n",
-    );
+    let mut csv = format!("{HEADER}\r\n");
     for entry in &page.items {
         if cancelled.load(Ordering::Relaxed) {
             return Ok(None);
         }
-        let (path, exact) = if request.include_paths {
-            let Some(details) =
-                index.details_cancellable(entry.id, || cancelled.load(Ordering::Relaxed))?
-            else {
-                return Ok(None);
-            };
-            (text(&details.path), details.path_exact.to_string())
-        } else {
-            (String::new(), String::new())
+        let Some(line) = row(index, entry, request.include_paths, cancelled)? else {
+            return Ok(None);
         };
-        let kind = match entry.kind {
-            Kind::File => "file",
-            Kind::Directory => "directory",
-            Kind::Link => "link",
-        };
-        csv.push_str(&format!(
-            "{},{},{},{},{},{},{},{},{}\r\n",
-            entry.id.0,
-            kind,
-            text(&entry.name),
-            entry.logical,
-            entry.allocated,
-            entry.allocation_known,
-            entry
-                .modified
-                .map(|value| value.to_string())
-                .unwrap_or_default(),
-            path,
-            exact
-        ));
+        csv.push_str(&line);
+        csv.push_str("\r\n");
         if csv.len() > 262_144 {
             return Err(Error::Invalid(
                 "CSV page exceeds 256 KiB. Reduce the page limit.".into(),
