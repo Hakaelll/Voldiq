@@ -1,0 +1,36 @@
+{
+  "checkedUtc": "2026-11-03T19:13:58.0100696Z",
+  "sourceCommit": "150d6b3cf5d4067a71d39260eb6383649a27452f",
+  "newUiPreviewOpen": true,
+  "processId": 752,
+  "mainWindowHandle": 8390080,
+  "cleanup": {
+    "applied": true,
+    "removedBytes": 0,
+    "previews": [
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\430DA86FB24E1F2DA3FF7A3771080FA4576FAF46CB699F70A475C9F049037021",
+        "bytes": 16714240,
+        "status": "KeptRunning"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\5942B5857138E97194D370ECC6B36FCD817881345EC932F55EC6A2248D0CABE1",
+        "bytes": 16977408,
+        "status": "KeptRunning"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\D76ED96396787F18EFC1D6639ACAF9A2E435AA62213881F2C14F2FE7F97B7FFB",
+        "bytes": 23944192,
+        "status": "KeptCurrent"
+      }
+    ]
+  },
+  "testArtifacts": {
+    "checkedUtc": "2026-11-03T19:08:32.1448301Z",
+    "removedFiles": 8,
+    "removedLogicalBytes": 532188,
+    "scope": "Only the verified provisional Voldiq synthetic PDF and seven owned provisional PDF render files. Final fixture/render, active builds, release dependencies, application state, Windows and other applications preserved. No observed volume free-space change measured."
+  },
+  "debugArtifactsPresent": false,
+  "scope": "Only verified inactive Voldiq previews and the explicitly recorded provisional PDF test artifacts. Current/running previews, final PDF fixture/render, active/reusable release builds, application state, Windows and other applications preserved. Logical artifact bytes are not measured volume free-space change."
+}
