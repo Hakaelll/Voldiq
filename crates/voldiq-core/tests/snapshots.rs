@@ -1032,6 +1032,113 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     assert!(encoded.contains("\"text: =1+1\"\",\n@x\""));
     assert!(encoded.contains("\"\"root_path\"\":null"));
     assert!(encoded.contains("\r\ncomplete,"));
+    #[cfg(windows)]
+    {
+        let destination = tempfile::tempdir().unwrap();
+        let export_state = tempfile::tempdir().unwrap();
+        let mut policy = voldiq_core::metadata::Store::open(export_state.path()).unwrap();
+        let protected = destination.path().join("protected");
+        std::fs::create_dir(&protected).unwrap();
+        policy.protect_folder(&protected).unwrap();
+        let lease = voldiq_core::operations::Lease::acquire(export_state.path()).unwrap();
+        let report = destination.path().join("report.csv");
+        assert!(matches!(
+            voldiq_core::exports::save_csv(
+                &export_index, &streaming, &report, &lease, &loading, |_| {}
+            ).unwrap(),
+            voldiq_core::exports::StreamOutcome::Complete(value) if value.rows == 1
+        ));
+        let saved = std::fs::read_to_string(&report).unwrap();
+        assert!(saved.contains("\"text: =1+1\"\",\n@x\""));
+        assert!(saved.contains("\r\ncomplete,"));
+        let collision = destination.path().join("collision.csv");
+        let sentinel = b"Owned fixture: preserve these bytes";
+        let unrelated = destination.path().join(".voldiq-export-unrelated.tmp");
+        std::fs::write(&unrelated, sentinel).unwrap();
+        assert!(
+            voldiq_core::exports::save_csv(
+                &export_index,
+                &streaming,
+                &collision,
+                &lease,
+                &loading,
+                |value| {
+                    if value.rows > 0 {
+                        std::fs::write(&collision, sentinel).unwrap();
+                    }
+                }
+            )
+            .is_err()
+        );
+        assert_eq!(std::fs::read(&collision).unwrap(), sentinel);
+        assert_eq!(std::fs::read(&unrelated).unwrap(), sentinel);
+        let stopped = AtomicBool::new(false);
+        let cancelled_path = destination.path().join("cancelled.csv");
+        assert!(matches!(
+            voldiq_core::exports::save_csv(
+                &export_index,
+                &streaming,
+                &cancelled_path,
+                &lease,
+                &stopped,
+                |value| {
+                    if value.rows > 0 {
+                        assert!(
+                            std::fs::rename(
+                                destination.path(),
+                                destination.path().with_extension("moved")
+                            )
+                            .is_err()
+                        );
+                        assert!(policy.protect_folder(destination.path()).is_err());
+                        stopped.store(true, std::sync::atomic::Ordering::Relaxed);
+                    }
+                }
+            )
+            .unwrap(),
+            voldiq_core::exports::StreamOutcome::Cancelled(_)
+        ));
+        assert!(!cancelled_path.exists());
+        for denied in [
+            protected.join("report.csv"),
+            export_state.path().join("report.csv"),
+            destination.path().join("credentials.json"),
+            destination.path().join("report.csv:stream"),
+        ] {
+            assert!(
+                voldiq_core::exports::save_csv(
+                    &export_index,
+                    &streaming,
+                    &denied,
+                    &lease,
+                    &loading,
+                    |_| {}
+                )
+                .is_err()
+            );
+            assert!(!denied.exists());
+        }
+        let invalid = voldiq_core::exports::CsvStreamRequest {
+            items: streaming.items,
+            filter: voldiq_core::exports::CsvFilter {
+                expression: "size:invalid".into(),
+                ..Default::default()
+            },
+            include_paths: false,
+        };
+        assert!(
+            voldiq_core::exports::save_csv(
+                &export_index,
+                &invalid,
+                &destination.path().join("invalid.csv"),
+                &lease,
+                &loading,
+                |_| {}
+            )
+            .is_err()
+        );
+        assert_eq!(std::fs::read_dir(destination.path()).unwrap().count(), 4);
+    }
     struct FailingSink;
     impl std::io::Write for FailingSink {
         fn write(&mut self, _: &[u8]) -> std::io::Result<usize> {

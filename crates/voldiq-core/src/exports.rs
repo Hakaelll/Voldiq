@@ -7,6 +7,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 mod stream;
 pub use stream::{CsvFilter, CsvStreamRequest, StreamOutcome, StreamProgress, stream_csv};
+#[cfg(windows)]
+mod file;
+#[cfg(windows)]
+pub use file::save_csv;
 
 const HEADER: &str = "node_id,kind,name,logical_bytes,recorded_allocated_bytes,allocation_known,modified_unix_seconds,path,path_exact";
 

@@ -81,6 +81,11 @@ impl Coordinator {
 }
 
 impl Lease {
+    #[cfg(windows)]
+    pub(crate) fn directory(&self) -> &Path {
+        self.directory.path()
+    }
+
     pub fn acquire(directory: &Path) -> Result<Self> {
         Coordinator::open(directory)?.acquire()
     }

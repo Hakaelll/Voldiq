@@ -1,5 +1,7 @@
 //! Human provisioning is separate from agent authentication and per-call authorization.
 mod scope;
+#[cfg(windows)]
+pub(crate) use scope::ordinary_path;
 pub(crate) use scope::{pin_directory, pin_path};
 
 use crate::{Error, Result};
