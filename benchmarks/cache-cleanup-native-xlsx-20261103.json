@@ -1,0 +1,45 @@
+{
+  "checkedUtc": "2026-11-03T17:56:08.6583396Z",
+  "sourceCommit": "af3e0f531fa48b87c8938b27187eedc522b6f4ca",
+  "currentPreviewOpen": true,
+  "cleanup": {
+    "applied": true,
+    "removedBytes": 33092096,
+    "previews": [
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\430DA86FB24E1F2DA3FF7A3771080FA4576FAF46CB699F70A475C9F049037021",
+        "bytes": 16714240,
+        "status": "KeptRunning"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\5942B5857138E97194D370ECC6B36FCD817881345EC932F55EC6A2248D0CABE1",
+        "bytes": 16977408,
+        "status": "KeptCurrent"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\8C46003580F4DD2FDB867E81422C1EB7C2662B0E714F7823116B718CE4003DE8",
+        "bytes": 16546304,
+        "status": "Removed"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\F446D089BE1189077C4D6E6DDBB202CB5F8E3A97F0BCC3F8B98DC4236D5EA84A",
+        "bytes": 16545792,
+        "status": "Removed"
+      }
+    ]
+  },
+  "runningApplications": [
+    {
+      "processId": 13344,
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\430DA86FB24E1F2DA3FF7A3771080FA4576FAF46CB699F70A475C9F049037021\\voldiq.exe",
+      "mainWindowHandle": 1509150
+    },
+    {
+      "processId": 19044,
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\5942B5857138E97194D370ECC6B36FCD817881345EC932F55EC6A2248D0CABE1\\voldiq.exe",
+      "mainWindowHandle": 132792
+    }
+  ],
+  "debugArtifactsPresent": false,
+  "scope": "Only verified inactive Voldiq build previews. Current/running images, reusable release artifacts, application state, Windows and other applications excluded. Logical artifact bytes are not measured volume free-space change."
+}
