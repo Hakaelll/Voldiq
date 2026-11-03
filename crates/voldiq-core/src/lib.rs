@@ -13,6 +13,7 @@ pub mod metadata;
 pub mod ntfs;
 pub mod operations;
 pub mod plans;
+pub mod recovery;
 pub mod scanner;
 pub mod search;
 pub mod service;

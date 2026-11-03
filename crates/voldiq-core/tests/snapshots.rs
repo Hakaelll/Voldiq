@@ -28,6 +28,65 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     std::fs::write(fixture.path().join("UPPER.txt"), [5; 7]).unwrap();
     std::fs::write(fixture.path().join("Résumé.txt"), [6; 7]).unwrap();
     let first = capture(fixture.path());
+    assert_eq!(
+        voldiq_core::recovery::cim_datetime("20240229013000.123456+090"),
+        Some(1709164800)
+    );
+    assert_eq!(
+        voldiq_core::recovery::cim_datetime("20240228223000.000000-090"),
+        Some(1709164800)
+    );
+    assert_eq!(
+        voldiq_core::recovery::cim_datetime("19700101000000.000000+000"),
+        Some(0)
+    );
+    for invalid in [
+        "20230229000000.000000+000",
+        "20240229000000.000000+***",
+        "2024**********.******+000",
+        "19700101000000.000000+060",
+        "20240229000000.000000:000",
+    ] {
+        assert_eq!(voldiq_core::recovery::cim_datetime(invalid), None);
+    }
+    assert!(voldiq_core::recovery::read_desktop(&first, &AtomicBool::new(true)).is_none());
+    #[cfg(windows)]
+    {
+        use voldiq_core::recovery::{Discovery, Unavailable};
+        let report = voldiq_core::recovery::read_desktop(&first, &loading).unwrap();
+        assert_eq!(report.root, first.root);
+        assert_eq!(
+            report.volume.as_ref().unwrap().serial,
+            format!("{:016x}", first.root_identity.unwrap().0)
+        );
+        assert_eq!(report.copy_limit, 100);
+        let evidence = match report.shadows {
+            Discovery::Available { copies, coverage } => {
+                assert!(copies.len() <= 100);
+                serde_json::json!({"kind":"available", "copies":copies.len(), "coverage":coverage})
+            }
+            Discovery::Unavailable {
+                reason: reason @ (Unavailable::AccessDenied | Unavailable::ProviderUnavailable),
+            } => serde_json::json!({"kind":"unavailable", "reason":reason}),
+            other => panic!("Unexpected owned-root recovery probe outcome: {other:?}"),
+        };
+        eprintln!("RECOVERY_DISCOVERY_PROBE {evidence}");
+        let recovery_root = fixture.path().join("recovery-identity");
+        std::fs::create_dir(&recovery_root).unwrap();
+        let recorded_root = capture(&recovery_root);
+        std::fs::rename(&recovery_root, fixture.path().join("recovery-original")).unwrap();
+        std::fs::create_dir(&recovery_root).unwrap();
+        assert!(matches!(
+            voldiq_core::recovery::read_desktop(&recorded_root, &loading)
+                .unwrap()
+                .shadows,
+            Discovery::Unavailable {
+                reason: Unavailable::RootUnavailable
+            }
+        ));
+        std::fs::remove_dir(&recovery_root).unwrap();
+        std::fs::remove_dir(fixture.path().join("recovery-original")).unwrap();
+    }
     let mut store = Store::open(&db).unwrap();
     let before = store.save(&first, &AtomicBool::new(false), &[]).unwrap();
     std::fs::write(fixture.path().join("nested/growth"), [3; 33]).unwrap();

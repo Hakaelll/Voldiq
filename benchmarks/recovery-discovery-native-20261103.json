@@ -1,0 +1,13 @@
+{
+  "checkedUtc": "2026-11-03T04:17:13.8651330Z",
+  "coreFixtureProbe": {
+    "reason": "access_denied",
+    "kind": "unavailable"
+  },
+  "referenceProbe": {
+    "kind": "unavailable",
+    "exceptionType": "Microsoft.Management.Infrastructure.CimException",
+    "statusCode": "2147749908"
+  },
+  "scope": "Read-only native core fixture and independent local Windows CIM query. No copy IDs, device paths, content, credentials or snapshot changes recorded. Populated/privileged provider behavior remains unverified."
+}

@@ -1,5 +1,40 @@
 use std::path::Path;
 
+#[cfg(windows)]
+pub(crate) fn volume_paths(
+    file: &std::fs::File,
+) -> crate::Result<(std::path::PathBuf, std::path::PathBuf)> {
+    use std::os::windows::{ffi::OsStringExt, io::AsRawHandle};
+    use windows_sys::Win32::Storage::FileSystem::{
+        FILE_NAME_NORMALIZED, GetFinalPathNameByHandleW, VOLUME_NAME_GUID,
+    };
+    let mut buffer = vec![0_u16; 32768];
+    let length = unsafe {
+        GetFinalPathNameByHandleW(
+            file.as_raw_handle(),
+            buffer.as_mut_ptr(),
+            buffer.len() as u32,
+            VOLUME_NAME_GUID | FILE_NAME_NORMALIZED,
+        )
+    } as usize;
+    if length == 0 || length >= buffer.len() {
+        return Err(std::io::Error::last_os_error().into());
+    }
+    buffer.truncate(length);
+    let native = std::ffi::OsString::from_wide(&buffer);
+    let text = native
+        .to_str()
+        .ok_or_else(|| crate::Error::Invalid("Native volume path unavailable.".into()))?;
+    let suffix = text
+        .strip_prefix(r"\\?\Volume{")
+        .ok_or_else(|| crate::Error::Invalid("Stable volume GUID unavailable.".into()))?;
+    let close = suffix
+        .find("}\\")
+        .ok_or_else(|| crate::Error::Invalid("Invalid native volume root.".into()))?;
+    let root = format!(r"\\?\Volume{{{}}}\", &suffix[..close]);
+    Ok((native.into(), root.into()))
+}
+
 #[cfg(not(windows))]
 pub fn storage_seek_penalty(_path: &Path) -> Option<bool> {
     None

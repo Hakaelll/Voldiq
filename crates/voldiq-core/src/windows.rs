@@ -13,6 +13,8 @@ pub mod recycle_bin;
 pub(crate) mod security;
 mod storage;
 pub use storage::storage_seek_penalty;
+#[cfg(windows)]
+pub(crate) use storage::volume_paths;
 mod settings;
 pub use settings::{open_recycle_bin, open_storage_settings};
 

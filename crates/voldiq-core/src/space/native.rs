@@ -3,7 +3,6 @@ use super::{
 };
 use crate::{Error, Result, agents::pin_directory, windows};
 use std::{
-    os::windows::{ffi::OsStringExt, io::AsRawHandle},
     path::Path,
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -24,30 +23,8 @@ pub(super) fn observe(path: &Path) -> Result<Observation> {
     {
         return Err(Error::Invalid("Volume scope changed.".into()));
     }
-    let mut buffer = vec![0_u16; 32768];
-    let length = unsafe {
-        GetFinalPathNameByHandleW(
-            file.as_raw_handle(),
-            buffer.as_mut_ptr(),
-            buffer.len() as u32,
-            VOLUME_NAME_GUID | FILE_NAME_NORMALIZED,
-        )
-    } as usize;
-    if length == 0 || length >= buffer.len() {
-        return Err(std::io::Error::last_os_error().into());
-    }
-    buffer.truncate(length);
-    let native_path = std::ffi::OsString::from_wide(&buffer);
-    let native_text = native_path
-        .to_str()
-        .ok_or_else(|| Error::Invalid("Native volume path unavailable.".into()))?;
-    let suffix = native_text
-        .strip_prefix(r"\\?\Volume{")
-        .ok_or_else(|| Error::Invalid("Stable volume GUID unavailable.".into()))?;
-    let close = suffix
-        .find("}\\")
-        .ok_or_else(|| Error::Invalid("Invalid native volume root.".into()))?;
-    let guid_root = format!(r"\\?\Volume{{{}}}\", &suffix[..close]);
+    let (native_path, guid_root) = windows::volume_paths(&file)?;
+    let guid_root = guid_root.to_string_lossy().into_owned();
     let identity = VolumeIdentity {
         guid_root: guid_root.clone(),
         serial: format!("{:016x}", pin.identity().0),
