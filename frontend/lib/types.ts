@@ -126,11 +126,39 @@ export interface Volume {
   path: string;
   name: string;
   filesystem: string;
-  total: number;
-  free: number;
+  space: VolumeSpace;
   drive_type: string;
   accessible: boolean;
 }
+export interface VolumeIdentity {
+  guid_root: string;
+  serial: string;
+}
+export interface CallerSpace {
+  volume: VolumeIdentity;
+  observed_at: number | null;
+  total: string;
+  available: string;
+}
+export interface VolumeMeasurement {
+  volume: VolumeIdentity;
+  observed_at: number | null;
+  total: string;
+  free: string;
+  used: string;
+  caller_total: string;
+  caller_available: string;
+  reserved: string;
+  storage_reserve: string;
+  pool_unavailable: string;
+}
+export type VolumeSpace =
+  | { kind: 'measured'; measurement: VolumeMeasurement }
+  | {
+      kind: 'unavailable';
+      reason: 'unsupported' | 'metadata_unavailable' | 'native_failure' | 'invalid_counters';
+      caller: CallerSpace | null;
+    };
 export interface Page {
   items: Entry[];
   total: number;

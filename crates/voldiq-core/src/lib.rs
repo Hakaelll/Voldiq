@@ -17,6 +17,7 @@ pub mod scanner;
 pub mod search;
 pub mod service;
 pub mod snapshots;
+pub mod space;
 pub mod windows;
 pub mod workbench;
 

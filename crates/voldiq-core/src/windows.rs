@@ -21,8 +21,7 @@ pub struct Volume {
     pub path: String,
     pub name: String,
     pub filesystem: String,
-    pub total: u64,
-    pub free: u64,
+    pub space: crate::space::Observation,
     pub drive_type: String,
     pub accessible: bool,
 }
@@ -47,7 +46,7 @@ pub fn identity(path: &Path) -> Result<FileIdentity> {
 }
 
 #[cfg(windows)]
-fn open_metadata(path: &Path) -> Result<std::fs::File> {
+pub(crate) fn open_metadata(path: &Path) -> Result<std::fs::File> {
     use std::os::windows::io::FromRawHandle;
     use windows_sys::Win32::{Foundation::*, Storage::FileSystem::*};
     let path = wide(path);
@@ -276,9 +275,15 @@ pub fn volumes() -> Vec<Volume> {
             }
             let path = format!("{}:\\", (b'A' + letter as u8) as char);
             let wide = wide(Path::new(&path));
-            let (mut total, mut free, mut available) = (0, 0, 0);
-            let accessible =
-                GetDiskFreeSpaceExW(wide.as_ptr(), &mut available, &mut total, &mut free) != 0;
+            let space = crate::space::observe_volume(Path::new(&path));
+            let mut available_to_caller = 0;
+            // Drive scan availability does not depend on optional physical-counter support.
+            let accessible = GetDiskFreeSpaceExW(
+                wide.as_ptr(),
+                &mut available_to_caller,
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            ) != 0;
             let (mut name, mut filesystem) = ([0_u16; 261], [0_u16; 261]);
             GetVolumeInformationW(
                 wide.as_ptr(),
@@ -307,8 +312,7 @@ pub fn volumes() -> Vec<Volume> {
                 path,
                 name: decode(&name),
                 filesystem: decode(&filesystem),
-                total,
-                free,
+                space,
                 drive_type,
                 accessible,
             });

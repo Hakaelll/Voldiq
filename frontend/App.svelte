@@ -39,6 +39,7 @@
   import FolderNotes from './components/FolderNotes.svelte';
   import FolderBudget from './components/FolderBudget.svelte';
   import LiveControl from './components/LiveControl.svelte';
+  import { volumeMeasurement, volumeCaller } from './lib/volume-space';
   import type { LiveObservation } from './lib/live-session';
   import ProtectedFolders from './components/ProtectedFolders.svelte';
   import { readRecentPaths, rememberPath } from './lib/recent-paths';
@@ -416,6 +417,8 @@
     }
   }
   let volume = $derived(volumes.find((v) => v.path === volumePath));
+  const volumeSpace = $derived(volumeMeasurement(volume));
+  const volumeAvailability = $derived(volumeCaller(volume));
   let busy = $derived(
     operation?.phase === 'scanning' ||
       liveBusy ||
@@ -1205,14 +1208,20 @@
     </nav>
     <div class="nav-bottom">
       {#if expanded && volume?.accessible}<div class="drive-summary">
-          <span><Icon name="disk" />{volume.name || volume.path}</span><progress
-            aria-label="Drive space used"
-            value={volume.total - volume.free}
-            max={volume.total || 1}
-          ></progress><small
-            >{bytes(volume.total - volume.free)} of {bytes(volume.total)} used</small
-          >
-          <small>{bytes(volume.free)} free</small>
+          <span><Icon name="disk" />{volume.name || volume.path}</span
+          >{#if volumeSpace && Number(volumeSpace.total) > 0}<progress
+              aria-label="Drive space used"
+              value={Number(volumeSpace.used)}
+              max={Number(volumeSpace.total)}
+            ></progress><small
+              >{bytes(Number(volumeSpace.used))} of {bytes(Number(volumeSpace.total))} used</small
+            >
+            <small>{bytes(Number(volumeSpace.free))} free</small>{:else}<small
+              >Volume usage unavailable</small
+            >{/if}
+          {#if volumeAvailability}<small
+              >{bytes(Number(volumeAvailability.available))} available to you</small
+            >{/if}
         </div>{/if}<button
         class:active={view === 'settings'}
         onpointerdown={() => {

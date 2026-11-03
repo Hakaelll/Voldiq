@@ -1,5 +1,6 @@
 <script lang="ts">
   import StorageMap from './StorageMap.svelte';
+  import { volumeMeasurement, volumeCaller, volumeObservationLabel } from '../lib/volume-space';
   import {
     bytes,
     type Details,
@@ -84,10 +85,10 @@
     onretry: () => void;
   } = $props();
   const distribution = $derived(visibleFileTypes(types));
+  const space = $derived(volumeMeasurement(volume));
+  const callerSpace = $derived(volumeCaller(volume));
   const usedPercent = $derived(
-    volume?.accessible && volume.total > 0 && volume.free >= 0 && volume.free <= volume.total
-      ? ((volume.total - volume.free) / volume.total) * 100
-      : null,
+    space && Number(space.total) > 0 ? (Number(space.used) / Number(space.total)) * 100 : null,
   );
 </script>
 
@@ -125,28 +126,38 @@
           <dl>
             <div>
               <dt>Used on volume</dt>
-              <dd>{bytes(volume.total - volume.free)}</dd>
+              <dd title={space ? `${space.used} bytes` : undefined}>
+                {space ? bytes(Number(space.used)) : 'Unavailable'}
+              </dd>
             </div>
             <div>
               <dt>Free space</dt>
-              <dd>{bytes(volume.free)}</dd>
+              <dd title={space ? `${space.free} bytes` : undefined}>
+                {space ? bytes(Number(space.free)) : 'Unavailable'}
+              </dd>
             </div>
             <div>
               <dt>Total capacity</dt>
-              <dd>{bytes(volume.total)}</dd>
+              <dd title={space ? `${space.total} bytes` : undefined}>
+                {space ? bytes(Number(space.total)) : 'Unavailable'}
+              </dd>
             </div>
           </dl>
         </div>
         <div class="volume-meter sr-only">
-          {#if usedPercent !== null}
+          {#if usedPercent !== null && space}
             <progress
               aria-label="Volume space used"
-              value={volume.total - volume.free}
-              max={volume.total || 1}
+              value={Number(space.used)}
+              max={Number(space.total)}
             ></progress>
             <span>{usedPercent.toFixed(1)}%</span>
           {:else}<span>Usage unavailable</span>{/if}
         </div>
+        {#if callerSpace}<p title={`${callerSpace.available} bytes available to the caller`}>
+            Available to you · {bytes(Number(callerSpace.available))}
+          </p>{/if}
+        <p>{volumeObservationLabel(volume)}</p>
       </section>
     {/if}
     {#if !directory || directory.entry.id === 0}

@@ -681,6 +681,69 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             .len(),
         1
     );
+    let volume_identity = voldiq_core::space::VolumeIdentity {
+        guid_root: "fixture-volume".into(),
+        serial: "fixture".into(),
+    };
+    let volume_units = voldiq_core::space::AllocationUnits {
+        total: 1000,
+        free: 250,
+        used: 700,
+        caller_total: 100,
+        caller_available: 10,
+        reserved: 100,
+        storage_reserve: 20,
+        pool_unavailable: 5,
+    };
+    let volume_space = voldiq_core::space::Measurement::from_units(
+        volume_identity.clone(),
+        None,
+        4096,
+        volume_units,
+    )
+    .unwrap();
+    assert_eq!(
+        (
+            volume_space.total.0,
+            volume_space.free.0,
+            volume_space.used.0,
+            volume_space.caller_total.0,
+            volume_space.caller_available.0,
+            volume_space.reserved.0,
+            volume_space.storage_reserve.0,
+            volume_space.pool_unavailable.0
+        ),
+        (
+            4_096_000, 1_024_000, 2_867_200, 409_600, 40_960, 409_600, 81_920, 20_480
+        )
+    );
+    assert_eq!(
+        serde_json::to_value(&volume_space).unwrap()["used"],
+        "2867200"
+    );
+    assert_eq!(
+        serde_json::to_value(voldiq_core::space::Bytes(9_007_199_254_740_993)).unwrap(),
+        "9007199254740993"
+    );
+    assert!(
+        voldiq_core::space::Measurement::from_units(volume_identity.clone(), None, 0, volume_units)
+            .is_err()
+    );
+    let excessive = voldiq_core::space::AllocationUnits {
+        total: u64::MAX,
+        ..volume_units
+    };
+    assert!(
+        voldiq_core::space::Measurement::from_units(volume_identity.clone(), None, 4096, excessive)
+            .is_err()
+    );
+    let invalid = voldiq_core::space::AllocationUnits {
+        storage_reserve: 101,
+        ..volume_units
+    };
+    assert!(
+        voldiq_core::space::Measurement::from_units(volume_identity, None, 4096, invalid).is_err()
+    );
     #[cfg(windows)]
     {
         use voldiq_core::{
@@ -688,6 +751,49 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             live::{Control, Reason, Session},
         };
         let mut store = store;
+        let observed_volume = voldiq_core::space::observe_volume(fixture.path());
+        let kernel = unsafe {
+            windows_sys::Win32::System::LibraryLoader::GetModuleHandleW(
+                voldiq_core::windows::wide(Path::new("kernel32.dll")).as_ptr(),
+            )
+        };
+        let physical_api_present = !kernel.is_null()
+            && unsafe {
+                windows_sys::Win32::System::LibraryLoader::GetProcAddress(
+                    kernel,
+                    c"GetDiskSpaceInformationW".as_ptr().cast(),
+                )
+            }
+            .is_some();
+        if physical_api_present {
+            let voldiq_core::space::Observation::Measured { measurement } = observed_volume else {
+                panic!(
+                    "Expected actual volume counters for the owned local fixture: {observed_volume:?}"
+                );
+            };
+            assert!(measurement.total.0 > 0);
+            assert!(measurement.used.0 <= measurement.total.0);
+            assert!(measurement.free.0 <= measurement.total.0);
+            assert!(measurement.volume.guid_root.starts_with(r"\\?\Volume{"));
+            assert_eq!(
+                measurement.volume.serial,
+                format!(
+                    "{:016x}",
+                    voldiq_core::windows::identity(fixture.path())
+                        .unwrap()
+                        .key
+                        .0
+                )
+            );
+        } else {
+            assert!(matches!(
+                observed_volume,
+                voldiq_core::space::Observation::Unavailable {
+                    reason: voldiq_core::space::Unavailable::Unsupported,
+                    caller: Some(_)
+                }
+            ));
+        }
         let watched = fixture.path().join("live");
         let excluded = watched.join("ignored");
         std::fs::create_dir_all(&excluded).unwrap();

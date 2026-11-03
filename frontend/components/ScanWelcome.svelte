@@ -1,6 +1,7 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
   import { bytes, type Volume } from '../lib/types';
+  import { volumeMeasurement, volumeCaller, volumeObservationLabel } from '../lib/volume-space';
   let {
     volume,
     busy,
@@ -18,8 +19,11 @@
     onscan: (path: string) => void;
     onchoose: () => void;
   } = $props();
-  const used = $derived(volume?.accessible ? volume.total - volume.free : 0);
-  const percent = $derived(volume?.total ? (used / volume.total) * 100 : 0);
+  const space = $derived(volumeMeasurement(volume));
+  const callerSpace = $derived(volumeCaller(volume));
+  const percent = $derived(
+    space && Number(space.total) > 0 ? (Number(space.used) / Number(space.total)) * 100 : null,
+  );
 </script>
 
 <div class="scan-welcome">
@@ -31,33 +35,43 @@
           <span>{volume.path} · {volume.filesystem}</span>
         </div>
       </header>
-      <div
-        class="drive-ring"
-        style:background={`conic-gradient(var(--accent-fill) ${percent}%, var(--paper) 0)`}
-        aria-hidden="true"
-      >
-        <div><strong>{percent.toFixed(1)}<small>%</small></strong><span>Used</span></div>
-      </div>
-      <progress
-        class="sr-only"
-        aria-label="Selected drive space used"
-        value={used}
-        max={volume.total || 1}
-      ></progress>
+      {#if percent !== null && space}<div
+          class="drive-ring"
+          style:background={`conic-gradient(var(--accent-fill) ${percent}%, var(--paper) 0)`}
+          aria-hidden="true"
+        >
+          <div><strong>{percent.toFixed(1)}<small>%</small></strong><span>Used</span></div>
+        </div>
+        <progress
+          class="sr-only"
+          aria-label="Selected drive space used"
+          value={Number(space.used)}
+          max={Number(space.total)}
+        ></progress>{:else}<p>Volume usage unavailable</p>{/if}
       <dl>
         <div>
           <dt>Used</dt>
-          <dd>{bytes(used)}</dd>
+          <dd title={space ? `${space.used} bytes` : undefined}>
+            {space ? bytes(Number(space.used)) : 'Unavailable'}
+          </dd>
         </div>
         <div>
           <dt>Free</dt>
-          <dd>{bytes(volume.free)}</dd>
+          <dd title={space ? `${space.free} bytes` : undefined}>
+            {space ? bytes(Number(space.free)) : 'Unavailable'}
+          </dd>
         </div>
         <div>
           <dt>Capacity</dt>
-          <dd>{bytes(volume.total)}</dd>
+          <dd title={space ? `${space.total} bytes` : undefined}>
+            {space ? bytes(Number(space.total)) : 'Unavailable'}
+          </dd>
         </div>
       </dl>
+      {#if callerSpace}<p title={`${callerSpace.available} bytes available to the caller`}>
+          Available to you · {bytes(Number(callerSpace.available))}
+        </p>{/if}
+      <p>{volumeObservationLabel(volume)}</p>
     </section>{/if}
   <section class="welcome-start">
     <img src="/symbol.png" alt="" width="112" height="112" />
