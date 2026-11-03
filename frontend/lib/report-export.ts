@@ -1,6 +1,6 @@
 import type { IndexId } from './index-context';
 import type { Query } from './types';
-export type ReportFormat = 'csv' | 'xlsx';
+export type ReportFormat = 'csv' | 'xlsx' | 'pdf';
 
 export interface ReportProgress {
   inspected: number;

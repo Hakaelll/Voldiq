@@ -1,5 +1,6 @@
 use super::{
-    ReportFormat, ReportSelection, StreamOutcome, StreamProgress, stream_csv, stream_xlsx,
+    ReportFormat, ReportSelection, StreamOutcome, StreamProgress, stream_csv, stream_pdf,
+    stream_xlsx,
 };
 use crate::{
     Error, Result,
@@ -79,6 +80,7 @@ pub fn save_report(
         let outcome = match format {
             ReportFormat::Csv => stream_csv(index, request, &mut writer, cancelled, progress)?,
             ReportFormat::Xlsx => stream_xlsx(index, request, &mut writer, cancelled, progress)?,
+            ReportFormat::Pdf => stream_pdf(index, request, &mut writer, cancelled, progress)?,
         };
         if let StreamOutcome::Complete(state) = outcome {
             writer.flush()?;

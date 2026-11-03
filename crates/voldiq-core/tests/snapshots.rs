@@ -1420,6 +1420,64 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     );
     assert_eq!(summary.scope["traversal_order"], "recorded_index");
     assert_eq!(summary.scope["coverage"], "unknown");
+    #[cfg(windows)]
+    {
+        export_index.entries[10_000].name =
+            "Espa\u{f1}ol - \u{627}\u{644}\u{639}\u{631}\u{628}\u{64a}\u{629} - =1+1\n\u{202e}"
+                .into();
+        export_index.entries[10_001].name = format!("LONG-NAME-{}-END", "abcdef".repeat(900));
+        let destination = tempfile::tempdir().unwrap();
+        let export_state = tempfile::tempdir().unwrap();
+        let lease = voldiq_core::operations::Lease::acquire(export_state.path()).unwrap();
+        let pdf = destination.path().join("ranked-summary.pdf");
+        assert!(matches!(voldiq_core::exports::save_report(
+            &export_index, voldiq_core::exports::ReportFormat::Pdf, &all, &pdf, &lease, &loading, |_| {}
+        ).unwrap(), voldiq_core::exports::StreamOutcome::Complete(value) if value.rows == 10_005));
+        let bytes = std::fs::read(&pdf).unwrap();
+        assert!(bytes.starts_with(b"%PDF-1."));
+        assert!(bytes.ends_with(b"%%EOF"));
+        let mut stopped_pdf = Vec::new();
+        assert!(matches!(
+            voldiq_core::exports::stream_pdf(
+                &export_index,
+                &all,
+                &mut stopped_pdf,
+                &AtomicBool::new(true),
+                |_| {}
+            )
+            .unwrap(),
+            voldiq_core::exports::StreamOutcome::Cancelled(_)
+        ));
+        assert!(stopped_pdf.is_empty());
+        let cancel = AtomicBool::new(false);
+        let cancelled_pdf = destination.path().join("cancelled.pdf");
+        assert!(matches!(
+            voldiq_core::exports::save_report(
+                &export_index,
+                voldiq_core::exports::ReportFormat::Pdf,
+                &all,
+                &cancelled_pdf,
+                &lease,
+                &cancel,
+                |state| {
+                    if state.rows > 0 {
+                        cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+                    }
+                }
+            )
+            .unwrap(),
+            voldiq_core::exports::StreamOutcome::Cancelled(_)
+        ));
+        assert!(!cancelled_pdf.exists());
+        assert_eq!(std::fs::read_dir(destination.path()).unwrap().count(), 1);
+        // Explicit developer opt-in retains only this owned output fixture for independent PDF review.
+        if std::env::var("VOLDIQ_KEEP_PDF_FIXTURE").as_deref() == Ok("1") {
+            println!(
+                "PDF fixture: {}",
+                destination.keep().join("ranked-summary.pdf").display()
+            );
+        }
+    }
     let stopped_summary = AtomicBool::new(false);
     assert!(
         voldiq_core::exports::ranked_summary(&export_index, &all, &stopped_summary, |value| {

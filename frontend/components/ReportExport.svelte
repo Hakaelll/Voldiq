@@ -38,6 +38,7 @@
     pending = $state(false);
   let items = $state<'files' | 'folders'>('files');
   let format = $state<ReportFormat>('csv');
+  let requestedFormat = $state<ReportFormat>('csv');
   let scopeChoice = $state<'folder' | 'root'>('folder');
   let filtered = $state(true),
     paths = $state(false);
@@ -79,6 +80,7 @@
   }
   async function save(): Promise<void> {
     if (pending || disabled || !mounted) return;
+    requestedFormat = format;
     const request = reportSelection(
       query,
       scopeChoice === 'folder' ? scope : 0,
@@ -136,7 +138,7 @@
       <label
         >Format<select bind:value={format}
           ><option value="csv">CSV</option><option value="xlsx">Excel workbook (.xlsx)</option
-          ></select
+          ><option value="pdf">PDF summary (.pdf)</option></select
         ></label
       >
       <label
@@ -162,11 +164,14 @@
     <details>
       <summary>Report details</summary>
       <p>
-        Every matching record, in analysis order. Sizes are bytes; dates are UTC. Scope, filter
-        privacy settings and coverage are included.
+        {#if format === 'pdf'}The 50 largest recorded logical sizes, with total matching and omitted
+          counts. Text wraps across pages. Eligible installed fonts are loaded only for export.
+        {:else}Every matching record, in analysis order.{/if}
+        Sizes are bytes; dates are UTC. Scope, filter privacy settings and coverage are included.
         {#if format === 'csv'}Text cells carry a safety prefix; import large numbers as text in
-          spreadsheets.{:else}Text cells are literal. Integers above 15 digits are stored as exact
-          text; unknown values stay blank. Large datasets continue on additional sheets.{/if}
+          spreadsheets.{:else if format === 'xlsx'}Text cells are literal. Integers above 15 digits
+          are stored as exact text; unknown values stay blank. Large datasets continue on additional
+          sheets.{/if}
       </p>
     </details>
     <div class="report-status" aria-live="polite" aria-atomic="true">
@@ -182,13 +187,18 @@
           max={Math.max(1, model.progress.total_entries)}
         ></progress>
         <p>
-          {model.cancelling ? 'Stopping…' : 'Exporting…'}
+          {model.cancelling
+            ? 'Stopping…'
+            : format === 'pdf' && model.progress.inspected >= model.progress.total_entries
+              ? 'Formatting PDF…'
+              : 'Exporting…'}
           {model.progress.rows.toLocaleString()} rows · {model.progress.inspected.toLocaleString()} of
           {model.progress.total_entries.toLocaleString()} records inspected
         </p>
       {:else if model.kind === 'failed'}<p class="report-error" role="alert">{model.message}</p>
       {:else if result?.kind === 'complete'}<p>
-          Saved {result.progress.rows.toLocaleString()} rows.
+          {#if requestedFormat === 'pdf'}Saved a summary of {result.progress.rows.toLocaleString()} matching
+            records (up to 50 shown).{:else}Saved {result.progress.rows.toLocaleString()} rows.{/if}
         </p>
         <p class="scope-path">{result.path}</p>
       {:else if result?.kind === 'cancelled'}<p>Export cancelled. No report was published.</p>

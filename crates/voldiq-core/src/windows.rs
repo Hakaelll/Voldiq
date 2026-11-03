@@ -131,6 +131,11 @@ pub fn local_app_data() -> Result<std::path::PathBuf> {
 }
 
 #[cfg(windows)]
+pub(crate) fn fonts_directory() -> Result<std::path::PathBuf> {
+    known_folder_path(&windows_sys::Win32::UI::Shell::FOLDERID_Fonts)
+}
+
+#[cfg(windows)]
 fn known_folder_path(folder: &windows_sys::core::GUID) -> Result<std::path::PathBuf> {
     use std::{ffi::OsString, os::windows::ffi::OsStringExt};
     use windows_sys::Win32::{System::Com::CoTaskMemFree, UI::Shell::*};

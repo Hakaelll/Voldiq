@@ -1,0 +1,138 @@
+{
+  "checkedUtc": "2026-11-03T20:06:45.959679+01:00",
+  "scope": "Owned synthetic ranked PDF; independent structure/text/font/bounds inspection. Rendered pages and native interaction require separate review.",
+  "sha256": "33EE8B2161970E3BBBD94542F49D0600F34F1A9EED2AF3F367DB6F7F3C3293AB",
+  "bytes": 29703,
+  "pages": 7,
+  "matching": 10005,
+  "shown": 50,
+  "omitted": 9955,
+  "embeddedFonts": [
+    "/IEUQEO+SegoeUI"
+  ],
+  "pageBounds": [
+    {
+      "page": 1,
+      "characters": 2471,
+      "bounds": [
+        44.0,
+        552.271,
+        47.57,
+        814.811
+      ]
+    },
+    {
+      "page": 2,
+      "characters": 4392,
+      "bounds": [
+        44.0,
+        545.211,
+        47.407,
+        814.811
+      ]
+    },
+    {
+      "page": 3,
+      "characters": 1211,
+      "bounds": [
+        44.0,
+        432.197,
+        48.868,
+        814.811
+      ]
+    },
+    {
+      "page": 4,
+      "characters": 1227,
+      "bounds": [
+        44.0,
+        432.197,
+        48.868,
+        814.811
+      ]
+    },
+    {
+      "page": 5,
+      "characters": 1227,
+      "bounds": [
+        44.0,
+        432.197,
+        48.868,
+        814.811
+      ]
+    },
+    {
+      "page": 6,
+      "characters": 1227,
+      "bounds": [
+        44.0,
+        432.197,
+        48.868,
+        814.811
+      ]
+    },
+    {
+      "page": 7,
+      "characters": 1645,
+      "bounds": [
+        44.0,
+        552.548,
+        48.868,
+        814.811
+      ]
+    }
+  ],
+  "checks": {
+    "exactLargeTotal": true,
+    "longNameComplete": true,
+    "latinArabicText": true,
+    "visibleControls": true,
+    "pathsWithheld": true,
+    "noActiveContent": true,
+    "noScreenshot": true
+  },
+  "renderedReview": {
+    "renderer": "Poppler pdftoppm 26.07.0",
+    "dpi": 75,
+    "pagesReviewed": 7,
+    "result": "All seven final synthetic pages inspected: no clipped text, overlaps, missing visible glyphs or broken page/footer transitions observed.",
+    "nativeUiAcceptance": false,
+    "images": [
+      {
+        "name": "page-1.png",
+        "bytes": 89152,
+        "sha256": "31E301835BCDC8845CC7FE17FCA69CB9C9E25DFC86A798875FA68EE238E7112E"
+      },
+      {
+        "name": "page-2.png",
+        "bytes": 26987,
+        "sha256": "C785173D13145EEC0D38214EC75DF986D2286550D9E67B1342AA2A6795C4B449"
+      },
+      {
+        "name": "page-3.png",
+        "bytes": 74194,
+        "sha256": "07820B4FBCA25F0FF61712461BD988B475F49C5A12C57C9224C65F371517AFF2"
+      },
+      {
+        "name": "page-4.png",
+        "bytes": 74215,
+        "sha256": "82589903F36F49D8BCE5C780B9E77B7AE1AAD4E976853EE07EA2BA86C050AFA3"
+      },
+      {
+        "name": "page-5.png",
+        "bytes": 75977,
+        "sha256": "2D1EBEFAA8283F41B9AD2DDACDFDCB7515CBD57091FD245DBC908D5F3588FB14"
+      },
+      {
+        "name": "page-6.png",
+        "bytes": 76209,
+        "sha256": "5673B1DD92D85CD01F7793EFAA2ECD2779261D3BEEEC10F3D38DA20D1A902430"
+      },
+      {
+        "name": "page-7.png",
+        "bytes": 85659,
+        "sha256": "57EF14D71EABEABD3A90B9289EF20BE356AA814A4BBAA3781EF6F0F2FC35CBD1"
+      }
+    ]
+  }
+}

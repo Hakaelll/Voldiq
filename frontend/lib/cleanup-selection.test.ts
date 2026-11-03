@@ -348,7 +348,7 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   await new Promise<void>((resolve) => setImmediate(resolve));
   assert.equal(csvStates.length, settledStates);
   const cancelledContext = { ...csvContext, requestId: '00000000-0000-4000-8000-000000000002' };
-  const cancellingCsv = csvSession.save(cancelledContext, reportRequest);
+  const cancellingCsv = csvSession.save(cancelledContext, reportRequest, 'pdf');
   csvSession.dispose();
   const disposedStates = csvStates.length;
   await new Promise<void>((resolve) => setImmediate(resolve));
@@ -365,6 +365,6 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
     outcome: { kind: 'cancelled', progress },
   });
   await cancellingCsv;
-  assert.deepEqual(reportFormats, ['xlsx', 'csv']);
+  assert.deepEqual(reportFormats, ['xlsx', 'pdf']);
   assert.equal(csvStates.length, disposedStates);
 });

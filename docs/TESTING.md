@@ -19,7 +19,7 @@ These are retained existing cases. They do not preserve the former suite's full 
 
 Rust fixtures modify only their own disposable temporary folders. The two execution cases may remove files they created; they never clean user data. The desktop dispatch case refuses its helper without launching UAC or moving source files. Frontend tests use Node without a browser. The full Windows inventory includes the Windows-only desktop dispatch case.
 
-The saved-storage flow also checks ranked report preparation over 10,005 matching records: stable top-50 ordering, explicit omissions, exact observed file-path totals beyond u64, independent unknown/partial/alias counters, cancellation and a nonnumeric overlapping-folder state. It does not create or validate a PDF yet.
+The saved-storage flow also checks ranked report preparation over 10,005 matching records: stable top-50 ordering, explicit omissions, exact observed file-path totals beyond u64, independent unknown/partial/alias counters, cancellation and a nonnumeric overlapping-folder state. On Windows it writes a synthetic PDF through the safe destination owner, using mixed Latin/Arabic text and a long unbroken name, and checks pre-cancellation and cancellation without publication. Independent PDF parsing/rendering is recorded separately in workbench status. Developer opt-in `VOLDIQ_KEEP_PDF_FIXTURE=1` retains only that owned temporary PDF directory for this review; normal runs remove it.
 
 ## Run the source gate
 

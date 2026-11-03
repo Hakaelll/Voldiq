@@ -12,6 +12,10 @@ pub use xlsx::stream_xlsx;
 mod summary;
 pub use summary::{LogicalTotal, ReportSummary, SummaryPath, SummaryRow, ranked_summary};
 #[cfg(windows)]
+mod pdf;
+#[cfg(windows)]
+pub use pdf::{render_pdf, stream_pdf};
+#[cfg(windows)]
 mod file;
 #[cfg(windows)]
 pub use file::save_report;
@@ -21,12 +25,14 @@ pub use file::save_report;
 pub enum ReportFormat {
     Csv,
     Xlsx,
+    Pdf,
 }
 impl ReportFormat {
     pub fn extension(self) -> &'static str {
         match self {
             Self::Csv => "csv",
             Self::Xlsx => "xlsx",
+            Self::Pdf => "pdf",
         }
     }
 }
