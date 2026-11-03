@@ -1,6 +1,7 @@
 <script lang="ts">
   import StorageMap from './StorageMap.svelte';
   import SpaceAccount from './SpaceAccount.svelte';
+  import RecoveryCopies from './RecoveryCopies.svelte';
   import type { IndexId } from '../lib/index-context';
   import { volumeMeasurement, volumeCaller, volumeObservationLabel } from '../lib/volume-space';
   import {
@@ -268,7 +269,10 @@
           </div>
         </div>{/if}
     </section>
-    {#if indexId !== null}<SpaceAccount {indexId} {paused} />{/if}
+    {#if indexId !== null}
+      <SpaceAccount {indexId} {paused} />
+      <RecoveryCopies {indexId} {paused} />
+    {/if}
     <section class="type-panel">
       <div class="panel-heading"><h2>File types</h2></div>
       <div class="type-bar" role="group" aria-label="Filter by file type">

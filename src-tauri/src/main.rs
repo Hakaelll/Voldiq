@@ -843,6 +843,7 @@ fn main() {
             query_commands::inspect_search,
             query_commands::query_folder_budget,
             query_commands::query_space_account,
+            query_commands::query_recovery_copies,
             query_commands::query_snapshot_visual,
             query_commands::query_snapshot_changes,
             query_commands::query_snapshot_capture,

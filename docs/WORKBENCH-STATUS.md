@@ -4,6 +4,14 @@ Delivery branch: `main`, as the user explicitly requested during implementation.
 
 The complete task remains active. See the [coverage matrix](WORKBENCH-COVERAGE.md) and [execution plan](plans/storage-workbench.md). This status does not declare pending capabilities implemented.
 
+## Native recovery-copy panel
+
+Overview now includes a closed Recovery copies section after Space account. Query copies uses a dedicated typed native query family over the captured index and shared recovery core. Query, reload, cancellation, pause, transport failure, native unavailability, completed-empty and incomplete results have distinct states. The analyzed root, check time and containing-volume scope remain explicit. The table shows actual copy/provider identifiers, optional recorded UTC dates and written Yes/No/Unknown flags. Long values wrap. A limited provider prefix never claims to contain the newest copies or prove that a particular file can be recovered. Guidance points to Windows Previous Versions or the backup application's controls and a separate destination.
+
+The thirteenth native query family reuses the bounded request/session/index ownership and cancellation protocol. Closing, context change and disposal cancel the request; stale owners cannot replace the current report. Focus recovery is limited to displaced controls owned by that request. No query runs while closed, no idle timer or new dependency is introduced, and catalogue IDs never become file-action IDs. This read does not expose volume-wide discovery to agents or request elevation/restoration/purge.
+
+Frontend checks and the retained interaction case pass, followed by the [six-stage integration gate](../benchmarks/workbench-recovery-ui-source-20261103.json). All eight retained tests pass, with zero Svelte diagnostics, production frontend build and strict workspace Clippy. Final resources are `index-9P4nV-Oz.js` and `index-CrJaKuCi.css`. Production native build/startup is pending for this source unit. No rendered, keyboard/focus, assistive-technology, scaling, populated/privileged provider or signal-delivery acceptance is claimed. Further Windows diagnosis and reviewed no-overwrite restoration remain pending; the complete goal stays active.
+
 ## Read-only VSS recovery discovery core
 
 The shared core now queries local `Win32_ShadowCopy` metadata for the captured root's native volume GUID. It pins the root/ancestors, uses a checked metadata handle, revalidates identity after the query and rejects a replaced root. Completed VSS records retain validated copy IDs and optional provider, recorded installation date, Previous Versions and persistence metadata. These values neither prove a particular file is present nor grant restoration authority. No content, writer event, copy creation/deletion/exposure, elevation or arbitrary query is requested. Volume-wide discovery is absent from agent CLI/MCP.
