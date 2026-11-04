@@ -30,6 +30,7 @@ pub(crate) enum QueryFamily {
     SnapshotDiary,
     SpaceAccount,
     RecoveryCopies,
+    HistoryClip,
 }
 
 #[derive(Default)]
@@ -46,7 +47,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 13],
+    slots: [Slot; 14],
 }
 
 impl QueryFamily {
@@ -65,6 +66,7 @@ impl QueryFamily {
             Self::SnapshotDiary => 10,
             Self::SpaceAccount => 11,
             Self::RecoveryCopies => 12,
+            Self::HistoryClip => 13,
         }
     }
 }
@@ -273,6 +275,25 @@ pub(crate) async fn query_snapshot_capture(
         engine.inner().clone(),
         database.0.clone(),
         move |store, cancel| store.visual_capture(snapshot, cancel),
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn query_history_clip(
+    request: voldiq_core::snapshots::ExportClipRequest,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+    database: State<'_, crate::snapshot_commands::SnapshotDatabase>,
+) -> Result<Option<voldiq_core::snapshots::ExportClip>, String> {
+    run_stored_query(
+        epoch,
+        QueryFamily::HistoryClip,
+        request_id,
+        engine.inner().clone(),
+        database.0.clone(),
+        move |store, cancel| store.export_clip(&request, cancel, |_| {}),
     )
     .await
 }

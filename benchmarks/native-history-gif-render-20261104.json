@@ -1,0 +1,38 @@
+{
+  "checkedUtc": "2026-11-04T17:25:16.783030+00:00",
+  "fixtureDirectory": "C:\\Users\\yagol\\AppData\\Local\\Temp\\.tmpdnkV6P",
+  "gifSha256": "8A3B9417AD39D43629DE4CCB2F1B0F67E29A146A0C5455F42ECAEB4D91BFAB4C",
+  "gifBytes": 41520,
+  "reader": "Pillow independent GIF decoder",
+  "reviewImage": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\history-gif-render-w_a9gp6j\\comparison.png",
+  "width": 1000,
+  "height": 560,
+  "frames": [
+    {
+      "frame": 0,
+      "logicalBytes": "33",
+      "savedUnixSeconds": 1793813064,
+      "durationMs": 500,
+      "meanAbsoluteRgbDifference": [
+        0.0327125,
+        0.02731607142857143,
+        0.03949821428571428
+      ],
+      "opaque": true
+    },
+    {
+      "frame": 1,
+      "logicalBytes": "61",
+      "savedUnixSeconds": 1793813065,
+      "durationMs": 500,
+      "meanAbsoluteRgbDifference": [
+        0.0338,
+        0.025808928571428573,
+        0.03333214285714286
+      ],
+      "opaque": true
+    }
+  ],
+  "metadataEqualsNativeClip": true,
+  "scope": "Owned real recorded 33/61-byte source clip through the production shared historical Canvas painter, native GIF codec and protected destination owner. Metadata, privacy, dimensions, delays, opacity and decoded pixel differences checked. Source Canvas and decoded GIF rendered for visual review. Does not prove WebView capture, native IPC/save-dialog interaction, keyboard, Windows scaling, wider scenes/fonts or performance."
+}

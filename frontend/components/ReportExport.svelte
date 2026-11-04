@@ -4,6 +4,7 @@
   import Icon from './Icon.svelte';
   import {
     createReportExport,
+    indexedExport,
     reportSelection,
     type ReportState,
     type ReportReceipt,
@@ -47,7 +48,7 @@
   const exportSession = createReportExport<ReportSelection, ReportFormat>(
     {
       save: (context, request, format) =>
-        invoke<ReportReceipt>('save_report', { ...context, request, format }),
+        invoke<ReportReceipt>('save_report', { ...indexedExport(context), request, format }),
       read: (context) => invoke<ReportEvent | null>('report_progress', { ...context }),
       cancel: (context) => invoke<boolean>('cancel_report', { ...context }),
     },
@@ -92,7 +93,11 @@
     pending = true;
     onbusy(true);
     try {
-      await exportSession.save({ indexId, requestId: crypto.randomUUID() }, request, format);
+      await exportSession.save(
+        { owner: { kind: 'index', id: indexId }, requestId: crypto.randomUUID() },
+        request,
+        format,
+      );
     } finally {
       if (mounted) {
         pending = false;

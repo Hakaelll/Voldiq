@@ -1642,6 +1642,7 @@
         {/key}
       {:else if view === 'history'}
         <History
+          blocked={busy}
           enabled={ready && !busy && historical === null}
           onbusy={(value) => {
             analysisBusy = value;

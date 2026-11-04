@@ -1,11 +1,24 @@
 use crate::{Engine, analysis_status::IndexId};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::sync::{
     Arc, Mutex,
     atomic::{AtomicBool, Ordering},
 };
 use tauri::State;
 use voldiq_core::exports::{ReportFormat, ReportSelection, StreamOutcome, StreamProgress};
+
+#[derive(Clone, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub(crate) enum Owner {
+    Index { id: IndexId },
+    History { fingerprint: String },
+}
+#[derive(Clone, Copy, Serialize)]
+#[serde(untagged)]
+enum Progress {
+    Records(StreamProgress),
+    Frames(voldiq_core::exports::GifProgress),
+}
 
 #[derive(Default)]
 pub(crate) struct Sessions {
@@ -18,19 +31,19 @@ struct Run {
 #[derive(Clone, Serialize)]
 pub(crate) struct Event {
     request_id: String,
-    index_id: IndexId,
+    owner: Owner,
     phase: Phase,
 }
 #[derive(Clone, Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 enum Phase {
     Choosing,
-    Running { id: u64, progress: StreamProgress },
+    Running { id: u64, progress: Progress },
 }
 #[derive(Serialize)]
 pub(crate) struct Receipt {
     request_id: String,
-    index_id: IndexId,
+    owner: Owner,
     outcome: Outcome,
 }
 #[derive(Serialize)]
@@ -38,10 +51,10 @@ pub(crate) struct Receipt {
 enum Outcome {
     DialogCancelled,
     Cancelled {
-        progress: StreamProgress,
+        progress: Progress,
     },
     Complete {
-        progress: StreamProgress,
+        progress: Progress,
         path: std::path::PathBuf,
     },
 }
@@ -50,10 +63,16 @@ enum Outcome {
 struct Session {
     engine: Arc<Engine>,
     request_id: String,
-    index_id: IndexId,
+    owner: Owner,
 }
 impl Session {
-    fn begin(engine: Arc<Engine>, request_id: String, index_id: IndexId) -> Result<Self, String> {
+    fn begin(engine: Arc<Engine>, request_id: String, owner: Owner) -> Result<Self, String> {
+        if let Owner::History { fingerprint } = &owner
+            && (fingerprint.len() != 64
+                || !fingerprint.bytes().all(|byte| byte.is_ascii_hexdigit()))
+        {
+            return Err("Invalid history export identity.".into());
+        }
         if request_id.len() != 36
             || !request_id
                 .bytes()
@@ -72,7 +91,7 @@ impl Session {
         *slot = Some(Run {
             event: Event {
                 request_id: request_id.clone(),
-                index_id,
+                owner: owner.clone(),
                 phase: Phase::Choosing,
             },
             cancel: Arc::new(AtomicBool::new(false)),
@@ -81,7 +100,7 @@ impl Session {
         Ok(Self {
             engine,
             request_id,
-            index_id,
+            owner,
         })
     }
     fn cancelled(&self) -> Result<bool, String> {
@@ -93,21 +112,20 @@ impl Session {
             .map_err(|error| error.to_string())?;
         Ok(slot
             .as_ref()
+            .filter(|run| run.event.request_id == self.request_id && run.event.owner == self.owner)
             .is_none_or(|run| run.cancel.load(Ordering::Relaxed)))
     }
-    fn running(
-        &self,
-        id: u64,
-        cancel: Arc<AtomicBool>,
-        progress: StreamProgress,
-    ) -> Result<(), String> {
+    fn running(&self, id: u64, cancel: Arc<AtomicBool>, progress: Progress) -> Result<(), String> {
         let mut slot = self
             .engine
             .exports
             .run
             .lock()
             .map_err(|error| error.to_string())?;
-        let run = slot.as_mut().ok_or("report export session ended.")?;
+        let run = slot
+            .as_mut()
+            .filter(|run| run.event.request_id == self.request_id && run.event.owner == self.owner)
+            .ok_or("report export session ended.")?;
         if run.cancel.load(Ordering::Relaxed) {
             cancel.store(true, Ordering::Relaxed);
         }
@@ -115,10 +133,11 @@ impl Session {
         run.event.phase = Phase::Running { id, progress };
         Ok(())
     }
-    fn progress(&self, progress: StreamProgress) {
+    fn progress(&self, progress: Progress) {
         if let Ok(mut slot) = self.engine.exports.run.lock()
             && let Some(run) = slot.as_mut()
             && run.event.request_id == self.request_id
+            && run.event.owner == self.owner
             && let Phase::Running {
                 progress: latest, ..
             } = &mut run.event.phase
@@ -129,7 +148,7 @@ impl Session {
     fn receipt(&self, outcome: Outcome) -> Receipt {
         Receipt {
             request_id: self.request_id.clone(),
-            index_id: self.index_id,
+            owner: self.owner.clone(),
             outcome,
         }
     }
@@ -138,7 +157,7 @@ impl Drop for Session {
     fn drop(&mut self) {
         if let Ok(mut slot) = self.engine.exports.run.lock()
             && slot.as_ref().is_some_and(|run| {
-                run.event.request_id == self.request_id && run.event.index_id == self.index_id
+                run.event.request_id == self.request_id && run.event.owner == self.owner
             })
         {
             *slot = None;
@@ -279,18 +298,10 @@ async fn save_file(
     #[cfg(windows)]
     {
         let engine = engine.inner().clone();
-        let session = Session::begin(engine.clone(), request_id, index_id)?;
+        let session = Session::begin(engine.clone(), request_id, Owner::Index { id: index_id })?;
         engine.index_for(index_id)?;
         let extension = request.extension();
-        let path = tauri::async_runtime::spawn_blocking(move || {
-            rfd::FileDialog::new()
-                .set_title("Save report · existing files are preserved")
-                .add_filter("Report", &[extension])
-                .set_file_name(format!("voldiq-report.{extension}"))
-                .save_file()
-        })
-        .await
-        .map_err(|error| error.to_string())?;
+        let path = choose_file(extension).await?;
         if session.cancelled()? {
             return Ok(session.receipt(Outcome::DialogCancelled));
         }
@@ -308,11 +319,11 @@ async fn save_file(
         session.running(
             operation.id,
             operation.cancel.clone(),
-            StreamProgress {
+            Progress::Records(StreamProgress {
                 inspected: 0,
                 rows: 0,
                 total_entries,
-            },
+            }),
         )?;
         // The blocking worker owns both the session and operation until every file handle is closed.
         tauri::async_runtime::spawn_blocking(move || {
@@ -325,7 +336,7 @@ async fn save_file(
                     &path,
                     &operation._lease,
                     &operation.cancel,
-                    |value| session.progress(value),
+                    |value| session.progress(Progress::Records(value)),
                 ),
                 FileRequest::Png(selection) => voldiq_core::exports::save_png(
                     &index,
@@ -333,7 +344,7 @@ async fn save_file(
                     &path,
                     &operation._lease,
                     &operation.cancel,
-                    |value| session.progress(value),
+                    |value| session.progress(Progress::Records(value)),
                 ),
                 FileRequest::Svg(selection) => voldiq_core::exports::save_svg(
                     &index,
@@ -341,13 +352,18 @@ async fn save_file(
                     &path,
                     &operation._lease,
                     &operation.cancel,
-                    |value| session.progress(value),
+                    |value| session.progress(Progress::Records(value)),
                 ),
             }
             .map_err(|error| error.to_string())?;
             let outcome = match result {
-                StreamOutcome::Complete(progress) => Outcome::Complete { progress, path },
-                StreamOutcome::Cancelled(progress) => Outcome::Cancelled { progress },
+                StreamOutcome::Complete(progress) => Outcome::Complete {
+                    progress: Progress::Records(progress),
+                    path,
+                },
+                StreamOutcome::Cancelled(progress) => Outcome::Cancelled {
+                    progress: Progress::Records(progress),
+                },
             };
             Ok(session.receipt(outcome))
         })
@@ -361,9 +377,139 @@ async fn save_file(
     }
 }
 
+#[cfg(windows)]
+async fn choose_file(extension: &'static str) -> Result<Option<std::path::PathBuf>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        rfd::FileDialog::new()
+            .set_title("Save export · existing files are preserved")
+            .add_filter("Export", &[extension])
+            .set_file_name(if extension == "gif" {
+                "voldiq-history.gif".into()
+            } else {
+                format!("voldiq-report.{extension}")
+            })
+            .save_file()
+    })
+    .await
+    .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub(crate) async fn save_history_gif(
+    request: tauri::ipc::Request<'_>,
+    engine: State<'_, Arc<Engine>>,
+    database: State<'_, crate::snapshot_commands::SnapshotDatabase>,
+) -> Result<Receipt, String> {
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields, rename_all = "camelCase")]
+    struct Metadata {
+        request_id: String,
+        request: voldiq_core::exports::HistoryGifRequest,
+        lengths: Vec<usize>,
+    }
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err("GIF export requires a binary packet.".into());
+    };
+    let header: [u8; 4] = bytes
+        .get(..4)
+        .ok_or("Missing GIF packet header.")?
+        .try_into()
+        .map_err(|_| "Invalid GIF packet header.")?;
+    let length = u32::from_le_bytes(header) as usize;
+    if length > 64 * 1024 || bytes.len() < 4 + length || bytes.len() - 4 - length > 32 * 1024 * 1024
+    {
+        return Err("GIF packet exceeds its metadata or image limit.".into());
+    }
+    let metadata: Metadata = serde_json::from_slice(&bytes[4..4 + length])
+        .map_err(|_| "Invalid GIF packet metadata.")?;
+    if !(2..=60).contains(&metadata.lengths.len())
+        || metadata.lengths.len() != metadata.request.clip.snapshot_ids.len()
+    {
+        return Err("GIF frame count does not match the requested clip.".into());
+    }
+    let mut offset = 4 + length;
+    let mut images = Vec::with_capacity(metadata.lengths.len());
+    for count in metadata.lengths {
+        if count == 0 || count > 16 * 1024 * 1024 || count > bytes.len().saturating_sub(offset) {
+            return Err("Invalid GIF frame length.".into());
+        }
+        images.push(bytes[offset..offset + count].to_vec());
+        offset += count;
+    }
+    if offset != bytes.len() {
+        return Err("Unexpected trailing GIF packet bytes.".into());
+    }
+    #[cfg(windows)]
+    {
+        let engine = engine.inner().clone();
+        let session = Session::begin(
+            engine.clone(),
+            metadata.request_id,
+            Owner::History {
+                fingerprint: metadata.request.fingerprint.clone(),
+            },
+        )?;
+        let path = choose_file("gif").await?;
+        if session.cancelled()? {
+            return Ok(session.receipt(Outcome::DialogCancelled));
+        }
+        let Some(path) = path else {
+            return Ok(session.receipt(Outcome::DialogCancelled));
+        };
+        let operation = engine.begin()?;
+        session.running(
+            operation.id,
+            operation.cancel.clone(),
+            Progress::Frames(voldiq_core::exports::GifProgress {
+                stage: voldiq_core::exports::GifStage::Preparing,
+                completed_frames: 0,
+                total_frames: images.len(),
+            }),
+        )?;
+        let database = database.0.clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            let store = database.lock().map_err(|error| error.to_string())?;
+            let mut images = images.into_iter();
+            let result = voldiq_core::exports::save_history_gif(
+                &store,
+                &metadata.request,
+                &path,
+                &operation._lease,
+                &operation.cancel,
+                |value| session.progress(Progress::Frames(value)),
+                || Ok(images.next()),
+            )
+            .map_err(|error| error.to_string())?;
+            let outcome = match result {
+                StreamOutcome::Complete(progress) => Outcome::Complete {
+                    progress: Progress::Frames(progress),
+                    path,
+                },
+                StreamOutcome::Cancelled(progress) => Outcome::Cancelled {
+                    progress: Progress::Frames(progress),
+                },
+            };
+            Ok(session.receipt(outcome))
+        })
+        .await
+        .map_err(|error| error.to_string())?
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (
+            metadata.request_id,
+            metadata.request,
+            images,
+            engine,
+            database,
+        );
+        Err("History file export is available on Windows only.".into())
+    }
+}
+
 #[tauri::command]
 pub(crate) fn report_progress(
-    index_id: IndexId,
+    owner: Owner,
     request_id: String,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<Option<Event>, String> {
@@ -374,13 +520,13 @@ pub(crate) fn report_progress(
         .map_err(|error| error.to_string())?;
     Ok(slot
         .as_ref()
-        .filter(|run| run.event.index_id == index_id && run.event.request_id == request_id)
+        .filter(|run| run.event.owner == owner && run.event.request_id == request_id)
         .map(|run| run.event.clone()))
 }
 
 #[tauri::command]
 pub(crate) fn cancel_report(
-    index_id: IndexId,
+    owner: Owner,
     request_id: String,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<bool, String> {
@@ -391,7 +537,7 @@ pub(crate) fn cancel_report(
         .map_err(|error| error.to_string())?;
     if let Some(run) = slot
         .as_ref()
-        .filter(|run| run.event.index_id == index_id && run.event.request_id == request_id)
+        .filter(|run| run.event.owner == owner && run.event.request_id == request_id)
     {
         run.cancel.store(true, Ordering::Relaxed);
         Ok(true)

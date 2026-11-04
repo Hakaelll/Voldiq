@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import HistoricalMap from './HistoricalMap.svelte';
+  import HistoryExport from './HistoryExport.svelte';
+  import { isTauri } from '@tauri-apps/api/core';
   import { snapshotCaptureQueries } from '../lib/queries';
   import { bytes, date, type Snapshot, type SnapshotVisualFrame } from '../lib/types';
 
@@ -8,10 +10,12 @@
     captures,
     disabled = false,
     onopen,
+    onbusy,
   }: {
     captures: Snapshot[];
     disabled?: boolean;
     onopen: (snapshot: Snapshot) => Promise<void>;
+    onbusy: (busy: boolean) => void;
   } = $props();
   const ordered = $derived([...captures].sort((a, b) => a.captured - b.captured || a.id - b.id));
   let position = $state(0),
@@ -31,17 +35,13 @@
     model.kind !== 'loading' && model.snapshot === selected?.id ? model : null,
   );
   const frame = $derived(current?.kind === 'ready' && !disabled ? current.frame : null);
-  const maximum = $derived(
-    Math.max(
-      0,
-      ...ordered
-        .filter(
-          (capture) =>
-            capture.observation?.accounting_version === selected?.observation?.accounting_version,
-        )
-        .map((capture) => capture.logical),
+  const accountingCaptures = $derived(
+    ordered.filter(
+      (capture) =>
+        capture.observation?.accounting_version === selected?.observation?.accounting_version,
     ),
   );
+  const maximum = $derived(Math.max(0, ...accountingCaptures.map((capture) => capture.logical)));
 
   $effect(() => {
     const snapshot = selected?.id;
@@ -140,6 +140,16 @@
     <label class="snapshot-playback-loop"
       ><input type="checkbox" bind:checked={loop} {disabled} />Loop</label
     >
+    {#if isTauri()}<HistoryExport
+        captures={accountingCaptures}
+        {disabled}
+        initialDelay={speed === 2 ? 50 : speed === 0.5 ? 200 : 100}
+        initialLoop={loop}
+        onshow={() => {
+          playing = false;
+        }}
+        {onbusy}
+      />{/if}
   </div>
   <label class="snapshot-playback-timeline"
     >Capture {ordered.length ? position + 1 : 0} of {ordered.length}

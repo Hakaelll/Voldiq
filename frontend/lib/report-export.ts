@@ -7,8 +7,9 @@ export interface ReportProgress {
   rows: number;
   total_entries: number;
 }
+export type ExportOwner = { kind: 'index'; id: IndexId } | { kind: 'history'; fingerprint: string };
 export interface ReportContext {
-  indexId: IndexId;
+  owner: ExportOwner;
   requestId: string;
 }
 export interface ReportSelection {
@@ -26,24 +27,24 @@ export interface ReportSelection {
   >;
   include_paths: boolean;
 }
-export interface ReportEvent {
-  index_id: IndexId;
+export interface ReportEvent<Progress = ReportProgress> {
+  owner: ExportOwner;
   request_id: string;
-  phase: { kind: 'choosing' } | { kind: 'running'; id: number; progress: ReportProgress };
+  phase: { kind: 'choosing' } | { kind: 'running'; id: number; progress: Progress };
 }
-export interface ReportReceipt {
-  index_id: IndexId;
+export interface ReportReceipt<Progress = ReportProgress> {
+  owner: ExportOwner;
   request_id: string;
   outcome:
     | { kind: 'dialog_cancelled' }
-    | { kind: 'cancelled'; progress: ReportProgress }
-    | { kind: 'complete'; progress: ReportProgress; path: string };
+    | { kind: 'cancelled'; progress: Progress }
+    | { kind: 'complete'; progress: Progress; path: string };
 }
-export type ReportState =
+export type ReportState<Progress = ReportProgress> =
   | { kind: 'idle' }
   | { kind: 'choosing'; cancelling: boolean }
-  | { kind: 'running'; progress: ReportProgress; cancelling: boolean }
-  | { kind: 'finished'; receipt: ReportReceipt }
+  | { kind: 'running'; progress: Progress; cancelling: boolean }
+  | { kind: 'finished'; receipt: ReportReceipt<Progress> }
   | { kind: 'failed'; message: string };
 
 /** Complete reports recurse beneath the explicitly chosen folder, independently of UI paging/sort. */
@@ -65,9 +66,26 @@ export function reportSelection(
   };
 }
 
-interface Transport<Request, Format extends string> {
-  save(context: ReportContext, request: Request, format: Format): Promise<ReportReceipt>;
-  read(context: ReportContext): Promise<ReportEvent | null>;
+export function sameOwner(left: ExportOwner, right: ExportOwner): boolean {
+  switch (left.kind) {
+    case 'index':
+      return right.kind === 'index' && left.id === right.id;
+    case 'history':
+      return right.kind === 'history' && left.fingerprint === right.fingerprint;
+    default: {
+      const exhaustive: never = left;
+      return exhaustive;
+    }
+  }
+}
+export function indexedExport(context: ReportContext): { indexId: IndexId; requestId: string } {
+  if (context.owner.kind !== 'index') throw new Error('This export requires a captured analysis.');
+  return { indexId: context.owner.id, requestId: context.requestId };
+}
+
+interface Transport<Request, Format extends string, Progress> {
+  save(context: ReportContext, request: Request, format: Format): Promise<ReportReceipt<Progress>>;
+  read(context: ReportContext): Promise<ReportEvent<Progress> | null>;
   cancel(context: ReportContext): Promise<boolean>;
 }
 interface Run {
@@ -79,15 +97,19 @@ interface Run {
   cancelling: boolean;
 }
 
-export function createReportExport<Request = ReportSelection, Format extends string = ReportFormat>(
-  transport: Transport<Request, Format>,
-  changed: (state: ReportState) => void,
+export function createReportExport<
+  Request = ReportSelection,
+  Format extends string = ReportFormat,
+  Progress = ReportProgress,
+>(
+  transport: Transport<Request, Format, Progress>,
+  changed: (state: ReportState<Progress>) => void,
   delayMs = 250,
 ) {
   let alive = true;
   let active: Run | null = null;
-  let last: ReportState = { kind: 'idle' };
-  function emit(state: ReportState): void {
+  let last: ReportState<Progress> = { kind: 'idle' };
+  function emit(state: ReportState<Progress>): void {
     last = state;
     if (alive) changed(state);
   }
@@ -108,7 +130,7 @@ export function createReportExport<Request = ReportSelection, Format extends str
       if (run.stopped || active !== run) return;
       if (
         event &&
-        event.index_id === run.context.indexId &&
+        sameOwner(event.owner, run.context.owner) &&
         event.request_id === run.context.requestId
       ) {
         emit(
@@ -141,7 +163,7 @@ export function createReportExport<Request = ReportSelection, Format extends str
         void poll(run);
         const receipt = await pending;
         if (active !== run) return;
-        if (receipt.index_id !== context.indexId || receipt.request_id !== context.requestId)
+        if (!sameOwner(receipt.owner, context.owner) || receipt.request_id !== context.requestId)
           throw new Error('Export response belongs to another request.');
         emit({ kind: 'finished', receipt });
       } catch (problem) {

@@ -1,3 +1,4 @@
+import type { HistoryClip, HistoryClipRequest } from './history-clip';
 import type { IndexId } from './index-context';
 import type { SpaceReport } from './space-account';
 import type { RecoveryReport } from './recovery';
@@ -117,6 +118,20 @@ export const retentionQueries = createQueryRunner<SnapshotRetentionPreview, { sn
     run: async (_family, requestId, query) =>
       invoke<SnapshotRetentionPreview | null>('query_snapshot_retention', {
         ...query,
+        epoch: await querySession(),
+        requestId,
+      }),
+    cancel: async (family, requestId) =>
+      invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+  },
+);
+
+export const historyClipQueries = createQueryRunner<HistoryClip, HistoryClipRequest>(
+  'history_clip',
+  {
+    run: async (_family, requestId, request) =>
+      invoke<HistoryClip | null>('query_history_clip', {
+        request,
         epoch: await querySession(),
         requestId,
       }),

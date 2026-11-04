@@ -1,3 +1,6 @@
+import { historicalRects } from './history-geometry.ts';
+import { paintHistoryFrame, gifPacket } from './history-export.ts';
+import type { HistoryClip, GifProgress, HistoryGifRequest } from './history-clip.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { updateCleanupSelection } from './cleanup-selection.ts';
@@ -14,6 +17,7 @@ import {
   type ReportReceipt,
   type ReportEvent,
   type ReportState,
+  type ReportContext,
   type ReportSelection,
   type ReportFormat,
 } from './report-export.ts';
@@ -278,7 +282,10 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   assert.equal(liveStates.length, visibleStates);
   const csvIndex = setIndexContext(21);
   assert.ok(csvIndex);
-  const csvContext = { indexId: csvIndex, requestId: '00000000-0000-4000-8000-000000000001' };
+  const csvContext: ReportContext = {
+    owner: { kind: 'index', id: csvIndex },
+    requestId: '00000000-0000-4000-8000-000000000001',
+  };
   const reportRequest = reportSelection(
     { parent: 3, sort: 'size', offset: 500, limit: 1, text: 'notes', min_size: 10 },
     3,
@@ -339,7 +346,7 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   assert.deepEqual(csvStates, [{ kind: 'choosing', cancelling: false }]);
   const progress = { rows: 1, inspected: 3, total_entries: 3 };
   completeExport({
-    index_id: csvIndex,
+    owner: csvContext.owner,
     request_id: csvContext.requestId,
     outcome: { kind: 'complete', path: 'owned-report.xlsx', progress },
   });
@@ -347,7 +354,7 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   assert.equal(csvStates.at(-1)?.kind, 'finished');
   const settledStates = csvStates.length;
   completeRead({
-    index_id: csvIndex,
+    owner: csvContext.owner,
     request_id: csvContext.requestId,
     phase: { kind: 'running', id: 7, progress },
   });
@@ -359,14 +366,14 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   const disposedStates = csvStates.length;
   await new Promise<void>((resolve) => setImmediate(resolve));
   completeRead({
-    index_id: csvIndex,
+    owner: csvContext.owner,
     request_id: cancelledContext.requestId,
     phase: { kind: 'running', id: 8, progress },
   });
   await new Promise<void>((resolve) => setImmediate(resolve));
   assert.deepEqual(csvCancels, [cancelledContext.requestId, cancelledContext.requestId]);
   completeExport({
-    index_id: csvIndex,
+    owner: csvContext.owner,
     request_id: cancelledContext.requestId,
     outcome: { kind: 'cancelled', progress },
   });
@@ -411,6 +418,137 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
     mapPng({ kind: 'treemap', options: mapOptions, lens: null }, 1, stoppedImage.signal),
     { name: 'AbortError' },
   );
+  const historyFrame = {
+    snapshot: 1,
+    captured: 1700000000,
+    observation: null,
+    presence: 'present',
+    kind: 'directory',
+    logical: '33',
+    incomplete: true,
+    child_count: 2,
+    entries: [
+      {
+        path_id: '1',
+        name: '<script>notes</script>',
+        kind: 'file',
+        logical: '20',
+        incomplete: false,
+      },
+      { path_id: '2', name: 'Other.bin', kind: 'file', logical: '13', incomplete: false },
+    ],
+    remainder: null,
+  } satisfies HistoryClip['frames'][number];
+  const history: HistoryClip = {
+    schema_version: 1,
+    root_key: 1,
+    scope_fingerprint: 'a'.repeat(64),
+    root_path: null,
+    exclusions: null,
+    exclusion_count: 1,
+    paths_included: false,
+    units: 'Logical path bytes',
+    selection: 'Recorded root summaries',
+    accounting: 'unknown',
+    maximum_logical: '66',
+    partial_frames: 1,
+    legacy_frames: 2,
+    limitations: 'Synthetic owned test data',
+    fingerprint: 'b'.repeat(64),
+    frames: [
+      historyFrame,
+      {
+        ...historyFrame,
+        snapshot: 2,
+        logical: '66',
+        incomplete: false,
+        entries: historyFrame.entries.map((entry) => ({
+          ...entry,
+          logical: entry.logical === '20' ? '40' : '26',
+        })),
+      },
+    ],
+  };
+  const historicalGeometry = historicalRects(history.frames[0], 66, 1000);
+  assert.equal(
+    historicalGeometry.reduce((area, rect) => area + rect.width * rect.height, 0),
+    160000,
+  );
+  const historySurface = new SvgSurface(1000, 560, (text) => ({
+    width: text.length * 6,
+    actualBoundingBoxAscent: 9,
+  }));
+  paintHistoryFrame(historySurface, history, 0, {
+    surface: '#fcfcf9',
+    text: '#242c29',
+    secondary: '#505c54',
+  });
+  const historyDrawing = historySurface.finish();
+  assert.ok(historyDrawing.includes('At least 33 logical bytes'));
+  assert.ok(historyDrawing.includes('Partial capture; sizes are lower bounds.'));
+  assert.ok(historyDrawing.includes('Legacy accounting comparability is unverified.'));
+  assert.ok(
+    historyDrawing.includes('&lt;script&gt;notes&lt;/script&gt;') &&
+      !historyDrawing.includes('<script>'),
+  );
+  const historyRequest: HistoryGifRequest = {
+    clip: { snapshot_ids: [1, 2], include_paths: false },
+    fingerprint: history.fingerprint,
+    width: 1000,
+    height: 560,
+    delay_centiseconds: 100,
+    looped: false,
+  };
+  const binary = gifPacket('owned-history-export', historyRequest, [
+    new Uint8Array([1, 2]),
+    new Uint8Array([3, 4, 5]),
+  ]);
+  const headerLength = new DataView(binary.buffer).getUint32(0, true);
+  const decodedHeader: unknown = JSON.parse(
+    new TextDecoder().decode(binary.slice(4, 4 + headerLength)),
+  );
+  assert.deepEqual(decodedHeader, {
+    requestId: 'owned-history-export',
+    request: historyRequest,
+    lengths: [2, 3],
+  });
+  assert.deepEqual([...binary.slice(4 + headerLength)], [1, 2, 3, 4, 5]);
+  const historyOwner: ReportContext = {
+    owner: { kind: 'history', fingerprint: history.fingerprint },
+    requestId: '00000000-0000-4000-8000-000000000003',
+  };
+  let finishHistory: (value: ReportReceipt<GifProgress>) => void = () => {
+    throw new Error('Missing history export');
+  };
+  const historyStates: ReportState<GifProgress>[] = [];
+  const gifProgress: GifProgress = { stage: 'finalizing', completed_frames: 2, total_frames: 2 };
+  const historySession = createReportExport<Uint8Array, 'gif', GifProgress>(
+    {
+      save: async () =>
+        new Promise((resolve) => {
+          finishHistory = resolve;
+        }),
+      read: async () => ({
+        owner: { kind: 'index', id: csvIndex },
+        request_id: historyOwner.requestId,
+        phase: { kind: 'running', id: 9, progress: gifProgress },
+      }),
+      cancel: async () => true,
+    },
+    (state) => historyStates.push(state),
+    60000,
+  );
+  const savingHistory = historySession.save(historyOwner, binary, 'gif');
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.deepEqual(historyStates, [{ kind: 'choosing', cancelling: false }]);
+  finishHistory({
+    owner: historyOwner.owner,
+    request_id: historyOwner.requestId,
+    outcome: { kind: 'complete', path: 'owned-history.gif', progress: gifProgress },
+  });
+  await savingHistory;
+  assert.equal(historyStates.at(-1)?.kind, 'finished');
+  historySession.dispose();
   const unsafeColor = new SvgSurface(10, 10, () => ({ width: 1, actualBoundingBoxAscent: 9 }));
   unsafeColor.fillStyle = 'url(https://private.invalid/image)';
   assert.throws(() => unsafeColor.fillRect(0, 0, 10, 10), /explicit RGB/);

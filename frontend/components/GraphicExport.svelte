@@ -3,6 +3,8 @@
   import { invoke } from '@tauri-apps/api/core';
   import {
     createReportExport,
+    indexedExport,
+    type ReportContext,
     type ReportState,
     type ReportReceipt,
     type ReportEvent,
@@ -47,7 +49,7 @@
     {
       save: (owner, value) =>
         value.kind === 'svg'
-          ? invoke<ReportReceipt>('save_svg', { ...owner, request: value.request })
+          ? invoke<ReportReceipt>('save_svg', { ...indexedExport(owner), request: value.request })
           : invoke<ReportReceipt>('save_png', value.packet),
       read: (owner) => invoke<ReportEvent | null>('report_progress', { ...owner }),
       cancel: (owner) => invoke<boolean>('cancel_report', { ...owner }),
@@ -87,12 +89,18 @@
     const controller = new AbortController();
     preparation = controller;
     try {
-      const owner = { indexId, requestId: crypto.randomUUID() };
+      const owner: ReportContext = {
+        owner: { kind: 'index', id: indexId },
+        requestId: crypto.randomUUID(),
+      };
       const captured = { ...context, include_paths: paths };
       let value: Prepared;
       if (format === 'png') {
         const image = await mapPng(scene, scale, controller.signal);
-        value = { kind: 'png', packet: pngPacket({ ...owner, context: captured, scale }, image) };
+        value = {
+          kind: 'png',
+          packet: pngPacket({ ...indexedExport(owner), context: captured, scale }, image),
+        };
       } else {
         const measure = document.createElement('canvas').getContext('2d');
         if (!measure) throw new Error('Canvas text measurement is unavailable.');

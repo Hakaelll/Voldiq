@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { layout, type WeightedNode } from '../lib/treemap';
-  import { categoryPaint } from '../lib/storage-map';
+  import { historicalRects, historicalAbsence } from '../lib/history-geometry';
   import { bytes, type SnapshotVisualFrame } from '../lib/types';
   let {
     frame,
@@ -19,39 +18,8 @@
     front?: boolean;
     reveal?: number;
   } = $props();
-  const rects = $derived.by(() => {
-    const nodes: WeightedNode[] = frame.entries.map((entry, index) => ({
-      id: index + 1,
-      name: entry.name,
-      value: Number(entry.logical),
-      directory: entry.kind === 'directory',
-      incomplete: entry.incomplete,
-    }));
-    if (frame.remainder)
-      nodes.push({
-        id: -1,
-        name: 'Other indexed contents',
-        value: Number(frame.remainder.logical),
-        directory: false,
-        category: 'remainder',
-      });
-    return layout(nodes, maximum > 0 ? (width * Number(frame.logical ?? 0)) / maximum : 0, 320).map(
-      (rect) => ({
-        ...rect,
-        paint: categoryPaint(rect),
-        source: rect.id > 0 ? frame.entries[rect.id - 1] : null,
-      }),
-    );
-  });
-  const absence = $derived(
-    frame.presence === 'not_recorded'
-      ? 'No entry recorded in this capture.'
-      : frame.presence === 'not_observed'
-        ? 'Not observed; capture coverage is incomplete.'
-        : frame.incomplete
-          ? 'No positive-size geometry in the partial records.'
-          : 'Zero recorded logical bytes.',
-  );
+  const rects = $derived(historicalRects(frame, maximum, width));
+  const absence = $derived(historicalAbsence(frame));
 </script>
 
 <svg

@@ -508,6 +508,62 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         ));
         assert_eq!(std::fs::read_dir(destination.path()).unwrap().count(), 2);
         if std::env::var("VOLDIQ_KEEP_GIF_FIXTURE").as_deref() == Ok("1") {
+            if let Ok(node) = std::env::var("VOLDIQ_CANVAS_NODE") {
+                let modules = std::env::var("VOLDIQ_CANVAS_MODULES").unwrap();
+                assert!(Path::new(&node).is_absolute() && Path::new(&modules).is_absolute());
+                assert_eq!(
+                    Path::new(&node)
+                        .file_stem()
+                        .unwrap()
+                        .to_string_lossy()
+                        .to_lowercase(),
+                    "node"
+                );
+                let recorded = store
+                    .export_clip(&request.clip, &loading, |_| {})
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(recorded.fingerprint, request.fingerprint);
+                std::fs::write(
+                    destination.path().join("clip.json"),
+                    serde_json::to_vec(&recorded).unwrap(),
+                )
+                .unwrap();
+                let script = Path::new(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../scripts/render_history_fixture.mjs");
+                let rendered = std::process::Command::new(node)
+                    .arg("--experimental-strip-types")
+                    .arg(script)
+                    .arg(modules)
+                    .arg(destination.path())
+                    .output()
+                    .unwrap();
+                assert!(
+                    rendered.status.success(),
+                    "{}",
+                    String::from_utf8_lossy(&rendered.stderr)
+                );
+                request.width = 1000;
+                request.height = 560;
+                let mut images = ["history-0.png", "history-1.png"]
+                    .into_iter()
+                    .map(|name| std::fs::read(destination.path().join(name)).unwrap());
+                let painted = destination.path().join("painted-history.gif");
+                assert!(matches!(
+                    save_history_gif(
+                        &store,
+                        &request,
+                        &painted,
+                        &lease,
+                        &loading,
+                        |_| {},
+                        || Ok(images.next())
+                    )
+                    .unwrap(),
+                    StreamOutcome::Complete(_)
+                ));
+                println!("Painted history fixture: {}", painted.display());
+            }
             println!("GIF fixture: {}", destination.keep().display());
         }
     }

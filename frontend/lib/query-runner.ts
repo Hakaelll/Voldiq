@@ -13,7 +13,8 @@ export type QueryFamily =
   | 'snapshot_calendar_entries'
   | 'snapshot_diary'
   | 'space_account'
-  | 'recovery_copies';
+  | 'recovery_copies'
+  | 'history_clip';
 export type QueryTransport<T = Page, Q = Query, F extends string = QueryFamily> = {
   run: (family: F, requestId: number, query: Q) => Promise<T | null>;
   cancel: (family: F, requestId: number) => Promise<void>;
