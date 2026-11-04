@@ -828,6 +828,7 @@ fn main() {
             export_commands::save_svg,
             export_commands::save_png,
             export_commands::save_history_gif,
+            export_commands::save_history_webm,
             export_commands::report_progress,
             export_commands::cancel_report,
             start_scan,

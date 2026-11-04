@@ -1,5 +1,5 @@
 import { historicalRects } from './history-geometry.ts';
-import { paintHistoryFrame, gifPacket } from './history-export.ts';
+import { paintHistoryFrame, gifPacket, webmPacket } from './history-export.ts';
 import type { HistoryClip, GifProgress, HistoryGifRequest } from './history-clip.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -513,6 +513,39 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
     lengths: [2, 3],
   });
   assert.deepEqual([...binary.slice(4 + headerLength)], [1, 2, 3, 4, 5]);
+  const { looped: _looped, ...videoRequest } = historyRequest;
+  const videoBinary = webmPacket(
+    'owned-video-export',
+    videoRequest,
+    new Uint8Array([0x1a, 0x45, 0xdf, 0xa3]),
+  );
+  const videoHeaderLength = new DataView(videoBinary.buffer).getUint32(0, true);
+  assert.deepEqual(
+    JSON.parse(new TextDecoder().decode(videoBinary.slice(4, 4 + videoHeaderLength))),
+    {
+      requestId: 'owned-video-export',
+      request: videoRequest,
+    },
+  );
+  assert.deepEqual([...videoBinary.slice(4 + videoHeaderLength)], [0x1a, 0x45, 0xdf, 0xa3]);
+  assert.throws(() => webmPacket('empty-video', videoRequest, new Uint8Array()), /export limit/);
+  const videoSurface = new SvgSurface(1000, 560, (text) => ({
+    width: text.length * 6,
+    actualBoundingBoxAscent: 9,
+  }));
+  paintHistoryFrame(
+    videoSurface,
+    history,
+    1,
+    { surface: '#fcfcf9', text: '#242c29', secondary: '#505c54' },
+    'webm',
+  );
+  const videoDrawing = videoSurface.finish();
+  assert.ok(videoDrawing.includes('66 logical bytes'));
+  assert.ok(
+    videoDrawing.includes('WebM encoding may change colors and detail.') &&
+      !videoDrawing.includes('256 colors'),
+  );
   const historyOwner: ReportContext = {
     owner: { kind: 'history', fingerprint: history.fingerprint },
     requestId: '00000000-0000-4000-8000-000000000003',

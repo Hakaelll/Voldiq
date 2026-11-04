@@ -1,0 +1,93 @@
+{
+  "checkedUtc": "2026-11-04T18:27:26.450553+00:00",
+  "scope": "Owned core publisher outputs decoded independently; no WebView recorder, IPC, dialog, UI, seeking or performance acceptance.",
+  "developmentEncoder": {
+    "package": "imageio-ffmpeg 0.8.1 official PyPI wheel",
+    "wheelSha256": "f27ca4cb85e2d4946deedbce1a81245dfd942a2bcf94b53676fb3956aa95bf1b",
+    "executableSha256": "3256173f3f8bffd7df12227c68adf68025edb1832273a9530688a7bb1ed8edec",
+    "productionDependency": false
+  },
+  "fixtureDirectory": "C:\\Users\\yagol\\AppData\\Local\\Temp\\.tmpWKbjz7",
+  "files": [
+    {
+      "file": "vp8.webm",
+      "bytes": 3317,
+      "sha256": "2671275a77af7d75f9aeedca6dec32bf81bd6de6db42f3ec7d946394fbdbed41",
+      "codec": "V_VP8",
+      "frames": 2,
+      "width": 16,
+      "height": 16,
+      "timestampsSeconds": [
+        "0",
+        "0.5"
+      ],
+      "decodedPixelsExactlyPreserved": true,
+      "nativeLogicalBytes": [
+        "33",
+        "61"
+      ],
+      "pathsWithheld": true,
+      "inputTextMetadataDiscarded": true
+    },
+    {
+      "file": "vp8-live.webm",
+      "bytes": 3306,
+      "sha256": "c16c2694b49639ddf7b72851f777eae71cff3aa89d0c63393e375a31c7a4f072",
+      "codec": "V_VP8",
+      "frames": 2,
+      "width": 16,
+      "height": 16,
+      "timestampsSeconds": [
+        "0",
+        "0.5"
+      ],
+      "decodedPixelsExactlyPreserved": true,
+      "nativeLogicalBytes": [
+        "33",
+        "61"
+      ],
+      "pathsWithheld": true,
+      "inputTextMetadataDiscarded": true
+    },
+    {
+      "file": "vp9-live.webm",
+      "bytes": 3300,
+      "sha256": "601408832939de80cd977997a33f10ff2490928d487539e639e314e768b878a4",
+      "codec": "V_VP9",
+      "frames": 2,
+      "width": 16,
+      "height": 16,
+      "timestampsSeconds": [
+        "0",
+        "0.5"
+      ],
+      "decodedPixelsExactlyPreserved": true,
+      "nativeLogicalBytes": [
+        "33",
+        "61"
+      ],
+      "pathsWithheld": true,
+      "inputTextMetadataDiscarded": true
+    },
+    {
+      "file": "unknown-cluster.webm",
+      "bytes": 3317,
+      "sha256": "2671275a77af7d75f9aeedca6dec32bf81bd6de6db42f3ec7d946394fbdbed41",
+      "codec": "V_VP8",
+      "frames": 2,
+      "width": 16,
+      "height": 16,
+      "timestampsSeconds": [
+        "0",
+        "0.5"
+      ],
+      "decodedPixelsExactlyPreserved": true,
+      "nativeLogicalBytes": [
+        "33",
+        "61"
+      ],
+      "pathsWithheld": true,
+      "inputTextMetadataDiscarded": true
+    }
+  ]
+}

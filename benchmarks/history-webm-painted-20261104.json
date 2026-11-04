@@ -1,0 +1,45 @@
+{
+  "checkedUtc": "2026-11-04T18:21:01.393214+00:00",
+  "scope": "Production historical painter, owned 33/61-byte clip, developer VP8 encode/decode; not runtime MediaRecorder, native publication, dialog or performance acceptance.",
+  "webm": {
+    "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\history-webm-painted-20261104\\painted.webm",
+    "bytes": 21482,
+    "sha256": "41121c8483e17ec322b78dbdda2e964e7164e2453dd947549d7526f54b090656"
+  },
+  "comparison": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\history-webm-painted-20261104\\comparison.png",
+  "frames": [
+    {
+      "capture": 1,
+      "width": 1000,
+      "height": 560,
+      "meanAbsoluteRgbDifference": [
+        0.9977714285714285,
+        1.1058589285714286,
+        2.689151785714286
+      ],
+      "exactPixels": false
+    },
+    {
+      "capture": 2,
+      "width": 1000,
+      "height": 560,
+      "meanAbsoluteRgbDifference": [
+        0.8463982142857143,
+        1.0490142857142857,
+        2.315207142857143
+      ],
+      "exactPixels": false
+    }
+  ],
+  "visualReview": "Source and independently decoded frames reviewed at 1000 by 560; geometry and labels remain legible. This does not establish runtime or wider-scene acceptance.",
+  "containerProfileProbe": {
+    "codec": "V_VP8",
+    "blocks": 2,
+    "dimensions": [
+      1000,
+      560
+    ],
+    "sourceSha256": "ca3ff9ac03ac7d8c80ef04e1ceeb871eafa5e3fcd16f077785ab229e69521847",
+    "scope": "Standalone probe of the actual bounded container validator; no database or publication claim."
+  }
+}

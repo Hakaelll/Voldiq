@@ -35,3 +35,11 @@ export interface GifProgress {
   completed_frames: number;
   total_frames: number;
 }
+export type HistoryWebmRequest = Omit<HistoryGifRequest, 'looped'>;
+export type HistoryExportProgress =
+  | GifProgress
+  | {
+      stage: 'validating';
+      inspected_bytes: number;
+      total_bytes: number;
+    };

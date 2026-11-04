@@ -507,6 +507,164 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             StreamOutcome::Complete(_)
         ));
         assert_eq!(std::fs::read_dir(destination.path()).unwrap().count(), 2);
+        {
+            use voldiq_core::exports::{HistoryWebmRequest, WebmProgress, save_history_webm};
+            let videos = tempfile::tempdir().unwrap();
+            let mut video_request = HistoryWebmRequest {
+                clip: voldiq_core::snapshots::ExportClipRequest {
+                    snapshot_ids: vec![before, after],
+                    include_paths: false,
+                },
+                fingerprint: clip.fingerprint.clone(),
+                width: 16,
+                height: 16,
+                delay_centiseconds: 50,
+            };
+            let vp8 = include_bytes!("fixtures/history-vp8.webm");
+            for (name, input, codec) in [
+                ("vp8.webm", vp8.as_slice(), "V_VP8"),
+                (
+                    "vp8-live.webm",
+                    include_bytes!("fixtures/history-vp8-live.webm").as_slice(),
+                    "V_VP8",
+                ),
+                (
+                    "vp9-live.webm",
+                    include_bytes!("fixtures/history-vp9-live.webm").as_slice(),
+                    "V_VP9",
+                ),
+            ] {
+                let output = videos.path().join(name);
+                assert!(matches!(
+                    save_history_webm(
+                        &store,
+                        &video_request,
+                        input,
+                        &output,
+                        &lease,
+                        &loading,
+                        |_| {}
+                    )
+                    .unwrap(),
+                    StreamOutcome::Complete(WebmProgress::Finalizing {
+                        completed_frames: 2,
+                        total_frames: 2
+                    })
+                ));
+                let bytes = std::fs::read(&output).unwrap();
+                assert_eq!(&bytes[..4], &[0x1a, 0x45, 0xdf, 0xa3]);
+                let text = String::from_utf8_lossy(&bytes);
+                assert!(text.contains("VOLDIQ_CONTEXT") && text.contains(codec));
+                assert!(
+                    !text.contains("input.invalid")
+                        && !text.contains("source-client-metadata-marker")
+                );
+                let expected = format!("\"clip\":{}", serde_json::to_string(&clip).unwrap());
+                assert!(text.contains(&expected));
+                assert!(
+                    save_history_webm(
+                        &store,
+                        &video_request,
+                        input,
+                        &output,
+                        &lease,
+                        &loading,
+                        |_| {}
+                    )
+                    .is_err()
+                );
+                assert_eq!(std::fs::read(&output).unwrap(), bytes);
+            }
+            // An unknown-size cluster ends at the next segment-level element, not inside its blocks.
+            let mut streaming = vp8.to_vec();
+            let cluster = streaming
+                .windows(4)
+                .position(|v| v == [0x1f, 0x43, 0xb6, 0x75])
+                .unwrap()
+                + 4;
+            let size_width = streaming[cluster].leading_zeros() as usize + 1;
+            streaming[cluster] = 0xff >> (size_width - 1);
+            streaming[cluster + 1..cluster + size_width].fill(0xff);
+            assert!(matches!(
+                save_history_webm(
+                    &store,
+                    &video_request,
+                    &streaming,
+                    &videos.path().join("unknown-cluster.webm"),
+                    &lease,
+                    &loading,
+                    |_| {}
+                )
+                .unwrap(),
+                StreamOutcome::Complete(_)
+            ));
+            let rejected = videos.path().join("rejected.webm");
+            let stop = AtomicBool::new(false);
+            assert!(matches!(
+                save_history_webm(&store, &video_request, vp8, &rejected, &lease, &stop, |p| {
+                    if matches!(p, WebmProgress::Validating { .. }) {
+                        stop.store(true, std::sync::atomic::Ordering::Relaxed);
+                    }
+                })
+                .unwrap(),
+                StreamOutcome::Cancelled(_)
+            ));
+            assert!(!rejected.exists());
+            let mut audio = vp8.to_vec();
+            let track_type = audio.windows(3).position(|v| v == [0x83, 0x81, 1]).unwrap();
+            audio[track_type + 2] = 2;
+            for input in [
+                &vp8[..vp8.len() / 2],
+                audio.as_slice(),
+                b"not webm".as_slice(),
+            ] {
+                assert!(
+                    save_history_webm(
+                        &store,
+                        &video_request,
+                        input,
+                        &rejected,
+                        &lease,
+                        &loading,
+                        |_| {}
+                    )
+                    .is_err()
+                );
+                assert!(!rejected.exists());
+            }
+            video_request.width = 17;
+            assert!(
+                save_history_webm(
+                    &store,
+                    &video_request,
+                    vp8,
+                    &rejected,
+                    &lease,
+                    &loading,
+                    |_| {}
+                )
+                .is_err()
+            );
+            video_request.width = 16;
+            let mut changed = false;
+            assert!(save_history_webm(&store, &video_request, vp8, &rejected, &lease, &loading, |p| {
+                if matches!(p, WebmProgress::Validating { inspected_bytes, total_bytes } if inspected_bytes == total_bytes) && !changed {
+                    clip_connection.execute("UPDATE snapshots SET captured=captured+1 WHERE id=?1", [after]).unwrap();
+                    changed = true;
+                }
+            }).is_err());
+            assert!(!rejected.exists());
+            clip_connection
+                .execute(
+                    "UPDATE snapshots SET captured=?1 WHERE id=?2",
+                    rusqlite::params![i64::try_from(history[0].captured).unwrap(), after],
+                )
+                .unwrap();
+            assert_eq!(std::fs::read_dir(videos.path()).unwrap().count(), 4);
+            if std::env::var("VOLDIQ_KEEP_WEBM_FIXTURE").as_deref() == Ok("1") {
+                println!("WebM fixture: {}", videos.keep().display());
+            }
+        }
         if std::env::var("VOLDIQ_KEEP_GIF_FIXTURE").as_deref() == Ok("1") {
             if let Ok(node) = std::env::var("VOLDIQ_CANVAS_NODE") {
                 let modules = std::env::var("VOLDIQ_CANVAS_MODULES").unwrap();

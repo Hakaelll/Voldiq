@@ -18,6 +18,7 @@ pub(crate) enum Owner {
 enum Progress {
     Records(StreamProgress),
     Frames(voldiq_core::exports::GifProgress),
+    Video(voldiq_core::exports::WebmProgress),
 }
 
 #[derive(Default)]
@@ -383,8 +384,8 @@ async fn choose_file(extension: &'static str) -> Result<Option<std::path::PathBu
         rfd::FileDialog::new()
             .set_title("Save export · existing files are preserved")
             .add_filter("Export", &[extension])
-            .set_file_name(if extension == "gif" {
-                "voldiq-history.gif".into()
+            .set_file_name(if matches!(extension, "gif" | "webm") {
+                format!("voldiq-history.{extension}")
             } else {
                 format!("voldiq-report.{extension}")
             })
@@ -500,6 +501,105 @@ pub(crate) async fn save_history_gif(
             metadata.request_id,
             metadata.request,
             images,
+            engine,
+            database,
+        );
+        Err("History file export is available on Windows only.".into())
+    }
+}
+
+#[tauri::command]
+pub(crate) async fn save_history_webm(
+    request: tauri::ipc::Request<'_>,
+    engine: State<'_, Arc<Engine>>,
+    database: State<'_, crate::snapshot_commands::SnapshotDatabase>,
+) -> Result<Receipt, String> {
+    #[derive(Deserialize)]
+    #[serde(deny_unknown_fields, rename_all = "camelCase")]
+    struct Metadata {
+        request_id: String,
+        request: voldiq_core::exports::HistoryWebmRequest,
+    }
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err("WebM export requires a binary packet.".into());
+    };
+    let header: [u8; 4] = bytes
+        .get(..4)
+        .ok_or("Missing WebM packet header.")?
+        .try_into()
+        .map_err(|_| "Invalid WebM packet header.")?;
+    let length = u32::from_le_bytes(header) as usize;
+    if length > 64 * 1024
+        || bytes.len() <= 4 + length
+        || bytes.len() - 4 - length > 32 * 1024 * 1024
+    {
+        return Err("WebM packet exceeds its metadata or video limit.".into());
+    }
+    let metadata: Metadata = serde_json::from_slice(&bytes[4..4 + length])
+        .map_err(|_| "Invalid WebM packet metadata.")?;
+    if !(2..=60).contains(&metadata.request.clip.snapshot_ids.len()) {
+        return Err("Choose 2-60 recorded captures.".into());
+    }
+    let image = bytes[4 + length..].to_vec();
+    #[cfg(windows)]
+    {
+        let engine = engine.inner().clone();
+        let session = Session::begin(
+            engine.clone(),
+            metadata.request_id,
+            Owner::History {
+                fingerprint: metadata.request.fingerprint.clone(),
+            },
+        )?;
+        let path = choose_file("webm").await?;
+        if session.cancelled()? {
+            return Ok(session.receipt(Outcome::DialogCancelled));
+        }
+        let Some(path) = path else {
+            return Ok(session.receipt(Outcome::DialogCancelled));
+        };
+        let operation = engine.begin()?;
+        session.running(
+            operation.id,
+            operation.cancel.clone(),
+            Progress::Video(voldiq_core::exports::WebmProgress::Preparing {
+                completed_frames: 0,
+                total_frames: metadata.request.clip.snapshot_ids.len(),
+            }),
+        )?;
+        let database = database.0.clone();
+        tauri::async_runtime::spawn_blocking(move || {
+            let store = database.lock().map_err(|error| error.to_string())?;
+            let result = voldiq_core::exports::save_history_webm(
+                &store,
+                &metadata.request,
+                &image,
+                &path,
+                &operation._lease,
+                &operation.cancel,
+                |value| session.progress(Progress::Video(value)),
+            )
+            .map_err(|error| error.to_string())?;
+            let outcome = match result {
+                StreamOutcome::Complete(progress) => Outcome::Complete {
+                    progress: Progress::Video(progress),
+                    path,
+                },
+                StreamOutcome::Cancelled(progress) => Outcome::Cancelled {
+                    progress: Progress::Video(progress),
+                },
+            };
+            Ok(session.receipt(outcome))
+        })
+        .await
+        .map_err(|error| error.to_string())?
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (
+            metadata.request_id,
+            metadata.request,
+            image,
             engine,
             database,
         );

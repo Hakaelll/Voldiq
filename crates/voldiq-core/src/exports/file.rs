@@ -102,6 +102,20 @@ pub fn save_history_gif(
     })
 }
 
+pub fn save_history_webm(
+    store: &crate::snapshots::Store,
+    request: &super::HistoryWebmRequest,
+    image: &[u8],
+    destination: &Path,
+    lease: &Lease,
+    cancelled: &AtomicBool,
+    progress: impl FnMut(super::WebmProgress),
+) -> Result<StreamOutcome<super::WebmProgress>> {
+    save_generated("webm", destination, lease, cancelled, |writer| {
+        super::stream_history_webm(store, request, image, writer, cancelled, progress)
+    })
+}
+
 fn save_generated<Progress: Copy>(
     extension: &'static str,
     destination: &Path,

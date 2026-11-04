@@ -2,7 +2,7 @@ import { historicalRects, historicalAbsence } from './history-geometry.ts';
 import { utcDate } from './history-activity.ts';
 import { bytes } from './types.ts';
 import type { PaintSurface } from './paint-surface.ts';
-import type { HistoryClip, HistoryGifRequest } from './history-clip.ts';
+import type { HistoryClip, HistoryGifRequest, HistoryWebmRequest } from './history-clip.ts';
 
 export const HISTORY_WIDTH = 1000,
   HISTORY_HEIGHT = 560;
@@ -17,6 +17,7 @@ export function paintHistoryFrame(
   clip: HistoryClip,
   position: number,
   style: HistoryStyle,
+  format: 'gif' | 'webm' = 'gif',
 ): void {
   const frame = clip.frames[position];
   if (!frame) throw new Error('Missing recorded history frame.');
@@ -103,7 +104,9 @@ export function paintHistoryFrame(
     516,
   );
   surface.fillText(
-    'Playback timing is illustrative. GIF uses up to 256 colors per frame.',
+    format === 'gif'
+      ? 'Playback timing is illustrative. GIF uses up to 256 colors per frame.'
+      : 'Playback timing is illustrative. WebM encoding may change colors and detail.',
     16,
     540,
   );
@@ -174,5 +177,20 @@ export function gifPacket(
     packet.set(image, offset);
     offset += image.length;
   }
+  return packet;
+}
+
+export function webmPacket(
+  requestId: string,
+  request: HistoryWebmRequest,
+  video: Uint8Array,
+): Uint8Array {
+  const header = new TextEncoder().encode(JSON.stringify({ requestId, request }));
+  if (!video.length || video.length > 32 * 1024 * 1024 || header.length > 64 * 1024)
+    throw new Error('WebM packet exceeds its export limit.');
+  const packet = new Uint8Array(4 + header.length + video.length);
+  new DataView(packet.buffer).setUint32(0, header.length, true);
+  packet.set(header, 4);
+  packet.set(video, 4 + header.length);
   return packet;
 }
