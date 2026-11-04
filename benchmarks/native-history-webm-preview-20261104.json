@@ -1,0 +1,104 @@
+{
+  "checkedUtc": "2026-11-04T18:40:32.5824110Z",
+  "sourceCommit": "2c4ce3bb067d69d69f2c146bad0c70caf4a3350c",
+  "executableSha256": "88E8E7436453741C497A672B7241C16A61BDC63926B2C3EC6ADA56460917F272",
+  "executableBytes": 24797696,
+  "preview": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\88E8E7436453741C497A672B7241C16A61BDC63926B2C3EC6ADA56460917F272\\voldiq.exe",
+  "processId": 10492,
+  "mainWindowHandle": 6031038,
+  "observation": "ready",
+  "startupEvents": [
+    {
+      "event": "process-start",
+      "pid": 10492,
+      "unixMs": 1793817631320
+    },
+    {
+      "event": "setup-start",
+      "pid": 10492,
+      "unixMs": 1793817631592
+    },
+    {
+      "event": "snapshot-open-start",
+      "pid": 10492,
+      "unixMs": 1793817631595
+    },
+    {
+      "event": "snapshot-open-end",
+      "pid": 10492,
+      "unixMs": 1793817631604
+    },
+    {
+      "event": "setup-end",
+      "pid": 10492,
+      "unixMs": 1793817632368
+    },
+    {
+      "event": "ready",
+      "pid": 10492,
+      "unixMs": 1793817632368
+    },
+    {
+      "event": "page-finished",
+      "pid": 10492,
+      "unixMs": 1793817632442
+    }
+  ],
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "assets/index-CMnhuRiP.css",
+        "bytes": 83043,
+        "sha256": "CFA8A3A671A58CA905F601FEAF4C33379E79BE13537AB5E42D08E47682D35500"
+      },
+      {
+        "path": "assets/city.worker-DLxzT0Wm.js",
+        "bytes": 2879,
+        "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+      },
+      {
+        "path": "assets/history-export-CYqEQ-P3.js",
+        "bytes": 3986,
+        "sha256": "03AC94526B104CD41D3B6D77CE0D55A0932538DEAD2EBFBE0DBBC851F9369C07"
+      },
+      {
+        "path": "assets/voronoi.worker-DwJ2QmrW.js",
+        "bytes": 5606,
+        "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+      },
+      {
+        "path": "assets/history-video-BJiyF-xb.js",
+        "bytes": 2865,
+        "sha256": "E00A22B0B0C62D9651D8A4707774BFBDAD2724E870FB57891D14DCE8409EDCC8"
+      },
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "BA65DDC7CA3124F3C3C9E29261C2D1F2E283CF544E17CDE3C13C8686192D1039"
+      },
+      {
+        "path": "assets/svg-surface-D3Yw6xZb.js",
+        "bytes": 6995,
+        "sha256": "16031B0D00F7998ED47803E71C5F769269D4295083881302DD52A7B7F3A450AA"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      },
+      {
+        "path": "assets/index-bNZgn3Xn.js",
+        "bytes": 406880,
+        "sha256": "787C444606AB92F6CB0441646473817F99FAC5B8D07FB64BA42AAD356F6EABE0"
+      }
+    ]
+  },
+  "scope": "Production native startup and exact embedded resources only. Recorder, IPC/dialog interaction, focus, scaling and performance acceptance remain separate."
+}

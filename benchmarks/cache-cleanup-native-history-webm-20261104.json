@@ -1,0 +1,42 @@
+{
+  "checkedUtc": "2026-11-04T18:41:15.1838081Z",
+  "sourceCommit": "2c4ce3bb067d69d69f2c146bad0c70caf4a3350c",
+  "preview": {
+    "processId": 10492,
+    "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\88E8E7436453741C497A672B7241C16A61BDC63926B2C3EC6ADA56460917F272\\voldiq.exe",
+    "mainWindowHandle": 6031038,
+    "executableSha256": "88E8E7436453741C497A672B7241C16A61BDC63926B2C3EC6ADA56460917F272"
+  },
+  "downloadedTestWheel": {
+    "checkedUtc": "2026-11-04T18:19:15.1610225Z",
+    "removedPath": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\webm-codec-20261104\\imageio_ffmpeg-0.8.1-py3-none-win_amd64.whl",
+    "sha256": "F27CA4CB85E2D4946DEEDBCE1A81245DFD942A2BCF94B53676FB3956AA95BF1B",
+    "logicalArtifactBytes": 38893483,
+    "scope": "Downloaded Voldiq test wheel only; extracted encoder and final fixtures retained. No observed volume free-space gain measured."
+  },
+  "previewCleanup": {
+    "applied": true,
+    "removedBytes": 0,
+    "previews": [
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\09AF768E42C32128A5991501E85661D4386959E713E2B2610FEB1CCA552DBAB9",
+        "bytes": 24664064,
+        "status": "KeptRunning"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\49D81291C341416583E916333A043A3A459BA9EEC0DA736E2D95C9A177F2FB0E",
+        "bytes": 24374784,
+        "status": "KeptRunning"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\88E8E7436453741C497A672B7241C16A61BDC63926B2C3EC6ADA56460917F272",
+        "bytes": 24797696,
+        "status": "KeptCurrent"
+      }
+    ]
+  },
+  "totalLogicalArtifactBytesRemoved": 38893483,
+  "debugArtifactsPresent": false,
+  "excluded": "Running/current previews, reusable release/test builds, final reviewed fixtures, application state, Windows and other applications.",
+  "observedVolumeFreeSpaceChange": null
+}
