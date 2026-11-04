@@ -1,0 +1,99 @@
+{
+  "checkedUtc": "2026-11-04T17:40:58.0546826Z",
+  "sourceCommit": "bb9f7c28fca99e2f5df184e1f33a7404d9251f28",
+  "executableSha256": "09AF768E42C32128A5991501E85661D4386959E713E2B2610FEB1CCA552DBAB9",
+  "executableBytes": 24664064,
+  "preview": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\09AF768E42C32128A5991501E85661D4386959E713E2B2610FEB1CCA552DBAB9\\voldiq.exe",
+  "processId": 7688,
+  "mainWindowHandle": 852750,
+  "observation": "ready",
+  "startupEvents": [
+    {
+      "event": "process-start",
+      "pid": 7688,
+      "unixMs": 1793814056651
+    },
+    {
+      "event": "setup-start",
+      "pid": 7688,
+      "unixMs": 1793814056998
+    },
+    {
+      "event": "snapshot-open-start",
+      "pid": 7688,
+      "unixMs": 1793814057000
+    },
+    {
+      "event": "snapshot-open-end",
+      "pid": 7688,
+      "unixMs": 1793814057010
+    },
+    {
+      "event": "setup-end",
+      "pid": 7688,
+      "unixMs": 1793814057778
+    },
+    {
+      "event": "ready",
+      "pid": 7688,
+      "unixMs": 1793814057779
+    },
+    {
+      "event": "page-finished",
+      "pid": 7688,
+      "unixMs": 1793814058017
+    }
+  ],
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "04AA9308E14284D8C41ACB5677B83E22D2B344E2D6048ABDD068EEF01202276B"
+      },
+      {
+        "path": "assets/voronoi.worker-DwJ2QmrW.js",
+        "bytes": 5606,
+        "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+      },
+      {
+        "path": "assets/history-export-mjWlZVUY.js",
+        "bytes": 3543,
+        "sha256": "C6476A0F736A96DA66E853FF03FE1068F9D3F4805E351EF0A9EA41E58EE41074"
+      },
+      {
+        "path": "assets/city.worker-DLxzT0Wm.js",
+        "bytes": 2879,
+        "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      },
+      {
+        "path": "assets/index-B1ofs59G.js",
+        "bytes": 405284,
+        "sha256": "17744ABC8B210A8FE8B53B397B73B78BEF991770F2B694B63392E8529CFC2EA9"
+      },
+      {
+        "path": "assets/svg-surface-D3Yw6xZb.js",
+        "bytes": 6995,
+        "sha256": "16031B0D00F7998ED47803E71C5F769269D4295083881302DD52A7B7F3A450AA"
+      },
+      {
+        "path": "assets/index-CMnhuRiP.css",
+        "bytes": 83043,
+        "sha256": "CFA8A3A671A58CA905F601FEAF4C33379E79BE13537AB5E42D08E47682D35500"
+      }
+    ]
+  },
+  "scope": "Production native history GIF source startup and exact current UI resources only. No native history-export/IPC/save-dialog click, user-data export, rendered app comparison, keyboard/focus, Windows scaling or device performance acceptance automated."
+}

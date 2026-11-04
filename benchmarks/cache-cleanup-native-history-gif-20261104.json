@@ -1,0 +1,25 @@
+{
+  "checkedUtc": "2026-11-04T17:42:27.6760696Z",
+  "sourceCommit": "bb9f7c28fca99e2f5df184e1f33a7404d9251f28",
+  "currentPreviewOpen": true,
+  "processId": 7688,
+  "mainWindowHandle": 852750,
+  "cleanup": {
+    "applied": true,
+    "removedBytes": 0,
+    "previews": [
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\09AF768E42C32128A5991501E85661D4386959E713E2B2610FEB1CCA552DBAB9",
+        "bytes": 24664064,
+        "status": "KeptCurrent"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\49D81291C341416583E916333A043A3A459BA9EEC0DA736E2D95C9A177F2FB0E",
+        "bytes": 24374784,
+        "status": "KeptRunning"
+      }
+    ]
+  },
+  "debugArtifactsPresent": false,
+  "scope": "Only verified inactive Voldiq preview images considered. Current/running previews, current/reusable builds, all final owned history Canvas/GIF/PNG/SVG/PDF fixtures and renders, application state, Windows and other applications preserved. Logical artifact bytes are not measured volume free-space change."
+}
