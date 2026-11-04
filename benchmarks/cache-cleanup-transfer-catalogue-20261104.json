@@ -1,0 +1,30 @@
+{
+  "checkedUtc": "2026-11-04T21:20:30.8741977Z",
+  "sourceCommit": "aff9aecccda5931120926d37e399e621a956d319",
+  "preview": {
+    "processId": 20096,
+    "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\63CD2D402AAC15BD8090DCE7C486D28D0E4E6C54C93342726D5E2EABA1B8F524\\voldiq.exe",
+    "mainWindowHandle": 1443696,
+    "executableSha256": "63CD2D402AAC15BD8090DCE7C486D28D0E4E6C54C93342726D5E2EABA1B8F524"
+  },
+  "previewCleanup": {
+    "applied": true,
+    "removedBytes": 0,
+    "previews": [
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\63CD2D402AAC15BD8090DCE7C486D28D0E4E6C54C93342726D5E2EABA1B8F524",
+        "bytes": 24926720,
+        "status": "KeptCurrent"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\B2DEB5A0D2B6DBA69C950F64E4DB95CF1D08A9C56FF21CFBD107F77BCDA9E737",
+        "bytes": 24897536,
+        "status": "KeptRunning"
+      }
+    ]
+  },
+  "totalLogicalArtifactBytesRemoved": 0,
+  "debugArtifactsPresent": false,
+  "excluded": "Running/current previews, current workspace test executables, current standalone core probe, reusable release builds, final reviewed fixtures, application state, Windows and other applications.",
+  "observedVolumeFreeSpaceChange": null
+}
