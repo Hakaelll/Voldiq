@@ -8,6 +8,8 @@ pub mod cleanup_channel;
 pub(crate) mod cleanup_io;
 #[cfg(windows)]
 pub mod cleanup_stage;
+#[cfg(windows)]
+pub(crate) mod owned_file;
 pub mod recycle_bin;
 #[cfg(windows)]
 pub(crate) mod security;
