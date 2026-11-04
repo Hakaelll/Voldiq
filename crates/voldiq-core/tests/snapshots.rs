@@ -152,6 +152,146 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     assert_eq!(frame.logical.as_deref(), Some("33"));
     assert_eq!(frame.entries.len(), 4);
     assert_eq!(frame.observation, first.observation);
+    let mut clip_request = voldiq_core::snapshots::ExportClipRequest {
+        snapshot_ids: vec![after, before],
+        include_paths: false,
+    };
+    let clip = store
+        .export_clip(&clip_request, &loading, |_| {})
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        clip.frames
+            .iter()
+            .map(|frame| frame.snapshot)
+            .collect::<Vec<_>>(),
+        [before, after]
+    );
+    assert_eq!(clip.frames[0].logical.as_deref(), Some("33"));
+    assert_eq!(clip.frames[1].logical.as_deref(), Some("61"));
+    assert_eq!(clip.maximum_logical, "61");
+    assert_eq!(clip.partial_frames, 0);
+    assert_eq!(clip.legacy_frames, 0);
+    let private = serde_json::to_value(&clip).unwrap();
+    assert_eq!(private["root_path"], serde_json::Value::Null);
+    assert_eq!(private["exclusions"], serde_json::Value::Null);
+    assert_eq!(private["accounting"], "compatible");
+    assert_eq!(
+        clip.fingerprint,
+        store
+            .export_clip(&clip_request, &loading, |_| {})
+            .unwrap()
+            .unwrap()
+            .fingerprint
+    );
+    // A concurrent committed metadata change must not split the clip's SQLite read view.
+    let clip_connection = rusqlite::Connection::open(&db).unwrap();
+    let recorded_identity: Vec<u8> = clip_connection
+        .query_row(
+            "SELECT identity FROM snapshot_roots WHERE id=?1",
+            [clip.root_key],
+            |row| row.get(0),
+        )
+        .unwrap();
+    let mut changed_identity = recorded_identity.clone();
+    changed_identity[15] ^= 1;
+    clip_connection
+        .execute(
+            "UPDATE snapshot_roots SET identity=?1 WHERE id=?2",
+            rusqlite::params![changed_identity, clip.root_key],
+        )
+        .unwrap();
+    let changed_scope = store
+        .export_clip(&clip_request, &loading, |_| {})
+        .unwrap()
+        .unwrap();
+    assert_ne!(changed_scope.scope_fingerprint, clip.scope_fingerprint);
+    assert_ne!(changed_scope.fingerprint, clip.fingerprint);
+    clip_connection
+        .execute(
+            "UPDATE snapshot_roots SET identity=?1 WHERE id=?2",
+            rusqlite::params![recorded_identity, clip.root_key],
+        )
+        .unwrap();
+    let consistent = store
+        .export_clip(&clip_request, &loading, |value| {
+            if value.prepared_frames == 1 {
+                clip_connection
+                    .execute(
+                        "UPDATE snapshots SET captured=captured+1 WHERE id=?1",
+                        [after],
+                    )
+                    .unwrap();
+            }
+        })
+        .unwrap()
+        .unwrap();
+    assert_eq!(consistent.fingerprint, clip.fingerprint);
+    assert_ne!(
+        store
+            .export_clip(&clip_request, &loading, |_| {})
+            .unwrap()
+            .unwrap()
+            .fingerprint,
+        clip.fingerprint
+    );
+    clip_connection
+        .execute(
+            "UPDATE snapshots SET captured=?1 WHERE id=?2",
+            rusqlite::params![i64::try_from(history[0].captured).unwrap(), after],
+        )
+        .unwrap();
+    clip_request.include_paths = true;
+    let disclosed = store
+        .export_clip(&clip_request, &loading, |_| {})
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        disclosed.root_path.unwrap().path,
+        first.root.to_str().unwrap()
+    );
+    assert_ne!(disclosed.fingerprint, clip.fingerprint);
+    clip_request.include_paths = false;
+    let stop_clip = AtomicBool::new(false);
+    assert!(
+        store
+            .export_clip(&clip_request, &stop_clip, |value| {
+                if value.prepared_frames == 1 {
+                    stop_clip.store(true, std::sync::atomic::Ordering::Relaxed);
+                }
+            })
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        store
+            .export_clip(&clip_request, &AtomicBool::new(true), |_| {})
+            .unwrap()
+            .is_none()
+    );
+    clip_connection.execute("UPDATE snapshots SET complete=0,observed_at=NULL,observed_complete=NULL,engine_version=NULL,accounting_version=NULL WHERE id=?1", [before]).unwrap();
+    let legacy = store
+        .export_clip(&clip_request, &loading, |_| {})
+        .unwrap()
+        .unwrap();
+    assert_eq!(legacy.partial_frames, 1);
+    assert_eq!(legacy.legacy_frames, 1);
+    assert_eq!(
+        serde_json::to_value(&legacy).unwrap()["accounting"],
+        "unknown"
+    );
+    let observation = first.observation.as_ref().unwrap();
+    clip_connection.execute("UPDATE snapshots SET complete=1,observed_at=?1,observed_complete=?2,engine_version=?3,accounting_version=?4 WHERE id=?5",rusqlite::params![i64::try_from(observation.completed_at).unwrap(),observation.complete,observation.engine_version,observation.accounting_version,before]).unwrap();
+    for ids in [
+        vec![before],
+        vec![before, before],
+        vec![-1, after],
+        vec![before; 61],
+        vec![before, i64::MAX],
+    ] {
+        clip_request.snapshot_ids = ids;
+        assert!(store.export_clip(&clip_request, &loading, |_| {}).is_err());
+    }
     assert!(
         store
             .visual_capture(-1, &AtomicBool::new(true))
@@ -510,6 +650,18 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             .is_err()
     );
     assert!(store.compare(before, third, 0, 10).is_err());
+    assert!(
+        store
+            .export_clip(
+                &voldiq_core::snapshots::ExportClipRequest {
+                    snapshot_ids: vec![before, third],
+                    include_paths: false
+                },
+                &loading,
+                |_| {}
+            )
+            .is_err()
+    );
     let incompatible = store.diary(third, 0, 10, 5, &loading).unwrap().unwrap();
     assert_eq!(
         serde_json::to_value(&incompatible).unwrap()["events"][0]["detail"]["kind"],
@@ -518,6 +670,18 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     let foreign = store
         .save(&capture(duplicates.path()), &loading, &[])
         .unwrap();
+    assert!(
+        store
+            .export_clip(
+                &voldiq_core::snapshots::ExportClipRequest {
+                    snapshot_ids: vec![before, foreign],
+                    include_paths: false
+                },
+                &loading,
+                |_| {}
+            )
+            .is_err()
+    );
     assert!(
         store
             .visual_pair(before, foreign, None, None, false, &loading)

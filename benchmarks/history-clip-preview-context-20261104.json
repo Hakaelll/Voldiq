@@ -1,0 +1,21 @@
+{
+  "checkedUtc": "2026-11-04T16:26:15.9501833Z",
+  "previewSourceCommit": "84cdce062d838297c5d32f9eb75eb4cb3554b661",
+  "processId": 16592,
+  "mainWindowHandle": 525102,
+  "executableSha256": "49D81291C341416583E916333A043A3A459BA9EEC0DA736E2D95C9A177F2FB0E",
+  "exactCurrentUiAssets": 8,
+  "cleanup": {
+    "applied": true,
+    "removedBytes": 0,
+    "previews": [
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\49D81291C341416583E916333A043A3A459BA9EEC0DA736E2D95C9A177F2FB0E",
+        "bytes": 24374784,
+        "status": "KeptCurrent"
+      }
+    ]
+  },
+  "debugArtifactsPresent": false,
+  "scope": "The existing PNG preview remains open with exact unchanged UI resources. No new native image was built or history-export UI/codec claimed for this core clip-source unit. Only inactive Voldiq preview images considered for cache removal; all builds, final fixtures, application state, Windows and other applications preserved."
+}

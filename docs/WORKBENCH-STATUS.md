@@ -4,6 +4,14 @@ Delivery branch: `main`, as the user explicitly requested during implementation.
 
 The complete task remains active. See the [coverage matrix](WORKBENCH-COVERAGE.md) and [execution plan](plans/storage-workbench.md). This status does not declare pending capabilities implemented.
 
+## Frozen source for history export
+
+`Store::export_clip` now prepares 2-60 compatible real captures in one SQLite read transaction. It orders by saved date/ID, reuses bounded root summaries, retains exact byte strings and observation/partial/legacy state, and supplies one recorded scale. Full root/exclusion paths default to withheld. Metadata is capped at 8 MiB. Versioned fingerprints cover native recorded scope and complete source evidence, including the privacy choice; they are not approvals or credentials. No live path/content read or full-index load is needed.
+
+The [six-stage source gate](../benchmarks/workbench-history-clip-source-20261104.json) passes all eight retained tests, zero Svelte diagnostics, production frontend build and strict workspace Clippy. The existing history flow verifies literal 33/61-byte captures, chronological ordering, native-path opt-in, repeatable fingerprints, recorded-identity/date changes, partial/legacy provenance, cancellation and invalid/missing/duplicate/mixed/incompatible selections. A real concurrent SQLite commit does not split the prepared clip's read view. No test declaration, dependency or exposed GIF/WebM action was added.
+
+The [fresh preview/cache check](../benchmarks/history-clip-preview-context-20261104.json) confirms the existing PNG preview from `84cdce0` remains open as PID 16592, with all eight exact unchanged UI resources. No new native image or visual acceptance is claimed for this core-only source unit. Zero obsolete preview bytes were removed; current/reusable artifacts and final fixtures remain preserved, debug artifacts absent. GIF/WebM encoding, shared historical painting, native session/destination integration and runtime capability acceptance remain the next export work. All other pending workbench coverage stays active.
+
 ## Native PNG map export
 
 The shared Export map dialog now offers SVG vectors or PNG at 1x/2x, with captured camera, theme, depth, color, highlights and optional lens. Scene capture is synchronous; only the chosen format is prepared when saving. PNG uses the same painters, a detached sRGB Canvas and bounded binary IPC. The shared `GraphicContext` provides native source counts, scope, coverage, units and default-off paths/filter text to either format. Core decodes/re-encodes static 8-bit RGB(A) rows, discards client text/profiles, inserts native context and publishes only complete output through the existing protected destination owner. Browser painting/compression observes cancellation after its bounded call returns; native traversal, row encoding and publication check cancellation directly.

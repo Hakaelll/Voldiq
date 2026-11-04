@@ -1,4 +1,6 @@
 mod activity;
+mod clip;
+pub use clip::{ExportClip, ExportClipProgress, ExportClipRequest};
 mod budget_history;
 mod cache_evidence;
 mod retention;

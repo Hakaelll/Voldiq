@@ -142,6 +142,14 @@ impl Store {
             return Ok(None);
         }
         let _read = self.connection.unchecked_transaction()?;
+        self.visual_capture_in_read(snapshot, cancel)
+    }
+
+    pub(super) fn visual_capture_in_read(
+        &self,
+        snapshot: i64,
+        cancel: &AtomicBool,
+    ) -> Result<Option<VisualFrame>> {
         let source = self.visual_source(snapshot)?;
         accounting(source.observation.as_ref(), source.observation.as_ref())?;
         let mut statement = self.connection.prepare("SELECT p.id FROM snapshot_paths p WHERE p.root_id=?1 AND p.parent_id=0 AND EXISTS (SELECT 1 FROM snapshot_versions v WHERE v.path_id=p.id AND v.start_id<=?2 AND (v.end_id IS NULL OR v.end_id>?2)) LIMIT 2")?;
