@@ -1,0 +1,104 @@
+{
+  "checkedUtc": "2026-11-04T15:43:17.007503+00:00",
+  "sourceFixtureDirectory": "C:\\Users\\yagol\\AppData\\Local\\Temp\\.tmpUmJJND",
+  "reviewImage": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\native-png-review-20261104\\contact-sheet.png",
+  "files": [
+    {
+      "file": "circles.png",
+      "bytes": 38638,
+      "sha256": "461F4A2A524D8023FD7A9749B05CFF7C3C80AC26927D5CE83ED0F487E50E1AA8",
+      "width": 1000,
+      "height": 700,
+      "pixelRatio": 1,
+      "sourcePixelsIdentical": true,
+      "chunks": [
+        "IDAT",
+        "IEND",
+        "IHDR",
+        "iTXt",
+        "sRGB"
+      ]
+    },
+    {
+      "file": "city.png",
+      "bytes": 148093,
+      "sha256": "7B7BFCD12E858767962CB28B39A191507580DD7E6202FAFD07790C5EFAF888D3",
+      "width": 1000,
+      "height": 700,
+      "pixelRatio": 1,
+      "sourcePixelsIdentical": true,
+      "chunks": [
+        "IDAT",
+        "IEND",
+        "IHDR",
+        "iTXt",
+        "sRGB"
+      ]
+    },
+    {
+      "file": "sunburst.png",
+      "bytes": 45981,
+      "sha256": "D6E431EF224C088BB4D5E05E6F0940CEE9F00EC6BEF796E08C87F4F4545C2040",
+      "width": 1000,
+      "height": 700,
+      "pixelRatio": 1,
+      "sourcePixelsIdentical": true,
+      "chunks": [
+        "IDAT",
+        "IEND",
+        "IHDR",
+        "iTXt",
+        "sRGB"
+      ]
+    },
+    {
+      "file": "treemap-2x.png",
+      "bytes": 33720,
+      "sha256": "C06DEE7CC8B9A209C1B5E7F195FE49535B7C9078C79C00E1967E9822B4810D03",
+      "width": 2000,
+      "height": 1400,
+      "pixelRatio": 2,
+      "sourcePixelsIdentical": true,
+      "chunks": [
+        "IDAT",
+        "IEND",
+        "IHDR",
+        "iTXt",
+        "sRGB"
+      ]
+    },
+    {
+      "file": "treemap.png",
+      "bytes": 14300,
+      "sha256": "7EC1DAAB082B891D61DEE754F7E133825E3D578F73908744D18E927EE750C1AD",
+      "width": 1000,
+      "height": 700,
+      "pixelRatio": 1,
+      "sourcePixelsIdentical": true,
+      "chunks": [
+        "IDAT",
+        "IEND",
+        "IHDR",
+        "iTXt",
+        "sRGB"
+      ]
+    },
+    {
+      "file": "voronoi.png",
+      "bytes": 28653,
+      "sha256": "BAC9AFF9EC7C76438EF05C6E6A3A9035290BC4017FF213135489FAE347993138",
+      "width": 1000,
+      "height": 700,
+      "pixelRatio": 1,
+      "sourcePixelsIdentical": true,
+      "chunks": [
+        "IDAT",
+        "IEND",
+        "IHDR",
+        "iTXt",
+        "sRGB"
+      ]
+    }
+  ],
+  "scope": "Six owned native PNG outputs. Independent CRC/chunk/Pillow metadata and exact decoded-pixel comparison with shared Canvas painter fixtures. Does not prove WebView capture, native save interaction, keyboard or Windows scaling."
+}

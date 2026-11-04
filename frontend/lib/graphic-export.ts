@@ -10,8 +10,9 @@ import { paintVoronoi } from './voronoi-painter.ts';
 import type { RadialLayout } from './radial-map.ts';
 import type { VoronoiLayout } from './voronoi.ts';
 import type { TextMeasure } from './svg-surface.ts';
+import type { PaintSurface } from './paint-surface.ts';
 
-export interface SvgView {
+export interface GraphicView {
   representation: StorageView;
   metric: 'logical' | 'allocated';
   color: ColorMode;
@@ -26,21 +27,24 @@ export interface SvgView {
   city_height: { metric: HeightMode; relief: number; maximum: number } | null;
   lens: boolean;
 }
-export interface SvgRequest {
+export interface GraphicContext {
   scope: number;
   cloud: CloudFilter | null;
   highlight: ReportSelection['filter'];
-  view: SvgView;
+  view: GraphicView;
   include_paths: boolean;
+}
+export interface SvgRequest {
+  context: GraphicContext;
   drawing: string;
 }
-export interface SvgCapture {
+export interface GraphicCapture {
   indexId: IndexId;
   scope: number;
   cloud: CloudFilter | null;
   searchIdentity: string;
-  drawing: string;
-  view: SvgView;
+  scene: GraphicScene;
+  view: GraphicView;
 }
 export type GraphicScene = { options: PaintOptions } & (
   | { kind: 'treemap'; lens: Point | null }
@@ -53,6 +57,11 @@ export type GraphicScene = { options: PaintOptions } & (
 export async function mapSvg(scene: GraphicScene, measure: TextMeasure): Promise<string> {
   const { SvgSurface } = await import('./svg-surface.ts');
   const surface = new SvgSurface(scene.options.width, scene.options.height, measure);
+  paintScene(surface, scene);
+  return surface.finish();
+}
+
+export function paintScene(surface: PaintSurface, scene: GraphicScene): void {
   surface.fillStyle = scene.options.style.surface;
   surface.fillRect(0, 0, scene.options.width, scene.options.height);
   switch (scene.kind) {
@@ -75,5 +84,73 @@ export async function mapSvg(scene: GraphicScene, measure: TextMeasure): Promise
       return exhaustive;
     }
   }
-  return surface.finish();
+}
+
+export function pngDimensions(
+  view: Pick<GraphicView, 'width' | 'height'>,
+  scale: 1 | 2,
+): { width: number; height: number } | null {
+  const width = Math.ceil(view.width * scale),
+    height = Math.ceil(view.height * scale);
+  return Number.isFinite(width) &&
+    Number.isFinite(height) &&
+    width > 0 &&
+    height > 0 &&
+    width <= 8192 &&
+    height <= 8192 &&
+    width * height <= 16_777_216
+    ? { width, height }
+    : null;
+}
+
+export async function mapPng(
+  scene: GraphicScene,
+  scale: 1 | 2,
+  signal: AbortSignal,
+): Promise<Uint8Array> {
+  const size = pngDimensions(scene.options, scale);
+  if (!size)
+    throw new Error(
+      'Choose a lower resolution. PNG is limited to 16.8 megapixels and 8192 pixels per side.',
+    );
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  signal.throwIfAborted();
+  const canvas = document.createElement('canvas');
+  try {
+    canvas.width = size.width;
+    canvas.height = size.height;
+    const surface = canvas.getContext('2d', { colorSpace: 'srgb' });
+    if (!surface) throw new Error('Canvas image export is unavailable.');
+    surface.setTransform(scale, 0, 0, scale, 0, 0);
+    paintScene(surface, scene);
+    signal.throwIfAborted();
+    const blob = await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob(
+        (value) => (value ? resolve(value) : reject(new Error('PNG encoding failed.'))),
+        'image/png',
+      ),
+    );
+    signal.throwIfAborted();
+    if (blob.size > 16 * 1024 * 1024)
+      throw new Error('PNG exceeds 16 MiB. Choose a lower resolution.');
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    signal.throwIfAborted();
+    return bytes;
+  } finally {
+    canvas.width = canvas.height = 0;
+  }
+}
+
+export function pngPacket(
+  metadata: { indexId: IndexId; requestId: string; context: GraphicContext; scale: 1 | 2 },
+  image: Uint8Array,
+): Uint8Array {
+  const header = new TextEncoder().encode(JSON.stringify(metadata));
+  if (header.length > 64 * 1024 || image.length > 16 * 1024 * 1024)
+    throw new Error('PNG packet exceeds its export limit.');
+  const packet = new Uint8Array(4 + header.length + image.length);
+  new DataView(packet.buffer).setUint32(0, header.length, true);
+  packet.set(header, 4);
+  packet.set(image, 4 + header.length);
+  return packet;
 }

@@ -75,6 +75,19 @@ pub fn save_svg(
     })
 }
 
+pub fn save_png(
+    index: &Index,
+    request: &super::PngRequest,
+    destination: &Path,
+    lease: &Lease,
+    cancelled: &AtomicBool,
+    progress: impl FnMut(StreamProgress),
+) -> Result<StreamOutcome> {
+    save_generated("png", destination, lease, cancelled, |writer| {
+        super::stream_png(index, request, writer, cancelled, progress)
+    })
+}
+
 fn save_generated(
     extension: &'static str,
     destination: &Path,

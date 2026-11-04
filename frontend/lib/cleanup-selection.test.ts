@@ -6,7 +6,7 @@ import { resolveZoom, zoomBox, createTreemapAnimator } from './treemap-motion.ts
 import { getIndexContext, setIndexContext, invokeIndexed } from './index-context.ts';
 import { SvgSurface } from './svg-surface.ts';
 import type { PaintOptions } from './map-painter.ts';
-import { mapSvg } from './graphic-export.ts';
+import { mapSvg, mapPng, pngDimensions } from './graphic-export.ts';
 import { createStorageLayout } from './storage-map.ts';
 import {
   createReportExport,
@@ -401,6 +401,15 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   assert.ok((drawing.match(/A88 88 0 0 1 /g) ?? []).length >= 2);
   assert.ok(
     !drawing.includes('<script>') && !drawing.includes('<image') && !drawing.includes('href='),
+  );
+  assert.deepEqual(pngDimensions(mapOptions, 2), { width: 2000, height: 1400 });
+  assert.equal(pngDimensions({ width: 8192, height: 8192 }, 1), null);
+  assert.equal(pngDimensions({ width: Number.NaN, height: 1 }, 1), null);
+  const stoppedImage = new AbortController();
+  stoppedImage.abort();
+  await assert.rejects(
+    mapPng({ kind: 'treemap', options: mapOptions, lens: null }, 1, stoppedImage.signal),
+    { name: 'AbortError' },
   );
   const unsafeColor = new SvgSurface(10, 10, () => ({ width: 1, actualBoundingBoxAscent: 9 }));
   unsafeColor.fillStyle = 'url(https://private.invalid/image)';

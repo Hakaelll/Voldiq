@@ -192,6 +192,63 @@ pub(crate) async fn save_svg(
     }
 }
 
+#[tauri::command]
+pub(crate) async fn save_png(
+    request: tauri::ipc::Request<'_>,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Receipt, String> {
+    #[derive(serde::Deserialize)]
+    #[serde(deny_unknown_fields, rename_all = "camelCase")]
+    struct Metadata {
+        index_id: IndexId,
+        request_id: String,
+        context: voldiq_core::exports::GraphicContext,
+        scale: u8,
+    }
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err("PNG export requires a binary packet.".into());
+    };
+    let header: [u8; 4] = bytes
+        .get(..4)
+        .ok_or("Missing PNG packet header.")?
+        .try_into()
+        .map_err(|_| "Invalid PNG packet header.")?;
+    let length = u32::from_le_bytes(header) as usize;
+    if length > 64 * 1024 || bytes.len() < 4 + length || bytes.len() - 4 - length > 16 * 1024 * 1024
+    {
+        return Err("PNG packet exceeds its metadata or image limit.".into());
+    }
+    let metadata: Metadata = serde_json::from_slice(&bytes[4..4 + length])
+        .map_err(|_| "Invalid PNG packet metadata.")?;
+    let image = bytes[4 + length..].to_vec();
+    #[cfg(windows)]
+    {
+        save_file(
+            metadata.index_id,
+            metadata.request_id,
+            FileRequest::Png(voldiq_core::exports::PngRequest {
+                context: metadata.context,
+                scale: metadata.scale,
+                image,
+            }),
+            engine,
+        )
+        .await
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (
+            metadata.index_id,
+            metadata.request_id,
+            metadata.context,
+            metadata.scale,
+            image,
+            engine,
+        );
+        Err("Report file export is available on Windows only.".into())
+    }
+}
+
 #[cfg(windows)]
 enum FileRequest {
     Records {
@@ -199,6 +256,7 @@ enum FileRequest {
         format: ReportFormat,
     },
     Svg(voldiq_core::exports::SvgRequest),
+    Png(voldiq_core::exports::PngRequest),
 }
 #[cfg(windows)]
 impl FileRequest {
@@ -206,6 +264,7 @@ impl FileRequest {
         match self {
             Self::Records { format, .. } => format.extension(),
             Self::Svg(_) => "svg",
+            Self::Png(_) => "png",
         }
     }
 }
@@ -262,6 +321,14 @@ async fn save_file(
                 FileRequest::Records { selection, format } => voldiq_core::exports::save_report(
                     &index,
                     *format,
+                    selection,
+                    &path,
+                    &operation._lease,
+                    &operation.cancel,
+                    |value| session.progress(value),
+                ),
+                FileRequest::Png(selection) => voldiq_core::exports::save_png(
+                    &index,
                     selection,
                     &path,
                     &operation._lease,

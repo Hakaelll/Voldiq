@@ -4734,6 +4734,7 @@ dependencies = [
  "krilla",
  "libc",
  "parley",
+ "png 0.18.1",
  "quick-xml 0.42.0",
  "rusqlite",
  "serde",

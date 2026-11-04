@@ -826,6 +826,7 @@ fn main() {
             choose_folder,
             export_commands::save_report,
             export_commands::save_svg,
+            export_commands::save_png,
             export_commands::report_progress,
             export_commands::cancel_report,
             start_scan,

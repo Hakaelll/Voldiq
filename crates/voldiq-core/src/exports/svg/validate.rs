@@ -1,4 +1,4 @@
-use super::{SvgView, invalid};
+use super::{GraphicView, invalid};
 use crate::Result;
 use quick_xml::{
     Reader, Writer, XmlVersion,
@@ -109,7 +109,7 @@ fn child(parent: Option<&str>, name: &str) -> bool {
 }
 fn attributes(
     tag: &BytesStart<'_>,
-    view: &SvgView,
+    view: &GraphicView,
     ids: &mut HashSet<String>,
     references: &mut HashSet<String>,
     cancelled: &AtomicBool,
@@ -327,7 +327,7 @@ fn context(writer: &mut Writer<Vec<u8>>, metadata: &serde_json::Value) -> Result
 
 pub(super) fn encode(
     drawing: &str,
-    view: &SvgView,
+    view: &GraphicView,
     metadata: &serde_json::Value,
     cancelled: &AtomicBool,
 ) -> Result<Option<Vec<u8>>> {

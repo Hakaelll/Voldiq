@@ -1482,38 +1482,40 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     {
         use voldiq_core::{
             NodeId,
-            exports::{StreamOutcome, SvgCamera, SvgRequest, SvgView},
+            exports::{GraphicCamera, GraphicView, StreamOutcome, SvgRequest},
             workbench::{Color, Metric, Representation},
         };
         let destination = tempfile::tempdir().unwrap();
         let export_state = tempfile::tempdir().unwrap();
         let lease = voldiq_core::operations::Lease::acquire(export_state.path()).unwrap();
         let mut request = SvgRequest {
-            scope: NodeId(0),
-            cloud: None,
-            include_paths: false,
-            highlight: voldiq_core::exports::ReportFilter {
-                text: "https://private.invalid/?token=secret".into(),
-                ..Default::default()
-            },
-            view: SvgView {
-                representation: Representation::Treemap,
-                metric: Metric::Logical,
-                color: Color::Type,
-                color_maximum: 70.0,
-                reference_time: 0.0,
-                dark: false,
-                depth: 3,
-                width: 1000.0,
-                height: 700.0,
-                camera: SvgCamera {
-                    x: 0.0,
-                    y: 0.0,
-                    scale: 1.0,
+            context: voldiq_core::exports::GraphicContext {
+                scope: NodeId(0),
+                cloud: None,
+                include_paths: false,
+                highlight: voldiq_core::exports::ReportFilter {
+                    text: "https://private.invalid/?token=secret".into(),
+                    ..Default::default()
                 },
-                detail: true,
-                city_height: None,
-                lens: false,
+                view: GraphicView {
+                    representation: Representation::Treemap,
+                    metric: Metric::Logical,
+                    color: Color::Type,
+                    color_maximum: 70.0,
+                    reference_time: 0.0,
+                    dark: false,
+                    depth: 3,
+                    width: 1000.0,
+                    height: 700.0,
+                    camera: GraphicCamera {
+                        x: 0.0,
+                        y: 0.0,
+                        scale: 1.0,
+                    },
+                    detail: true,
+                    city_height: None,
+                    lens: false,
+                },
             },
             drawing: include_str!("fixtures/storage-map.svg").into(),
         };
@@ -1622,10 +1624,10 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                 "city.svg",
             ),
         ] {
-            request.view.representation = representation;
-            request.view.city_height = (representation == Representation::City).then_some(
-                voldiq_core::exports::SvgHeight {
-                    metric: voldiq_core::exports::SvgHeightMetric::Modified,
+            request.context.view.representation = representation;
+            request.context.view.city_height = (representation == Representation::City).then_some(
+                voldiq_core::exports::GraphicHeight {
+                    metric: voldiq_core::exports::GraphicHeightMetric::Modified,
                     relief: 1.0,
                     maximum: 70.0,
                 },
@@ -1636,8 +1638,8 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             );
         }
         request.drawing = include_str!("fixtures/storage-map.svg").into();
-        request.view.representation = Representation::Treemap;
-        request.view.city_height = None;
+        request.context.view.representation = Representation::Treemap;
+        request.context.view.city_height = None;
         let stop = AtomicBool::new(false);
         assert!(matches!(
             voldiq_core::exports::save_svg(
@@ -1669,7 +1671,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             StreamOutcome::Cancelled(_)
         ));
         assert!(pre_cancelled.is_empty());
-        request.include_paths = true;
+        request.context.include_paths = true;
         let mut opted_in = Vec::new();
         voldiq_core::exports::stream_svg(&export_index, &request, &mut opted_in, &loading, |_| {})
             .unwrap();
@@ -1678,6 +1680,219 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                 .unwrap()
                 .contains("private.invalid")
         );
+        let png_destination = tempfile::tempdir().unwrap();
+        let mut raster = voldiq_core::exports::PngRequest {
+            context: request.context.clone(),
+            scale: 1,
+            image: include_bytes!("fixtures/storage-treemap.png").to_vec(),
+        };
+        raster.context.include_paths = false;
+        for (representation, scale, image, filename) in [
+            (
+                Representation::Treemap,
+                1,
+                include_bytes!("fixtures/storage-treemap.png").as_slice(),
+                "treemap.png",
+            ),
+            (
+                Representation::Sunburst,
+                1,
+                include_bytes!("fixtures/storage-sunburst.png").as_slice(),
+                "sunburst.png",
+            ),
+            (
+                Representation::Circles,
+                1,
+                include_bytes!("fixtures/storage-circles.png").as_slice(),
+                "circles.png",
+            ),
+            (
+                Representation::Voronoi,
+                1,
+                include_bytes!("fixtures/storage-voronoi.png").as_slice(),
+                "voronoi.png",
+            ),
+            (
+                Representation::City,
+                1,
+                include_bytes!("fixtures/storage-city.png").as_slice(),
+                "city.png",
+            ),
+            (
+                Representation::Treemap,
+                2,
+                include_bytes!("fixtures/storage-treemap-2x.png").as_slice(),
+                "treemap-2x.png",
+            ),
+        ] {
+            raster.context.view.representation = representation;
+            raster.context.view.city_height = (representation == Representation::City).then_some(
+                voldiq_core::exports::GraphicHeight {
+                    metric: voldiq_core::exports::GraphicHeightMetric::Modified,
+                    relief: 1.0,
+                    maximum: 70.0,
+                },
+            );
+            raster.scale = scale;
+            raster.image = image.to_vec();
+            let path = png_destination.path().join(filename);
+            assert!(
+                matches!(voldiq_core::exports::save_png(&export_index, &raster, &path, &lease, &loading, |_| {}).unwrap(), StreamOutcome::Complete(value) if value.rows == 10_005)
+            );
+            let bytes = std::fs::read(&path).unwrap();
+            let mut decoded = png::Decoder::new(std::io::Cursor::new(&bytes))
+                .read_info()
+                .unwrap();
+            let context: serde_json::Value =
+                serde_json::from_str(&decoded.info().utf8_text[0].get_text().unwrap()).unwrap();
+            assert_eq!(context["format"], "png");
+            assert_eq!(context["scope_file_matches"], 10_005);
+            assert_eq!(context["coverage"], "unknown");
+            assert_eq!(context["highlight_filter"]["text"], serde_json::Value::Null);
+            assert_eq!(context["scope_path"], serde_json::Value::Null);
+            assert_eq!(context["pixel_ratio"], scale);
+            assert_eq!(decoded.info().width, 1000 * u32::from(scale));
+            assert_eq!(decoded.info().height, 700 * u32::from(scale));
+            let mut original = png::Decoder::new(std::io::Cursor::new(image))
+                .read_info()
+                .unwrap();
+            for _ in 0..decoded.info().height {
+                assert_eq!(
+                    decoded.next_row().unwrap().unwrap().data(),
+                    original.next_row().unwrap().unwrap().data()
+                );
+            }
+            decoded.finish().unwrap();
+            assert!(
+                voldiq_core::exports::save_png(
+                    &export_index,
+                    &raster,
+                    &path,
+                    &lease,
+                    &loading,
+                    |_| {}
+                )
+                .is_err()
+            );
+            assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        }
+        let invalid_png = png_destination.path().join("invalid.png");
+        let original = raster.image.clone();
+        raster.image.truncate(raster.image.len() / 2);
+        assert!(
+            voldiq_core::exports::save_png(
+                &export_index,
+                &raster,
+                &invalid_png,
+                &lease,
+                &loading,
+                |_| {}
+            )
+            .is_err()
+        );
+        assert!(!invalid_png.exists());
+        raster.image = original;
+        raster.scale = 1; // The actual 2x image must not pass a 1x declaration.
+        assert!(
+            voldiq_core::exports::save_png(
+                &export_index,
+                &raster,
+                &invalid_png,
+                &lease,
+                &loading,
+                |_| {}
+            )
+            .is_err()
+        );
+        raster.scale = 2;
+        let stopped = AtomicBool::new(false);
+        assert!(matches!(
+            voldiq_core::exports::save_png(
+                &export_index,
+                &raster,
+                &invalid_png,
+                &lease,
+                &stopped,
+                |value| {
+                    if value.rows > 0 {
+                        stopped.store(true, std::sync::atomic::Ordering::Relaxed);
+                    }
+                }
+            )
+            .unwrap(),
+            StreamOutcome::Cancelled(_)
+        ));
+        assert!(!invalid_png.exists());
+        // A writer-triggered stop proves encoding cancellation after the source walk has completed.
+        struct StopOutput<'a>(&'a AtomicBool);
+        impl std::io::Write for StopOutput<'_> {
+            fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+                self.0.store(true, std::sync::atomic::Ordering::Relaxed);
+                Ok(bytes.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        let during = AtomicBool::new(false);
+        assert!(matches!(
+            voldiq_core::exports::stream_png(
+                &export_index,
+                &raster,
+                &mut StopOutput(&during),
+                &during,
+                |_| {}
+            )
+            .unwrap(),
+            StreamOutcome::Cancelled(_)
+        ));
+        let mut empty = Vec::new();
+        assert!(matches!(
+            voldiq_core::exports::stream_png(
+                &export_index,
+                &raster,
+                &mut empty,
+                &AtomicBool::new(true),
+                |_| {}
+            )
+            .unwrap(),
+            StreamOutcome::Cancelled(_)
+        ));
+        assert!(empty.is_empty());
+        // Client text chunks must never survive into the published native metadata.
+        let mut injected = Vec::new();
+        {
+            let mut encoder = png::Encoder::new(&mut injected, 1, 1);
+            encoder.set_color(png::ColorType::Rgb);
+            encoder.set_depth(png::BitDepth::Eight);
+            encoder
+                .add_itxt_chunk("Voldiq".into(), "private-client-context".into())
+                .unwrap();
+            let mut writer = encoder.write_header().unwrap();
+            writer.write_image_data(&[1, 2, 3]).unwrap();
+            writer.finish().unwrap();
+        }
+        raster.image = injected;
+        raster.scale = 1;
+        raster.context.view.width = 1.0;
+        raster.context.view.height = 1.0;
+        raster.context.include_paths = true;
+        let mut bytes = Vec::new();
+        voldiq_core::exports::stream_png(&export_index, &raster, &mut bytes, &loading, |_| {})
+            .unwrap();
+        let decoded = png::Decoder::new(std::io::Cursor::new(bytes))
+            .read_info()
+            .unwrap();
+        assert_eq!(decoded.info().utf8_text.len(), 1);
+        let text = decoded.info().utf8_text[0].get_text().unwrap();
+        assert!(!text.contains("private-client-context") && text.contains("private.invalid"));
+        assert_eq!(
+            std::fs::read_dir(png_destination.path()).unwrap().count(),
+            6
+        );
+        if std::env::var("VOLDIQ_KEEP_PNG_FIXTURE").as_deref() == Ok("1") {
+            println!("PNG fixture: {}", png_destination.keep().display());
+        }
         assert_eq!(std::fs::read_dir(destination.path()).unwrap().count(), 5);
         if std::env::var("VOLDIQ_KEEP_SVG_FIXTURE").as_deref() == Ok("1") {
             println!(

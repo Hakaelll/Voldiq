@@ -12,7 +12,7 @@ use std::{
 };
 
 /// Filter semantics are shared with Query; streaming deliberately has no sort or pagination fields.
-#[derive(Default, Deserialize, Serialize)]
+#[derive(Clone, Default, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ReportFilter {
     pub parent: Option<NodeId>,

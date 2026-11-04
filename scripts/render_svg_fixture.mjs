@@ -3,14 +3,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { createRequire } from 'node:module';
-import { SvgSurface } from '../frontend/lib/svg-surface.ts';
+import { mapSvg, paintScene } from '../frontend/lib/graphic-export.ts';
 import { createStorageLayout } from '../frontend/lib/storage-map.ts';
 import { buildCity, fitCamera } from '../frontend/lib/disk-city.ts';
-import { paintFlat, paintCity, prepareShadows } from '../frontend/lib/map-painter.ts';
+import { prepareShadows } from '../frontend/lib/map-painter.ts';
 import { radialLayout } from '../frontend/lib/radial-map.ts';
-import { paintRadial } from '../frontend/lib/radial-painter.ts';
 import { computeVoronoi } from '../frontend/lib/voronoi.ts';
-import { paintVoronoi } from '../frontend/lib/voronoi-painter.ts';
 
 const runtimeModules = process.argv[2];
 if (!runtimeModules || !path.isAbsolute(runtimeModules))
@@ -57,7 +55,22 @@ const files = [];
 for (const mode of ['treemap', 'sunburst', 'circles', 'voronoi', 'city']) {
   const canvas = createCanvas(width, height);
   const context = canvas.getContext('2d');
-  const vector = new SvgSurface(width, height, (text, font, baseline) => {
+  let options = base;
+  let captured;
+  if (mode === 'city') {
+    const scene = buildCity(source.rects, (node) => 50 + (node.value / 70) * 150);
+    const shadows = prepareShadows(scene);
+    options = { ...base, camera: fitCamera(scene.bounds, width, height) };
+    captured = { kind: mode, scene, shadows, options };
+  } else if (mode === 'treemap') captured = { kind: mode, options, lens: null };
+  else if (mode === 'voronoi') {
+    const cells = computeVoronoi(source.rects, source.total);
+    captured = { kind: mode, layout: cells, options };
+  } else {
+    const radial = radialLayout(source, mode);
+    captured = { kind: mode, layout: radial, options };
+  }
+  const svg = await mapSvg(captured, (text, font, baseline) => {
     context.save();
     context.font = font;
     context.textBaseline = baseline;
@@ -65,33 +78,21 @@ for (const mode of ['treemap', 'sunburst', 'circles', 'voronoi', 'city']) {
     context.restore();
     return metrics;
   });
-  let options = base;
-  let paint;
-  if (mode === 'city') {
-    const scene = buildCity(source.rects, (node) => 50 + (node.value / 70) * 150);
-    const shadows = prepareShadows(scene);
-    options = { ...base, camera: fitCamera(scene.bounds, width, height) };
-    paint = (target) => paintCity(target, scene, shadows, options);
-  } else if (mode === 'treemap') paint = (target) => paintFlat(target, options);
-  else if (mode === 'voronoi') {
-    const cells = computeVoronoi(source.rects, source.total);
-    paint = (target) => paintVoronoi(target, cells, options);
-  } else {
-    const radial = radialLayout(source, mode);
-    paint = (target) => paintRadial(target, radial, options);
-  }
-  vector.fillStyle = base.style.surface;
-  vector.fillRect(0, 0, width, height);
-  const drawn = paint(vector);
-  const svg = vector.finish();
   const svgPath = path.join(output, `${mode}.svg`);
   fs.writeFileSync(svgPath, svg, { flag: 'wx' });
-  context.fillStyle = base.style.surface;
-  context.fillRect(0, 0, width, height);
-  if (paint(context) !== drawn) throw new Error('Painter draw counts differ between targets.');
+  paintScene(context, captured);
   fs.writeFileSync(path.join(output, `${mode}-canvas.png`), canvas.toBuffer('image/png'), {
     flag: 'wx',
   });
+  if (mode === 'treemap') {
+    const larger = createCanvas(width * 2, height * 2);
+    const target = larger.getContext('2d');
+    target.setTransform(2, 0, 0, 2, 0, 0);
+    paintScene(target, captured);
+    fs.writeFileSync(path.join(output, 'treemap-2x.png'), larger.toBuffer('image/png'), {
+      flag: 'wx',
+    });
+  }
   const image = await loadImage(Buffer.from(svg));
   const rendered = createCanvas(width, height);
   rendered.getContext('2d').drawImage(image, 0, 0);
@@ -100,7 +101,6 @@ for (const mode of ['treemap', 'sunburst', 'circles', 'voronoi', 'city']) {
   });
   files.push({
     mode,
-    drawn,
     bytes: Buffer.byteLength(svg),
     sha256: crypto.createHash('sha256').update(svg).digest('hex').toUpperCase(),
   });

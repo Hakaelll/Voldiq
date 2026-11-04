@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { SvgCapture } from '../lib/graphic-export';
+  import type { GraphicCapture } from '../lib/graphic-export';
   import StorageMap from './StorageMap.svelte';
   import SpaceAccount from './SpaceAccount.svelte';
   import RecoveryCopies from './RecoveryCopies.svelte';
@@ -93,7 +93,7 @@
     queryState: 'ready' | 'loading' | 'failed';
     oncloudfilter: (value: CloudFilter | null) => void;
     onretry: () => void;
-    onexport?: (capture: SvgCapture) => boolean;
+    onexport?: (capture: GraphicCapture) => boolean;
     exportDisabled?: boolean;
   } = $props();
   const distribution = $derived(visibleFileTypes(types));

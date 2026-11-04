@@ -8,7 +8,7 @@
 
 <script lang="ts">
   import { onMount, untrack } from 'svelte';
-  import { mapSvg, type SvgCapture, type SvgView, type GraphicScene } from '../lib/graphic-export';
+  import type { GraphicCapture, GraphicView, GraphicScene } from '../lib/graphic-export';
   import {
     createStorageLayout,
     metricHeight,
@@ -129,7 +129,7 @@
     oncloudfilter: (value: CloudFilter | null) => void;
     queryState?: 'ready' | 'loading' | 'failed';
     onretry?: () => void;
-    onexport?: (capture: SvgCapture) => boolean;
+    onexport?: (capture: GraphicCapture) => boolean;
     exportDisabled?: boolean;
   } = $props();
   let canvas: HTMLCanvasElement;
@@ -139,8 +139,7 @@
   let heightMode = $state<HeightMode>('modified');
   let relief = $state(1);
   let detail = $state(true);
-  let svgPreparing = $state(false),
-    svgProblem = $state('');
+  let graphicProblem = $state('');
   let alive = false;
   let hovered = $state<Rect | null>(null);
   const noteIndexId = untrack(getIndexContext);
@@ -366,13 +365,12 @@
       failure = error instanceof Error ? error.message : String(error);
     }
   }
-  async function captureSvg(): Promise<void> {
+  function captureGraphic(): void {
     const indexId = getIndexContext();
     const scope = scopeAncestors[0];
     if (
       !onexport ||
       exportDisabled ||
-      svgPreparing ||
       preparing ||
       queryState !== 'ready' ||
       searchState === 'loading' ||
@@ -386,9 +384,6 @@
     cancelDrag();
     hovered = null;
     schedule();
-    const owner = identity,
-      searchKey = searchIdentity,
-      cloud = cloudFilter;
     const options = {
       rects: layout.rects,
       camera: { ...camera },
@@ -414,10 +409,10 @@
     else if ((mode === 'sunburst' || mode === 'circles') && radial.kind === 'ready')
       snapshot = { kind: mode, layout: radial.value, options };
     else {
-      svgProblem = 'The map is not ready to export.';
+      graphicProblem = 'The map is not ready to export.';
       return;
     }
-    const view: SvgView = {
+    const view: GraphicView = {
       representation: snapshot.kind,
       metric: sizeMode === 'allocated' ? 'allocated' : 'logical',
       color: colorMode,
@@ -432,32 +427,15 @@
       city_height: mode === 'city' ? { metric: heightMode, relief, maximum } : null,
       lens: !!lensPoint,
     };
-    svgPreparing = true;
-    svgProblem = '';
+    graphicProblem = '';
     try {
-      const measure = document.createElement('canvas').getContext('2d');
-      if (!measure) throw new Error('Canvas text measurement is unavailable.');
-      const drawing = await mapSvg(snapshot, (text, font, baseline) => {
-        measure.font = font;
-        measure.textBaseline = baseline;
-        return measure.measureText(text);
-      });
-      if (alive) {
-        const current =
-          owner === identity &&
-          indexId === getIndexContext() &&
-          searchKey === searchIdentity &&
-          cloud === cloudFilter;
-        if (
-          !current ||
-          onexport?.({ indexId, scope, cloud, searchIdentity: searchKey, drawing, view }) !== true
-        )
-          svgProblem = 'The map changed while preparing SVG. Export again.';
-      }
+      if (
+        onexport({ indexId, scope, cloud: cloudFilter, searchIdentity, scene: snapshot, view }) !==
+        true
+      )
+        graphicProblem = 'The map changed. Export again.';
     } catch (problem) {
-      if (alive) svgProblem = problem instanceof Error ? problem.message : String(problem);
-    } finally {
-      if (alive) svgPreparing = false;
+      graphicProblem = problem instanceof Error ? problem.message : String(problem);
     }
   }
   function zoom(factor: number, point = { x: width / 2, y: height / 2 }): void {
@@ -978,21 +956,20 @@
     </div>
     {#if onexport}<button
         disabled={exportDisabled ||
-          svgPreparing ||
           preparing ||
           queryState !== 'ready' ||
           searchState === 'loading' ||
           searchState === 'failed' ||
           !!failure}
         onclick={() => {
-          void captureSvg();
-        }}>{svgPreparing ? 'Preparing SVG…' : 'Export SVG'}</button
+          captureGraphic();
+        }}>Export map</button
       >{/if}
     {#if oninspect}<button class="map-inspect" onclick={oninspect}
         ><Icon name="file" size={14} />Inspector</button
       >{/if}
   </div>
-  {#if svgProblem}<div class="map-tool-status" role="alert">{svgProblem}</div>{/if}
+  {#if graphicProblem}<div class="map-tool-status" role="alert">{graphicProblem}</div>{/if}
   {#if searchState === 'loading'}<div class="map-tool-status" role="status">
       Updating search matches…
     </div>

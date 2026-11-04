@@ -40,8 +40,8 @@
   import FolderBudget from './components/FolderBudget.svelte';
   import LiveControl from './components/LiveControl.svelte';
   import ReportExport from './components/ReportExport.svelte';
-  import SvgExport from './components/SvgExport.svelte';
-  import type { SvgCapture, SvgRequest } from './lib/graphic-export';
+  import GraphicExport from './components/GraphicExport.svelte';
+  import type { GraphicCapture, GraphicContext, GraphicScene } from './lib/graphic-export';
   import { reportSelection } from './lib/report-export';
   import { volumeMeasurement, volumeCaller } from './lib/volume-space';
   import type { LiveObservation } from './lib/live-session';
@@ -424,8 +424,12 @@
   const volumeSpace = $derived(volumeMeasurement(volume));
   const volumeAvailability = $derived(volumeCaller(volume));
   let exportBusy = $state(false);
-  let graphicExport = $state.raw<{ indexId: IndexId; request: SvgRequest } | null>(null);
-  function exportMap(capture: SvgCapture): boolean {
+  let graphicExport = $state.raw<{
+    indexId: IndexId;
+    context: GraphicContext;
+    scene: GraphicScene;
+  } | null>(null);
+  function exportMap(capture: GraphicCapture): boolean {
     if (
       !ready ||
       busy ||
@@ -439,12 +443,12 @@
       return false;
     graphicExport = {
       indexId,
-      request: {
+      scene: capture.scene,
+      context: {
         scope: capture.scope,
         cloud: capture.cloud,
         highlight: reportSelection(mapSearch ?? {}, scope, 'files', true, false).filter,
         view: capture.view,
-        drawing: capture.drawing,
         include_paths: false,
       },
     };
@@ -1414,9 +1418,10 @@
             </p>{/if}
         </div>
         <div class="page-actions">
-          {#if graphicExport}<SvgExport
+          {#if graphicExport}<GraphicExport
               indexId={graphicExport.indexId}
-              request={graphicExport.request}
+              context={graphicExport.context}
+              scene={graphicExport.scene}
               onclose={() => {
                 graphicExport = null;
               }}
