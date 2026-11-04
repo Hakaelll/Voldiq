@@ -1,0 +1,51 @@
+{
+  "checkedUtc": "2026-11-04T20:09:52.4772397Z",
+  "sourceCommit": "3f08542daafcc65c331a7ce1c235f0385e7c6249",
+  "preview": {
+    "processId": 19856,
+    "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\5705832F3D22A440385E9211D7A80158BA1C1C8930463679F7D8D3727AFB160B\\voldiq.exe",
+    "mainWindowHandle": 395078,
+    "executableSha256": "5705832F3D22A440385E9211D7A80158BA1C1C8930463679F7D8D3727AFB160B"
+  },
+  "previewCleanup": {
+    "applied": true,
+    "removedBytes": 0,
+    "previews": [
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\09AF768E42C32128A5991501E85661D4386959E713E2B2610FEB1CCA552DBAB9",
+        "bytes": 24664064,
+        "status": "KeptRunning"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\49D81291C341416583E916333A043A3A459BA9EEC0DA736E2D95C9A177F2FB0E",
+        "bytes": 24374784,
+        "status": "KeptRunning"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\5705832F3D22A440385E9211D7A80158BA1C1C8930463679F7D8D3727AFB160B",
+        "bytes": 24897024,
+        "status": "KeptCurrent"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\88E8E7436453741C497A672B7241C16A61BDC63926B2C3EC6ADA56460917F272",
+        "bytes": 24797696,
+        "status": "KeptRunning"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\DFF5C09FC5457857E31F3189E3152F0842450A6D7A9B2CC22C458F05CB268C25",
+        "bytes": 24805376,
+        "status": "KeptRunning"
+      }
+    ]
+  },
+  "totalLogicalArtifactBytesRemoved": 0,
+  "debugArtifactsPresent": false,
+  "excluded": "Running/current previews, current workspace test executables, current standalone core probe, reusable release builds, final reviewed fixtures, application state, Windows and other applications.",
+  "observedVolumeFreeSpaceChange": null,
+  "standaloneTestCandidate": {
+    "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\release\\deps\\agents-ec58d0b462720d69.exe",
+    "status": "Kept",
+    "removedBytes": 0,
+    "proof": "The conservative retirement checks did not all pass; preserved."
+  }
+}
