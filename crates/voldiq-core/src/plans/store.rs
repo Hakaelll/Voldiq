@@ -15,7 +15,7 @@ const MANIFEST_LIMIT: usize = 440 * 1024;
 const RECORD_LIMIT: usize = 2 * 1024 * 1024;
 
 pub struct Store {
-    connection: Connection,
+    pub(super) connection: Connection,
     pub(super) directory: crate::agents::AuthorizedPath,
 }
 
@@ -32,6 +32,40 @@ pub(super) enum ExecutionControl {
 }
 
 impl Store {
+    #[cfg(windows)]
+    pub fn record_transfer(
+        &mut self,
+        context: &PlanContext<'_>,
+        human: &HumanAuthority,
+        lease: &ExecutionLease,
+        node: NodeId,
+        update: super::TransferUpdate,
+    ) -> Result<()> {
+        if matches!(
+            self.check_execution(context, human, lease, now)?,
+            ExecutionControl::Cancel
+        ) {
+            return Err(invalid());
+        }
+        let stored = self.read(context, &lease.id)?;
+        if !matches!(stored.view.manifest.action, Action::Offload(_)) {
+            return Err(invalid());
+        }
+        let at = now()?;
+        let tx = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let active: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM agent_plans WHERE id=?1 AND owner=?2 AND hash=?3 AND execution_nonce=?4 AND state='executing')",
+            params![lease.id,lease.owner,lease.hash,lease.nonce], |row| row.get(0))?;
+        if !active {
+            return Err(invalid());
+        }
+        super::catalogue::apply_update(&tx, &stored.view.manifest, &lease.hash, node, update, at)?;
+        audit(&tx, &lease.id, at, "transfer_observation")?;
+        tx.commit()?;
+        Ok(())
+    }
+
     #[cfg(windows)]
     pub(super) fn discard_request(
         &mut self,
@@ -109,8 +143,11 @@ impl Store {
                 CREATE INDEX execution_requests_session ON execution_requests(issuer,requested);
                 PRAGMA user_version=2;",
             )?;
-        } else if version != 2 {
+        } else if version > 3 {
             return Err(invalid());
+        }
+        if version <= 2 {
+            super::catalogue::migrate(&tx)?;
         }
         tx.commit()?;
         Ok(Self {
@@ -234,6 +271,7 @@ impl Store {
         }
         tx.execute("INSERT INTO agent_plans(id,owner,manifest,hash,native_record,binding,state) VALUES(?1,?2,?3,?4,?5,?6,'draft')",
             params![manifest.id, context.owner(), json, hash, native_record, context.binding()?])?;
+        super::catalogue::prepare(&tx, &manifest, &hash)?;
         audit(&tx, &manifest.id, now, "draft")?;
         tx.commit()?;
         Ok(View {
@@ -401,6 +439,14 @@ impl Store {
         let tx = self
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let state = super::catalogue::completion_state(
+            &tx,
+            &lease.id,
+            lease.owner,
+            &lease.hash,
+            state,
+            now,
+        )?;
         if tx.execute("UPDATE agent_plans SET state=?1,result=?2,execution_nonce=NULL WHERE id=?3 AND owner=?4 AND hash=?5 AND execution_nonce=?6 AND state='executing'",
             params![state.as_str(), result, lease.id, lease.owner, lease.hash, lease.nonce])? != 1 { return Err(invalid()); }
         audit(&tx, &lease.id, now, state.as_str())?;
@@ -429,8 +475,14 @@ impl Store {
         }
         for (id, state) in rows {
             let (next, event, result) = if state == "executing" {
+                super::catalogue::interrupt(&tx, &id, now)?;
+                let published: bool = tx.query_row("SELECT EXISTS(SELECT 1 FROM transfer_files WHERE plan_id=?1 AND published_at IS NOT NULL)", [&id], |row| row.get(0))?;
                 (
-                    "failed",
+                    if published {
+                        "partially_completed"
+                    } else {
+                        "failed"
+                    },
                     "recovery_required",
                     Some(r#"{"recovery_required":true,"retry_allowed":false}"#),
                 )
@@ -740,7 +792,7 @@ fn audit(connection: &Connection, id: &str, now: i64, event: &str) -> Result<()>
     Ok(())
 }
 
-fn totals(entries: &[FileEvidence]) -> Result<(u64, u64)> {
+pub(super) fn totals(entries: &[FileEvidence]) -> Result<(u64, u64)> {
     if entries.is_empty() || entries.len() > 500 {
         return Err(invalid());
     }

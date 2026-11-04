@@ -20,14 +20,14 @@ pub struct Destination {
     path: PathBuf,
     identity: String,
     ancestors: Vec<String>,
-    native_identity: String,
+    pub(super) native_identity: String,
     volume: VolumeBinding,
     filesystem: String,
     filesystem_flags: u32,
     maximum_name_units: u32,
     allocation_unit_bytes: u64,
     caller_available_bytes: String,
-    observed_at: u64,
+    pub(super) observed_at: u64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
@@ -47,8 +47,8 @@ pub struct OffloadRequest {
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Output {
-    id: crate::NodeId,
-    name: String,
+    pub(super) id: crate::NodeId,
+    pub(super) name: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
@@ -57,14 +57,14 @@ pub struct Offload {
     source_volume: VolumeBinding,
     pub(super) destination: Destination,
     pub(super) originals: Originals,
-    outputs: Vec<Output>,
+    pub(super) outputs: Vec<Output>,
     required_available_bytes: String,
     reserve_bytes: String,
     limitations: String,
 }
 
 const RESERVE: u64 = 16 * 1024 * 1024;
-const LIMITATIONS: &str = "Planning only; transfer execution and approval are unavailable until the copy/readback/catalogue pipeline is implemented. Exact flat output names; no replacement. Caller-available capacity includes a conservative allocation/entry estimate and a 16 MiB reserve, not a reservation or proof of future space. Source payload, streams, encryption, metadata preservation and destination disconnect behavior require execution preflight. No copy or original modification has occurred. Recycling originals does not imply immediate free space.";
+pub(super) const LIMITATIONS: &str = "Planning only; transfer execution and approval are unavailable until the copy/readback/catalogue pipeline is implemented. Exact flat output names; no replacement. Caller-available capacity includes a conservative allocation/entry estimate and a 16 MiB reserve, not a reservation or proof of future space. Source payload, streams, encryption, metadata preservation and destination disconnect behavior require execution preflight. No copy or original modification has occurred. Recycling originals does not imply immediate free space.";
 
 impl Offload {
     pub(super) fn authorize(

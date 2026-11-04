@@ -163,6 +163,475 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         assert!(!action.execution_available());
         offload["originals"] = serde_json::json!("delete_permanently");
         assert!(serde_json::from_value::<Action>(serde_json::json!({"offload":offload})).is_err());
+        {
+            use crate::plans::{TransferPhase, TransferUpdate, catalogue};
+            // Historical database model only. The fictional volume below never authorizes I/O.
+            let mut target = serde_json::to_value(&observed).unwrap();
+            target["volume"]["serial"] = serde_json::json!("0123456789abcdef");
+            target["volume"]["guid_root"] =
+                serde_json::json!(r"\\?\volume{00000000-0000-0000-0000-000000000001}\");
+            target["native_identity"] =
+                serde_json::json!("efcdab896745230111111111111111111111111111111111");
+            let target_model: Destination = serde_json::from_value(target.clone()).unwrap();
+            let mut historical = plan.manifest.clone();
+            historical.id = "c".repeat(64);
+            historical.schema_version = 3;
+            historical.logical_bytes = "44".into();
+            historical.potential_reclaim_bytes = "0".into();
+            let mut second = historical.entries[0].clone();
+            second.id = crate::NodeId(u32::MAX - 1);
+            second.path = source.path().join("second.data").to_str().unwrap().into();
+            let second_id = second.id;
+            historical.entries.push(second);
+            let (outputs, required) = layout(&historical.entries, &target_model).unwrap();
+            assert_eq!(required, 16_793_600);
+            historical.action = serde_json::from_value(serde_json::json!({"offload":{
+                "source_volume":serde_json::to_value(&observed).unwrap()["volume"],
+                "destination":target,"originals":"keep","outputs":outputs,
+                "required_available_bytes":required.to_string(),"reserve_bytes":"16777216",
+                "limitations":super::super::offload::LIMITATIONS
+            }}))
+            .unwrap();
+            let json = serde_json::to_string(&historical).unwrap();
+            let hash = super::super::digest(json.as_bytes());
+            let ledger = Store::open(state.path()).unwrap();
+            ledger.connection.execute("INSERT INTO agent_plans(id,owner,manifest,hash,native_record,binding,state,approval_issuer,execution_nonce)
+                SELECT ?1,owner,?2,?3,native_record,binding,'executing','prior catalogue fixture','fixture nonce' FROM agent_plans WHERE id=?4",
+                rusqlite::params![historical.id,json,hash,plan.manifest.id]).unwrap();
+            // Model a version-2 database with a pre-existing proposal, then run the real migration.
+            ledger.connection.execute_batch("DROP TABLE transfer_files; DROP TABLE transfer_operations; PRAGMA user_version=2;").unwrap();
+            drop(ledger);
+            let mut ledger = Store::open(state.path()).unwrap();
+            assert_eq!(
+                ledger
+                    .connection
+                    .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
+                    .unwrap(),
+                3
+            );
+            let human = HumanAuthority::acquire(state.path()).unwrap();
+            let first = ledger
+                .transfer_catalogue(&human, &historical.id, None, 1)
+                .unwrap();
+            assert_eq!(first.files.len(), 1);
+            assert_eq!(first.files[0].node, selected);
+            assert_eq!(first.files[0].phase, TransferPhase::Prepared);
+            assert_eq!(first.next_after, Some(selected));
+            assert_eq!(first.currently_connected, None);
+            assert!(!first.restore_available);
+            assert_eq!(first.last_observed_at, observed.observed_at);
+            let second_page = ledger
+                .transfer_catalogue(&human, &historical.id, first.next_after, 1)
+                .unwrap();
+            assert_eq!(second_page.files[0].node, second_id);
+            assert!(second_page.next_after.is_none());
+            assert!(
+                ledger
+                    .transfer_catalogue(&human, &historical.id, None, 0)
+                    .is_err()
+            );
+            assert!(
+                ledger
+                    .transfer_catalogue(&human, &historical.id, None, 101)
+                    .is_err()
+            );
+            assert!(
+                ledger
+                    .transfer_catalogue(&human, &plan.manifest.id, None, 10)
+                    .is_err()
+            );
+            let at = historical.created;
+            {
+                let tx = ledger.connection.transaction().unwrap();
+                assert!(
+                    catalogue::apply_update(
+                        &tx,
+                        &historical,
+                        &"0".repeat(64),
+                        selected,
+                        TransferUpdate::Published,
+                        at
+                    )
+                    .is_err()
+                );
+                assert!(
+                    catalogue::apply_update(
+                        &tx,
+                        &historical,
+                        &hash,
+                        selected,
+                        TransferUpdate::Published,
+                        at
+                    )
+                    .is_err()
+                );
+                catalogue::apply_update(
+                    &tx,
+                    &historical,
+                    &hash,
+                    selected,
+                    TransferUpdate::Private {
+                        name: ".voldiq-output-11111111111111111111111111111111.tmp".into(),
+                        identity: "efcdab896745230122222222222222222222222222222222".into(),
+                    },
+                    at,
+                )
+                .unwrap();
+                // Deliberately roll back an interrupted metadata transaction.
+            }
+            assert_eq!(
+                ledger
+                    .transfer_catalogue(&human, &historical.id, None, 1)
+                    .unwrap()
+                    .files[0]
+                    .phase,
+                TransferPhase::Prepared
+            );
+            {
+                let tx = ledger.connection.transaction().unwrap();
+                for node in [selected, second_id] {
+                    assert!(
+                        catalogue::apply_update(
+                            &tx,
+                            &historical,
+                            &hash,
+                            node,
+                            TransferUpdate::Private {
+                                name: "../unowned".into(),
+                                identity: "0".repeat(48)
+                            },
+                            at
+                        )
+                        .is_err()
+                    );
+                    catalogue::apply_update(
+                        &tx,
+                        &historical,
+                        &hash,
+                        node,
+                        TransferUpdate::Private {
+                            name: format!(".voldiq-output-{:032x}.tmp", node.0),
+                            identity: "efcdab896745230122222222222222222222222222222222".into(),
+                        },
+                        at,
+                    )
+                    .unwrap();
+                    assert!(
+                        catalogue::apply_update(
+                            &tx,
+                            &historical,
+                            &hash,
+                            node,
+                            TransferUpdate::Verified {
+                                bytes: 21,
+                                blake3: "a".repeat(64)
+                            },
+                            at
+                        )
+                        .is_err()
+                    );
+                    catalogue::apply_update(
+                        &tx,
+                        &historical,
+                        &hash,
+                        node,
+                        TransferUpdate::Verified {
+                            bytes: 22,
+                            blake3: "a".repeat(64),
+                        },
+                        at,
+                    )
+                    .unwrap();
+                    assert!(
+                        catalogue::apply_update(
+                            &tx,
+                            &historical,
+                            &hash,
+                            node,
+                            TransferUpdate::Published,
+                            at
+                        )
+                        .is_err()
+                    );
+                    catalogue::apply_update(
+                        &tx,
+                        &historical,
+                        &hash,
+                        node,
+                        TransferUpdate::PublishIntent,
+                        at,
+                    )
+                    .unwrap();
+                }
+                catalogue::apply_update(
+                    &tx,
+                    &historical,
+                    &hash,
+                    selected,
+                    TransferUpdate::Published,
+                    at,
+                )
+                .unwrap();
+                assert!(
+                    catalogue::apply_update(
+                        &tx,
+                        &historical,
+                        &hash,
+                        selected,
+                        TransferUpdate::OriginalIntent,
+                        at
+                    )
+                    .is_err()
+                );
+                catalogue::apply_update(
+                    &tx,
+                    &historical,
+                    &hash,
+                    selected,
+                    TransferUpdate::Kept,
+                    at,
+                )
+                .unwrap();
+                assert!(
+                    catalogue::apply_update(
+                        &tx,
+                        &historical,
+                        &hash,
+                        selected,
+                        TransferUpdate::Published,
+                        at
+                    )
+                    .is_err()
+                );
+                tx.commit().unwrap();
+            }
+            {
+                let tx = ledger.connection.transaction().unwrap();
+                assert!(
+                    catalogue::completion_state(
+                        &tx,
+                        &historical.id,
+                        historical.connection_id,
+                        &hash,
+                        State::Completed,
+                        at
+                    )
+                    .is_err()
+                );
+                assert_eq!(
+                    catalogue::completion_state(
+                        &tx,
+                        &historical.id,
+                        historical.connection_id,
+                        &hash,
+                        State::Failed,
+                        at
+                    )
+                    .unwrap(),
+                    State::PartiallyCompleted
+                );
+                // Roll back completion bookkeeping before testing confirmed full completion.
+            }
+            {
+                let tx = ledger.connection.transaction().unwrap();
+                catalogue::apply_update(
+                    &tx,
+                    &historical,
+                    &hash,
+                    second_id,
+                    TransferUpdate::Published,
+                    at,
+                )
+                .unwrap();
+                catalogue::apply_update(
+                    &tx,
+                    &historical,
+                    &hash,
+                    second_id,
+                    TransferUpdate::Kept,
+                    at,
+                )
+                .unwrap();
+                assert_eq!(
+                    catalogue::completion_state(
+                        &tx,
+                        &historical.id,
+                        historical.connection_id,
+                        &hash,
+                        State::Completed,
+                        at
+                    )
+                    .unwrap(),
+                    State::Completed
+                );
+                // Keep the persisted fixture interrupted between publish intent and confirmation.
+            }
+            let mut recycling = historical.clone();
+            recycling.id = "d".repeat(64);
+            recycling.potential_reclaim_bytes = super::super::store::totals(&recycling.entries)
+                .unwrap()
+                .1
+                .to_string();
+            let Action::Offload(action) = &mut recycling.action else {
+                unreachable!()
+            };
+            action.originals = Originals::RecycleAfterVerification;
+            let recycling_json = serde_json::to_string(&recycling).unwrap();
+            let recycling_hash = super::super::digest(recycling_json.as_bytes());
+            {
+                let tx = ledger.connection.transaction().unwrap();
+                tx.execute("INSERT INTO agent_plans(id,owner,manifest,hash,native_record,binding,state,approval_issuer,execution_nonce)
+                    SELECT ?1,owner,?2,?3,native_record,binding,'executing','prior catalogue fixture','fixture nonce' FROM agent_plans WHERE id=?4",
+                    rusqlite::params![recycling.id,recycling_json,recycling_hash,plan.manifest.id]).unwrap();
+                catalogue::prepare(&tx, &recycling, &recycling_hash).unwrap();
+                for node in [selected, second_id] {
+                    for update in [
+                        TransferUpdate::Private {
+                            name: format!(".voldiq-output-{:032x}.tmp", node.0),
+                            identity: "efcdab896745230122222222222222222222222222222222".into(),
+                        },
+                        TransferUpdate::Verified {
+                            bytes: 22,
+                            blake3: "b".repeat(64),
+                        },
+                        TransferUpdate::PublishIntent,
+                    ] {
+                        catalogue::apply_update(&tx, &recycling, &recycling_hash, node, update, at)
+                            .unwrap();
+                    }
+                }
+                catalogue::apply_update(
+                    &tx,
+                    &recycling,
+                    &recycling_hash,
+                    selected,
+                    TransferUpdate::Published,
+                    at,
+                )
+                .unwrap();
+                assert!(
+                    catalogue::apply_update(
+                        &tx,
+                        &recycling,
+                        &recycling_hash,
+                        selected,
+                        TransferUpdate::OriginalIntent,
+                        at
+                    )
+                    .is_err()
+                );
+                catalogue::apply_update(
+                    &tx,
+                    &recycling,
+                    &recycling_hash,
+                    second_id,
+                    TransferUpdate::Published,
+                    at,
+                )
+                .unwrap();
+                catalogue::apply_update(
+                    &tx,
+                    &recycling,
+                    &recycling_hash,
+                    selected,
+                    TransferUpdate::OriginalIntent,
+                    at,
+                )
+                .unwrap();
+                catalogue::apply_update(
+                    &tx,
+                    &recycling,
+                    &recycling_hash,
+                    selected,
+                    TransferUpdate::Recycled,
+                    at,
+                )
+                .unwrap();
+                catalogue::apply_update(
+                    &tx,
+                    &recycling,
+                    &recycling_hash,
+                    second_id,
+                    TransferUpdate::OriginalIntent,
+                    at,
+                )
+                .unwrap();
+                assert!(
+                    catalogue::completion_state(
+                        &tx,
+                        &recycling.id,
+                        recycling.connection_id,
+                        &recycling_hash,
+                        State::Completed,
+                        at
+                    )
+                    .is_err()
+                );
+                tx.commit().unwrap();
+            }
+            ledger.recover(&human, at + 1).unwrap();
+            drop(ledger);
+            let mut ledger = Store::open(state.path()).unwrap();
+            let saved = ledger
+                .transfer_catalogue(&human, &historical.id, None, 100)
+                .unwrap();
+            assert_eq!(saved.state, State::PartiallyCompleted);
+            assert_eq!(saved.files[0].phase, TransferPhase::Kept);
+            assert_eq!(
+                saved.files[0].content_blake3.as_deref(),
+                Some("a".repeat(64).as_str())
+            );
+            assert_eq!(saved.files[0].published_at, Some(at));
+            assert_eq!(saved.files[0].interrupted_at, None);
+            assert_eq!(saved.files[1].phase, TransferPhase::PublishPending);
+            assert_eq!(saved.files[1].interrupted_at, Some(at + 1));
+            {
+                let tx = ledger.connection.transaction().unwrap();
+                assert!(
+                    catalogue::apply_update(
+                        &tx,
+                        &historical,
+                        &hash,
+                        second_id,
+                        TransferUpdate::Published,
+                        at + 2
+                    )
+                    .is_err()
+                );
+            }
+            let recycled_model = ledger
+                .transfer_catalogue(&human, &recycling.id, None, 100)
+                .unwrap();
+            assert_eq!(recycled_model.state, State::PartiallyCompleted);
+            assert_eq!(recycled_model.files[0].phase, TransferPhase::Recycled);
+            assert_eq!(
+                recycled_model.files[1].phase,
+                TransferPhase::OriginalPending
+            );
+            assert_eq!(recycled_model.files[1].interrupted_at, Some(at + 1));
+            assert!(service.plan_execute(&historical.id, &hash).is_err());
+            assert_eq!(std::fs::read(&original).unwrap(), b"owned dispatch fixture");
+            assert_eq!(std::fs::read_dir(destination.path()).unwrap().count(), 0);
+            drop(pin);
+            destination.close().unwrap();
+            assert_eq!(
+                ledger
+                    .transfer_catalogue(&human, &historical.id, None, 100)
+                    .unwrap()
+                    .files
+                    .len(),
+                2
+            );
+            human.close();
+            assert!(
+                ledger
+                    .transfer_catalogue(&human, &historical.id, None, 100)
+                    .is_err()
+            );
+            println!(
+                "TRANSFER_CATALOGUE_PROBE {{\"migration\":true,\"rollback\":true,\"offline_read\":true,\"partial_recovery\":true,\"real_transfer\":false}}"
+            );
+        }
         println!(
             "OFFLOAD_PLANNING_PROBE {{\"native_destination\":true,\"same_volume_rejected\":true,\"real_cross_volume_transfer\":false}}"
         );

@@ -48,6 +48,15 @@ pub enum ReviewStatus {
 }
 
 impl Desktop {
+    pub fn transfer_catalogue(
+        &self,
+        id: &str,
+        after: Option<crate::NodeId>,
+        limit: usize,
+    ) -> Result<super::TransferCatalogue> {
+        Store::open(&self.directory)?.transfer_catalogue(&self.human, id, after, limit)
+    }
+
     pub fn pending_execution(&self, limit: usize) -> Result<Vec<super::ExecutionRequest>> {
         Store::open(&self.directory)?.pending_execution(&self.human, limit, now()?)
     }
