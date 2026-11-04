@@ -1,0 +1,60 @@
+{
+  "checkedUtc": "2026-11-04T16:52:12.1330155Z",
+  "previewSourceCommit": "84cdce062d838297c5d32f9eb75eb4cb3554b661",
+  "processId": 16592,
+  "mainWindowHandle": 525102,
+  "exactCurrentUiAssets": 8,
+  "obsoleteTestArtifacts": {
+    "removedLogicalBytes": 43625472,
+    "records": [
+      {
+        "name": "snapshots-f9f17ef56b48366d.exe",
+        "status": "Removed",
+        "bytes": 13523456
+      },
+      {
+        "name": "snapshots-d6a08c0a5aab572c.exe",
+        "status": "Removed",
+        "bytes": 13599744
+      },
+      {
+        "name": "voldiq_core-2cb65ca767285962.exe",
+        "status": "Removed",
+        "bytes": 3573248
+      },
+      {
+        "name": "agents-e59dc6e2583072d2.exe",
+        "status": "Removed",
+        "bytes": 2638848
+      },
+      {
+        "name": "headless-3ecdb556a593c106.exe",
+        "status": "Removed",
+        "bytes": 3352064
+      },
+      {
+        "name": "mcp-915f514af10f4557.exe",
+        "status": "Removed",
+        "bytes": 6223360
+      },
+      {
+        "name": "voldiq_cli-cd9a9fd25a160be7.exe",
+        "status": "Removed",
+        "bytes": 714752
+      }
+    ]
+  },
+  "previewCleanup": {
+    "applied": true,
+    "removedBytes": 0,
+    "previews": [
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\49D81291C341416583E916333A043A3A459BA9EEC0DA736E2D95C9A177F2FB0E",
+        "bytes": 24374784,
+        "status": "KeptCurrent"
+      }
+    ]
+  },
+  "debugArtifactsPresent": false,
+  "scope": "Only seven explicit obsolete Voldiq test executables from the pre-GIF dependency graph considered for removal, after the new test graph passed. Current/running preview, current test binaries, reusable compiler artifacts, final GIF/PNG/SVG/PDF fixtures and renders, state, Windows and other applications preserved. Logical bytes are not measured volume free-space change. No new native history UI or WebM acceptance claimed."
+}

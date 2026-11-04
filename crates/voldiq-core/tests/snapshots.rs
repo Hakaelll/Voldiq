@@ -292,6 +292,225 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         clip_request.snapshot_ids = ids;
         assert!(store.export_clip(&clip_request, &loading, |_| {}).is_err());
     }
+    #[cfg(windows)]
+    {
+        use voldiq_core::exports::{GifStage, HistoryGifRequest, StreamOutcome, save_history_gif};
+        let destination = tempfile::tempdir().unwrap();
+        let export_state = tempfile::tempdir().unwrap();
+        let lease = voldiq_core::operations::Lease::acquire(export_state.path()).unwrap();
+        let make_png = |pixel: &[u8], rgba: bool| {
+            let mut bytes = Vec::new();
+            {
+                let mut encoder = png::Encoder::new(&mut bytes, 2, 2);
+                encoder.set_color(if rgba {
+                    png::ColorType::Rgba
+                } else {
+                    png::ColorType::Rgb
+                });
+                encoder.set_depth(png::BitDepth::Eight);
+                encoder
+                    .add_itxt_chunk("Untrusted".into(), "source-client-metadata-marker".into())
+                    .unwrap();
+                let mut writer = encoder.write_header().unwrap();
+                writer.write_image_data(&pixel.repeat(4)).unwrap();
+                writer.finish().unwrap();
+            }
+            bytes
+        };
+        let first_png = make_png(&[33, 40, 50], false);
+        let second_png = make_png(&[61, 40, 50, 255], true);
+        let mut request = HistoryGifRequest {
+            clip: voldiq_core::snapshots::ExportClipRequest {
+                snapshot_ids: vec![before, after],
+                include_paths: false,
+            },
+            fingerprint: clip.fingerprint.clone(),
+            width: 2,
+            height: 2,
+            delay_centiseconds: 100,
+            looped: true,
+        };
+        let path = destination.path().join("history.gif");
+        let mut images = vec![first_png.clone(), second_png.clone()].into_iter();
+        assert!(
+            matches!(save_history_gif(&store, &request, &path, &lease, &loading, |_| {}, || Ok(images.next())).unwrap(), StreamOutcome::Complete(value) if value.stage == GifStage::Finalizing && value.completed_frames == 2)
+        );
+        let saved = std::fs::read(&path).unwrap();
+        assert_eq!(&saved[..6], b"GIF89a");
+        assert_eq!(saved.last(), Some(&0x3b));
+        let mut options = gif::DecodeOptions::new();
+        options.set_color_output(gif::ColorOutput::RGBA);
+        let mut reader = options.read_info(std::io::Cursor::new(&saved)).unwrap();
+        assert_eq!((reader.width(), reader.height()), (2, 2));
+        assert_eq!(reader.repeat(), gif::Repeat::Infinite);
+        for color in [[33, 40, 50, 255], [61, 40, 50, 255]] {
+            let frame = reader.read_next_frame().unwrap().unwrap();
+            assert_eq!(frame.delay, 100);
+            assert_eq!(frame.buffer.as_ref(), color.repeat(4));
+        }
+        assert!(reader.read_next_frame().unwrap().is_none());
+        let mut images = vec![first_png.clone(), second_png.clone()].into_iter();
+        assert!(
+            save_history_gif(
+                &store,
+                &request,
+                &path,
+                &lease,
+                &loading,
+                |_| {},
+                || Ok(images.next())
+            )
+            .is_err()
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), saved);
+        let rejected = destination.path().join("rejected.gif");
+        let stop = AtomicBool::new(false);
+        let mut images = vec![first_png.clone(), second_png.clone()].into_iter();
+        assert!(matches!(
+            save_history_gif(
+                &store,
+                &request,
+                &rejected,
+                &lease,
+                &stop,
+                |value| {
+                    if value.stage == GifStage::Encoding && value.completed_frames == 1 {
+                        stop.store(true, std::sync::atomic::Ordering::Relaxed);
+                    }
+                },
+                || Ok(images.next())
+            )
+            .unwrap(),
+            StreamOutcome::Cancelled(_)
+        ));
+        assert!(!rejected.exists());
+        let mut empty = Vec::new();
+        assert!(matches!(
+            voldiq_core::exports::stream_history_gif(
+                &store,
+                &request,
+                &mut empty,
+                &AtomicBool::new(true),
+                |_| {},
+                || panic!("Cancelled export must not request an image")
+            )
+            .unwrap(),
+            StreamOutcome::Cancelled(_)
+        ));
+        assert!(empty.is_empty());
+        let mut images = vec![first_png.clone(), second_png.clone()].into_iter();
+        let mut changed = false;
+        assert!(
+            save_history_gif(
+                &store,
+                &request,
+                &rejected,
+                &lease,
+                &loading,
+                |_| {},
+                || {
+                    if !changed {
+                        clip_connection
+                            .execute(
+                                "UPDATE snapshots SET captured=captured+1 WHERE id=?1",
+                                [after],
+                            )
+                            .unwrap();
+                        changed = true;
+                    }
+                    Ok(images.next())
+                }
+            )
+            .is_err()
+        );
+        assert!(!rejected.exists());
+        clip_connection
+            .execute(
+                "UPDATE snapshots SET captured=?1 WHERE id=?2",
+                rusqlite::params![i64::try_from(history[0].captured).unwrap(), after],
+            )
+            .unwrap();
+        let mut malformed = vec![
+            first_png.clone(),
+            second_png[..second_png.len() / 2].to_vec(),
+        ]
+        .into_iter();
+        assert!(
+            save_history_gif(
+                &store,
+                &request,
+                &rejected,
+                &lease,
+                &loading,
+                |_| {},
+                || Ok(malformed.next())
+            )
+            .is_err()
+        );
+        assert!(!rejected.exists());
+        let mut transparent = vec![first_png.clone(), make_png(&[61, 40, 50, 0], true)].into_iter();
+        assert!(
+            save_history_gif(
+                &store,
+                &request,
+                &rejected,
+                &lease,
+                &loading,
+                |_| {},
+                || Ok(transparent.next())
+            )
+            .is_err()
+        );
+        assert!(!rejected.exists());
+        let mut missing = vec![first_png.clone()].into_iter();
+        assert!(
+            save_history_gif(
+                &store,
+                &request,
+                &rejected,
+                &lease,
+                &loading,
+                |_| {},
+                || Ok(missing.next())
+            )
+            .is_err()
+        );
+        let mut extra = vec![first_png.clone(), second_png.clone(), first_png.clone()].into_iter();
+        assert!(
+            save_history_gif(
+                &store,
+                &request,
+                &rejected,
+                &lease,
+                &loading,
+                |_| {},
+                || Ok(extra.next())
+            )
+            .is_err()
+        );
+        assert!(!rejected.exists());
+        request.looped = false;
+        request.delay_centiseconds = 50;
+        let mut images = vec![first_png, second_png].into_iter();
+        let once = destination.path().join("once.gif");
+        assert!(matches!(
+            save_history_gif(
+                &store,
+                &request,
+                &once,
+                &lease,
+                &loading,
+                |_| {},
+                || Ok(images.next())
+            )
+            .unwrap(),
+            StreamOutcome::Complete(_)
+        ));
+        assert_eq!(std::fs::read_dir(destination.path()).unwrap().count(), 2);
+        if std::env::var("VOLDIQ_KEEP_GIF_FIXTURE").as_deref() == Ok("1") {
+            println!("GIF fixture: {}", destination.keep().display());
+        }
+    }
     assert!(
         store
             .visual_capture(-1, &AtomicBool::new(true))

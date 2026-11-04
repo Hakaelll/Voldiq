@@ -4,7 +4,7 @@ use super::{
 };
 use crate::{Error, Result, index::Index};
 use std::{
-    io::{self, Cursor, Write},
+    io::Write,
     sync::atomic::{AtomicBool, Ordering},
 };
 
@@ -16,28 +16,6 @@ pub struct PngRequest {
 
 fn invalid(message: impl std::fmt::Display) -> Error {
     Error::Invalid(format!("Invalid storage-map PNG: {message}"))
-}
-
-struct Output<'a, W> {
-    writer: &'a mut W,
-    written: usize,
-    cancelled: &'a AtomicBool,
-}
-impl<W: Write> Write for Output<'_, W> {
-    fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
-        if self.cancelled.load(Ordering::Relaxed) {
-            return Err(io::Error::other("PNG export cancelled."));
-        }
-        if bytes.len() > (64 * 1024 * 1024_usize).saturating_sub(self.written) {
-            return Err(io::Error::other("PNG exceeds the 64 MiB output limit."));
-        }
-        let count = self.writer.write(bytes)?;
-        self.written += count;
-        Ok(count)
-    }
-    fn flush(&mut self) -> io::Result<()> {
-        self.writer.flush()
-    }
 }
 
 pub fn stream_png(
@@ -59,27 +37,8 @@ pub fn stream_png(
     if width > 8192 || height > 8192 || u64::from(width) * u64::from(height) > 16_777_216 {
         return Err(invalid("resolution exceeds 8192 per side or 16 megapixels"));
     }
-    let mut decoder = png::Decoder::new(Cursor::new(&request.image));
-    decoder.set_limits(png::Limits {
-        bytes: 64 * 1024 * 1024,
-    });
-    decoder.set_ignore_text_chunk(true);
-    decoder.set_ignore_iccp_chunk(true);
-    let mut reader = decoder.read_info().map_err(invalid)?;
-    let info = reader.info();
-    if info.width != width
-        || info.height != height
-        || info.bit_depth != png::BitDepth::Eight
-        || !matches!(info.color_type, png::ColorType::Rgb | png::ColorType::Rgba)
-        || info.interlaced
-        || info.animation_control.is_some()
-        || info.frame_control.is_some()
-    {
-        return Err(invalid(
-            "expected a static, non-interlaced 8-bit RGB(A) image matching the captured viewport",
-        ));
-    }
-    let color = info.color_type;
+    let mut reader = super::png_input::read(&request.image, width, height)?;
+    let color = reader.info().color_type;
     context["pixel_width"] = width.into();
     context["pixel_height"] = height.into();
     context["pixel_ratio"] = request.scale.into();
@@ -87,7 +46,8 @@ pub fn stream_png(
         "8-bit sRGB; labels are rasterized. Client ancillary metadata and profiles are discarded."
             .into();
     let result = (|| -> Result<()> {
-        let output = Output {
+        let output = super::output::LimitedOutput {
+            limit: 64 * 1024 * 1024,
             writer,
             written: 0,
             cancelled,

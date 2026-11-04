@@ -5,7 +5,11 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
+mod history_gif;
+mod output;
+mod png_input;
 mod stream;
+pub use history_gif::{GifProgress, GifStage, HistoryGifRequest, stream_history_gif};
 pub use stream::{ReportFilter, ReportSelection, StreamOutcome, StreamProgress, stream_csv};
 mod xlsx;
 pub use xlsx::stream_xlsx;
@@ -26,7 +30,7 @@ pub use pdf::{render_pdf, stream_pdf};
 #[cfg(windows)]
 mod file;
 #[cfg(windows)]
-pub use file::{save_png, save_report, save_svg};
+pub use file::{save_history_gif, save_png, save_report, save_svg};
 
 #[derive(Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]

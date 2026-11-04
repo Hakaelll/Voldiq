@@ -45,9 +45,9 @@ pub struct StreamProgress {
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
 #[serde(tag = "kind", content = "progress", rename_all = "snake_case")]
-pub enum StreamOutcome {
-    Complete(StreamProgress),
-    Cancelled(StreamProgress),
+pub enum StreamOutcome<Progress = StreamProgress> {
+    Complete(Progress),
+    Cancelled(Progress),
 }
 
 fn context(writer: &mut impl Write, kind: &str, data: serde_json::Value) -> Result<()> {

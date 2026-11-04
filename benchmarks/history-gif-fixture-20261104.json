@@ -1,0 +1,42 @@
+{
+  "checkedUtc": "2026-11-04T16:44:51.371076+00:00",
+  "fixtureDirectory": "C:\\Users\\yagol\\AppData\\Local\\Temp\\.tmpYC5MHM",
+  "reader": "Pillow GIF reader independent of Rust gif encoder",
+  "files": [
+    {
+      "file": "history.gif",
+      "bytes": 2865,
+      "sha256": "5A8B4EA8A10001DBD02DAFF26B8D9F5B2560831198F35E699897FDF53A97A6DD",
+      "frames": 2,
+      "width": 2,
+      "height": 2,
+      "durationPerFrameMs": 1000,
+      "infiniteLoop": true,
+      "exactDecodedPixels": true,
+      "sourceLogicalBytes": [
+        "33",
+        "61"
+      ],
+      "pathsWithheld": true,
+      "clientPngMetadataRemoved": true
+    },
+    {
+      "file": "once.gif",
+      "bytes": 2846,
+      "sha256": "6DF0225F6ACE0188A076B106D5C271EA0A3DA399E133C1959FF4FF0403CF651D",
+      "frames": 2,
+      "width": 2,
+      "height": 2,
+      "durationPerFrameMs": 500,
+      "infiniteLoop": false,
+      "exactDecodedPixels": true,
+      "sourceLogicalBytes": [
+        "33",
+        "61"
+      ],
+      "pathsWithheld": true,
+      "clientPngMetadataRemoved": true
+    }
+  ],
+  "scope": "Two owned native GIF files with literal synthetic pixel states and real recorded 33/61-byte capture context. Header/trailer, frame count/order, exact decoded colors, delays/loop and UTF-8 native comment metadata checked. Does not prove historical-map painting, native IPC/dialog interaction, Windows scaling, wider palette quality or runtime performance."
+}

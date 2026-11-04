@@ -88,13 +88,27 @@ pub fn save_png(
     })
 }
 
-fn save_generated(
+pub fn save_history_gif(
+    store: &crate::snapshots::Store,
+    request: &super::HistoryGifRequest,
+    destination: &Path,
+    lease: &Lease,
+    cancelled: &AtomicBool,
+    progress: impl FnMut(super::GifProgress),
+    frames: impl FnMut() -> Result<Option<Vec<u8>>>,
+) -> Result<StreamOutcome<super::GifProgress>> {
+    save_generated("gif", destination, lease, cancelled, |writer| {
+        super::stream_history_gif(store, request, writer, cancelled, progress, frames)
+    })
+}
+
+fn save_generated<Progress: Copy>(
     extension: &'static str,
     destination: &Path,
     lease: &Lease,
     cancelled: &AtomicBool,
-    encode: impl FnOnce(&mut BufWriter<&mut File>) -> Result<StreamOutcome>,
-) -> Result<StreamOutcome> {
+    encode: impl FnOnce(&mut BufWriter<&mut File>) -> Result<StreamOutcome<Progress>>,
+) -> Result<StreamOutcome<Progress>> {
     let destination = ordinary_path(destination)?;
     if !destination
         .extension()
@@ -120,7 +134,7 @@ fn save_generated(
     .map_err(|error| Error::Invalid(format!("Report parent access failed: {error}")))?;
     let mut temporary = Temporary::create(&handle)
         .map_err(|error| Error::Invalid(format!("Report temporary creation failed: {error}")))?;
-    let result: Result<StreamOutcome> = (|| {
+    let result: Result<StreamOutcome<Progress>> = (|| {
         let mut writer = BufWriter::with_capacity(64 * 1024, &mut temporary.file);
         let outcome = encode(&mut writer)?;
         if let StreamOutcome::Complete(state) = outcome {
