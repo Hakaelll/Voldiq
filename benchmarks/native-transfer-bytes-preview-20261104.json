@@ -1,0 +1,104 @@
+{
+  "checkedUtc": "2026-11-04T20:38:07.3145667Z",
+  "sourceCommit": "45055a9fbbb579a61f9e2b17f8d49f977caff332",
+  "executableSha256": "B2DEB5A0D2B6DBA69C950F64E4DB95CF1D08A9C56FF21CFBD107F77BCDA9E737",
+  "executableBytes": 24897536,
+  "preview": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\B2DEB5A0D2B6DBA69C950F64E4DB95CF1D08A9C56FF21CFBD107F77BCDA9E737\\voldiq.exe",
+  "processId": 21328,
+  "mainWindowHandle": 327718,
+  "observation": "ready",
+  "startupEvents": [
+    {
+      "event": "process-start",
+      "pid": 21328,
+      "unixMs": 1793824686350
+    },
+    {
+      "event": "setup-start",
+      "pid": 21328,
+      "unixMs": 1793824686947
+    },
+    {
+      "event": "snapshot-open-start",
+      "pid": 21328,
+      "unixMs": 1793824686949
+    },
+    {
+      "event": "snapshot-open-end",
+      "pid": 21328,
+      "unixMs": 1793824686952
+    },
+    {
+      "event": "setup-end",
+      "pid": 21328,
+      "unixMs": 1793824686985
+    },
+    {
+      "event": "ready",
+      "pid": 21328,
+      "unixMs": 1793824686985
+    },
+    {
+      "event": "page-finished",
+      "pid": 21328,
+      "unixMs": 1793824687117
+    }
+  ],
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "assets/history-export-CChErKOq.js",
+        "bytes": 3986,
+        "sha256": "8C77A885764AB7A098D7A32BB22B4805F516065847CA42ECE50E9A24D0CC711F"
+      },
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "CC6306F6A43221EE5077DD294AAC031ACC9781A5A2B9435ECBCA53FA805F898A"
+      },
+      {
+        "path": "assets/history-video-CadHW1zG.js",
+        "bytes": 2865,
+        "sha256": "B7B4AFB45CFA325385DE8673290463AD6083AFF59CF68BCFADDCA582D8D006B0"
+      },
+      {
+        "path": "assets/city.worker-DLxzT0Wm.js",
+        "bytes": 2879,
+        "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+      },
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      },
+      {
+        "path": "assets/index-D02PeFaT.css",
+        "bytes": 83328,
+        "sha256": "E4D7F128F5B444A860C255637C6143C0D209C87D5B3868A5BF3880050C71D256"
+      },
+      {
+        "path": "assets/svg-surface-D3Yw6xZb.js",
+        "bytes": 6995,
+        "sha256": "16031B0D00F7998ED47803E71C5F769269D4295083881302DD52A7B7F3A450AA"
+      },
+      {
+        "path": "assets/index-Dx2s6Ry-.js",
+        "bytes": 409352,
+        "sha256": "D9B3A98C8E01D64B2D1F913FC57B97C93A026A5D3D32E69CE9138039B0C2C164"
+      },
+      {
+        "path": "assets/voronoi.worker-DwJ2QmrW.js",
+        "bytes": 5606,
+        "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+      }
+    ]
+  },
+  "scope": "Production native startup and exact embedded resources only. Startup does not exercise byte copying or report publication. Approved offload/catalogue/original handling, cross-volume/device behavior, populated UI, focus, scaling and performance acceptance remain separate."
+}
