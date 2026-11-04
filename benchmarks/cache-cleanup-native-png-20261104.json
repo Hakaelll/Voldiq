@@ -1,0 +1,38 @@
+{
+  "checkedUtc": "2026-11-04T15:59:20.1299992Z",
+  "sourceCommit": "84cdce062d838297c5d32f9eb75eb4cb3554b661",
+  "newUiPreviewOpen": true,
+  "processId": 16592,
+  "mainWindowHandle": 525102,
+  "cleanup": {
+    "applied": true,
+    "removedBytes": 48059904,
+    "previews": [
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\09F1B91D6D3D8724780BF903D71F3EDC9E15ED6D37262A28B3CE1396D20CBF1B",
+        "bytes": 24115712,
+        "status": "Removed"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\49D81291C341416583E916333A043A3A459BA9EEC0DA736E2D95C9A177F2FB0E",
+        "bytes": 24374784,
+        "status": "KeptCurrent"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\D76ED96396787F18EFC1D6639ACAF9A2E435AA62213881F2C14F2FE7F97B7FFB",
+        "bytes": 23944192,
+        "status": "Removed"
+      }
+    ]
+  },
+  "testFixtureCleanup": {
+    "checkedUtc": "2026-11-04T15:54:30.2064682Z",
+    "path": "C:\\Users\\yagol\\AppData\\Local\\Temp\\.tmpduGFCC",
+    "removedFiles": 6,
+    "removedLogicalBytes": 309385,
+    "scope": "Only duplicated owned PNG test output. Independently reviewed .tmpUmJJND fixture, render, active/reusable builds and application state preserved."
+  },
+  "removedLogicalArtifactBytes": 48369289,
+  "debugArtifactsPresent": false,
+  "scope": "Only verified inactive Voldiq preview images and six duplicated owned PNG test files removed. Current/running preview, final owned graphic/PDF fixtures and renders, reusable release artifacts, application state, Windows and other applications preserved. Logical artifact bytes are not measured volume free-space change."
+}
