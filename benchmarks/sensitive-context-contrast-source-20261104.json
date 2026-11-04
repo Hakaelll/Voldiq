@@ -1,0 +1,39 @@
+{
+  "checkedUtc": "2026-11-04T18:59:29.000158+00:00",
+  "scope": "Source token pairs used by the sensitive-context notice; no rendered WebView, focus, scaling or whole-interface conformance claim.",
+  "cssSha256": "410b90cddf96468e3e36cb5de50c42a824c14cdd78e6ea81c3fbfb002381f292",
+  "pairs": [
+    {
+      "theme": "light",
+      "foregroundToken": "text",
+      "foreground": "#242c29",
+      "backgroundToken": "surface",
+      "background": "#f3f4f0",
+      "contrastRatio": 12.955
+    },
+    {
+      "theme": "light",
+      "foregroundToken": "secondary",
+      "foreground": "#505c54",
+      "backgroundToken": "surface",
+      "background": "#f3f4f0",
+      "contrastRatio": 6.337
+    },
+    {
+      "theme": "dark",
+      "foregroundToken": "text",
+      "foreground": "#e6e8ec",
+      "backgroundToken": "surface",
+      "background": "#1e2228",
+      "contrastRatio": 13.021
+    },
+    {
+      "theme": "dark",
+      "foregroundToken": "secondary",
+      "foreground": "#b8bec8",
+      "backgroundToken": "surface",
+      "background": "#1e2228",
+      "contrastRatio": 8.548
+    }
+  ]
+}

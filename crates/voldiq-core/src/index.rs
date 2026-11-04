@@ -85,6 +85,7 @@ pub struct Details {
     pub path: String,
     pub path_exact: bool,
     pub ancestors: Vec<Entry>,
+    pub sensitive: Option<crate::security::SensitiveWarning>,
 }
 
 #[derive(Serialize)]
@@ -237,6 +238,7 @@ impl Index {
             return Ok(None);
         };
         let details = Details {
+            sensitive: crate::security::warning(&path),
             entry,
             path: path.to_string_lossy().into_owned(),
             path_exact: path.to_str().is_some(),

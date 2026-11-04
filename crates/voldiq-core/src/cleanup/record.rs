@@ -194,38 +194,23 @@ impl Record {
 }
 
 pub(crate) fn sensitive(path: &std::path::Path) -> bool {
-    path.components().any(|part| {
-        let name = part.as_os_str().to_string_lossy().to_ascii_lowercase();
-        matches!(
-            name.as_str(),
-            ".git"
-                | ".ssh"
-                | ".aws"
-                | ".azure"
-                | ".gnupg"
-                | ".codex"
-                | "$recycle.bin"
-                | "system volume information"
-        ) || name == ".env"
-            || name.starts_with(".env.")
-            || name.starts_with(".voldiq-")
-            || name.starts_with(super::STAGE_DIRECTORY_PREFIX)
-            || name.ends_with(".vhd")
-            || name.ends_with(".vhdx")
-            || matches!(
+    crate::security::warning(path).is_some()
+        || path.components().any(|part| {
+            let name = part.as_os_str().to_string_lossy().to_ascii_lowercase();
+            matches!(
                 name.as_str(),
-                "credentials"
-                    | "credentials.json"
-                    | "auth.json"
-                    | "login data"
-                    | "key4.db"
-                    | "logins.json"
+                ".git"
+                    | "$recycle.bin"
+                    | "system volume information"
                     | "ntuser.dat"
                     | "pagefile.sys"
                     | "hiberfil.sys"
                     | "swapfile.sys"
-            )
-    })
+            ) || name.starts_with(".voldiq-")
+                || name.starts_with(super::STAGE_DIRECTORY_PREFIX)
+                || name.ends_with(".vhd")
+                || name.ends_with(".vhdx")
+        })
 }
 
 fn invalid() -> Error {

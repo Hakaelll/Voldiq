@@ -231,6 +231,11 @@ impl Plan {
                 ));
             }
             let path = index.path(id)?;
+            if record::sensitive(&path) {
+                return Err(Error::Invalid(
+                    "Sensitive files are excluded from cleanup.".into(),
+                ));
+            }
             if path.to_str().is_none() {
                 return Err(Error::Invalid(
                     "Filename cannot be represented exactly in the preview.".into(),
@@ -350,6 +355,11 @@ impl Plan {
         planned: &PlannedFile,
         access: windows::cleanup_io::LeafAccess,
     ) -> Result<VerifiedFile> {
+        if record::sensitive(&planned.path) {
+            return Err(Error::Invalid(
+                "Sensitive files are excluded from cleanup.".into(),
+            ));
+        }
         let mut parents = Vec::new();
         // Pin ancestor names from the volume root inward; independently check the opened leaf's identity.
         for (path, expected) in planned.parents.iter().rev() {

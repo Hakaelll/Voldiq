@@ -2039,6 +2039,16 @@
                     >
                   </div>
                   <p class="path">{details.path}</p>
+                  {#if details.sensitive}
+                    <div class="sensitive-notice" role="note">
+                      <strong><Icon name="warning" />Potentially sensitive</strong>
+                      <p>{details.sensitive.reason}</p>
+                      <p>
+                        Name/location only; contents were not inspected for this warning. Excluded
+                        from cleanup.
+                      </p>
+                    </div>
+                  {/if}
                   <dl>
                     <div>
                       <dt>Logical size</dt>
@@ -2117,12 +2127,15 @@
                       disabled={busy ||
                         historical !== null ||
                         details.entry.kind !== 'file' ||
-                        details.entry.incomplete}
-                      title={details.entry.kind === 'directory'
-                        ? 'Select concrete files in the list before reviewing cleanup'
-                        : 'Open the native cleanup preview; nothing is removed now'}
+                        details.entry.incomplete ||
+                        Boolean(details.sensitive)}
+                      title={details.sensitive
+                        ? 'Potentially sensitive items are excluded from cleanup'
+                        : details.entry.kind === 'directory'
+                          ? 'Select concrete files in the list before reviewing cleanup'
+                          : 'Open the native cleanup preview; nothing is removed now'}
                       onclick={() => {
-                        if (details?.entry.kind === 'file') {
+                        if (details?.entry.kind === 'file' && !details.sensitive) {
                           selection = new Set([details.entry.id]);
                           void previewSelection();
                         }

@@ -118,6 +118,15 @@ export interface Details {
   path: string;
   ancestors: Entry[];
   path_exact: boolean;
+  sensitive: {
+    kind:
+      | 'credential_location'
+      | 'credential_file'
+      | 'key_material'
+      | 'password_store'
+      | 'private_application_state';
+    reason: string;
+  } | null;
 }
 export interface SelectedDetails extends Details {
   children: Page | null;

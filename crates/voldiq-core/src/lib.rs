@@ -17,6 +17,7 @@ pub mod plans;
 pub mod recovery;
 pub mod scanner;
 pub mod search;
+pub mod security;
 pub mod service;
 pub mod snapshots;
 pub mod space;
