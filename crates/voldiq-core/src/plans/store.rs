@@ -127,6 +127,43 @@ impl Store {
         selection: &[NodeId],
         now: i64,
     ) -> Result<View> {
+        self.create_using(context, snapshot, index, selection, now, |_| {
+            Ok(Action::Recycle)
+        })
+    }
+
+    pub fn create_offload(
+        &mut self,
+        context: &PlanContext<'_>,
+        snapshot: i64,
+        index: &Index,
+        selection: &[NodeId],
+        request: &OffloadRequest,
+        now: i64,
+    ) -> Result<View> {
+        let state = self.directory.path().to_owned();
+        self.create_using(context, snapshot, index, selection, now, |entries| {
+            Offload::capture(
+                context,
+                &state,
+                &index.root,
+                entries,
+                &request.destination,
+                request.originals,
+            )
+            .map(|action| Action::Offload(Box::new(action)))
+        })
+    }
+
+    fn create_using(
+        &mut self,
+        context: &PlanContext<'_>,
+        snapshot: i64,
+        index: &Index,
+        selection: &[NodeId],
+        now: i64,
+        action: impl FnOnce(&[FileEvidence]) -> Result<Action>,
+    ) -> Result<View> {
         let policy = context.check(Capability::PreparePlans)?;
         context.check_directory(self.directory.identity())?;
         if snapshot <= 0
@@ -156,8 +193,14 @@ impl Store {
             return Err(invalid());
         }
         let scope = record.scope();
+        let action = action(&entries)?;
+        record.validate(self.directory.identity())?;
+        let reclaim = match &action {
+            Action::Offload(plan) if plan.originals == Originals::Keep => 0,
+            _ => reclaim,
+        };
         let manifest = Manifest {
-            schema_version: 2,
+            schema_version: action.schema_version(),
             policy_version: POLICY_VERSION,
             id: random_id()?,
             connection_id: context.owner(),
@@ -166,7 +209,7 @@ impl Store {
             root: scope.root.to_str().ok_or_else(invalid)?.to_owned(),
             root_identity: format!("{:016x}:{:016x}", scope.identity.0, scope.identity.1),
             exclusions_count: scope.exclusions.len(),
-            action: "recycle".into(),
+            action,
             risk: "review".into(),
             created: now,
             expires: now.checked_add(PLAN_TTL).ok_or_else(invalid)?,
@@ -240,6 +283,11 @@ impl Store {
         if stored.view.state != State::AwaitingApproval || stored.view.hash != hash {
             return Err(invalid());
         }
+        if !stored.view.manifest.action.execution_available() {
+            return Err(crate::Error::Invalid(
+                "Transfer approval and execution are not available yet.".into(),
+            ));
+        }
         self.validate_material(context, &stored, now)?;
         let expires = now
             .checked_add(APPROVAL_TTL)
@@ -271,6 +319,11 @@ impl Store {
         human.check_directory(self.directory.identity())?;
         let stored = self.load(context, id, now)?;
         let view = &stored.view;
+        if !view.manifest.action.execution_available() {
+            return Err(crate::Error::Invalid(
+                "Transfer approval and execution are not available yet.".into(),
+            ));
+        }
         if view.state.terminal() || view.state == State::Executing {
             return Ok(Begin::Existing(view.state));
         }
@@ -452,12 +505,11 @@ impl Store {
         if hash != digest(json.as_bytes())
             || manifest.native_record_hash != digest(native.as_bytes())
             || manifest.id != id
-            || manifest.schema_version != 2
+            || manifest.schema_version != manifest.action.schema_version()
             || manifest.policy_version != POLICY_VERSION
             || manifest.connection_id != context.owner()
             || manifest.user != current_user()?
             || binding != context.binding()?
-            || manifest.action != "recycle"
             || manifest.risk != "review"
             || manifest.created < 0
             || manifest.expires != manifest.created.checked_add(PLAN_TTL).ok_or_else(invalid)?
@@ -478,6 +530,18 @@ impl Store {
         let _root = context.snapshot(&scope)?;
         let evidence = record.evidence()?;
         let (logical, reclaim) = totals(&evidence)?;
+        let reclaim = match &manifest.action {
+            Action::Offload(plan) => {
+                plan.check_shape(&evidence)?;
+                let _target = plan.authorize(context, &scope.root)?;
+                if plan.originals == Originals::Keep {
+                    0
+                } else {
+                    reclaim
+                }
+            }
+            Action::Recycle => reclaim,
+        };
         if manifest.entries != evidence
             || manifest.logical_bytes != logical.to_string()
             || manifest.potential_reclaim_bytes != reclaim.to_string()
@@ -563,6 +627,9 @@ impl Store {
             return Err(invalid());
         }
         let stored = self.read(context, &lease.id)?;
+        if stored.view.manifest.action != Action::Recycle {
+            return Err(invalid());
+        }
         self.validate_protection_binding(&stored)?;
         if stored.view.hash != lease.hash || stored.view.state != State::Executing {
             return Err(invalid());
@@ -634,7 +701,18 @@ impl Store {
                 .iter()
                 .map(|entry| context.path(Path::new(&entry.path)))
                 .collect::<Result<Vec<_>>>()?;
-            stored.record.validate(self.directory.identity())
+            stored
+                .record
+                .validate(self.directory.identity())
+                .and_then(|()| match &stored.view.manifest.action {
+                    Action::Recycle => Ok(()),
+                    Action::Offload(plan) => plan.check(
+                        context,
+                        self.directory.path(),
+                        &stored.record.scope().root,
+                        entries,
+                    ),
+                })
         })();
         if checked.is_err() {
             self.change(&stored.view, State::Invalidated, now, "invalidated")?;

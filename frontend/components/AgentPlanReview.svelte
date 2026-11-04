@@ -3,6 +3,7 @@
   import { invoke, isTauri } from '@tauri-apps/api/core';
   import { date } from '../lib/types';
   import { readPlanResult } from '../lib/plan-result';
+  import type { PlanAction } from '../lib/offload-plan';
 
   type PlanState =
     | 'draft'
@@ -41,7 +42,7 @@
       exclusions_count: number;
       created: number;
       expires: number;
-      action: string;
+      action: PlanAction;
       risk: string;
       logical_bytes: string;
       potential_reclaim_bytes: string;
@@ -248,6 +249,7 @@
     {@const review = selection.review}
     {@const plan = review.plan}
     {@const manifest = plan.manifest}
+    {@const transfer = manifest.action === 'recycle' ? null : manifest.action.offload}
     {@const outcome = readPlanResult(plan.result)}
     <article class="selection" aria-labelledby="selected-plan-heading">
       <div class="review-heading">
@@ -261,7 +263,13 @@
         </div>
         <div>
           <dt>Action</dt>
-          <dd>Send to Recycle Bin · manual review</dd>
+          <dd>
+            {transfer
+              ? transfer.originals === 'keep'
+                ? 'Verified transfer · keep originals'
+                : 'Verified transfer · recycle originals only after verification'
+              : 'Send to Recycle Bin · manual review'}
+          </dd>
         </div>
         <div class="wide">
           <dt>Folder</dt>
@@ -271,6 +279,35 @@
           <dt>Selected</dt>
           <dd>{manifest.entries.length} files · {exactBytes(manifest.logical_bytes)}</dd>
         </div>
+        {#if transfer}
+          <div class="wide">
+            <dt>Destination</dt>
+            <dd>{transfer.destination.path}</dd>
+          </div>
+          <div class="wide">
+            <dt>Destination volume</dt>
+            <dd>
+              <code>{transfer.destination.volume.guid_root}</code> · {transfer.destination.volume
+                .serial} · {transfer.destination.filesystem}
+            </dd>
+          </div>
+          <div>
+            <dt>Available to this user</dt>
+            <dd>
+              {exactBytes(transfer.destination.caller_available_bytes)} · observed {date(
+                transfer.destination.observed_at,
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt>Estimated capacity required</dt>
+            <dd>
+              {exactBytes(transfer.required_available_bytes)} including {exactBytes(
+                transfer.reserve_bytes,
+              )} reserve · space is not reserved
+            </dd>
+          </div>
+        {/if}
         <div>
           <dt>Immediate freed space</dt>
           <dd>{exactBytes(manifest.immediate_free_bytes)}</dd>
@@ -304,9 +341,15 @@
             ></thead
           ><tbody>
             {#each manifest.entries as entry (entry.id)}<tr
-                ><td>{entry.path}<small><code>{entry.identity}</code></small></td><td
-                  >{exactBytes(entry.logical_bytes)}</td
-                ><td>{exactBytes(entry.allocated_bytes)}</td><td>{entry.hard_links}</td></tr
+                ><td
+                  >{entry.path}<small><code>{entry.identity}</code></small>
+                  {#if transfer}<small
+                      >Destination name: {transfer.outputs.find((output) => output.id === entry.id)
+                        ?.name ?? 'unavailable'}</small
+                    >{/if}
+                </td><td>{exactBytes(entry.logical_bytes)}</td><td
+                  >{exactBytes(entry.allocated_bytes)}</td
+                ><td>{entry.hard_links}</td></tr
               >{/each}
           </tbody>
         </table>
@@ -372,6 +415,10 @@
             </p>{/if}
         </section>{/if}
       <div class="decisions">
+        {#if transfer}<p role="note">
+            This is a transfer proposal. Copying, verification and original handling are not
+            available yet; it cannot be approved or executed.
+          </p>{/if}
         <button
           disabled={busy ||
             (plan.state !== 'awaiting_approval' && plan.state !== 'approved') ||
@@ -384,7 +431,10 @@
           >{/if}
         <button
           class="primary"
-          disabled={busy || plan.state !== 'awaiting_approval' || now >= manifest.expires}
+          disabled={busy ||
+            Boolean(transfer) ||
+            plan.state !== 'awaiting_approval' ||
+            now >= manifest.expires}
           onclick={() => decide('approve')}>{busy ? 'Working…' : 'Review and approve plan'}</button
         >
       </div>

@@ -109,6 +109,25 @@ impl AgentService {
         )
     }
 
+    pub fn plan_prepare_offload(
+        &self,
+        snapshot: i64,
+        selection: &[crate::NodeId],
+        request: &crate::plans::OffloadRequest,
+    ) -> Result<crate::plans::View> {
+        let registry = self.registry()?;
+        let context = registry.plan_context(&self.principal, Capability::PreparePlans)?;
+        let index = self.index(snapshot)?;
+        crate::plans::Store::open(self.directory.directory())?.create_offload(
+            &context,
+            snapshot,
+            &index,
+            selection,
+            request,
+            crate::plans::now()?,
+        )
+    }
+
     pub fn plan_request(&self, id: &str) -> Result<crate::plans::View> {
         let registry = self.registry()?;
         let context = registry.plan_context(&self.principal, Capability::RequestApproval)?;

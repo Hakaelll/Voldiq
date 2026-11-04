@@ -1,6 +1,7 @@
 //! Exact immutable manifests and single-use human grants. No file mutation is performed here.
 mod desktop;
 mod human;
+mod offload;
 #[cfg(windows)]
 mod recycling;
 mod store;
@@ -8,6 +9,7 @@ pub use crate::cleanup::record::FileEvidence;
 use crate::{Error, Result};
 pub use desktop::{Desktop, Review, ReviewPage};
 pub use human::{Begin, HumanAuthority};
+pub use offload::{Destination, Offload, OffloadRequest, Originals, VolumeBinding};
 #[cfg(windows)]
 pub use recycling::{PreparedRecycling, RecyclingWorker};
 use serde::{Deserialize, Serialize};
@@ -69,7 +71,7 @@ pub struct Manifest {
     pub root: String,
     pub root_identity: String,
     pub exclusions_count: usize,
-    pub action: String,
+    pub action: Action,
     pub risk: String,
     pub created: i64,
     pub expires: i64,
@@ -79,6 +81,25 @@ pub struct Manifest {
     pub immediate_free_bytes: String,
     pub native_record_hash: String,
     pub protection_fingerprint: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case", deny_unknown_fields)]
+pub enum Action {
+    Recycle,
+    Offload(Box<Offload>),
+}
+
+impl Action {
+    fn schema_version(&self) -> u32 {
+        match self {
+            Self::Recycle => 2,
+            Self::Offload(_) => 3,
+        }
+    }
+    pub fn execution_available(&self) -> bool {
+        matches!(self, Self::Recycle)
+    }
 }
 
 #[derive(Serialize)]

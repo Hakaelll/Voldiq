@@ -139,6 +139,14 @@ struct PlanPrepareArgs {
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct OffloadArgs {
+    snapshot_id: i64,
+    node_ids: Vec<voldiq_core::NodeId>,
+    destination: std::path::PathBuf,
+    originals: voldiq_core::plans::Originals,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct PlanArgs {
     plan_id: String,
 }
@@ -380,6 +388,22 @@ fn invoke(
             serde_json::to_value(service.plan_get(&args.plan_id).map_err(plan_unavailable)?)
                 .map_err(unavailable)
         }
+        "voldiq_plan_prepare_offload" => {
+            let args: OffloadArgs = parse(args)?;
+            serde_json::to_value(
+                service
+                    .plan_prepare_offload(
+                        args.snapshot_id,
+                        &args.node_ids,
+                        &voldiq_core::plans::OffloadRequest {
+                            destination: args.destination,
+                            originals: args.originals,
+                        },
+                    )
+                    .map_err(plan_unavailable)?,
+            )
+            .map_err(unavailable)
+        }
         "voldiq_plan_execute" => {
             let args: ExecutionArgs = parse(args)?;
             service
@@ -533,6 +557,7 @@ fn tools() -> Vec<Tool> {
         ("voldiq_calendar", "Read UTC last-modification cohorts from one authorized stored capture. Logical file-path sizes are not bytes written. Includes unknown dates, outside-month metadata, coverage and accounting. Add day to page recorded file/placeholder metadata; day is required for offset/limit. No content reads or file operation.", json!({"snapshot_id":integer,"month":{"type":"string","pattern":"^[0-9]{4}-[0-9]{2}$","maxLength":7},"day":{"type":"integer","minimum":1,"maximum":31},"offset":{"type":"integer","minimum":0,"maximum":10000},"limit":{"type":"integer","minimum":1,"maximum":100}}), json!(["snapshot_id","month"])),
         ("voldiq_diary", "Read adjacent retained observations in the authorized capture's root/identity/exclusion group, through that capture. Paged baselines/comparisons retain partial/unknown/incompatible evidence and opaque historical context IDs. Does not establish who caused a change, bytes written, current paths or file-operation authority.", json!({"snapshot_id":integer,"offset":{"type":"integer","minimum":0,"maximum":10000},"limit":{"type":"integer","minimum":1,"maximum":10,"default":5}}), json!(["snapshot_id"])),
         ("voldiq_plan_prepare", "Prepare an immutable recycling manifest from exact indexed file IDs, with fresh scope/identity/protection validation. Changes no files and grants no approval.", json!({"snapshot_id":integer,"node_ids":{"type":"array","minItems":1,"maxItems":500,"uniqueItems":true,"items":{"type":"integer","minimum":0,"maximum":4294967295u64}}}), json!(["snapshot_id","node_ids"])),
+        ("voldiq_plan_prepare_offload", "Prepare a read-only, exact cross-volume transfer proposal. Source, destination and destination volume root must be explicitly authorized. No copying, original modification or approval; execution is not available yet.", json!({"snapshot_id":integer,"node_ids":{"type":"array","minItems":1,"maxItems":500,"uniqueItems":true,"items":{"type":"integer","minimum":0,"maximum":4294967295u64}},"destination":{"type":"string","minLength":1,"maxLength":32768},"originals":{"type":"string","enum":["keep","recycle_after_verification"]}}), json!(["snapshot_id","node_ids","destination","originals"])) ,
         ("voldiq_plan_get", "Read this connection's exact manifest and current state. An approved row is not execution authority.", json!({"plan_id":plan_id}), json!(["plan_id"])),
         ("voldiq_plan_execute", "Queue one exact human-approved recycling plan in the open Voldiq desktop. Requires ExecuteApproved and a live independent human session; cannot approve, expand or permanently delete. Poll plan_get for actual results; repeat calls do not repeat execution.", json!({"plan_id":plan_id,"manifest_hash":{"type":"string","pattern":"^[a-f0-9]{64}$"}}), json!(["plan_id","manifest_hash"])),
         ("voldiq_plan_cancel", "Cancel this connection's exact queued plan or request a running worker to stop safely. Inspect plan_get for actual partial or unknown outcomes. Cannot purge the bin or undo unrelated work.", json!({"plan_id":plan_id,"manifest_hash":{"type":"string","pattern":"^[a-f0-9]{64}$"}}), json!(["plan_id","manifest_hash"])),

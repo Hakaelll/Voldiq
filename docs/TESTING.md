@@ -30,6 +30,8 @@ The native GIF integration extends the retained frontend flow with literal share
 
 The retained history flow also publishes five shared-painter PNG maps and a 2x treemap, compares every decoded row with its source, and verifies pixel dimensions, scoped counts, unknown coverage and private filter/path metadata. It rejects truncated or dimension-mismatched input, preserves collisions, cancels before publication and after encoding begins, and strips injected client iTXt while retaining explicit native filter-text opt-in. `VOLDIQ_KEEP_PNG_FIXTURE=1` retains only the six owned native output files. The existing frontend flow adds resolution-bound and pre-aborted preparation checks. The fixture generator now calls the production `paintScene`/`mapSvg` helpers and writes the 2x image. No test declaration or production JavaScript package was added.
 
+The retained desktop dispatch flow also observes an owned NTFS transfer destination and checks explicit destination-volume scope, same-volume refusal, empty destination after preparation failures, exact layout/capacity models, case/name collisions, FAT32 size limits, protected state and unchanged recycle serialization/dispatch. CLI and official SDK flows reject out-of-scope offload proposals and injected approval fields. These are planning/metadata/model checks, not evidence of an actual cross-volume transfer, other filesystem/device behavior or a copy executor. The test environment exposes only C: as an accessible data volume; reserved system partitions are not mounted or modified. No new test declaration was added.
+
 ## Run the source gate
 
 Use the Rust MSVC toolchain, C++ Build Tools and installed project dependencies:

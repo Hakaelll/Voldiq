@@ -493,6 +493,18 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         assert_eq!(value["error"]["code"], "invalid_query");
         assert!(!value.to_string().contains("private-secret"));
     }
+    assert!(
+        tools
+            .iter()
+            .any(|tool| tool.name == "voldiq_plan_prepare_offload")
+    );
+    let offload = call(&client, "voldiq_plan_prepare_offload",
+        json!({"snapshot_id":snapshot,"node_ids":[selected],"destination":source.path(),"originals":"keep"})).await;
+    assert_eq!(offload.is_error, Some(true));
+    assert!(offload.structured_content.unwrap()["result"].is_null());
+    let injected_offload = call(&client, "voldiq_plan_prepare_offload",
+        json!({"snapshot_id":snapshot,"node_ids":[selected],"destination":source.path(),"originals":"keep","approved":true})).await;
+    assert_eq!(injected_offload.is_error, Some(true));
     let prepared = call(
         &client,
         "voldiq_plan_prepare",

@@ -2,6 +2,14 @@
 
 The adapter implements authenticated analysis, exact recycling plans and execution/cancellation requests to the open Windows desktop. Humans review and approve each exact plan in Voldiq. No arbitrary delete, shell, approval-granting or bin-purge tool is registered. Full elevated/Shell acceptance through this new agent route remains manual.
 
+## Transfer proposals
+
+`voldiq_plan_prepare_offload` accepts `snapshot_id`, exact `node_ids`, an existing absolute `destination` directory and `originals` set to `keep` or `recycle_after_verification`. The CLI equivalent is `plan offload <snapshot_id> <JSON node IDs> <JSON request>` where the request contains `destination` and `originals`. Source and destination need explicit current authorization. The destination volume root also needs authorization before its capacity is disclosed; a folder grant is insufficient and no policy is expanded automatically.
+
+This call records a proposal in Voldiq state. It does not copy or modify source/destination files. Recycle manifests retain schema 2 and their string action; transfer manifests use schema 3 and a typed `offload` action with exact flat output names, native folder/volume identity, observed capacity, required estimate/reserve and requested original handling. No overwrite, original deletion or immediate free-space claim is implied. Fixed/ removable local NTFS, exFAT and FAT32 destination metadata profiles are considered; actual filesystem/device behavior remains unverified beyond the owned NTFS metadata probe.
+
+Transfer proposals can be reviewed/rejected in the desktop, but approval and execution are unavailable until the copy/readback/catalogue pipeline exists. Core rejects granting/starting an unsupported transfer and refuses routing it to the recycling worker. There is no same-volume bypass, agent approval flag, shell or copy executor in this endpoint. Real cross-volume copying, metadata preservation, disconnect/recovery and restore acceptance are still pending.
+
 ## Build and verify
 
 ```powershell

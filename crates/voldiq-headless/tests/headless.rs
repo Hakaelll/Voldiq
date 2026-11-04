@@ -57,6 +57,35 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     )
     .unwrap();
     let node = files["result"]["items"][0]["id"].as_u64().unwrap();
+    let target = json!({"destination":source.path(),"originals":"keep"}).to_string();
+    let offload = run(&[
+        "plan",
+        "offload",
+        &snapshot.to_string(),
+        &format!("[{node}]"),
+        &target,
+    ]);
+    assert_eq!(offload.status.code(), Some(4));
+    let rejected: Value = serde_json::from_slice(&offload.stdout).unwrap();
+    assert!(rejected["result"].is_null());
+    let injected =
+        json!({"destination":source.path(),"originals":"keep","approved":true}).to_string();
+    assert_eq!(
+        run(&[
+            "plan",
+            "offload",
+            &snapshot.to_string(),
+            &format!("[{node}]"),
+            &injected
+        ])
+        .status
+        .code(),
+        Some(2)
+    );
+    assert_eq!(
+        std::fs::read(source.path().join("selected.data")).unwrap(),
+        b"fixture"
+    );
     let reader = registry
         .provision(
             "Metadata reader",

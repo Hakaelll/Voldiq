@@ -54,6 +54,119 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
     )
     .unwrap();
     let plan = service.plan_prepare(snapshot, &[selected]).unwrap();
+    {
+        use crate::plans::{
+            Action, OffloadRequest, Originals,
+            offload::{Destination, layout},
+        };
+        let destination = tempfile::tempdir().unwrap();
+        let request = OffloadRequest {
+            destination: destination.path().to_owned(),
+            originals: Originals::Keep,
+        };
+        assert!(
+            service
+                .plan_prepare_offload(snapshot, &[selected], &request)
+                .is_err()
+        );
+        let root = source.path().ancestors().last().unwrap();
+        let volume_reader = registry
+            .provision(
+                "Volume transfer fixture",
+                Policy::new(
+                    vec![root.to_owned()],
+                    vec![],
+                    vec![
+                        Capability::Metadata,
+                        Capability::PreparePlans,
+                        Capability::RequestApproval,
+                        Capability::ExecuteApproved,
+                    ],
+                    Limits::default(),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        let volume_service = AgentService::new(
+            state.path().to_owned(),
+            registry
+                .authenticate(volume_reader.credential.expose())
+                .unwrap(),
+        )
+        .unwrap();
+        let same_volume = volume_service
+            .plan_prepare_offload(snapshot, &[selected], &request)
+            .err()
+            .unwrap()
+            .to_string();
+        assert!(same_volume.contains("different volume"));
+        assert_eq!(std::fs::read_dir(destination.path()).unwrap().count(), 0);
+        let pin = crate::agents::pin_directory(destination.path()).unwrap();
+        let observed = Destination::observe(&pin, state.path()).unwrap();
+        let mut shape = serde_json::to_value(&observed).unwrap();
+        assert!(
+            shape["volume"]["guid_root"]
+                .as_str()
+                .unwrap()
+                .starts_with(r"\\?\volume{")
+        );
+        assert_eq!(
+            shape["volume"]["serial"],
+            format!("{:016x}", pin.identity().0)
+        );
+        shape["allocation_unit_bytes"] = serde_json::json!(4096);
+        let model: Destination = serde_json::from_value(shape.clone()).unwrap();
+        let (outputs, required) = layout(&plan.manifest.entries, &model).unwrap();
+        assert_eq!(required, 16_785_408);
+        assert_eq!(
+            serde_json::to_value(outputs).unwrap(),
+            serde_json::json!([{"id":selected,"name":"selected.data"}])
+        );
+        let mut collision = plan.manifest.entries.clone();
+        let mut second = collision[0].clone();
+        second.id = crate::NodeId(u32::MAX);
+        second.path = source
+            .path()
+            .join("SELECTED.DATA")
+            .to_str()
+            .unwrap()
+            .to_owned();
+        collision.push(second);
+        assert!(layout(&collision, &model).is_err());
+        shape["filesystem"] = serde_json::json!("FAT32");
+        let fat: Destination = serde_json::from_value(shape.clone()).unwrap();
+        let mut large = plan.manifest.entries.clone();
+        large[0].logical_bytes = "4294967296".into();
+        assert!(layout(&large, &fat).is_err());
+        shape["maximum_name_units"] = serde_json::json!(2);
+        assert!(
+            layout(
+                &plan.manifest.entries,
+                &serde_json::from_value(shape).unwrap()
+            )
+            .is_err()
+        );
+        let mut alias = plan.manifest.entries.clone();
+        alias[0].path = source.path().join("CON.txt").to_str().unwrap().to_owned();
+        assert!(layout(&alias, &model).is_err());
+        let state_pin = crate::agents::pin_directory(state.path()).unwrap();
+        assert!(Destination::observe(&state_pin, state.path()).is_err());
+        assert_eq!(
+            serde_json::to_value(&plan.manifest.action).unwrap(),
+            "recycle"
+        );
+        assert!(Action::Recycle.execution_available());
+        let mut offload = serde_json::json!({"source_volume":serde_json::to_value(&observed).unwrap()["volume"],"destination":observed,
+            "originals":"keep","outputs":[],"required_available_bytes":"0","reserve_bytes":"0","limitations":"model only"});
+        let action: Action =
+            serde_json::from_value(serde_json::json!({"offload":offload})).unwrap();
+        assert!(!action.execution_available());
+        offload["originals"] = serde_json::json!("delete_permanently");
+        assert!(serde_json::from_value::<Action>(serde_json::json!({"offload":offload})).is_err());
+        println!(
+            "OFFLOAD_PLANNING_PROBE {{\"native_destination\":true,\"same_volume_rejected\":true,\"real_cross_volume_transfer\":false}}"
+        );
+    }
     assert!(matches!(
         service.plan_execute(&plan.manifest.id, &plan.hash),
         Err(crate::Error::NeedsHumanApproval)
