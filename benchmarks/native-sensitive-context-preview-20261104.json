@@ -1,0 +1,104 @@
+{
+  "checkedUtc": "2026-11-04T19:14:34.3526418Z",
+  "sourceCommit": "7ee0f2385466a4a0d5a7edda8cf77fdbe31c01be",
+  "executableSha256": "DFF5C09FC5457857E31F3189E3152F0842450A6D7A9B2CC22C458F05CB268C25",
+  "executableBytes": 24805376,
+  "preview": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\DFF5C09FC5457857E31F3189E3152F0842450A6D7A9B2CC22C458F05CB268C25\\voldiq.exe",
+  "processId": 2804,
+  "mainWindowHandle": 2492174,
+  "observation": "ready",
+  "startupEvents": [
+    {
+      "event": "process-start",
+      "pid": 2804,
+      "unixMs": 1793819672921
+    },
+    {
+      "event": "setup-start",
+      "pid": 2804,
+      "unixMs": 1793819673233
+    },
+    {
+      "event": "snapshot-open-start",
+      "pid": 2804,
+      "unixMs": 1793819673235
+    },
+    {
+      "event": "snapshot-open-end",
+      "pid": 2804,
+      "unixMs": 1793819673238
+    },
+    {
+      "event": "setup-end",
+      "pid": 2804,
+      "unixMs": 1793819674017
+    },
+    {
+      "event": "ready",
+      "pid": 2804,
+      "unixMs": 1793819674018
+    },
+    {
+      "event": "page-finished",
+      "pid": 2804,
+      "unixMs": 1793819674129
+    }
+  ],
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "assets/voronoi.worker-DwJ2QmrW.js",
+        "bytes": 5606,
+        "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+      },
+      {
+        "path": "assets/index-DjVgJRxg.js",
+        "bytes": 407416,
+        "sha256": "FE503C5B68A255023FCC388BAE4A9C3AE14D4BF7A02E50DE3E07F248A92A7206"
+      },
+      {
+        "path": "assets/index-D02PeFaT.css",
+        "bytes": 83328,
+        "sha256": "E4D7F128F5B444A860C255637C6143C0D209C87D5B3868A5BF3880050C71D256"
+      },
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "720AE6610A08D08C6FA6DAA7B1E720363A4609D6DA1D875CDF1EA4A5411A7DA7"
+      },
+      {
+        "path": "assets/svg-surface-D3Yw6xZb.js",
+        "bytes": 6995,
+        "sha256": "16031B0D00F7998ED47803E71C5F769269D4295083881302DD52A7B7F3A450AA"
+      },
+      {
+        "path": "assets/history-export-D17v6Vjl.js",
+        "bytes": 3986,
+        "sha256": "1AB5CDE90EB3AA6FA20B19458B5A35EF77B01E37CC5D06B0FD708398A1A10AF2"
+      },
+      {
+        "path": "assets/history-video-D5s59d4B.js",
+        "bytes": 2865,
+        "sha256": "4EF40AA1C4432888AF93A4D4430A4D21C01644E32C4C700C850DEECF495956C9"
+      },
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "assets/city.worker-DLxzT0Wm.js",
+        "bytes": 2879,
+        "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      }
+    ]
+  },
+  "scope": "Production native startup and exact embedded resources only. Populated inspector, cleanup interaction, focus, scaling and performance acceptance remain separate."
+}
