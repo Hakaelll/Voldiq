@@ -14,6 +14,7 @@ export type PlanAction =
         outputs: { id: number; name: string }[];
         required_available_bytes: string;
         reserve_bytes: string;
+        execution?: { maximum_seconds: number };
         metadata?: {
           profile: 'ntfs_basic_v1';
           files: {

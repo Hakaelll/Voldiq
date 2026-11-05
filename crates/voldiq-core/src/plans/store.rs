@@ -392,10 +392,20 @@ impl Store {
         if current_state != State::Approved {
             return Err(Error::NeedsHumanApproval);
         }
-        human.consume(id, &view.hash, context.owner(), &stored.binding, now)?;
+        let started_at = super::now()?;
+        if started_at < now {
+            return Err(invalid());
+        }
+        #[cfg(windows)]
+        let window = ExecutionWindow::new(
+            &view.manifest.action,
+            view.approval_expires.ok_or_else(invalid)?,
+            started_at,
+        )?;
+        human.consume(id, &view.hash, context.owner(), &stored.binding, started_at)?;
         if tx.execute("UPDATE agent_plans SET state='executing',execution_nonce=?1 WHERE id=?2 AND owner=?3 AND hash=?4 AND state='approved' AND approval_issuer=?5 AND approval_expires>?6",
-            params![nonce, id, context.owner(), view.hash, human.issuer(), now])? != 1 { return Err(Error::NeedsHumanApproval); }
-        audit(&tx, id, now, "executing")?;
+            params![nonce, id, context.owner(), view.hash, human.issuer(), started_at])? != 1 { return Err(Error::NeedsHumanApproval); }
+        audit(&tx, id, started_at, "executing")?;
         tx.commit()?;
         Ok(Begin::Started(ExecutionLease {
             id: id.to_owned(),
@@ -407,7 +417,7 @@ impl Store {
             runtime: Box::new(RuntimeBinding {
                 issuer: human.issuer().to_owned(),
                 policy: stored.binding,
-                deadline: view.approval_expires.ok_or_else(invalid)?,
+                window,
                 created: view.manifest.created,
                 user: view.manifest.user.clone(),
                 protection_fingerprint: view.manifest.protection_fingerprint.clone(),
@@ -642,25 +652,26 @@ impl Store {
             || lease.runtime.issuer != human.issuer()
             || lease.runtime.policy != context.binding()?
             || at < lease.runtime.created
-            || at >= lease.runtime.deadline
             || lease.runtime.user != current_user()?
             || crate::metadata::Store::open(self.directory.path())?.protection_fingerprint()?
                 != lease.runtime.protection_fingerprint
         {
             return Err(invalid());
         }
+        lease.runtime.window.check(at)?;
         let cancelled: Option<bool> = self.connection.query_row("SELECT r.cancel_requested FROM agent_plans p
             JOIN execution_requests r ON r.plan_id=p.id AND r.owner=p.owner AND r.hash=p.hash AND r.issuer=p.approval_issuer
             WHERE p.id=?1 AND p.owner=?2 AND p.hash=?3 AND p.execution_nonce=?4 AND p.state='executing'
                 AND p.approval_issuer=?5 AND p.binding=?6 AND p.approval_expires=?7
-                AND r.requested>=?8 AND r.requested<=?9",
-            params![lease.id,lease.owner,lease.hash,lease.nonce,lease.runtime.issuer,lease.runtime.policy,lease.runtime.deadline,lease.runtime.created,at],
+                AND r.requested>=?8 AND r.requested<=?9 AND r.requested<?7",
+            params![lease.id,lease.owner,lease.hash,lease.nonce,lease.runtime.issuer,lease.runtime.policy,lease.runtime.window.admission_expires,lease.runtime.created,at],
             |row| row.get(0)).optional()?;
         let completed_at = clock()?;
         human.check_directory(self.directory.identity())?;
-        if completed_at < at || completed_at >= lease.runtime.deadline {
+        if completed_at < at {
             return Err(invalid());
         }
+        lease.runtime.window.check(completed_at)?;
         match cancelled {
             Some(false) => Ok(ExecutionControl::Proceed),
             Some(true) => Ok(ExecutionControl::Cancel),

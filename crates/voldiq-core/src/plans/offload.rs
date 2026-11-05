@@ -123,6 +123,14 @@ pub struct Output {
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
+pub struct ExecutionPolicy {
+    maximum_seconds: i64,
+}
+
+const MAXIMUM_EXECUTION_SECONDS: i64 = 4 * 60 * 60;
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct Offload {
     source_volume: VolumeBinding,
     pub(super) destination: Destination,
@@ -133,6 +141,8 @@ pub struct Offload {
     limitations: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(super) metadata: Option<MetadataPlan>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    execution: Option<ExecutionPolicy>,
 }
 
 const RESERVE: u64 = 16 * 1024 * 1024;
@@ -140,7 +150,28 @@ pub(super) const LIMITATIONS: &str = "Planning only; transfer execution and appr
 
 impl Offload {
     pub(super) fn schema_version(&self) -> u32 {
-        if self.metadata.is_some() { 4 } else { 3 }
+        if self.execution.is_some() {
+            5
+        } else if self.metadata.is_some() {
+            4
+        } else {
+            3
+        }
+    }
+
+    #[cfg(windows)]
+    pub(super) fn execution_limit(&self) -> Result<i64> {
+        self.execution
+            .as_ref()
+            .filter(|policy| {
+                policy.maximum_seconds == MAXIMUM_EXECUTION_SECONDS && self.metadata.is_some()
+            })
+            .map(|policy| policy.maximum_seconds)
+            .ok_or_else(|| {
+                crate::Error::Invalid(
+                    "Prepare a new transfer plan with an explicit execution time limit.".into(),
+                )
+            })
     }
 
     pub(super) fn file_metadata(&self, node: crate::NodeId) -> Result<&BasicMetadata> {
@@ -263,6 +294,9 @@ impl Offload {
             reserve_bytes: RESERVE.to_string(),
             limitations: LIMITATIONS.into(),
             metadata,
+            execution: Some(ExecutionPolicy {
+                maximum_seconds: MAXIMUM_EXECUTION_SECONDS,
+            }),
         };
         result.check(context, state, source.path(), entries)?;
         Ok(result)
@@ -271,6 +305,11 @@ impl Offload {
     pub(super) fn check_shape(&self, entries: &[FileEvidence]) -> Result<()> {
         if let Some(metadata) = &self.metadata {
             metadata.check_shape(entries)?;
+        }
+        if let Some(execution) = &self.execution
+            && (execution.maximum_seconds != MAXIMUM_EXECUTION_SECONDS || self.metadata.is_none())
+        {
+            return Err(invalid());
         }
         let (outputs, required) = layout(entries, &self.destination)?;
         if outputs != self.outputs

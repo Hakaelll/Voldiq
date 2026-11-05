@@ -308,6 +308,14 @@
             </dd>
           </div>
           <div class="wide">
+            <dt>Execution time limit</dt>
+            <dd>
+              {transfer.execution
+                ? `${transfer.execution.maximum_seconds / 3600} hours from the one-time start · cancellation and permission checks continue throughout`
+                : 'Not recorded · prepare a new plan'}
+            </dd>
+          </div>
+          <div class="wide">
             <dt>Metadata</dt>
             <dd>
               {transfer.metadata
@@ -335,7 +343,7 @@
           <dd>{exactBytes(manifest.potential_reclaim_bytes)} · not guaranteed</dd>
         </div>
         <div>
-          <dt>Valid until</dt>
+          <dt>{transfer ? 'Approval start deadline' : 'Valid until'}</dt>
           <dd>
             {date(plan.approval_expires ?? manifest.expires)} · {Math.max(
               0,

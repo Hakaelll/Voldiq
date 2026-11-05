@@ -1,4 +1,6 @@
 //! Exact immutable manifests and single-use human grants. No file mutation is performed here.
+#[cfg(windows)]
+mod batch;
 mod catalogue;
 #[cfg(windows)]
 mod copying;
@@ -10,6 +12,8 @@ mod recycling;
 mod store;
 pub use crate::cleanup::record::FileEvidence;
 use crate::{Error, Result};
+#[cfg(windows)]
+pub use batch::{CopiedTransfer, TransferFailure};
 pub use catalogue::{TransferCatalogue, TransferFile, TransferPhase, TransferUpdate};
 #[cfg(windows)]
 pub use copying::{CopyFailure, CopyPublication, PublishedContent, TransferWorker};
@@ -142,10 +146,48 @@ pub struct ExecutionLease {
 struct RuntimeBinding {
     issuer: String,
     policy: String,
-    deadline: i64,
+    window: ExecutionWindow,
     created: i64,
     user: String,
     protection_fingerprint: String,
+}
+
+#[cfg(windows)]
+struct ExecutionWindow {
+    admission_expires: i64,
+    started_at: i64,
+    deadline: i64,
+    started: std::time::Instant,
+    maximum: std::time::Duration,
+}
+
+#[cfg(windows)]
+impl ExecutionWindow {
+    fn new(action: &Action, admission_expires: i64, at: i64) -> Result<Self> {
+        if at < 0 || at >= admission_expires {
+            return Err(invalid());
+        }
+        let deadline = match action {
+            Action::Recycle => admission_expires,
+            Action::Offload(plan) => at
+                .checked_add(plan.execution_limit()?)
+                .ok_or_else(invalid)?,
+        };
+        Ok(Self {
+            admission_expires,
+            started_at: at,
+            deadline,
+            started: std::time::Instant::now(),
+            maximum: std::time::Duration::from_secs((deadline - at) as u64),
+        })
+    }
+
+    fn check(&self, at: i64) -> Result<()> {
+        if at < self.started_at || at >= self.deadline || self.started.elapsed() >= self.maximum {
+            return Err(invalid());
+        }
+        Ok(())
+    }
 }
 
 fn invalid() -> Error {

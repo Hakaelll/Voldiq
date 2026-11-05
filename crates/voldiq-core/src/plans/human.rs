@@ -18,6 +18,9 @@ struct Grant {
     owner: i64,
     binding: String,
     expires: i64,
+    issued_at: i64,
+    issued: std::time::Instant,
+    maximum: std::time::Duration,
 }
 
 /// Held only by the human desktop process. SQLite stores audit, never this authority.
@@ -112,11 +115,15 @@ impl HumanAuthority {
         now: i64,
         expires: i64,
     ) -> Result<()> {
-        if self.closed.load(Ordering::Acquire) {
+        if self.closed.load(Ordering::Acquire)
+            || now < 0
+            || expires <= now
+            || expires - now > super::APPROVAL_TTL
+        {
             return Err(Error::NeedsHumanApproval);
         }
         let mut grants = self.grants.lock().map_err(|_| invalid())?;
-        grants.retain(|_, grant| grant.expires > now);
+        grants.retain(|_, grant| grant.expires > now && grant.issued.elapsed() < grant.maximum);
         if grants.len() >= 500 {
             return Err(invalid());
         }
@@ -127,6 +134,9 @@ impl HumanAuthority {
                 owner,
                 binding: binding.to_owned(),
                 expires,
+                issued_at: now,
+                issued: std::time::Instant::now(),
+                maximum: std::time::Duration::from_secs((expires - now) as u64),
             },
         );
         Ok(())
@@ -153,6 +163,8 @@ impl HumanAuthority {
             || grant.owner != owner
             || grant.binding != binding
             || now >= grant.expires
+            || now < grant.issued_at
+            || grant.issued.elapsed() >= grant.maximum
         {
             return Err(Error::NeedsHumanApproval);
         }

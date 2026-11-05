@@ -19,6 +19,12 @@ impl<'a> TransferWorker<'a> {
     pub fn new(operation: &'a Lease, cancel: &'a AtomicBool) -> Self {
         Self { operation, cancel }
     }
+    pub(super) fn reborrow(&self) -> Self {
+        Self::new(self.operation, self.cancel)
+    }
+    pub(super) fn cancelled(&self) -> bool {
+        self.cancel.load(std::sync::atomic::Ordering::Acquire)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -38,7 +44,7 @@ pub struct CopyFailure {
     cleanup_error: Option<Box<Error>>,
 }
 impl CopyFailure {
-    fn before(error: Error) -> Self {
+    pub(super) fn before(error: Error) -> Self {
         Self {
             error,
             publication: CopyPublication::NotAttempted,
@@ -344,7 +350,7 @@ impl Store {
         self.copy_checkpoint(context, human, lease, &worker)
     }
 
-    fn copy_checkpoint(
+    pub(super) fn copy_checkpoint(
         &self,
         context: &PlanContext<'_>,
         human: &HumanAuthority,
@@ -352,15 +358,18 @@ impl Store {
         worker: &TransferWorker<'_>,
     ) -> Result<()> {
         crate::transfer::check(worker.cancel, &mut || {
-            if worker.operation.directory_identity() != lease.directory
-                || !matches!(
-                    self.check_execution(context, human, lease, now)?,
-                    super::store::ExecutionControl::Proceed
-                )
-            {
+            if worker.operation.directory_identity() != lease.directory {
                 return Err(invalid());
             }
-            Ok(())
+            match self.check_execution(context, human, lease, now)? {
+                super::store::ExecutionControl::Proceed => Ok(()),
+                super::store::ExecutionControl::Cancel => {
+                    worker
+                        .cancel
+                        .store(true, std::sync::atomic::Ordering::Release);
+                    Err(Error::Invalid("Transfer cancelled.".into()))
+                }
+            }
         })
     }
 }

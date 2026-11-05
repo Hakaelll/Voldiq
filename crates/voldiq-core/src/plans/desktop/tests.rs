@@ -295,6 +295,60 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                     serde_json::to_value(&recorded.manifest).unwrap()["action"]["offload"]["metadata"],
                     value
                 );
+                assert_eq!(serde_json::to_string(&recorded.manifest).unwrap(), encoded);
+                let mut bounded = serde_json::to_value(&profiled).unwrap();
+                bounded["id"] = serde_json::json!("1".repeat(64));
+                bounded["schema_version"] = serde_json::json!(5);
+                bounded["action"]["offload"]["execution"] =
+                    serde_json::json!({"maximum_seconds":14400});
+                let bounded: crate::plans::Manifest = serde_json::from_value(bounded).unwrap();
+                assert_eq!(bounded.action.schema_version(), 5);
+                let encoded = serde_json::to_string(&bounded).unwrap();
+                let bounded_hash = super::super::digest(encoded.as_bytes());
+                assert_ne!(bounded_hash, profiled_hash);
+                let tx = ledger.connection.transaction().unwrap();
+                tx.execute("INSERT INTO agent_plans(id,owner,manifest,hash,native_record,binding,state)
+                    SELECT ?1,owner,?2,?3,native_record,binding,'draft' FROM agent_plans WHERE id=?4",
+                    rusqlite::params![bounded.id,encoded,bounded_hash,plan.manifest.id]).unwrap();
+                catalogue::prepare(&tx, &bounded, &bounded_hash).unwrap();
+                tx.commit().unwrap();
+                let recorded = ledger
+                    .transfer_catalogue(&human, &bounded.id, None, 10)
+                    .unwrap();
+                assert_eq!(recorded.manifest_hash, bounded_hash);
+                assert!(!recorded.manifest.action.execution_available());
+                // Clock-policy model only; no synthetic execution ticket or offload grant.
+                use super::super::ExecutionWindow;
+                let at = bounded.created;
+                let mut window = ExecutionWindow::new(&bounded.action, at + 120, at).unwrap();
+                assert_eq!(window.admission_expires, at + 120);
+                assert_eq!(window.deadline, at + 14400);
+                assert!(window.check(at + 121).is_ok());
+                assert!(window.check(at + 14399).is_ok());
+                assert!(window.check(at + 14400).is_err());
+                assert!(window.check(at - 1).is_err());
+                assert!(ExecutionWindow::new(&bounded.action, at, at).is_err());
+                assert!(ExecutionWindow::new(&profiled.action, at + 120, at).is_err());
+                assert!(ExecutionWindow::new(&bounded.action, i64::MAX, i64::MAX - 1).is_err());
+                window.started = window
+                    .started
+                    .checked_sub(std::time::Duration::from_secs(14401))
+                    .unwrap();
+                assert!(window.check(at + 1).is_err());
+                let recycle = ExecutionWindow::new(&Action::Recycle, at + 120, at).unwrap();
+                assert!(recycle.check(at + 119).is_ok());
+                assert!(recycle.check(at + 120).is_err());
+                let mut altered = serde_json::to_value(&bounded.action).unwrap();
+                altered["offload"]["execution"]["maximum_seconds"] = serde_json::json!(14401);
+                let Action::Offload(unsupported) =
+                    serde_json::from_value::<Action>(altered).unwrap()
+                else {
+                    unreachable!()
+                };
+                assert!(unsupported.check_shape(&bounded.entries).is_err());
+                println!(
+                    "TRANSFER_EXECUTION_WINDOW_PROBE {{\"admission_seconds\":120,\"maximum_seconds\":14400,\"post_admission_checkpoint\":true,\"wall_and_monotonic_limits\":true,\"legacy_3_4_unchanged\":true,\"real_offload\":false}}"
+                );
                 let mut mismatched = profiled.clone();
                 mismatched.id = "f".repeat(64);
                 let Action::Offload(action) = &mut mismatched.action else {
@@ -820,6 +874,72 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         assert_eq!(std::fs::read(&input).unwrap(), payload);
         assert_eq!(std::fs::read(&output).unwrap(), payload);
         assert!(std::fs::OpenOptions::new().write(true).open(&input).is_ok());
+        {
+            // Owned same-volume content fixtures, not an approved offload or source-removal path.
+            use super::super::batch::copy_all;
+            let nodes = [crate::NodeId(1), crate::NodeId(2), crate::NodeId(3)];
+            let copies = copy_all(&nodes, |node| {
+                copy_verified(
+                    copy_plan.copy_source(copy_id).unwrap(),
+                    metadata.clone(),
+                    OwnedFile::create(&parent).unwrap(),
+                    OsStr::new(&format!("batch-complete-{}.data", node.0)),
+                    &cancelled,
+                    |_| Ok(()),
+                    |_| {},
+                )
+            })
+            .ok()
+            .unwrap();
+            assert_eq!(copies.len(), 3);
+            assert_eq!(copies.iter().map(|copy| copy.bytes()).sum::<u64>(), 786531);
+            for copy in &copies {
+                copy.check().unwrap();
+                assert_eq!(copy.blake3(), expected_hash);
+            }
+            drop(copies);
+            let mut attempted = Vec::new();
+            let stopped = copy_all(&nodes, |node| {
+                attempted.push(node);
+                copy_verified(
+                    copy_plan.copy_source(copy_id).unwrap(),
+                    metadata.clone(),
+                    OwnedFile::create(&parent).unwrap(),
+                    OsStr::new(&format!("batch-partial-{}.data", node.0)),
+                    &cancelled,
+                    |control| {
+                        if node == crate::NodeId(2)
+                            && matches!(control, Control::Record(TransferUpdate::Verified { .. }))
+                        {
+                            return Err(crate::Error::Invalid(
+                                "Fixture second copy receipt failed".into(),
+                            ));
+                        }
+                        Ok(())
+                    },
+                    |_| {},
+                )
+            })
+            .err()
+            .unwrap();
+            assert_eq!(attempted, [crate::NodeId(1), crate::NodeId(2)]);
+            assert_eq!(stopped.copies.len(), 1);
+            assert_eq!(stopped.node, crate::NodeId(2));
+            assert_eq!(stopped.error.publication(), CopyPublication::NotAttempted);
+            assert!(stopped.error.cleanup_error().is_none());
+            stopped.copies[0].check().unwrap();
+            drop(stopped);
+            assert_eq!(
+                std::fs::read(destination.path().join("batch-partial-1.data")).unwrap(),
+                payload
+            );
+            assert!(!destination.path().join("batch-partial-2.data").exists());
+            assert!(!destination.path().join("batch-partial-3.data").exists());
+            assert_eq!(std::fs::read(&input).unwrap(), payload);
+            println!(
+                "NATIVE_COPY_BATCH_PROBE {{\"completed_copies\":3,\"verified_bytes\":786531,\"partial_copies\":1,\"stopped_before_third\":true,\"failed_private_removed\":true,\"original_unchanged\":true,\"real_offload\":false}}"
+            );
+        }
         let failure = copy_verified(
             copy_plan.copy_source(copy_id).unwrap(),
             metadata.clone(),
@@ -1045,7 +1165,23 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             .is_err()
         );
         assert_eq!(std::fs::read(&input).unwrap(), payload);
-        assert_eq!(std::fs::read_dir(destination.path()).unwrap().count(), 3);
+        let mut remaining = std::fs::read_dir(destination.path())
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_str().unwrap().to_owned())
+            .collect::<Vec<_>>();
+        remaining.sort();
+        assert_eq!(
+            remaining,
+            [
+                "batch-complete-1.data",
+                "batch-complete-2.data",
+                "batch-complete-3.data",
+                "batch-partial-1.data",
+                "copy.data",
+                "published-unrecorded.data",
+                "terminal.data"
+            ]
+        );
         {
             use crate::transfer::metadata::{BasicMetadata, DOS_FLAGS};
             use std::os::windows::{fs::OpenOptionsExt, io::AsRawHandle};
@@ -1296,6 +1432,33 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             plans.check_execution(&context, &desktop.human, &lease, super::super::now),
             Ok(super::super::store::ExecutionControl::Proceed)
         ));
+        assert!(
+            plans
+                .check_execution(&context, &desktop.human, &lease, || Ok(lease
+                    .runtime
+                    .window
+                    .admission_expires))
+                .is_err()
+        );
+        plans
+            .connection
+            .execute(
+                "UPDATE agent_plans SET approval_expires=approval_expires+1 WHERE id=?1",
+                [&lease.id],
+            )
+            .unwrap();
+        assert!(
+            plans
+                .check_execution(&context, &desktop.human, &lease, super::super::now)
+                .is_err()
+        );
+        plans
+            .connection
+            .execute(
+                "UPDATE agent_plans SET approval_expires=approval_expires-1 WHERE id=?1",
+                [&lease.id],
+            )
+            .unwrap();
         let failure = plans
             .copy_transfer_file(
                 &context,
@@ -1313,13 +1476,79 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         );
         assert_eq!(std::fs::read(&original).unwrap(), b"owned dispatch fixture");
         plans
-            .finish(
-                lease,
-                State::Failed,
-                serde_json::json!({"fixture":"wrong_action_denied"}),
+            .cancel_execution(
+                &context,
+                &recycle_only.manifest.id,
+                &recycle_only.hash,
                 super::super::now().unwrap(),
             )
             .unwrap();
+        let failure = plans
+            .copy_transfer_batch(
+                &context,
+                &desktop.human,
+                lease,
+                crate::plans::TransferWorker::new(&operation, &cancel),
+                |_, _| {},
+            )
+            .err()
+            .unwrap();
+        assert_eq!(failure.recorded_state, Some(State::Cancelled));
+        assert_eq!(failure.copied_files, 0);
+        assert_eq!(failure.verified_bytes, 0);
+        assert!(failure.finalization_error.is_none());
+        assert!(cancel.load(std::sync::atomic::Ordering::Acquire));
+        assert_eq!(
+            failure.copy_failure().publication(),
+            crate::plans::CopyPublication::NotAttempted
+        );
+        assert_eq!(std::fs::read(&original).unwrap(), b"owned dispatch fixture");
+        // A real grant must not start using a timestamp captured before SQLite's writer wait.
+        let delayed = service.plan_prepare(snapshot, &[selected]).unwrap();
+        assert!(service.plan_request(&delayed.manifest.id).is_err());
+        desktop
+            .approve(&delayed.manifest.id, &delayed.hash)
+            .unwrap();
+        service
+            .plan_execute(&delayed.manifest.id, &delayed.hash)
+            .unwrap();
+        let requested_at = super::super::now().unwrap();
+        plans
+            .connection
+            .execute(
+                "UPDATE agent_plans SET approval_expires=?1 WHERE id=?2",
+                rusqlite::params![requested_at + 1, delayed.manifest.id],
+            )
+            .unwrap();
+        plans
+            .connection
+            .busy_timeout(std::time::Duration::from_secs(5))
+            .unwrap();
+        let blocker = rusqlite::Connection::open(state.path().join("agent-plans.db")).unwrap();
+        let (ready, blocked) = std::sync::mpsc::channel();
+        let release = std::thread::spawn(move || {
+            blocker.execute_batch("BEGIN IMMEDIATE").unwrap();
+            ready.send(()).unwrap();
+            std::thread::sleep(std::time::Duration::from_millis(2100));
+            blocker.execute_batch("ROLLBACK").unwrap();
+        });
+        blocked.recv().unwrap();
+        let started = plans.begin(&context, &delayed.manifest.id, &desktop.human, requested_at);
+        release.join().unwrap();
+        assert!(matches!(started, Err(crate::Error::Invalid(_))));
+        let stored: (String, Option<String>) = plans
+            .connection
+            .query_row(
+                "SELECT state,execution_nonce FROM agent_plans WHERE id=?1",
+                [&delayed.manifest.id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(stored, ("approved".into(), None));
+        assert_eq!(std::fs::read(&original).unwrap(), b"owned dispatch fixture");
+        println!(
+            "TRANSFER_ADMISSION_PROBE {{\"cancel_recorded_as_cancelled\":true,\"approval_expired_during_writer_wait_refused\":true,\"no_execution_nonce\":true,\"original_unchanged\":true}}"
+        );
     }
     let next = service.plan_prepare(snapshot, &[selected]).unwrap();
     assert!(service.plan_request(&next.manifest.id).is_err());
