@@ -19,9 +19,9 @@ use std::{
 
 /// Borrowed resources must stay on this STA worker and outlive its prepared batch.
 pub struct RecyclingWorker<'a> {
-    operation: &'a crate::operations::Lease,
-    cancel: &'a AtomicBool,
-    apartment: &'a ShellApartment,
+    pub(super) operation: &'a crate::operations::Lease,
+    pub(super) cancel: &'a AtomicBool,
+    pub(super) apartment: &'a ShellApartment,
 }
 
 impl<'a> RecyclingWorker<'a> {
@@ -237,7 +237,7 @@ fn preflight_summary(report: &Report) -> serde_json::Value {
         "failed_nodes":report.items.iter().filter(|item| item.error.is_some()).map(|item| item.id).collect::<Vec<_>>()})
 }
 
-fn outcome(report: &Report, invalidated: bool) -> State {
+pub(super) fn outcome(report: &Report, invalidated: bool) -> State {
     let recycled = report
         .items
         .iter()
@@ -271,7 +271,7 @@ fn outcome(report: &Report, invalidated: bool) -> State {
     }
 }
 
-fn execution_summary(report: &Report) -> serde_json::Value {
+pub(super) fn execution_summary(report: &Report) -> serde_json::Value {
     serde_json::json!({"phase":"execution","total":report.items.len(),"cancelled":report.cancelled,
         "immediate_free_bytes":"0","journal_failed":report.journal_error.is_some(),"helper_failed":report.helper_error.is_some(),
         "preflight_failed":report.preflight_error.is_some(),"cleanup_requires_review":report.items.iter().any(|item| item.cleanup_error.is_some()),

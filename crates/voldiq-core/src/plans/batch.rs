@@ -8,9 +8,9 @@ use crate::{Error, NodeId, agents::PlanContext, transfer::Progress};
 /// All selected copies from one consumed job, retained until original handling finishes.
 /// This is not serializable, restart authority or evidence of complete restoration support.
 pub struct CopiedTransfer<'a> {
-    lease: ExecutionLease,
-    copies: Vec<PublishedContent<'a>>,
-    originals: Originals,
+    pub(super) lease: ExecutionLease,
+    pub(super) copies: Vec<PublishedContent<'a>>,
+    pub(super) originals: Originals,
 }
 impl CopiedTransfer<'_> {
     pub fn originals(&self) -> Originals {

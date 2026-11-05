@@ -1,0 +1,97 @@
+{
+  "checkedUtc": "2026-11-05T15:52:52.8280018Z",
+  "startedUtc": "2026-11-05T15:45:39.9687186Z",
+  "checkoutCommit": "2b26ef61aae5760fb2be72b9aca561144adf0a35",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.709
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 7.104
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.724
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 4.673
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 406.301
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 13.321
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/cleanup.rs",
+      "sha256": "7438A665A228C6CFA2014B907851506C365DCBD7151D7E718A90B06EE355993B"
+    },
+    {
+      "path": "crates/voldiq-core/src/cleanup/recycle/batch.rs",
+      "sha256": "A2C9B1683CCCAF05B01B2DCF3EA29C9BB9C16368C707E1DDFB67FEE93EC68BB1"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans.rs",
+      "sha256": "CF8533E6FC509B02FD1ACA81D0A7074FE01F747AFB5B0156E903F1F524A6CFD2"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/batch.rs",
+      "sha256": "81EC5481A4A983322EB6C5DB368C94621440615BDD670FB15E608FCF484F7512"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/copying.rs",
+      "sha256": "37AFEA4DC45AA89D422979690C4557C0F71C8A3DF551D7C8D3A711338BAAB6D9"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/desktop/tests.rs",
+      "sha256": "2036B08A5C5DE6770A1F09E891A031771AE69511BC2121A305ED31D84EBB5905"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/recycling.rs",
+      "sha256": "EC070B443B116D6B82244A3E25FB1B42B3C53C62C8D6B20DC06E95BBCD9B13EB"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/originals.rs",
+      "sha256": "EACBB218955AF33EF1194E286BD1A295D10A2DB981F2949AF943131E8C471214"
+    }
+  ],
+  "retainedBehaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "retainedSourceHandoff": {
+    "readDeleteAcquiredBeforeCopy": true,
+    "freshReadPermissionProbeWhileHoldingDelete": true,
+    "keepWithoutDeleteRefusedBeforeJournal": true,
+    "incompleteAndForeignSelectionRefused": true,
+    "destinationPinnedThroughAbort": true,
+    "cancelledBeforeAdmission": true,
+    "ownedEmptyStageRemoved": true,
+    "originalBytesUnchanged": true,
+    "sameVolumeOwnedFixtures": true,
+    "helperLaunched": false,
+    "sourceAdmittedOrRecycled": false,
+    "actualApprovedOffload": false,
+    "positiveApprovedOriginalAdapter": false,
+    "offloadApprovalEnabled": false
+  }
+}

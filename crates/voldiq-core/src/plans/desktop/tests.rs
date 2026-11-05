@@ -1350,6 +1350,146 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                 "NTFS_METADATA_PROBE {{\"metadata_only_handle\":true,\"created_modified_and_dos_flags\":true,\"verified_after_close\":true,\"stale_metadata_refused\":true,\"named_stream_refused\":true,\"extended_attributes_refused\":true,\"real_offload\":false}}"
             );
         }
+        {
+            use crate::cleanup::recycle::batch::{Batch, Outcome};
+            cancelled.store(false, Ordering::Release);
+            let recovery = tempfile::tempdir().unwrap();
+            let mut journal = Journal::open(&recovery.path().join("cleanup.db")).unwrap();
+            let apartment = ShellApartment::new().unwrap();
+            // Actual retained-handle fixtures; no offload grant, UAC launch or original admission.
+            let kept = copy_verified(
+                copy_plan.copy_source(copy_id).unwrap(),
+                metadata.clone(),
+                OwnedFile::create(&parent).unwrap(),
+                OsStr::new("handoff-keep.data"),
+                &cancelled,
+                |_| Ok(()),
+                |_| {},
+            )
+            .ok()
+            .unwrap();
+            let (source_guard, destination_guard) = kept.into_parts();
+            assert_eq!(
+                windows::security::granted_access(&source_guard.file).unwrap() & DELETE,
+                0
+            );
+            assert!(
+                Batch::prepare_transferred(
+                    crate::cleanup::Plan::manual(&copy_index, &[copy_id]).unwrap(),
+                    vec![(copy_id, source_guard)],
+                    &mut journal,
+                    &cancelled,
+                    &apartment,
+                    None,
+                )
+                .is_err()
+            );
+            destination_guard.check().unwrap();
+            assert!(journal.relocations(0, 100).unwrap().is_empty());
+            drop(destination_guard);
+            let source_guard = copy_plan.copy_recycling_source(copy_id).unwrap();
+            assert_eq!(
+                windows::security::granted_access(&source_guard.file).unwrap()
+                    & (DELETE | FILE_READ_DATA),
+                DELETE | FILE_READ_DATA
+            );
+            source_guard.check_read_access().unwrap();
+            let copied = copy_verified(
+                source_guard,
+                metadata.clone(),
+                OwnedFile::create(&parent).unwrap(),
+                OsStr::new("handoff-recycle.data"),
+                &cancelled,
+                |_| Ok(()),
+                |_| {},
+            )
+            .ok()
+            .unwrap();
+            copied.check().unwrap();
+            assert_eq!(copied.blake3(), expected_hash);
+            let (source_guard, destination_guard) = copied.into_parts();
+            let batch = Batch::prepare_transferred(
+                crate::cleanup::Plan::manual(&copy_index, &[copy_id]).unwrap(),
+                vec![(copy_id, source_guard)],
+                &mut journal,
+                &cancelled,
+                &apartment,
+                None,
+            )
+            .unwrap();
+            assert!(batch.ready_for_admission());
+            assert!(
+                std::fs::OpenOptions::new()
+                    .write(true)
+                    .open(&input)
+                    .is_err()
+            );
+            let copied_path = destination.path().join("handoff-recycle.data");
+            assert!(
+                std::fs::OpenOptions::new()
+                    .write(true)
+                    .open(&copied_path)
+                    .is_err()
+            );
+            assert!(
+                std::fs::rename(
+                    &copied_path,
+                    destination.path().join("replaced-handoff.data")
+                )
+                .is_err()
+            );
+            destination_guard.check().unwrap();
+            let report = batch.abort(&mut journal, &AtomicBool::new(true), |_| {});
+            assert!(report.cancelled);
+            assert!(report.journal_error.is_none());
+            assert_eq!(report.items.len(), 1);
+            assert_eq!(report.items[0].outcome, Outcome::NotStarted);
+            assert!(report.items[0].recorded && report.items[0].cleanup_error.is_none());
+            let rows = journal.relocations(0, 100).unwrap();
+            assert_eq!(rows.len(), 1);
+            assert_eq!(rows[0].state, "cancelled");
+            assert_eq!(std::fs::read(&input).unwrap(), payload);
+            destination_guard.check().unwrap();
+            drop(destination_guard);
+            assert_eq!(std::fs::read(&copied_path).unwrap(), payload);
+            assert!(
+                Batch::prepare_transferred(
+                    crate::cleanup::Plan::manual(&copy_index, &[copy_id]).unwrap(),
+                    vec![],
+                    &mut journal,
+                    &cancelled,
+                    &apartment,
+                    None,
+                )
+                .is_err()
+            );
+            assert!(
+                Batch::prepare_transferred(
+                    crate::cleanup::Plan::manual(&copy_index, &[copy_id]).unwrap(),
+                    vec![(
+                        crate::NodeId(u32::MAX),
+                        copy_plan.copy_recycling_source(copy_id).unwrap()
+                    )],
+                    &mut journal,
+                    &cancelled,
+                    &apartment,
+                    None,
+                )
+                .is_err()
+            );
+            assert_eq!(journal.relocations(0, 100).unwrap().len(), 1);
+            assert_eq!(std::fs::read(&input).unwrap(), payload);
+            assert!(!std::fs::read_dir(source.path()).unwrap().any(|entry| {
+                entry
+                    .unwrap()
+                    .file_name()
+                    .to_string_lossy()
+                    .starts_with(crate::cleanup::STAGE_DIRECTORY_PREFIX)
+            }));
+            println!(
+                "TRANSFER_ORIGINAL_HANDOFF_PROBE {{\"same_source_handle\":true,\"keep_without_delete_refused\":true,\"exact_selection_required\":true,\"destination_pinned_through_abort\":true,\"cancelled_before_admission\":true,\"original_unchanged\":true,\"real_offload\":false}}"
+            );
+        }
         println!(
             "NATIVE_CONTENT_COPY_PROBE {{\"copied_bytes\":262177,\"destination_readback\":true,\"source_recheck\":true,\"retained_sealed_handles\":true,\"published_receipt_failure_preserved\":true,\"original_unchanged\":true,\"real_offload\":false}}"
         );

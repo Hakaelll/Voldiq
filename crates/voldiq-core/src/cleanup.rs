@@ -352,13 +352,27 @@ impl Plan {
 
     #[cfg(windows)]
     pub(crate) fn copy_source(&self, id: NodeId) -> Result<VerifiedFile> {
+        self.copy_source_access(id, windows::cleanup_io::LeafAccess::Retain)
+    }
+
+    #[cfg(windows)]
+    pub(crate) fn copy_recycling_source(&self, id: NodeId) -> Result<VerifiedFile> {
+        self.copy_source_access(id, windows::cleanup_io::LeafAccess::CompareAndRemove)
+    }
+
+    #[cfg(windows)]
+    fn copy_source_access(
+        &self,
+        id: NodeId,
+        access: windows::cleanup_io::LeafAccess,
+    ) -> Result<VerifiedFile> {
         self.validate_protections()?;
         let planned = self
             .files
             .iter()
             .find(|file| file.id == id)
             .ok_or_else(|| Error::Invalid("Source is outside the approved selection.".into()))?;
-        Self::verify_file(planned, windows::cleanup_io::LeafAccess::Retain)
+        Self::verify_file(planned, access)
     }
 
     #[cfg(windows)]
@@ -447,8 +461,14 @@ impl VerifiedFile {
             .path
             .file_name()
             .ok_or_else(|| Error::Invalid("Missing source leaf.".into()))?;
-        let reader =
-            windows::cleanup_io::open_leaf(parent, name, windows::cleanup_io::LeafAccess::Retain)?;
+        let reader = windows::cleanup_io::open_component(
+            parent,
+            name,
+            windows_sys::Win32::Storage::FileSystem::FILE_READ_ATTRIBUTES
+                | windows_sys::Win32::Storage::FileSystem::FILE_READ_DATA,
+            windows_sys::Win32::Storage::FileSystem::FILE_SHARE_READ
+                | windows_sys::Win32::Storage::FileSystem::FILE_SHARE_DELETE,
+        )?;
         if windows::file_identity(&reader)?.key != self.stamp.identity {
             return Err(Error::Invalid("Source reader identity changed.".into()));
         }

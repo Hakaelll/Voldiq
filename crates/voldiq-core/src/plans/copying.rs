@@ -82,6 +82,49 @@ impl PublishedContent<'_> {
     }
 }
 
+pub(super) struct PublishedDestination<'a> {
+    pub(super) node: NodeId,
+    _operation: &'a Lease,
+    _target: AuthorizedPath,
+    content: DestinationContent,
+}
+impl PublishedDestination<'_> {
+    pub(super) fn check(&self) -> Result<()> {
+        self.content.check()
+    }
+}
+
+impl<'a> PublishedContent<'a> {
+    pub(super) fn into_original(self) -> (VerifiedFile, PublishedDestination<'a>) {
+        let (source, content) = self.content.into_parts();
+        (
+            source,
+            PublishedDestination {
+                node: self.node,
+                _operation: self._operation,
+                _target: self._target,
+                content,
+            },
+        )
+    }
+}
+
+pub(super) struct DestinationContent {
+    destination: OwnedFile,
+    copied: CopiedBytes,
+    metadata: BasicMetadata,
+}
+impl DestinationContent {
+    pub(super) fn check(&self) -> Result<()> {
+        self.destination.validate()?;
+        self.metadata.verify_destination(self.destination.file())?;
+        if self.destination.file().metadata()?.len() != self.copied.bytes() {
+            return Err(invalid());
+        }
+        Ok(())
+    }
+}
+
 pub(super) struct NativePublished {
     source: VerifiedFile,
     destination: OwnedFile,
@@ -89,6 +132,16 @@ pub(super) struct NativePublished {
     metadata: BasicMetadata,
 }
 impl NativePublished {
+    pub(super) fn into_parts(self) -> (VerifiedFile, DestinationContent) {
+        (
+            self.source,
+            DestinationContent {
+                destination: self.destination,
+                copied: self.copied,
+                metadata: self.metadata,
+            },
+        )
+    }
     pub(super) fn bytes(&self) -> u64 {
         self.copied.bytes()
     }
@@ -259,7 +312,10 @@ impl Store {
                 .record
                 .into_plan()?
                 .with_protections(self.directory.path())?;
-            let source = plan.copy_source(node)?;
+            let source = match action.originals {
+                super::Originals::Keep => plan.copy_source(node)?,
+                super::Originals::RecycleAfterVerification => plan.copy_recycling_source(node)?,
+            };
             let handle = windows::open_metadata(target.path())?;
             if windows::file_identity(&handle)?.key != target.identity() {
                 return Err(invalid());

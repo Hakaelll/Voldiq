@@ -130,7 +130,7 @@ impl Batch {
         cancel: &AtomicBool,
         apartment: &ShellApartment,
     ) -> Result<Self> {
-        Self::prepare_with_origin(plan, journal, cancel, apartment, None)
+        Self::prepare_with_origin(plan, journal, cancel, apartment, None, None)
     }
 
     pub(crate) fn prepare_agent(
@@ -140,7 +140,50 @@ impl Batch {
         apartment: &ShellApartment,
         origin: &crate::cleanup::journal::AgentExecutionRef<'_>,
     ) -> Result<Self> {
-        Self::prepare_with_origin(plan, journal, cancel, apartment, Some(origin))
+        Self::prepare_with_origin(plan, journal, cancel, apartment, Some(origin), None)
+    }
+
+    /// Reuses exact retained source authority after a verified transfer, without a close/reopen gap.
+    pub(crate) fn prepare_transferred(
+        plan: Plan,
+        sources: Vec<(NodeId, VerifiedFile)>,
+        journal: &mut Journal,
+        cancel: &AtomicBool,
+        apartment: &ShellApartment,
+        origin: Option<&crate::cleanup::journal::AgentExecutionRef<'_>>,
+    ) -> Result<Self> {
+        let mut retained = std::collections::HashMap::new();
+        for (node, source) in sources {
+            let planned = plan
+                .files
+                .iter()
+                .find(|file| file.id == node)
+                .ok_or_else(|| {
+                    Error::Invalid(
+                        "Retained source is outside the exact transfer selection.".into(),
+                    )
+                })?;
+            source.check_stamp()?;
+            let identity = crate::windows::file_identity(&source.file)?;
+            let access = crate::windows::security::granted_access(&source.file)?;
+            let required = windows_sys::Win32::Storage::FileSystem::FILE_READ_DATA
+                | windows_sys::Win32::Storage::FileSystem::DELETE;
+            if source.path != planned.path
+                || source.stamp != planned.stamp
+                || identity.allocated != planned.allocated
+                || identity.links != planned.links
+                || access & required != required
+                || retained.insert(node, source).is_some()
+            {
+                return Err(Error::Invalid("Retained source does not match the approved transfer or lacks recycling access.".into()));
+            }
+        }
+        if retained.len() != plan.files.len() {
+            return Err(Error::Invalid(
+                "Incomplete retained transfer selection.".into(),
+            ));
+        }
+        Self::prepare_with_origin(plan, journal, cancel, apartment, origin, Some(retained))
     }
 
     fn prepare_with_origin(
@@ -149,6 +192,7 @@ impl Batch {
         cancel: &AtomicBool,
         apartment: &ShellApartment,
         origin: Option<&crate::cleanup::journal::AgentExecutionRef<'_>>,
+        mut sources: Option<std::collections::HashMap<NodeId, VerifiedFile>>,
     ) -> Result<Self> {
         plan.validate_retained()?;
         plan.validate_protections()?;
@@ -195,7 +239,12 @@ impl Batch {
             let mut pending = None;
             let prepared = (|| {
                 check_keepers(&batch.keepers)?;
-                let mut source = batch._plan.verify(file.id)?;
+                let mut source = match &mut sources {
+                    Some(sources) => sources.remove(&file.id).ok_or_else(|| {
+                        Error::Invalid("Missing retained transfer source.".into())
+                    })?,
+                    None => batch._plan.verify(file.id)?,
+                };
                 if let Some(digest) = &file.digest {
                     source.check_digest(digest, cancel)?;
                 }

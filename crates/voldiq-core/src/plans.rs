@@ -8,6 +8,8 @@ mod desktop;
 mod human;
 mod offload;
 #[cfg(windows)]
+mod originals;
+#[cfg(windows)]
 mod recycling;
 mod store;
 pub use crate::cleanup::record::FileEvidence;
@@ -23,6 +25,8 @@ pub use offload::{
     Destination, MetadataEntry, MetadataPlan, MetadataProfile, Offload, OffloadRequest, Originals,
     VolumeBinding,
 };
+#[cfg(windows)]
+pub use originals::{OriginalTransferResult, PreparedOffloadRecycling};
 #[cfg(windows)]
 pub use recycling::{PreparedRecycling, RecyclingWorker};
 use serde::{Deserialize, Serialize};
