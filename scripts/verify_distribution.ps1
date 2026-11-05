@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param()
+param([switch] $Offline)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -51,17 +51,23 @@ function Describe-File([string] $Path) {
     }
 }
 
-if ($configuration.bundle.windows.webviewInstallMode.type -ne 'offlineInstaller') {
-    throw 'The application configuration does not embed the offline WebView2 installer.'
+$webviewMode = if ($Offline) { 'offlineInstaller' } else { $configuration.bundle.windows.webviewInstallMode.type }
+if ($webviewMode -notin @('embedBootstrapper', 'offlineInstaller')) {
+    throw 'Expected the lightweight bootstrapper or explicit offline runtime installer.'
 }
-if ((Read-Define 'INSTALLMODE') -ne 'currentUser' -or (Read-Define 'INSTALLWEBVIEW2MODE') -ne 'offlineInstaller') {
-    throw 'Generated installer mode does not match current-user offline packaging.'
+if ((Read-Define 'INSTALLMODE') -ne 'currentUser' -or (Read-Define 'INSTALLWEBVIEW2MODE') -ne $webviewMode) {
+    throw 'Generated installer mode does not match the selected current-user packaging.'
 }
 if ([IO.Path]::GetFullPath((Read-Define 'MAINBINARYSRCPATH')) -ne $nativePath) {
     throw 'Generated installer references another native executable.'
 }
-if (-not $nsis.Contains('File "/oname=$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe" "${WEBVIEW2INSTALLERPATH}"')) {
-    throw 'The generated NSIS source lacks the offline runtime embedding instruction.'
+$runtimeInstruction = if ($webviewMode -eq 'offlineInstaller') {
+    'File "/oname=$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe" "${WEBVIEW2INSTALLERPATH}"'
+} else {
+    'File "/oname=$TEMP\MicrosoftEdgeWebview2Setup.exe" "${WEBVIEW2BOOTSTRAPPERPATH}"'
+}
+if (-not $nsis.Contains($runtimeInstruction)) {
+    throw 'The generated NSIS source lacks the selected runtime embedding instruction.'
 }
 
 $iconPath = Join-Path $repository 'src-tauri/icons/icon.ico'
@@ -95,7 +101,7 @@ $native = Describe-File $nativePath
 if ($native.peMachine -ne '0x8664' -or $native.productVersion -ne $configuration.version) {
     throw 'Native executable architecture or product version differs from the configuration.'
 }
-$runtimePath = Read-Define 'WEBVIEW2INSTALLERPATH'
+$runtimePath = Read-Define $(if ($webviewMode -eq 'offlineInstaller') { 'WEBVIEW2INSTALLERPATH' } else { 'WEBVIEW2BOOTSTRAPPERPATH' })
 $runtime = Describe-File $runtimePath
 if ($runtime.signature -ne 'Valid' -or $runtime.signer -notmatch '(^|,\s*)O=Microsoft Corporation(,|$)') {
     throw 'The bundled runtime must have a valid Microsoft Corporation Authenticode signature.'
@@ -114,6 +120,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Could not identify the current checkout commit
     installer = $setup
     runtime = $runtime
     installMode = 'currentUser'
-    webviewMode = 'offlineInstaller'
+    webviewMode = $webviewMode
+    runtimeDownloadIfMissing = ($webviewMode -eq 'embedBootstrapper')
     iconSizes = @($frames)
 } | ConvertTo-Json -Depth 5

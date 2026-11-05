@@ -195,6 +195,7 @@ Destination implementation reference: Microsoft's [FILE_RENAME_INFO contract](ht
 
 ## Decisions
 
+- The user's footprint request takes priority over retaining reusable inactive build caches. After a verified unit and native packaging finish, use the workspace-scoped Cargo cleanup script to retain application/CLI/setup hashes and running previews while removing release dependencies and test outputs. Default packaging uses the small WebView2 bootstrapper; retain an explicit full offline-runtime override. Measure logical artifact bytes and distinguish manual installer acceptance from static checks.
 - A separate headless binary avoids loading Tauri/WebView. Its executable name will be explicit in documentation rather than silently replacing the existing desktop executable.
 - No TreeMap code is copied. Its services are research references, not security guarantees for Voldiq.
 - Existing acceptance files refer to older releases and sometimes contradict newer source. This work uses fresh checks and keeps historical evidence intact.

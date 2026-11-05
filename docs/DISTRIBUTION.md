@@ -1,6 +1,6 @@
 # Windows distribution
 
-Voldiq ships an x64 Windows NSIS installer with the supplied artwork and an embedded offline Microsoft WebView2 installer. Build artifacts stay in the ignored `target` directory. Published installers are available from [GitHub releases](https://github.com/Hakaelll/Voldiq/releases).
+Voldiq builds an x64 Windows NSIS installer with the supplied artwork and a small Microsoft WebView2 bootstrapper. An optional configuration embeds the full offline runtime. Build artifacts stay in the ignored `target` directory. Existing [GitHub releases](https://github.com/Hakaelll/Voldiq/releases) retain their original offline installers; this packaging change has not replaced a published asset.
 
 The final 0.1.0 delivery enables recycling following the user's acceptance of the outstanding manual checks. The [final source gate](../benchmarks/project-verification-release-010.json) and [distribution verification](../benchmarks/distribution-release-010.json) identify the delivered build. Application and installer remain unsigned. The dated build records below describe earlier artifacts and do not identify the final release.
 
@@ -12,7 +12,7 @@ Use Windows with the Rust MSVC toolchain, Visual Studio C++ Build Tools, Node.js
 pnpm install --frozen-lockfile
 cargo fetch --locked
 ./scripts/verify_project.ps1
-pnpm tauri build --bundles nsis
+pnpm tauri build --features production --bundles nsis
 ./scripts/verify_distribution.ps1
 ```
 
@@ -32,7 +32,27 @@ The script only prepares the executable; it never launches or closes a process. 
 
 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/clean_obsolete_previews.ps1` lists obsolete preview candidates. Add `-Apply` to remove them. It verifies each executable against its hash-named directory, retains the current release and running images, and removes only that file and its empty directory. Unknown contents and reparse points are skipped. It does not clear build dependencies, application state or system caches.
 
-`src-tauri/tauri.conf.json` selects `offlineInstaller` for WebView2. The bundler downloads Microsoft's standalone runtime installer during the build and embeds it in the setup executable. Installation therefore does not need to download that runtime. Tauri's default NSIS mode installs for the current user. See the [official Windows installer documentation](https://v2.tauri.app/distribute/windows-installer/).
+`src-tauri/tauri.conf.json` selects `embedBootstrapper`. It reuses an installed WebView2 runtime; when the runtime is absent, Microsoft's embedded bootstrapper downloads it during installation. This keeps the measured setup at 9,899,254 bytes instead of the older 221,757,215-byte offline setup. Voldiq itself still works offline. Both modes install for the current user. See the [official Windows installer documentation](https://v2.tauri.app/distribute/windows-installer/#webview2-installation-options).
+
+For installation without downloading WebView2, build and verify the optional full package:
+
+```powershell
+pnpm tauri build --features production --bundles nsis --config src-tauri/tauri.offline.conf.json
+./scripts/verify_distribution.ps1 -Offline
+```
+
+The two modes write the same versioned setup filename. Keep the required variant before building the other. To package an already verified production executable without recompiling or changing its hash, use `pnpm tauri bundle --features production --bundles nsis --no-binary-patching`, with the same optional configuration override.
+
+### Build-cache footprint
+
+The native executable is 25,324,032 bytes. Rust metadata, dependencies, test binaries and old packages accounted for most of the measured 9.27 GB workspace; those files are not bundled into the application. After all source checks and packaging finish, inspect and clean this workspace's release artifacts with:
+
+```powershell
+./scripts/clean_build_cache.ps1
+./scripts/clean_build_cache.ps1 -Apply
+```
+
+The script refuses active Cargo/compiler/installer processes, a release executable running in place, and reparse points. It checks the absolute workspace target, preserves SHA-256-verified copies of the application, CLI, current installer and generated NSIS source, invokes Cargo's release-only cleaner, then restores those files at their original paths. A failed restoration retains its backup. Hash-addressed running previews, frontend dependencies, source files, application state, user data and other applications' caches are retained. The next Rust build must regenerate its dependencies. Do not run cleanup during verification or packaging.
 
 ## Artwork
 
@@ -40,7 +60,7 @@ The script only prepares the executable; it never launches or closes a process. 
 
 ## Installation acceptance
 
-Check the produced installer on a clean Windows machine with networking disabled and WebView2 absent. Verify installation, first launch, native filesystem access on a disposable fixture, installed icons, uninstall and retained user data. This check must use the actual installer; a native development build or embedded-runtime configuration cannot substitute for it.
+Check the lightweight installer on a clean Windows machine with WebView2 absent and networking available, then check launch with networking disabled. Check the optional offline installer with both networking disabled and WebView2 absent. Verify installation, first launch, native filesystem access on a disposable fixture, installed icons, uninstall and retained user data. These checks must use the actual installer; static NSIS inspection and native startup cannot substitute for them. The new lightweight package has static verification only; its clean-machine installation remains manual.
 
 The user reported that the outstanding checks were complete and requested final delivery. This is user-reported acceptance, not a machine-generated clean-environment report. The procedure above remains available for future releases. Release signing is not configured. The release includes the installer only, as requested by the user.
 

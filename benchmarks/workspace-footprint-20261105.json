@@ -1,0 +1,461 @@
+{
+  "checkedUtc": "2026-11-05T20:21:12.1402204Z",
+  "checkoutCommit": "42e2310395986a322688e3727d977af67ddf4c4c",
+  "scope": "Measured logical regular-file workspace footprint with reparse points skipped. No physical allocation or observed volume free-space change claim; no installer execution or visual acceptance.",
+  "before": {
+    "checkedUnix": 1793908550.8730474,
+    "elapsedSeconds": 4.18,
+    "scope": "Logical regular-file bytes inside the workspace; reparse points skipped. No files were modified. These are not measured physical allocated bytes.",
+    "totalBytes": 9266418060,
+    "directories": [
+      {
+        "path": "target",
+        "bytes": 9089933984,
+        "files": 15510
+      },
+      {
+        "path": "node_modules",
+        "bytes": 89309395,
+        "files": 1860
+      },
+      {
+        "path": ".git",
+        "bytes": 37311669,
+        "files": 56
+      },
+      {
+        "path": "output",
+        "bytes": 16801568,
+        "files": 16
+      },
+      {
+        "path": "interface",
+        "bytes": 12841789,
+        "files": 11
+      },
+      {
+        "path": "assets",
+        "bytes": 7903038,
+        "files": 5
+      },
+      {
+        "path": "benchmarks",
+        "bytes": 5777535,
+        "files": 404
+      },
+      {
+        "path": "crates",
+        "bytes": 1978642,
+        "files": 138
+      },
+      {
+        "path": "frontend",
+        "bytes": 1164558,
+        "files": 105
+      },
+      {
+        "path": "dist",
+        "bytes": 932296,
+        "files": 10
+      },
+      {
+        "path": "docs",
+        "bytes": 859837,
+        "files": 38
+      },
+      {
+        "path": "src-tauri",
+        "bytes": 703885,
+        "files": 38
+      },
+      {
+        "path": ".impeccable",
+        "bytes": 501734,
+        "files": 17
+      },
+      {
+        "path": "(root files)",
+        "bytes": 308605,
+        "files": 18
+      },
+      {
+        "path": "scripts",
+        "bytes": 89525,
+        "files": 17
+      }
+    ],
+    "targetDetails": [
+      {
+        "path": "target/release/deps",
+        "bytes": 7653899263
+      },
+      {
+        "path": "target/release/build",
+        "bytes": 713114982
+      },
+      {
+        "path": "target/release/bundle",
+        "bytes": 443495227
+      },
+      {
+        "path": "target/probes",
+        "bytes": 114072453
+      },
+      {
+        "path": "target/release/examples",
+        "bytes": 84654762
+      },
+      {
+        "path": "target/release/voldiq.exe",
+        "bytes": 25193984
+      },
+      {
+        "path": "target/preview",
+        "bytes": 25193984
+      },
+      {
+        "path": "target/disk-city-fixture",
+        "bytes": 12627269
+      },
+      {
+        "path": "target/release/voldiq-cli.exe",
+        "bytes": 6194688
+      },
+      {
+        "path": "target/release/voldiq.pdb",
+        "bytes": 5353472
+      },
+      {
+        "path": "target/release/.fingerprint",
+        "bytes": 2844798
+      },
+      {
+        "path": "target/release/voldiq_cli.pdb",
+        "bytes": 2486272
+      },
+      {
+        "path": "target/release/nsis",
+        "bytes": 46215
+      },
+      {
+        "path": "target/diagnostics",
+        "bytes": 38844
+      },
+      {
+        "path": "target/release/voldiq.d",
+        "bytes": 12581
+      },
+      {
+        "path": "target/release/.cargo-artifact-lock",
+        "bytes": 0
+      },
+      {
+        "path": "target/release/.cargo-build-lock",
+        "bytes": 0
+      },
+      {
+        "path": "target/release/.cargo-lock",
+        "bytes": 0
+      }
+    ],
+    "reparsePointsSkipped": 119
+  },
+  "afterPackagingBeforeCleanup": {
+    "checkedUnix": 1793909823.289837,
+    "elapsedSeconds": 2.578,
+    "scope": "Logical regular-file bytes inside the workspace; reparse points skipped. No files were modified. These are not measured physical allocated bytes.",
+    "totalBytes": 9101174424,
+    "skippedReparsePoints": 119,
+    "directories": [
+      {
+        "path": "target",
+        "bytes": 8924675249,
+        "files": 15523
+      },
+      {
+        "path": "node_modules",
+        "bytes": 89309395,
+        "files": 1860
+      },
+      {
+        "path": ".git",
+        "bytes": 37311669,
+        "files": 56
+      },
+      {
+        "path": "output",
+        "bytes": 16801568,
+        "files": 16
+      },
+      {
+        "path": "interface",
+        "bytes": 12841789,
+        "files": 11
+      },
+      {
+        "path": "assets",
+        "bytes": 7903038,
+        "files": 5
+      },
+      {
+        "path": "benchmarks",
+        "bytes": 5784995,
+        "files": 407
+      },
+      {
+        "path": "crates",
+        "bytes": 1978642,
+        "files": 138
+      },
+      {
+        "path": "frontend",
+        "bytes": 1164558,
+        "files": 105
+      },
+      {
+        "path": "dist",
+        "bytes": 932296,
+        "files": 10
+      },
+      {
+        "path": "docs",
+        "bytes": 860826,
+        "files": 38
+      },
+      {
+        "path": "src-tauri",
+        "bytes": 704004,
+        "files": 39
+      },
+      {
+        "path": ".impeccable",
+        "bytes": 501734,
+        "files": 17
+      },
+      {
+        "path": ".",
+        "bytes": 308605,
+        "files": 18
+      },
+      {
+        "path": "scripts",
+        "bytes": 96056,
+        "files": 18
+      }
+    ]
+  },
+  "after": {
+    "checkedUnix": 1793909960.4707692,
+    "elapsedSeconds": 0.219,
+    "scope": "Logical regular-file bytes inside the workspace; reparse points skipped. No files were modified. These are not measured physical allocated bytes.",
+    "totalBytes": 395929717,
+    "skippedReparsePoints": 119,
+    "directories": [
+      {
+        "path": "target",
+        "bytes": 219425715,
+        "files": 688
+      },
+      {
+        "path": "node_modules",
+        "bytes": 89309395,
+        "files": 1860
+      },
+      {
+        "path": ".git",
+        "bytes": 37311669,
+        "files": 56
+      },
+      {
+        "path": "output",
+        "bytes": 16801568,
+        "files": 16
+      },
+      {
+        "path": "interface",
+        "bytes": 12841789,
+        "files": 11
+      },
+      {
+        "path": "assets",
+        "bytes": 7903038,
+        "files": 5
+      },
+      {
+        "path": "benchmarks",
+        "bytes": 5786231,
+        "files": 408
+      },
+      {
+        "path": "crates",
+        "bytes": 1978642,
+        "files": 138
+      },
+      {
+        "path": "frontend",
+        "bytes": 1164558,
+        "files": 105
+      },
+      {
+        "path": "dist",
+        "bytes": 932296,
+        "files": 10
+      },
+      {
+        "path": "docs",
+        "bytes": 862950,
+        "files": 38
+      },
+      {
+        "path": "src-tauri",
+        "bytes": 704004,
+        "files": 39
+      },
+      {
+        "path": ".impeccable",
+        "bytes": 501734,
+        "files": 17
+      },
+      {
+        "path": ".",
+        "bytes": 310072,
+        "files": 18
+      },
+      {
+        "path": "scripts",
+        "bytes": 96056,
+        "files": 18
+      }
+    ]
+  },
+  "workspaceReductionBytes": 8870488343,
+  "workspaceReductionPercent": 95.727,
+  "releaseCacheRemovedBytes": 8705251131,
+  "previousOfflineInstallerBytes": 221757215,
+  "lightweightInstaller": {
+    "name": "Voldiq_0.2.0_x64-setup.exe",
+    "bytes": 9899254,
+    "sha256": "02B5C42E4D2A7AEF048A6EF1D394E856993BA27B78885C104213E1A63C6E864A",
+    "peMachine": "0x014C",
+    "productVersion": "0.2.0",
+    "signature": "NotSigned",
+    "signer": null
+  },
+  "bootstrapperSignature": "Valid",
+  "native": {
+    "name": "voldiq.exe",
+    "bytes": 25324032,
+    "sha256": "25CBDDB7BA02F8BC05B0227AFC5A78AFB6D8F793F3A5F633C80B4D952318D02D",
+    "peMachine": "0x8664",
+    "productVersion": "0.2.0",
+    "signature": "NotSigned",
+    "signer": null
+  },
+  "currentImageUnchanged": true,
+  "preservedArtifacts": [
+    {
+      "path": "voldiq.exe",
+      "bytes": 25324032,
+      "sha256": "25CBDDB7BA02F8BC05B0227AFC5A78AFB6D8F793F3A5F633C80B4D952318D02D"
+    },
+    {
+      "path": "voldiq-cli.exe",
+      "bytes": 6194688,
+      "sha256": "7025E6998E2DB87427EE70D759D1105F335998A17FE85357F2EB052CA870DA65"
+    },
+    {
+      "path": "bundle/nsis/Voldiq_0.2.0_x64-setup.exe",
+      "bytes": 9899254,
+      "sha256": "02B5C42E4D2A7AEF048A6EF1D394E856993BA27B78885C104213E1A63C6E864A"
+    },
+    {
+      "path": "nsis/x64/installer.nsi",
+      "bytes": 30961,
+      "sha256": "28719B0183F86CFC7E87DF84DB69C09A9397B76E83C4A6138A03F58B88B4EACB"
+    }
+  ],
+  "preservedTreeTotals": [
+    {
+      "path": "output",
+      "logicalBytes": 16801568,
+      "files": 16,
+      "unchangedMeasuredTotals": true
+    },
+    {
+      "path": "interface",
+      "logicalBytes": 12841789,
+      "files": 11,
+      "unchangedMeasuredTotals": true
+    },
+    {
+      "path": "node_modules",
+      "logicalBytes": 89309395,
+      "files": 1860,
+      "unchangedMeasuredTotals": true
+    }
+  ],
+  "previewProcessesAfterCleanup": [
+    {
+      "id": 180,
+      "executableSha256": "349BE08370CBE1A467A5534CC88DFAABFF97B334BE78C3054DE90F2474CE7050",
+      "mainWindowHandle": 262240,
+      "responding": true
+    },
+    {
+      "id": 17216,
+      "executableSha256": "25CBDDB7BA02F8BC05B0227AFC5A78AFB6D8F793F3A5F633C80B4D952318D02D",
+      "mainWindowHandle": 1116696,
+      "responding": true
+    }
+  ],
+  "sourceGate": "workbench-transfer-catalogue-source-20261105.json",
+  "unchangedVerifiedProductionSourceInputs": 13,
+  "retainedBehaviorTests": {
+    "frontend": 1,
+    "workspaceRust": 7,
+    "total": 8,
+    "ignored": 0
+  },
+  "checks": [
+    "PowerShell AST parse: cleaner and distribution verifier",
+    "Default and offline override JSON parsed",
+    "Lightweight NSIS package generated",
+    "Microsoft bootstrapper Authenticode valid",
+    "Native executable hash preserved by packaging",
+    "Cleaner dry run unchanged",
+    "Active-build guard refused without deletion",
+    "Cargo release cleanup applied",
+    "Four preserved artifacts SHA-256 verified",
+    "Post-clean embedded-UI probe matched all 10 production resources",
+    "Post-clean CLI help startup succeeded",
+    "Both native windows responding after cleanup",
+    "git diff --check passed"
+  ],
+  "changedPackagingSourceHashes": [
+    {
+      "path": "src-tauri/tauri.conf.json",
+      "sha256": "8367C0B0E04692ACD638B34E89C97455ED975B595BC49CD30C27676C254246CB"
+    },
+    {
+      "path": "src-tauri/tauri.offline.conf.json",
+      "sha256": "6A04E3EAD96B180BCC194ECB697CFEC735533B04B754605B0191F97CCB134226"
+    },
+    {
+      "path": "scripts/clean_build_cache.ps1",
+      "sha256": "5E7DD14C8C9AC19D0B99F6D8C5B00E81B6E48C5C4B001E37AAB400B7E989BB34"
+    },
+    {
+      "path": "scripts/verify_distribution.ps1",
+      "sha256": "3C16A27C9300369E417A6F2DB92306B5BC79836BC4EEA2F8BFB87EB392F3B346"
+    }
+  ],
+  "limits": [
+    "Clean-machine installation of lightweight package remains manual",
+    "Offline override parses but was not repackaged in this unit",
+    "Installed shared WebView2 runtime size not measured",
+    "No application-state or Windows/other-application cache cleanup",
+    "Native populated visual, keyboard and Windows scaling acceptance remains manual",
+    "Future Rust builds regenerate the cache",
+    "Full storage-workbench goal remains active"
+  ]
+}

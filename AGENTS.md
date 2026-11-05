@@ -22,4 +22,6 @@ Implement the staged [workbench plan](docs/plans/storage-workbench.md), update [
 
 Run relevant behavior tests, then `scripts/verify_project.ps1` for integration. Compilation does not prove visual acceptance or device-specific performance. Record actual evidence and limitations in `docs/WORKBENCH-STATUS.md`.
 
+Keep the delivered footprint small. Once source verification, native preview and packaging for a unit have finished, use `scripts/clean_build_cache.ps1` and its `-Apply` mode to remove inactive release build/test artifacts while preserving verified deliverables and running previews. Do not clean an active build or regenerate caches merely to repeat checks that already passed. The default installer embeds the small WebView2 bootstrapper; the full offline runtime is an explicit configuration override.
+
 The user reduced the routine suite to about eight meaningful behavior tests, roughly 5% of the former 164. Keep it small as work continues. Prefer a relevant existing flow or replace a lower-value case when coverage is needed; avoid helper/cosmetic tests and do not disguise a larger suite with ignored tests or grouped wrappers. Preserve runtime safety checks and the formatting, type, build and Clippy gates.

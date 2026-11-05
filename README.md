@@ -22,7 +22,7 @@ No account, cloud service, advertising or telemetry. The application uses actual
 
 ## Agent analysis in the current source
 
-The current source adds human-managed connections and plan review under Settings, plus a separate Rust CLI and authenticated local stdio MCP server. They scan allowed folders, query measured snapshots and prepare exact recycling plans through the existing core, without loading the desktop renderer. Humans approve specific manifests in Voldiq; agent file execution is still being implemented. These additions are not part of the published 0.2.0 installer yet. See [MCP setup](docs/MCP.md) and [workbench coverage](docs/WORKBENCH-COVERAGE.md).
+The current source adds human-managed connections in Settings, plan review and transfer history in Cleanup, plus a separate Rust CLI and authenticated local stdio MCP server. They scan allowed folders, query measured snapshots and prepare exact recycling plans through the existing core, without loading the desktop renderer. Humans approve specific manifests in Voldiq; agent file execution is still being implemented. These additions are not part of the published 0.2.0 installer yet. See [MCP setup](docs/MCP.md) and [workbench coverage](docs/WORKBENCH-COVERAGE.md).
 
 ## Install
 
@@ -55,11 +55,15 @@ For a production installer:
 
 ```powershell
 ./scripts/verify_project.ps1
-pnpm tauri build --bundles nsis
+pnpm tauri build --features production --bundles nsis
 ./scripts/verify_distribution.ps1
 ```
 
 The source gate runs formatting, Svelte diagnostics, frontend and Rust behavior tests, the frontend production build and strict Clippy. It reuses the release target and offline Cargo dependencies. Output installers are in `target/release/bundle/nsis`.
+
+New builds use a small WebView2 bootstrapper: the measured installer is 9.9 MB and the application executable is 25.3 MB. If WebView2 is missing, installation downloads Microsoft's runtime; the application itself works offline. For a complete offline installer, add `--config src-tauri/tauri.offline.conf.json` and verify it with `./scripts/verify_distribution.ps1 -Offline`. The previously published 0.2.0 installer still includes the full runtime.
+
+Rust build and test artifacts can occupy several GB; they are not application contents. After verification and packaging, run `./scripts/clean_build_cache.ps1` to inspect what will be kept, then add `-Apply` to remove inactive release artifacts. It retains the application, CLI, current installer and running previews. The next Rust build regenerates its cache. See [Windows distribution](docs/DISTRIBUTION.md) for the measured footprint and acceptance limits.
 
 A direct native build must use `cargo build --offline --release -p voldiq --features production --bin voldiq`. Release optimization alone does not enable Tauri's embedded interface. Preview and distribution checks execute the embedded-asset probe to verify production mode and the bundled frontend.
 
