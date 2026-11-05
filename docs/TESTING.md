@@ -32,6 +32,8 @@ The retained history flow also publishes five shared-painter PNG maps and a 2x t
 
 The retained desktop dispatch flow also observes an owned NTFS transfer destination and checks explicit destination-volume scope, same-volume refusal, empty destination after preparation failures, exact layout/capacity models, case/name collisions, FAT32 size limits, protected state and unchanged recycle serialization/dispatch. CLI and official SDK flows reject out-of-scope offload proposals and injected approval fields. These are planning/metadata/model checks, not evidence of an actual cross-volume transfer, other filesystem/device behavior or a copy executor. The test environment exposes only C: as an accessible data volume; reserved system partitions are not mounted or modified. No new test declaration was added.
 
+The retained dispatch flow now also uses the native producer with a mandatory recorded BLAKE3 for restoration: a 262,177-byte owned copy passes destination/source readback, while a different expected digest produces only a private receipt, removes its owned private output and leaves archive bytes unchanged. A two-parent SQLite model migrates plan database version 3 to 4, rejects mismatched verification and original-removal updates, requires all kept-archive receipts for complete success and distinguishes partial publication. These internal same-volume content and catalogue checks do not establish approved restore dispatch or cross-volume/device acceptance. No test declaration was added.
+
 ## Run the source gate
 
 Use the Rust MSVC toolchain, C++ Build Tools and installed project dependencies:
