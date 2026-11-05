@@ -133,11 +133,11 @@ components:
 
 ## Overview
 
-The unscanned Overview pairs a drive summary with the scan controls. The selected drive's measured used percentage forms a ring above its used, free and total bytes. The supplied symbol, primary scan action, folder picker and up to three saved recent paths occupy the second column. The layout stacks on narrow windows and contains long volume names. It adds no illustrative disk values or explanatory paragraphs. Storage-map folder headings are larger than child labels; separators stay within cells that have room for them.
+The unscanned Overview pairs a measured drive summary with a separate scan panel, using the same bordered 8px surfaces as the populated dashboard. A short instruction explains the explicit scan actions. The original symbol, selected-drive scan, folder picker and up to three actual recent paths remain. The selected drive's measured percentage forms a ring above its used, free and total bytes. Missing measurements remain unavailable. The layout stacks below 1000px; scanning never starts automatically.
 
 Populated maps show each sufficiently wide root region's percentage of the rendered measured weights, using the selected size metric. Nested children are excluded from this denominator to avoid counting the same bytes twice. The selection caption pairs its path and selected size with its indexed file count. File-type legends use responsive columns with aligned swatches and measured size/count labels.
 
-The populated Overview groups volume, indexed scope, largest items, storage map and file types into bordered panels with 18px insets and 16px gaps. This follows the supplied storage-dashboard references while retaining Voldiq's existing light/dark semantic palette, Segoe UI and original artwork. A compact measured volume ring sits beside used/free/capacity values. Indexed logical bytes have a stronger value hierarchy and an explicit path. These measurements remain separate. The type distribution keeps its measured strip and uses aligned rows for extension, bytes, file count and percentage, including the Other remainder. Narrow windows stack the overview columns and retain readable size/percentage columns. Allocation captions reuse the existing Unknown/known-partial formatter. Native rendering, keyboard and scaling acceptance remains manual; no screenshot comparison was performed.
+The populated Overview follows the supplied storage-dashboard references through composition and data density. A 12-column layout pairs the system/indexed summary (four columns) with file types (eight), followed by the dominant storage map (eight) and ten largest items (four). Panels use 20px insets and gaps, existing 8px corners and semantic light/dark surfaces. The 112px measured volume ring stays separate from indexed logical size. File types use a 176px donut and keyboard-accessible extension filters with bytes, file counts and percentages; Other retains the actual remainder. The donut uses the same existing category colors as its legend. Total bytes and file counts also appear as ordinary accessible text. Space accounting and recovery copies remain available in a full-width disclosure below the primary analysis. At 1180px the summary/type panels become full-width; at 1000px the map/ranking stack; at 840px the summary and type legend stack. No ranking is hidden. Allocation captions retain Unknown/known-partial formatting. Native rendering, keyboard and scaling acceptance remain manual because Computer Use is excluded.
 
 Explorer rows now pair their logical sizes with compact bars scaled to the largest item in the complete filtered result, retaining the virtual row geometry. Folder details show a 48px composition strip for the five measured direct children and the parent remainder. Child colors match the actionable list below. The strip is omitted when child totals exceed the indexed parent size; it never fills missing measurements with sample values.
 
@@ -157,7 +157,7 @@ The supplied stacked-storage logo is the identity asset. Its disc-shaped top and
 
 **Key Characteristics:**
 
-- A single navigation rail expands to show labels.
+- A labeled 224px sidebar is the default. An explicit footer button switches to a 64px icon rail; the choice persists with existing appearance preferences. Hover and keyboard focus never resize the workspace.
 - White content areas and fine neutral dividers support compact controls.
 - Blue marks selection, focus and primary actions.
 - Measured storage data determines chart area and totals.
@@ -182,7 +182,7 @@ The palette uses white and neutral gray for structure, blue for interaction, and
 
 ### Neutral
 
-- **White canvas** uses `canvas` for the workspace, ordinary buttons and panels.
+- **White canvas** uses `canvas` for ordinary controls. `panel` aliases canvas in light mode and surface in dark mode; `workspace` aliases surface in light mode and canvas in dark mode, separating the analysis panels from their background.
 - **Quiet containers** use `surface` for the rail, empty state, notices and table headers. `paper` supports hover and inset backgrounds.
 - **Fine structure** uses `border` for dividers and `strong` for fields, tooltips and dialog outlines.
 - **Reading hierarchy** uses `text`, `secondary` and `muted` for primary content, explanation and metadata.
@@ -194,19 +194,19 @@ The palette uses white and neutral gray for structure, blue for interaction, and
 
 The UI uses Segoe UI Variable with Segoe UI and sans-serif fallbacks. It has no separate display face. Canvas text uses Segoe UI explicitly. Use the frontmatter roles as the recorded hierarchy; paragraph body text has the body line height, while controls keep their native inherited line height.
 
-Page headings use `headline`, panel and settings headings use `title`, paragraphs and controls use `body`, dense file rows and descriptions use `label`, and footer text and small annotations use `metadata`. The unscanned capacity strip uses `metric`, dropping to 20px at the first desktop breakpoint; populated Overview uses compact 13px label/value rows. The welcome heading is a local 24px variation, and the brand wordmark uses 27px or 24px at the first breakpoint.
+Page headings use a compact 24px headline; panel and settings headings use title, paragraphs and controls use body, dense file rows use label, and footer annotations use metadata. Indexed logical size uses a 29px value. The welcome heading is 28px and the wordmark 23px (24px at the compact breakpoint). The existing Segoe family and numeric alignment remain authoritative.
 
 **The Measured Number Rule.** Keep storage sizes and file counts aligned with tabular numerals. Right-align the file list's logical-size column; allow names and paths to wrap or truncate according to their container.
 
 ## Layout
 
-The desktop shell starts with a collapsed rail of 64px and expands to 216px while the pointer is inside navigation. It collapses on pointer leave, while visible keyboard focus retains access to labels. Pointer and keyboard activity update focus modality even on the same button. Expansion is transient, with no manual toggle or saved expansion preference. The rail fills the viewport with its own overflow behavior. The toolbar has a 66px minimum height and can wrap. Main content uses the page spacing token. Settings stops at 840px, places 260px labels beside controls with a 20px gap, and limits select widths to 286px. Appearance, Scanning and Index have separate horizontal dividers. Light and Dark are native radio choices with a visible focus outline; motion remains a native checkbox. At 840px and below, labels stack above controls and action alignment resets to the left edge.
+The desktop shell reserves a stable 224px labeled sidebar or a manually selected 64px icon rail at every desktop breakpoint. Navigation owns its overflow, preserving access to all pages, settings, the explicit collapse control and a light/dark theme shortcut. The command palette has a persistent sidebar search button and retains Ctrl+K. Its button opens commands; the independent toolbar search still searches the current analysis. The toolbar wraps within a 64px minimum height, with 24px desktop content insets. Settings keeps its existing labeled controls, native appearance radios and motion checkbox; labels stack at 840px. No hover expansion or overlay obscures analysis content.
 
 The populated overview follows `interface/01-overview-root.png` and `02-overview-folder.png`: a 248px summary column with measured capacity, index totals and largest items, followed by a dominant map and file-type legend. The summary narrows to 210px below 1100px; below 840px the sections stack without hiding largest items. Map height scales from 360px to 600px. The capacity strip remains only in the unscanned overview. Other data views use their shared header without an extra capacity strip. The file list retains its 36px logical rows and existing bounded virtualization.
 
 History uses a 12px control gap and 18px spacing below its toolbar. Snapshot rows have a 68px minimum height, medium vertical padding and panel-gap horizontal padding. Before and After selects wrap with a 180px minimum label width. Its recorded-size graphic is 110px high and uses the existing accent color.
 
-At 1100px and below, the expanded rail remains 216px, main padding becomes the compact-page token, search narrows to 280px, and the overview becomes one column with Largest items hidden. At 840px and below, the layout reserves a 64px rail and expanded navigation overlays the content at 216px, the toolbar wraps, search occupies a separate row, capacity becomes two columns, and settings labels stack above their controls. This is a desktop window adaptation; a phone layout has not been assessed.
+At 1100px and below, main padding becomes 20px and toolbar spacing tightens. The chosen sidebar width stays stable. At 840px the toolbar search occupies its own row and settings labels stack. Dashboard and welcome breakpoints are described above; long paths are bounded or wrapped, and totals retain explicit labels. Reduced-motion preferences continue to disable existing button transitions. Desktop resizing, Windows scaling and native focus remain manual acceptance checks.
 
 **The One Rail Rule.** Expand labels within the existing navigation rail. Keep the workspace as the adjacent main area.
 

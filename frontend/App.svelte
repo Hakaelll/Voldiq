@@ -102,9 +102,7 @@
   $effect(() => {
     if (!indexedView) advancedOpen = false;
   });
-  let navigationHovered = $state(false);
-  let navigationKeyboardFocus = $state(false);
-  let expanded = $derived(navigationHovered || navigationKeyboardFocus);
+  let expanded = $state(true);
   let volumes = $state<Volume[]>([]),
     volumePath = $state(''),
     scanPath = $state('');
@@ -1104,6 +1102,8 @@
         if ('excluded' in value && typeof value.excluded === 'string') excluded = value.excluded;
         if ('theme' in value && (value.theme === 'light' || value.theme === 'dark'))
           theme = value.theme;
+        if ('navigationExpanded' in value && typeof value.navigationExpanded === 'boolean')
+          expanded = value.navigationExpanded;
         if ('sizeMode' in value && (value.sizeMode === 'logical' || value.sizeMode === 'allocated'))
           sizeMode = value.sizeMode;
         if ('reduceMotion' in value && typeof value.reduceMotion === 'boolean')
@@ -1180,6 +1180,7 @@
         JSON.stringify({
           excluded,
           theme,
+          navigationExpanded: expanded,
           sizeMode,
           reduceMotion,
           defaultDrive,
@@ -1195,43 +1196,23 @@
 </script>
 
 <div class="app-shell" class:expanded>
-  <aside
-    class="navigation"
-    onpointerenter={(event) => {
-      if (event.pointerType !== 'touch') navigationHovered = true;
-    }}
-    onpointerleave={(event) => {
-      navigationHovered = false;
-      const active = document.activeElement;
-      navigationKeyboardFocus =
-        active instanceof HTMLElement &&
-        event.currentTarget.contains(active) &&
-        active.matches(':focus-visible');
-    }}
-    onfocusin={(event) => {
-      navigationKeyboardFocus =
-        event.target instanceof HTMLElement && event.target.matches(':focus-visible');
-    }}
-    onfocusout={(event) => {
-      if (
-        !(event.relatedTarget instanceof Node) ||
-        !event.currentTarget.contains(event.relatedTarget)
-      )
-        navigationKeyboardFocus = false;
-    }}
-  >
+  <aside class="navigation">
     <div class="brand">
-      <img src="/symbol.png" alt="" width="32" height="32" />{#if expanded}<strong>Voldiq</strong
-        >{/if}
+      <img src="/symbol.png" alt="" width="32" height="32" />{#if expanded}<div>
+          <strong>Voldiq</strong><small>Disk space analyzer</small>
+        </div>{/if}
     </div>
+    <button
+      class="navigation-search"
+      onclick={openPalette}
+      aria-haspopup="dialog"
+      title="Commands · Ctrl+K"
+      aria-label="Open command palette"
+      ><Icon name="search" />{#if expanded}<span>Search & commands</span><kbd>Ctrl K</kbd
+        >{/if}</button
+    >
     <nav aria-label="Main navigation">
       {#each navigation as item}<button
-          onpointerdown={() => {
-            navigationKeyboardFocus = false;
-          }}
-          onkeydown={() => {
-            navigationKeyboardFocus = true;
-          }}
           class:active={view === item.id}
           title={item.label}
           disabled={analysisBusy}
@@ -1259,14 +1240,32 @@
           {#if volumeAvailability}<small
               >{bytes(Number(volumeAvailability.available))} available to you</small
             >{/if}
-        </div>{/if}<button
+        </div>{/if}
+      <button
+        title={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+        aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
+        aria-expanded={expanded}
+        onclick={() => {
+          expanded = !expanded;
+          savePreferences();
+        }}
+        ><Icon name={expanded ? 'collapse' : 'expand'} />{#if expanded}<span>Collapse sidebar</span
+          >{/if}</button
+      >
+      <button
+        title={theme === 'light' ? 'Use dark theme' : 'Use light theme'}
+        aria-label={theme === 'light' ? 'Use dark theme' : 'Use light theme'}
+        aria-pressed={theme === 'dark'}
+        onclick={() => {
+          theme = theme === 'light' ? 'dark' : 'light';
+          savePreferences();
+        }}
+        ><Icon name={theme === 'dark' ? 'sun' : 'moon'} />{#if expanded}<span
+            >{theme === 'dark' ? 'Light theme' : 'Dark theme'}</span
+          >{/if}</button
+      >
+      <button
         class:active={view === 'settings'}
-        onpointerdown={() => {
-          navigationKeyboardFocus = false;
-        }}
-        onkeydown={() => {
-          navigationKeyboardFocus = true;
-        }}
         title="Settings"
         disabled={analysisBusy}
         aria-label="Settings"
@@ -1341,12 +1340,6 @@
         aria-expanded={savedOpen}
         aria-controls="saved-workspaces-panel"
         onclick={openSaved}>Saved</button
-      >
-      <button
-        class="command-trigger"
-        onclick={openPalette}
-        aria-haspopup="dialog"
-        aria-label="Open command palette"><Icon name="search" />Commands <kbd>Ctrl K</kbd></button
       >
     </header>
     {#if savedOpen}<div id="saved-workspaces-panel">

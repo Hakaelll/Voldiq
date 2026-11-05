@@ -102,6 +102,25 @@
   const usedPercent = $derived(
     space && Number(space.total) > 0 ? (Number(space.used) / Number(space.total)) * 100 : null,
   );
+  const typePaint = $derived.by(() => {
+    if (types.total_bytes <= 0) return 'var(--paper)';
+    let end = 0;
+    const stops = distribution.items
+      .filter((item) => item.bytes > 0)
+      .map((item) => {
+        const start = end;
+        end += (item.bytes / types.total_bytes) * 100;
+        const paint = categoryPaint({
+          id: 0,
+          name: `file.${item.extension ?? ''}`,
+          value: item.bytes,
+          directory: false,
+        });
+        return `${paint.fill} ${start}% ${end}%`;
+      });
+    if (distribution.otherBytes > 0) stops.push(`var(--strong) ${end}% 100%`);
+    return stops.length ? `conic-gradient(${stops.join(', ')})` : 'var(--paper)';
+  });
 </script>
 
 <div class="overview-grid">
@@ -186,130 +205,21 @@
         {#if directory}<p>{directory.entry.files.toLocaleString()} files</p>{/if}
       </section>
     {/if}
-    <section class="largest-panel">
-      <div class="panel-heading">
-        <h2>Largest items</h2>
-        <button onclick={onlist}>See all</button>
-      </div>
-      {#each children.items.slice(0, 10) as entry, position}
-        <button
-          class="ranking-row"
-          class:active={selected?.entry.id === entry.id}
-          aria-pressed={explored.has(entry.id)}
-          class:explored={explored.has(entry.id)}
-          style:--item-color={categoryPaint({
-            id: entry.id,
-            name: entry.name,
-            value: entry.logical,
-            directory: entry.kind === 'directory',
-          }).fill}
-          onclick={(event) => onselect(entry.id, selectionOperation(event))}
-          ondblclick={(event) => {
-            if (!event.ctrlKey && !event.metaKey && !event.shiftKey) onopen(entry.id, true);
-          }}
-          onkeydown={(event) => {
-            if (event.key === ' ' && (event.ctrlKey || event.metaKey)) {
-              event.preventDefault();
-              onselect(entry.id, 'toggle');
-            }
-          }}
-        >
-          <span class="item-swatch"></span>
-          <span class="ranking-name" title={entry.name}>{entry.name}</span><strong
-            >{bytes(entry.logical)}</strong
-          >
-          <span class="ranking-track" aria-hidden="true"
-            ><span
-              style:width={`${directory && directory.entry.logical > 0 ? Math.min(100, (entry.logical / directory.entry.logical) * 100) : 0}%`}
-            ></span></span
-          >
-        </button>
-      {/each}
-    </section>
   </aside>
-  <div class="overview-main">
-    <section class="map-panel" aria-busy={!directory}>
-      {#if directory}<StorageMap
-          {onexport}
-          {exportDisabled}
-          {nodes}
-          {cloudFilter}
-          {queryState}
-          {oncloudfilter}
-          {onretry}
-          identity={mapIdentity}
-          mode={mapMode}
-          bind:depth
-          bind:colorMode
-          {searchState}
-          {searchIdentity}
-          {searchTotal}
-          {sizeMode}
-          {onmetric}
-          {onmode}
-          {onback}
-          {onlist}
-          {ongrid}
-          selected={selected?.entry.id ?? null}
-          {explored}
-          {onclearExplore}
-          {onselectMany}
-          {oncommand}
-          scopeAncestors={[directory.entry.id, ...directory.ancestors.map((entry) => entry.id)]}
-          {onselect}
-          onopen={(id) => onopen(id, true)}
-        />
-      {:else}<div class="overview-loading" role="status">Loading…</div>{/if}
-      {#if directory}<div class="map-caption">
-          <span title={selected?.path || directory.path}>{selected?.path || directory.path}</span>
-          <div class="map-selection-stats">
-            <span>{selected ? 'Full item' : 'Full folder'}</span>
-            <span
-              >{fileSizeLabel(selected?.entry ?? directory.entry, sizeMode === 'allocated')}</span
-            >
-            <span
-              >{(selected?.entry.kind === 'file'
-                ? 1
-                : (selected?.entry.files ?? directory.entry.files)
-              ).toLocaleString()} files</span
-            >
-          </div>
-        </div>{/if}
-    </section>
-    {#if indexId !== null}
-      <SpaceAccount {indexId} {paused} />
-      <RecoveryCopies {indexId} {paused} />
-    {/if}
-    <section class="type-panel">
-      <div class="panel-heading"><h2>File types</h2></div>
-      <div class="type-bar" role="group" aria-label="Filter by file type">
-        {#each distribution.items as item}{#if item.bytes > 0}<button
-              onclick={() => ontype(item)}
-              style:flex-grow={item.bytes}
-              style:background={categoryPaint({
-                id: 0,
-                name: `file.${item.extension ?? ''}`,
-                value: item.bytes,
-                directory: false,
-              }).fill}
-              style:color={categoryPaint({
-                id: 0,
-                name: `file.${item.extension ?? ''}`,
-                value: item.bytes,
-                directory: false,
-              }).ink}
-              aria-label={`${item.extension === null ? 'No extension' : `.${item.extension}`}: ${bytes(item.bytes)}, ${((item.bytes / types.total_bytes) * 100).toFixed(1)}%. Show files`}
-              title={`${item.extension === null ? 'No extension' : `.${item.extension}`}: ${bytes(item.bytes)}`}
-              >{#if item.bytes / types.total_bytes >= 0.12}<span
-                  >{item.extension === null ? 'No extension' : `.${item.extension}`}</span
-                >{/if}</button
-            >{/if}{/each}
-        {#if distribution.otherBytes > 0}<span
-            class="type-remainder"
-            style:flex-grow={distribution.otherBytes}
-            title={`Other: ${bytes(distribution.otherBytes)}`}
-            >{#if distribution.otherBytes / types.total_bytes >= 0.12}<span>Other</span>{/if}</span
-          >{/if}
+  <section class="type-panel">
+    <div class="panel-heading">
+      <div>
+        <h2>File types by size</h2>
+        <p>{bytes(types.total_bytes)} logical · {types.total_files.toLocaleString()} files</p>
+      </div>
+    </div>
+    <div class="type-distribution">
+      <div class="type-ring" aria-hidden="true" style:background={typePaint}>
+        <div>
+          <strong>{bytes(types.total_bytes)}</strong><span>File logical size</span><small
+            >{types.total_files.toLocaleString()} files</small
+          >
+        </div>
       </div>
       <div class="type-legend">
         {#each distribution.items as item}<button onclick={() => ontype(item)}>
@@ -332,7 +242,7 @@
             >
           </button>{/each}
         {#if distribution.otherFiles > 0}<div class="type-other">
-            <span class="item-swatch" style:background="var(--paper)"></span>
+            <span class="item-swatch" style:background="var(--strong)"></span>
             <strong>Other</strong><span>{bytes(distribution.otherBytes)}</span><small
               >{distribution.otherFiles.toLocaleString()} files</small
             >
@@ -343,6 +253,99 @@
             >
           </div>{/if}
       </div>
-    </section>
-  </div>
+    </div>
+  </section>
+  <section class="map-panel" aria-busy={!directory}>
+    {#if directory}<StorageMap
+        {onexport}
+        {exportDisabled}
+        {nodes}
+        {cloudFilter}
+        {queryState}
+        {oncloudfilter}
+        {onretry}
+        identity={mapIdentity}
+        mode={mapMode}
+        bind:depth
+        bind:colorMode
+        {searchState}
+        {searchIdentity}
+        {searchTotal}
+        {sizeMode}
+        {onmetric}
+        {onmode}
+        {onback}
+        {onlist}
+        {ongrid}
+        selected={selected?.entry.id ?? null}
+        {explored}
+        {onclearExplore}
+        {onselectMany}
+        {oncommand}
+        scopeAncestors={[directory.entry.id, ...directory.ancestors.map((entry) => entry.id)]}
+        {onselect}
+        onopen={(id) => onopen(id, true)}
+      />
+    {:else}<div class="overview-loading" role="status">Loading…</div>{/if}
+    {#if directory}<div class="map-caption">
+        <span title={selected?.path || directory.path}>{selected?.path || directory.path}</span>
+        <div class="map-selection-stats">
+          <span>{selected ? 'Full item' : 'Full folder'}</span>
+          <span>{fileSizeLabel(selected?.entry ?? directory.entry, sizeMode === 'allocated')}</span>
+          <span
+            >{(selected?.entry.kind === 'file'
+              ? 1
+              : (selected?.entry.files ?? directory.entry.files)
+            ).toLocaleString()} files</span
+          >
+        </div>
+      </div>{/if}
+  </section>
+
+  <section class="largest-panel">
+    <div class="panel-heading">
+      <h2>Largest items</h2>
+      <button onclick={onlist}>See all</button>
+    </div>
+    {#each children.items.slice(0, 10) as entry}
+      <button
+        class="ranking-row"
+        class:active={selected?.entry.id === entry.id}
+        aria-pressed={explored.has(entry.id)}
+        class:explored={explored.has(entry.id)}
+        style:--item-color={categoryPaint({
+          id: entry.id,
+          name: entry.name,
+          value: entry.logical,
+          directory: entry.kind === 'directory',
+        }).fill}
+        onclick={(event) => onselect(entry.id, selectionOperation(event))}
+        ondblclick={(event) => {
+          if (!event.ctrlKey && !event.metaKey && !event.shiftKey) onopen(entry.id, true);
+        }}
+        onkeydown={(event) => {
+          if (event.key === ' ' && (event.ctrlKey || event.metaKey)) {
+            event.preventDefault();
+            onselect(entry.id, 'toggle');
+          }
+        }}
+      >
+        <span class="item-swatch"></span>
+        <span class="ranking-name" title={entry.name}>{entry.name}</span><strong
+          >{bytes(entry.logical)}</strong
+        >
+        <span class="ranking-track" aria-hidden="true"
+          ><span
+            style:width={`${directory && directory.entry.logical > 0 ? Math.min(100, (entry.logical / directory.entry.logical) * 100) : 0}%`}
+          ></span></span
+        >
+      </button>
+    {/each}
+  </section>
+  {#if indexId !== null}
+    <details class="overview-diagnostics">
+      <summary>Space accounting & recovery copies</summary>
+      <div><SpaceAccount {indexId} {paused} /><RecoveryCopies {indexId} {paused} /></div>
+    </details>
+  {/if}
 </div>

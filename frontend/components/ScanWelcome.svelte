@@ -75,7 +75,13 @@
     </section>{/if}
   <section class="welcome-start">
     <img src="/symbol.png" alt="" width="112" height="112" />
-    <h2>{scanning ? 'Scanning…' : native ? 'Start a scan' : 'Desktop preview'}</h2>
+    <span class="welcome-eyebrow">Storage overview</span>
+    <h2>{scanning ? 'Scanning…' : native ? 'Understand your disk space' : 'Desktop preview'}</h2>
+    <p class="welcome-description">
+      {scanning
+        ? 'Your storage map will appear here when the scan finishes.'
+        : 'Scan a drive or folder to see what takes up space and explore your files.'}
+    </p>
     <div class="welcome-actions">
       <button
         class="primary"
@@ -105,17 +111,18 @@
     display: grid;
     grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
     max-width: 1100px;
-    margin: 30px auto;
-    border: 1px solid var(--border);
+    margin: 12px auto;
+    gap: 20px;
     min-height: 500px;
   }
   .scan-welcome:not(:has(.welcome-drive)) {
     grid-template-columns: minmax(0, 1fr);
   }
   .welcome-drive {
-    padding: 30px;
-    border-right: 1px solid var(--border);
-    background: var(--surface);
+    padding: 28px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
   }
   header {
     display: flex;
@@ -145,7 +152,7 @@
   .drive-ring > div {
     height: 100%;
     border-radius: 50%;
-    background: var(--surface);
+    background: var(--panel);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -189,17 +196,38 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    padding: 48px 36px;
+    padding: 40px 28px;
     min-width: 0;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--panel);
+    text-align: center;
   }
   .welcome-start > img {
     object-fit: contain;
     margin-bottom: 24px;
   }
   .welcome-start > h2 {
-    font-size: 30px;
+    font-size: 28px;
     letter-spacing: -0.6px;
-    margin-bottom: 24px;
+    margin: 8px 0 12px;
+    max-width: 360px;
+  }
+  .welcome-eyebrow {
+    color: var(--secondary);
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .welcome-description {
+    max-width: 340px;
+    margin-bottom: 28px;
+    font-size: 13px;
+  }
+  .welcome-drive > p {
+    margin-top: 14px;
+    font-size: 11px;
   }
   .welcome-actions {
     display: flex;
@@ -240,7 +268,7 @@
   }
   @media (max-width: 1000px) {
     .scan-welcome {
-      grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1fr);
     }
     .welcome-start {
       padding: 32px 20px;
@@ -252,8 +280,7 @@
       margin-top: 16px;
     }
     .welcome-drive {
-      border-right: 0;
-      border-bottom: 1px solid var(--border);
+      padding: 24px;
     }
     .drive-ring {
       width: 170px;

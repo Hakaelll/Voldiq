@@ -1,0 +1,120 @@
+{
+  "checkedUtc": "2026-11-05T17:54:09.1903381Z",
+  "startedUtc": "2026-11-05T17:51:38.8432888Z",
+  "checkoutCommit": "a2ce2e801b250f3750baa343a133ba337593801f",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.773
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 6.128
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.751
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 4.429
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 133.961
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 4.291
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "9B0D5D8FB1660A01DFC0822C5C577C09534561CD0A48841A017BC85F7B3BBA09",
+      "lastWriteUtc": "2026-11-05T17:49:34.0405753Z"
+    },
+    {
+      "path": "frontend/components/Icon.svelte",
+      "sha256": "5AF571D1A30066A32CD3DAC5D64647F807CD7D85500F7A283B8B9EFD3A808754",
+      "lastWriteUtc": "2026-11-05T17:38:08.1465101Z"
+    },
+    {
+      "path": "frontend/components/Overview.svelte",
+      "sha256": "4DFD72D1DF159B7610AB33E92BD57DD25D9F99D8C4CB54F653B821967E5B507E",
+      "lastWriteUtc": "2026-11-05T17:46:13.1762409Z"
+    },
+    {
+      "path": "frontend/components/ScanWelcome.svelte",
+      "sha256": "3F278BD227E898BBAB8BD24682FDAC33F5CC453DC2AAADBA3E5E744867EA2790",
+      "lastWriteUtc": "2026-11-05T17:46:13.2952186Z"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "BD68C2163C1F73312AECD55A7F4AD286015743CEC59F9073112B859642E9C541",
+      "lastWriteUtc": "2026-11-05T17:51:34.9329954Z"
+    }
+  ],
+  "sourceInputsPredateVerification": true,
+  "behaviorTests": {
+    "frontend": 1,
+    "workspaceRust": 7,
+    "total": 8,
+    "ignored": 0
+  },
+  "productionAssets": [
+    {
+      "name": "city.worker-DLxzT0Wm.js",
+      "bytes": 2879,
+      "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+    },
+    {
+      "name": "history-export-DqBbiggb.js",
+      "bytes": 3986,
+      "sha256": "61C5CF760B667E13901FA308240C9F8B331F8D34717603E341E005E97CE83AE9"
+    },
+    {
+      "name": "history-video-CJVVgFec.js",
+      "bytes": 2865,
+      "sha256": "E0DA196403FC958C9401603F6D92589C38C42E0C0AB184B0D044585A81ECE168"
+    },
+    {
+      "name": "index-DH_x5BJQ.js",
+      "bytes": 414470,
+      "sha256": "77538AEA1E8226C8FC584CD97E355AA3AE699D41E4DA6ABE82792F7C262A83F9"
+    },
+    {
+      "name": "index-DHuVIEhh.css",
+      "bytes": 84066,
+      "sha256": "7D9330651693489380334813468DD163C7CB3A4ADBE9C33419EA091BD57674F4"
+    },
+    {
+      "name": "svg-surface-D3Yw6xZb.js",
+      "bytes": 6995,
+      "sha256": "16031B0D00F7998ED47803E71C5F769269D4295083881302DD52A7B7F3A450AA"
+    },
+    {
+      "name": "voronoi.worker-DwJ2QmrW.js",
+      "bytes": 5606,
+      "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+    }
+  ],
+  "nativeAcceptance": {
+    "renderedComparison": false,
+    "populatedUi": false,
+    "keyboardFocus": false,
+    "windowsScaling": false,
+    "reason": "Computer Use excluded by user; manual acceptance remains."
+  }
+}
