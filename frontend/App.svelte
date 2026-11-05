@@ -8,6 +8,7 @@
   import Overview from './components/Overview.svelte';
   import StorageMap from './components/StorageMap.svelte';
   import ScanWelcome from './components/ScanWelcome.svelte';
+  import BrandMark from './components/BrandMark.svelte';
   import ScanProfileSelect from './components/ScanProfileSelect.svelte';
   import { parseScanProfile, type ScanProfile } from './lib/scan-profile';
   import FileTable from './components/FileTable.svelte';
@@ -1242,7 +1243,7 @@
 <div class="app-shell" class:expanded>
   <aside class="navigation">
     <div class="brand">
-      <img src="/symbol.png" alt="" width="32" height="32" />{#if expanded}<div>
+      <BrandMark size={expanded ? 40 : 32} />{#if expanded}<div>
           <strong>Voldiq</strong><small>Disk space analyzer</small>
         </div>{/if}
     </div>

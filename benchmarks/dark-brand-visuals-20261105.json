@@ -1,0 +1,227 @@
+{
+  "checkedUtc": "2026-11-05T21:23:08.042Z",
+  "scope": "Synthetic source-derived 2x theme/header render, not a native WebView screenshot or visual/keyboard/scaling acceptance. Original artwork PNGs unchanged.",
+  "before": {
+    "canvas": "#181b20",
+    "chart-blue": "#6ba7ff",
+    "chart-violet": "#b195f3",
+    "chart-growth": "#f29b65",
+    "chart-reduction": "#40c6b4",
+    "surface": "#1e2228",
+    "paper": "#252a31",
+    "border": "#343a43",
+    "strong": "#4b535f",
+    "text": "#e6e8ec",
+    "secondary": "#b8bec8",
+    "muted": "#a2aab6",
+    "accent": "#83aeff",
+    "accent-fill": "#315ba6",
+    "selected": "#263c60",
+    "error": "#f29797"
+  },
+  "after": {
+    "canvas": "#090909",
+    "chart-blue": "#6ba7ff",
+    "chart-violet": "#b195f3",
+    "chart-growth": "#f29b65",
+    "chart-reduction": "#40c6b4",
+    "surface": "#111111",
+    "paper": "#1b1b1b",
+    "border": "#303030",
+    "strong": "#707070",
+    "text": "#ededed",
+    "secondary": "#c2c2c2",
+    "muted": "#ababab",
+    "accent": "#83aeff",
+    "accent-fill": "#315ba6",
+    "selected": "#263c60",
+    "error": "#f29797"
+  },
+  "sourceCssSha256": "DE9A2AC04044C28BBF0E6FEB19EEB164D44547F2436AC0E1F0E3A475DE5FB631",
+  "componentSha256": "B961481D4E82B41F667073D0AE1CC251235FEA719EE789C10EEC6231448A7BA2",
+  "nativeArtworkSha256": "BE1C9BFF0E4D3E5E88FDFAA71B0A97A9C99EFA625CD062DB6A3F74DB633B0974",
+  "logo": {
+    "cssScale": 1.6,
+    "sourceViewport": [
+      48,
+      48,
+      208,
+      208
+    ],
+    "darkBluePixelBounds": [
+      53,
+      50,
+      203,
+      201
+    ],
+    "darkBluePixels": 15854,
+    "clippedDarkBluePixels": 0
+  },
+  "contrastPairs": [
+    {
+      "ink": "text",
+      "background": "canvas",
+      "ratio": 17.008222808567194
+    },
+    {
+      "ink": "text",
+      "background": "surface",
+      "ratio": 16.12924943629902
+    },
+    {
+      "ink": "text",
+      "background": "paper",
+      "ratio": 14.712464705425159
+    },
+    {
+      "ink": "text",
+      "background": "selected",
+      "ratio": 9.452397752168567
+    },
+    {
+      "ink": "secondary",
+      "background": "canvas",
+      "ratio": 11.178835690435092
+    },
+    {
+      "ink": "secondary",
+      "background": "surface",
+      "ratio": 10.601121074660881
+    },
+    {
+      "ink": "secondary",
+      "background": "paper",
+      "ratio": 9.66992421221277
+    },
+    {
+      "ink": "secondary",
+      "background": "selected",
+      "ratio": 6.212689152855235
+    },
+    {
+      "ink": "muted",
+      "background": "canvas",
+      "ratio": 8.671062005016184
+    },
+    {
+      "ink": "muted",
+      "background": "surface",
+      "ratio": 8.222947425528407
+    },
+    {
+      "ink": "muted",
+      "background": "paper",
+      "ratio": 7.50064807729907
+    },
+    {
+      "ink": "muted",
+      "background": "selected",
+      "ratio": 4.818982437356365
+    },
+    {
+      "ink": "accent",
+      "background": "canvas",
+      "ratio": 8.97322858474194
+    },
+    {
+      "ink": "accent",
+      "background": "surface",
+      "ratio": 8.509498242187226
+    },
+    {
+      "ink": "accent",
+      "background": "paper",
+      "ratio": 7.762028421936544
+    },
+    {
+      "ink": "accent",
+      "background": "selected",
+      "ratio": 4.986912898470827
+    },
+    {
+      "ink": "error",
+      "background": "canvas",
+      "ratio": 9.149105616380497
+    },
+    {
+      "ink": "error",
+      "background": "surface",
+      "ratio": 8.676286068601708
+    },
+    {
+      "ink": "error",
+      "background": "paper",
+      "ratio": 7.914165693984382
+    },
+    {
+      "ink": "error",
+      "background": "selected",
+      "ratio": 5.084657364616989
+    },
+    {
+      "ink": "chart-growth",
+      "background": "canvas",
+      "ratio": 9.151891784874675
+    },
+    {
+      "ink": "chart-growth",
+      "background": "surface",
+      "ratio": 8.678928249805466
+    },
+    {
+      "ink": "chart-growth",
+      "background": "paper",
+      "ratio": 7.916575787390101
+    },
+    {
+      "ink": "chart-growth",
+      "background": "selected",
+      "ratio": 5.086205790522972
+    },
+    {
+      "ink": "chart-reduction",
+      "background": "canvas",
+      "ratio": 9.438990723323018
+    },
+    {
+      "ink": "chart-reduction",
+      "background": "surface",
+      "ratio": 8.951190110627131
+    },
+    {
+      "ink": "chart-reduction",
+      "background": "paper",
+      "ratio": 8.164922310505888
+    },
+    {
+      "ink": "chart-reduction",
+      "background": "selected",
+      "ratio": 5.245762340962337
+    },
+    {
+      "ink": "strong control boundary",
+      "background": "canvas",
+      "ratio": 4.020905894092069
+    },
+    {
+      "ink": "strong control boundary",
+      "background": "surface",
+      "ratio": 3.8131082156936627
+    },
+    {
+      "ink": "strong control boundary",
+      "background": "paper",
+      "ratio": 3.4781668088724373
+    }
+  ],
+  "minimumTextContrast": 4.818982437356365,
+  "minimumControlBoundaryContrast": 3.4781668088724373,
+  "render": {
+    "path": "target/probes/dark-brand-before-after.png",
+    "width": 2200,
+    "height": 580,
+    "scale": 2,
+    "sha256": "1F5AA056BDDED30E24997A589BDD285D2412D1BEAF92CB5D5370E45A6BE160D0",
+    "retainedPath": "benchmarks/visuals/dark-brand-before-after-20261105.png"
+  }
+}

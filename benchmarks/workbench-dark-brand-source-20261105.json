@@ -1,0 +1,123 @@
+{
+  "checkedUtc": "2026-11-05T21:37:30.2703137Z",
+  "startedUtc": "2026-11-05T21:20:49.3468791Z",
+  "checkoutCommit": "10f0a7cd48f0db4c94207c3e6859fbe72f4e0937",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 2.85
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 9.721
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1.238
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 9.252
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 882.058
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 95.789
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "3BB50E091A628B863252DFA8BA87A2D387B1423C83C1E5C6AEAAE0E1C1AFC9FA",
+      "lastWriteUtc": "2026-11-05T21:14:39.4414535Z"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "DE9A2AC04044C28BBF0E6FEB19EEB164D44547F2436AC0E1F0E3A475DE5FB631",
+      "lastWriteUtc": "2026-11-05T21:14:39.9529944Z"
+    },
+    {
+      "path": "frontend/components/BrandMark.svelte",
+      "sha256": "B961481D4E82B41F667073D0AE1CC251235FEA719EE789C10EEC6231448A7BA2",
+      "lastWriteUtc": "2026-11-05T21:14:39.1957711Z"
+    },
+    {
+      "path": "frontend/components/ScanWelcome.svelte",
+      "sha256": "6C48F8B2C9AF08779E0B93A020B47A14DC5EF6A2B98864CE8D84403A7D4332A9",
+      "lastWriteUtc": "2026-11-05T21:16:12.1221726Z"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "70D9714E6CA979880B93EC41AFBFC8E3EC7AEBD6A525BCD6576B03E8EAF56E0A",
+      "lastWriteUtc": "2026-11-05T21:14:40.2154216Z"
+    },
+    {
+      "path": "src-tauri/icons/256x256.png",
+      "sha256": "BE1C9BFF0E4D3E5E88FDFAA71B0A97A9C99EFA625CD062DB6A3F74DB633B0974",
+      "lastWriteUtc": "2026-10-11T17:22:54.3525930Z"
+    }
+  ],
+  "sourceInputsPredateVerification": true,
+  "navigationControlsUnchanged": true,
+  "sharedChartPaletteUnchanged": true,
+  "behaviorTests": {
+    "frontend": 1,
+    "workspaceRust": 7,
+    "total": 8,
+    "ignored": 0
+  },
+  "logoScope": "Existing native PNG reused without pixel edits; CSS viewport crop removes outer matte/padding. No generated or redrawn artwork.",
+  "productionAssets": [
+    {
+      "Name": "256x256-BkkuVpWj.png",
+      "Length": 69723
+    },
+    {
+      "Name": "city.worker-DLxzT0Wm.js",
+      "Length": 2879
+    },
+    {
+      "Name": "history-export-CvOc7htQ.js",
+      "Length": 3986
+    },
+    {
+      "Name": "history-video-Y52vAm5B.js",
+      "Length": 2865
+    },
+    {
+      "Name": "index-BXXdLmCI.js",
+      "Length": 437373
+    },
+    {
+      "Name": "index-yZkVHejF.css",
+      "Length": 90343
+    },
+    {
+      "Name": "svg-surface-D3Yw6xZb.js",
+      "Length": 6995
+    },
+    {
+      "Name": "voronoi.worker-DwJ2QmrW.js",
+      "Length": 5606
+    }
+  ],
+  "limits": [
+    "Native populated visual/keyboard/scaling acceptance remains manual; Computer Use excluded",
+    "Theme/logo source and synthetic rendering do not prove native visual acceptance",
+    "Full workbench goal remains active"
+  ]
+}

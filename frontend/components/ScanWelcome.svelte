@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
+  import BrandMark from './BrandMark.svelte';
   import { bytes, type Volume } from '../lib/types';
   import { volumeMeasurement, volumeCaller, volumeObservationLabel } from '../lib/volume-space';
   let {
@@ -74,7 +75,7 @@
       <p>{volumeObservationLabel(volume)}</p>
     </section>{/if}
   <section class="welcome-start">
-    <img src="/symbol.png" alt="" width="112" height="112" />
+    <div class="welcome-mark"><BrandMark size={112} /></div>
     <span class="welcome-eyebrow">Storage overview</span>
     <h2>{scanning ? 'Scanning…' : native ? 'Understand your disk space' : 'Desktop preview'}</h2>
     <p class="welcome-description">
@@ -203,8 +204,7 @@
     background: var(--panel);
     text-align: center;
   }
-  .welcome-start > img {
-    object-fit: contain;
+  .welcome-mark {
     margin-bottom: 24px;
   }
   .welcome-start > h2 {
