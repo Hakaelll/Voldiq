@@ -4,6 +4,12 @@ Delivery branch: `main`, as the user explicitly requested during implementation.
 
 The complete task remains active. See the [coverage matrix](WORKBENCH-COVERAGE.md) and [execution plan](plans/storage-workbench.md). This status does not declare pending capabilities implemented.
 
+## Directory pause foundation
+
+The core now has a single-use in-process scan controller with Idle, Running, PauseRequested, Paused and Finished states. Directory enumeration acknowledges pause only at a drained batch boundary, outside index locks. Resume wakes the waiter; the existing atomic cancellation token is checked during paused waits. A lifetime guard finalizes the controller on every return path. Reusing a controller is rejected, and raw Auto/NTFS/USN entry paths reject an attached controller rather than claiming unsupported pause. The field is skipped by deserialization, so serialized GUI/CLI/MCP options cannot create or acquire control authority.
+
+The retained history flow now uses owned temporary files to verify parallel drained-batch acknowledgement, stable index length while paused, resume with exact 33-byte/4-file totals, cancellation without resume, finished-controller refusal and unsupported/serialized control admission. Its targeted release run passes one existing history test, with no new test declaration. The [full integration gate](../benchmarks/workbench-pause-core-source-20261105.json) now passes all six stages: eight retained tests, zero Svelte diagnostics, production frontend build and strict workspace Clippy. All six core/test input hashes were captured before verification and checked unchanged afterward. Native pause acceptance is not claimed. Desktop button/status ownership and raw NTFS/USN pause remain pending. The last packaged interface is still the verified black-theme build; the full workbench goal remains active.
+
 ## Neutral black theme and original logo framing
 
 The user's dark-theme request changes the canonical dark canvas/surface/paper to neutral `#090909`, `#111111` and `#1b1b1b`, with matching neutral text and boundaries. The blue accent, selected-state color and shared chart palette remain. The light-theme tokens and navigation controls are unchanged. `DESIGN.md` and the production CSS use the same new values.

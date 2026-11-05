@@ -1,0 +1,82 @@
+{
+  "checkedUtc": "2026-11-05T22:27:26.9128945Z",
+  "startedUtc": "2026-11-05T22:17:56.7171741Z",
+  "checkoutCommit": "63d58486f547a28d02a2ac744bf1fb3f4cb22ec8",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.867
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.702
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.864
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.05
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 466.68
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 88.017
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/scanner/control.rs",
+      "sha256": "F7F9E6176FE6E3C961B0D9BF714A1AC5C1AAB635573529D87CB563AC5D60D576",
+      "lastWriteUtc": "2026-11-05T22:10:56.7193116Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/scanner.rs",
+      "sha256": "6949D353A7B0C57B2FF3D5C964B9719C10BB18381B68938A4BDF985EECDAAEED",
+      "lastWriteUtc": "2026-11-05T22:10:56.7289041Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/scanner/directory.rs",
+      "sha256": "14C3DF9D0E7BB27F6B3B56ED3F3C98B0D7857C9ADBE5D26B71BCE6BF44D574DB",
+      "lastWriteUtc": "2026-11-05T22:10:56.7253064Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/lib.rs",
+      "sha256": "2A9D4F05BE93B59AA8A74B255D6EAA9A164E6F397406C349C90DB64C4679AF8D",
+      "lastWriteUtc": "2026-11-05T22:10:19.1906053Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/live/native.rs",
+      "sha256": "85A16675CD9032A827411AE242DE86BDA357359DB3FA477AFAFBC5C34627EFE1",
+      "lastWriteUtc": "2026-11-05T22:10:19.3917679Z"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "5D02072083838C2BDC8B1DE999601C4051D08B3CC0D438D86FDFC803C0023463",
+      "lastWriteUtc": "2026-11-05T22:13:08.3891973Z"
+    }
+  ],
+  "sourceInputsPredateVerification": true,
+  "behaviorTests": {
+    "frontend": 1,
+    "workspaceRust": 7,
+    "total": 8,
+    "ignored": 0
+  },
+  "scopeOfChange": "In-process core directory-scan pause foundation only. No serialized controller, desktop button or raw NTFS/USN pause support. The existing theme/sidebar remain unchanged."
+}

@@ -1,4 +1,6 @@
+mod control;
 mod directory;
+pub use control::{ScanControl, ScanControlState};
 mod profile;
 use crate::{
     Entry, Error, Issue, Kind, NodeId, Progress, Result, ScanOptions, ScanPhase, index::Index,
@@ -24,6 +26,11 @@ pub fn refresh_or_scan(
     publish: impl FnOnce(SharedIndex),
     previous: Option<&SharedIndex>,
 ) -> Result<SharedIndex> {
+    if options.control.is_some() && options.mode != crate::ScanMode::Directory {
+        return Err(Error::Invalid(
+            "Pause control requires directory enumeration.".into(),
+        ));
+    }
     #[cfg(windows)]
     if options.mode == crate::ScanMode::Auto
         && let Some(previous) = previous
@@ -115,6 +122,11 @@ pub fn scan_live(
     mut progress: impl FnMut(Progress),
     publish: impl FnOnce(SharedIndex),
 ) -> Result<SharedIndex> {
+    let _control_run = options
+        .control
+        .as_ref()
+        .map(|control| control.begin(options.mode))
+        .transpose()?;
     if windows::is_reparse(&std::fs::symlink_metadata(root)?) {
         return Err(Error::Invalid(
             "Choose a directory that is not a reparse point.".into(),
@@ -193,16 +205,11 @@ pub fn scan_live(
             .record_observation(cancel.load(Ordering::Relaxed));
         return Ok(shared);
     }
-    let concurrency = if cancel.load(Ordering::Relaxed) {
-        crate::ScanConcurrency::default()
-    } else {
-        options.concurrency
-    };
     directory::enumerate(
         &shared,
         &exclusions,
         limit,
-        options.profile.resources(concurrency, &root),
+        options,
         cancel,
         &mut progress,
         start,

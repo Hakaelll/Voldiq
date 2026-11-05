@@ -127,6 +127,8 @@ pub struct ScanOptions {
     pub concurrency: ScanConcurrency,
     #[serde(default)]
     pub profile: ScanProfile,
+    #[serde(skip)]
+    pub control: Option<std::sync::Arc<scanner::ScanControl>>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

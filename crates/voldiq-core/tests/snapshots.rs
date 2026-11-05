@@ -28,6 +28,98 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     std::fs::write(fixture.path().join("UPPER.txt"), [5; 7]).unwrap();
     std::fs::write(fixture.path().join("Résumé.txt"), [6; 7]).unwrap();
     let first = capture(fixture.path());
+    for (stop, concurrency, expected_entries) in [(false, 8, 5), (true, 1, 2)] {
+        use std::sync::{Arc, atomic::Ordering, mpsc};
+        use voldiq_core::scanner::{ScanControl, ScanControlState};
+        let control = Arc::new(ScanControl::default());
+        assert!(!control.request_pause().unwrap());
+        let options = ScanOptions {
+            mode: voldiq_core::ScanMode::Directory,
+            concurrency: voldiq_core::ScanConcurrency::try_from(concurrency).unwrap(),
+            profile: voldiq_core::ScanProfile::Fast,
+            control: Some(control.clone()),
+            ..Default::default()
+        };
+        let cancel = AtomicBool::new(false);
+        let (send, receive) = mpsc::sync_channel(1);
+        std::thread::scope(|scope| {
+            let observed_control = control.clone();
+            let observed_cancel = &cancel;
+            let observer = scope.spawn(move || {
+                let observed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    let shared: voldiq_core::scanner::SharedIndex = receive
+                        .recv_timeout(std::time::Duration::from_secs(5))
+                        .unwrap();
+                    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+                    while observed_control.state().unwrap() != ScanControlState::Paused
+                        && std::time::Instant::now() < deadline
+                    {
+                        std::thread::sleep(std::time::Duration::from_millis(5));
+                    }
+                    assert_eq!(observed_control.state().unwrap(), ScanControlState::Paused);
+                    assert_eq!(shared.read().unwrap().entries.len(), expected_entries);
+                    std::thread::sleep(std::time::Duration::from_millis(30));
+                    assert_eq!(shared.read().unwrap().entries.len(), expected_entries);
+                }));
+                if stop || observed.is_err() {
+                    observed_cancel.store(true, Ordering::Relaxed);
+                }
+                if !stop || observed.is_err() {
+                    observed_control.resume().unwrap();
+                }
+                observed
+            });
+            let result = voldiq_core::scanner::scan_live(
+                fixture.path(),
+                &options,
+                &cancel,
+                |progress| {
+                    if progress.phase == voldiq_core::ScanPhase::Scanning && progress.entries == 2 {
+                        control.request_pause().unwrap();
+                    }
+                },
+                |shared| {
+                    send.send(shared).unwrap();
+                },
+            );
+            observer.join().unwrap().unwrap();
+            let shared = result.unwrap();
+            let index = shared.read().unwrap();
+            assert_eq!(index.entries[0].incomplete, stop);
+            if stop {
+                assert_eq!(index.entries.len(), 2);
+            } else {
+                assert_eq!((index.entries[0].logical, index.entries[0].files), (33, 4));
+            }
+        });
+        assert_eq!(control.state().unwrap(), ScanControlState::Finished);
+        assert!(!control.resume().unwrap());
+        assert!(!control.request_pause().unwrap());
+        assert!(scan(fixture.path(), &options, &AtomicBool::new(false), |_| {}).is_err());
+    }
+    let raw_control = std::sync::Arc::new(voldiq_core::scanner::ScanControl::default());
+    assert!(
+        scan(
+            fixture.path(),
+            &ScanOptions {
+                control: Some(raw_control.clone()),
+                ..Default::default()
+            },
+            &loading,
+            |_| {}
+        )
+        .is_err()
+    );
+    assert_eq!(
+        raw_control.state().unwrap(),
+        voldiq_core::scanner::ScanControlState::Idle
+    );
+    assert!(
+        serde_json::from_str::<ScanOptions>(r#"{"mode":"directory","control":true}"#)
+            .unwrap()
+            .control
+            .is_none()
+    );
     for (profile, workers, buffer) in [
         (voldiq_core::ScanProfile::Eco, 1, 64 * 1024),
         (voldiq_core::ScanProfile::Balanced, 2, 256 * 1024),

@@ -24,7 +24,8 @@ struct Measured {
     error: Option<String>,
 }
 
-struct Pool {
+struct Pool<'a> {
+    control: Option<&'a super::ScanControl>,
     profile: crate::ScanProfile,
     workers: usize,
     capacity: usize,
@@ -32,7 +33,7 @@ struct Pool {
     results: mpsc::Receiver<(usize, Option<Measured>)>,
 }
 
-impl Pool {
+impl Pool<'_> {
     fn measure(&self, inputs: Vec<Input>) -> Result<Vec<Option<Measured>>> {
         let count = inputs.len();
         for (slot, input) in inputs.into_iter().enumerate() {
@@ -56,11 +57,22 @@ pub(super) fn enumerate(
     shared: &SharedIndex,
     exclusions: &[PathBuf],
     limit: usize,
-    resources: super::ScanResources,
+    options: &crate::ScanOptions,
     cancel: &AtomicBool,
     progress: &mut impl FnMut(Progress),
     start: Instant,
 ) -> Result<()> {
+    let root = shared
+        .read()
+        .map_err(|e| Error::Invalid(e.to_string()))?
+        .root
+        .clone();
+    let concurrency = if cancel.load(Ordering::Relaxed) {
+        crate::ScanConcurrency::default()
+    } else {
+        options.concurrency
+    };
+    let resources = options.profile.resources(concurrency, &root);
     let workers = resources.workers;
     let batch_size = resources.batch_entries;
     let (jobs_tx, jobs_rx) = mpsc::sync_channel::<(usize, Input)>(batch_size);
@@ -92,6 +104,7 @@ pub(super) fn enumerate(
         }
         drop(results_tx);
         let pool = Pool {
+            control: options.control.as_deref(),
             profile: resources.profile,
             workers,
             capacity: batch_size,
@@ -106,7 +119,7 @@ fn walk(
     shared: &SharedIndex,
     exclusions: &[PathBuf],
     limit: usize,
-    pool: &Pool,
+    pool: &Pool<'_>,
     cancel: &AtomicBool,
     progress: &mut impl FnMut(Progress),
     start: Instant,
@@ -122,7 +135,7 @@ fn walk(
     let mut last_report = start;
     progress(update(shared, ScanPhase::Scanning, start)?);
     'scan: while let Some((path, parent)) = stack.pop() {
-        if cancel.load(Ordering::Relaxed) {
+        if !checkpoint(pool, cancel)? {
             break;
         }
         let mut directory = match std::fs::read_dir(&path) {
@@ -133,7 +146,7 @@ fn walk(
             }
         };
         loop {
-            if !pool.profile.checkpoint(cancel) {
+            if !checkpoint(pool, cancel)? || !pool.profile.checkpoint(cancel) {
                 break 'scan;
             }
             let remaining = limit.saturating_sub(
@@ -359,4 +372,11 @@ fn measure(input: Input) -> Measured {
     }
     measured.entry = Some(entry);
     measured
+}
+
+fn checkpoint(pool: &Pool<'_>, cancel: &AtomicBool) -> Result<bool> {
+    match pool.control {
+        Some(control) => control.checkpoint(cancel),
+        None => Ok(!cancel.load(Ordering::Relaxed)),
+    }
 }
