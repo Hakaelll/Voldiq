@@ -1,0 +1,19 @@
+{
+  "applied": true,
+  "removedBytes": 0,
+  "previews": [
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\5698263A6E25D10B4E08363EE32513103659195FDF461ED132C563384149B7C5",
+      "bytes": 24967680,
+      "status": "KeptRunning"
+    },
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\712540DC4254AAE044A4C2AB4A72B85D56D06ABC2092B46D893A483DB8ACC5EC",
+      "bytes": 24973312,
+      "status": "KeptCurrent"
+    }
+  ],
+  "checkedUtc": "2026-11-05T15:27:49.8409995Z",
+  "scope": "Only verified inactive Voldiq preview artifacts are eligible. Current/running previews, release build cache, application state and all other application/Windows caches are preserved. No observed disk-free-space change is claimed.",
+  "debugArtifactsAbsent": true
+}
