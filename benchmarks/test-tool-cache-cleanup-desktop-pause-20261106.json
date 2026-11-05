@@ -1,0 +1,24 @@
+{
+  "checkedUtc": "2026-11-05T23:32:03.4285185Z",
+  "scope": "Three inactive Voldiq video-test tool artifacts only. Source fixtures, generation metadata and license retained. No system/application cache or user data removed.",
+  "removedBytes": 107032576,
+  "files": [
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\webm-codec-20261104\\ffmpeg-win-x86_64-v9.0.2.exe",
+      "bytes": 105423872,
+      "sha256": "3256173F3F8BFFD7DF12227C68ADF68025EDB1832273A9530688A7BB1ED8EDEC"
+    },
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\webm-codec-20261104\\probe.exe",
+      "bytes": 171008,
+      "sha256": "9C8366C13581A550183A01DBFA07F267C196BB709EBF4F3405D42794AA28CC55"
+    },
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\webm-codec-20261104\\probe.pdb",
+      "bytes": 1437696,
+      "sha256": "DF260B686FF6FE07F5C68D8B8D3C1276D7E96E07B40D36FDA0EFDE6A13DE7248"
+    }
+  ],
+  "physicalFreeSpaceMeasured": false,
+  "totalCorrection": "The initial dictionary aggregation returned null. The total was recomputed from the three recorded file lengths after confirming all three files absent."
+}

@@ -1,0 +1,189 @@
+{
+  "checkedUtc": "2026-11-05T23:32:43.5599115Z",
+  "sourceCommit": "abc256998ef2a2ee1628b336c2339ef9068a47a8",
+  "scope": "Logical regular-file workspace bytes; reparse points skipped. No physical-allocation or observed volume-free-space claim. Native startup/resources and CLI help verified; visual/keyboard/scaling and installation acceptance remain manual.",
+  "before": {
+    "checkedUnix": 1793921455.9245107,
+    "elapsedSeconds": 0.391,
+    "scope": "Logical regular-file bytes inside the workspace; reparse points skipped. No files were modified. These are not measured physical allocated bytes.",
+    "totalBytes": 3567493923,
+    "skippedReparsePoints": 119,
+    "directories": [
+      {
+        "path": "target",
+        "bytes": 3389321715,
+        "files": 7089
+      },
+      {
+        "path": "node_modules",
+        "bytes": 89309395,
+        "files": 1860
+      },
+      {
+        "path": ".git",
+        "bytes": 38646212,
+        "files": 209
+      },
+      {
+        "path": "output",
+        "bytes": 16801568,
+        "files": 16
+      },
+      {
+        "path": "interface",
+        "bytes": 12841789,
+        "files": 11
+      },
+      {
+        "path": "assets",
+        "bytes": 7903038,
+        "files": 5
+      },
+      {
+        "path": "benchmarks",
+        "bytes": 5978468,
+        "files": 429
+      },
+      {
+        "path": "crates",
+        "bytes": 1997254,
+        "files": 141
+      },
+      {
+        "path": "frontend",
+        "bytes": 1178912,
+        "files": 110
+      },
+      {
+        "path": "dist",
+        "bytes": 1009201,
+        "files": 11
+      },
+      {
+        "path": "docs",
+        "bytes": 888794,
+        "files": 38
+      },
+      {
+        "path": "src-tauri",
+        "bytes": 708857,
+        "files": 40
+      },
+      {
+        "path": ".impeccable",
+        "bytes": 501734,
+        "files": 17
+      },
+      {
+        "path": ".",
+        "bytes": 310557,
+        "files": 18
+      },
+      {
+        "path": "scripts",
+        "bytes": 96429,
+        "files": 18
+      }
+    ]
+  },
+  "after": {
+    "checkedUnix": 1793921524.2327218,
+    "elapsedSeconds": 0.093,
+    "scope": "Logical regular-file bytes inside the workspace; reparse points skipped. No files were modified. These are not measured physical allocated bytes.",
+    "totalBytes": 265872503,
+    "skippedReparsePoints": 119,
+    "directories": [
+      {
+        "path": "node_modules",
+        "bytes": 89309395,
+        "files": 1860
+      },
+      {
+        "path": "target",
+        "bytes": 87697518,
+        "files": 720
+      },
+      {
+        "path": ".git",
+        "bytes": 38646212,
+        "files": 209
+      },
+      {
+        "path": "output",
+        "bytes": 16801568,
+        "files": 16
+      },
+      {
+        "path": "interface",
+        "bytes": 12841789,
+        "files": 11
+      },
+      {
+        "path": "assets",
+        "bytes": 7903038,
+        "files": 5
+      },
+      {
+        "path": "benchmarks",
+        "bytes": 5981245,
+        "files": 432
+      },
+      {
+        "path": "crates",
+        "bytes": 1997254,
+        "files": 141
+      },
+      {
+        "path": "frontend",
+        "bytes": 1178912,
+        "files": 110
+      },
+      {
+        "path": "dist",
+        "bytes": 1009201,
+        "files": 11
+      },
+      {
+        "path": "docs",
+        "bytes": 888794,
+        "files": 38
+      },
+      {
+        "path": "src-tauri",
+        "bytes": 708857,
+        "files": 40
+      },
+      {
+        "path": ".impeccable",
+        "bytes": 501734,
+        "files": 17
+      },
+      {
+        "path": ".",
+        "bytes": 310557,
+        "files": 18
+      },
+      {
+        "path": "scripts",
+        "bytes": 96429,
+        "files": 18
+      }
+    ]
+  },
+  "nativeResourceCount": 11,
+  "cliHelpExitCode": 0,
+  "debugArtifactsPresent": false,
+  "preview": {
+    "processId": 20308,
+    "running": true,
+    "mainWindowHandle": 11340200,
+    "sha256": "6907832963884039E6601DAF5CC61829F64FFE6DF1A39B9C3FE2C3995F535E41",
+    "closeObserved": false,
+    "exitObserved": false
+  },
+  "cleanup": {
+    "release": 3169193924,
+    "testTools": 107032576,
+    "previews": 25399296
+  }
+}
