@@ -31,6 +31,7 @@ mod overview;
 mod plan_commands;
 mod query_commands;
 mod restore_commands;
+mod scan_control;
 mod snapshot_commands;
 mod workbench_commands;
 use analysis_status::IndexId;
@@ -50,6 +51,7 @@ struct Engine {
     exports: export_commands::Sessions,
     index: Mutex<Option<analysis_status::LoadedAnalysis>>,
     active: Mutex<Option<(u64, Arc<AtomicBool>)>>,
+    scan_controls: scan_control::Sessions,
     sequence: AtomicU64,
     duplicates: Mutex<Option<Arc<DuplicateRun>>>,
 }
@@ -72,6 +74,7 @@ impl Drop for Operation {
         {
             *active = None;
         }
+        self.engine.scan_controls.finish(self.id);
     }
 }
 
@@ -89,6 +92,7 @@ impl Engine {
             exports: Default::default(),
             index: Default::default(),
             active: Default::default(),
+            scan_controls: Default::default(),
             sequence: Default::default(),
             duplicates: Default::default(),
         })
@@ -203,7 +207,7 @@ fn start_scan(
 
 fn launch_scan(
     path: String,
-    options: ScanOptions,
+    mut options: ScanOptions,
     progress: Channel<analysis_status::ScanProgress>,
     engine: Arc<Engine>,
     database: &SnapshotDatabase,
@@ -212,6 +216,7 @@ fn launch_scan(
     let operation = engine.begin()?;
     let id = operation.id;
     let cancel = operation.cancel.clone();
+    options.control = engine.scan_controls.attach(id, options.mode)?;
     if let Ok(mut result) = engine.duplicates.lock() {
         *result = None;
     }
@@ -834,6 +839,9 @@ fn main() {
             export_commands::report_progress,
             export_commands::cancel_report,
             start_scan,
+            scan_control::get_scan_control,
+            scan_control::pause_scan,
+            scan_control::resume_scan,
             live_commands::start_live,
             live_commands::stop_live,
             live_commands::resynchronize_live,
@@ -914,6 +922,11 @@ fn main() {
                 tauri::RunEvent::Exit => "exit",
                 _ => return,
             };
+            if matches!(name, "close-requested" | "exit-requested")
+                && let Some(engine) = app.try_state::<Arc<Engine>>()
+            {
+                scan_control::cancel_on_close(&engine);
+            }
             trace.record(name, Some(app));
         });
 }

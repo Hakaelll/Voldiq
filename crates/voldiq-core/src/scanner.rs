@@ -1,5 +1,6 @@
 mod control;
 mod directory;
+mod pin;
 pub use control::{ScanControl, ScanControlState};
 mod profile;
 use crate::{

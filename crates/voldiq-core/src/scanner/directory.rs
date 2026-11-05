@@ -125,12 +125,11 @@ fn walk(
     start: Instant,
 ) -> Result<()> {
     let batch_size = if pool.workers > 1 { pool.capacity } else { 1 };
-    let root = shared
-        .read()
-        .map_err(|e| Error::Invalid(e.to_string()))?
-        .root
-        .clone();
-    let mut stack = vec![(root, NodeId(0))];
+    let (root, root_identity) = {
+        let index = shared.read().map_err(|e| Error::Invalid(e.to_string()))?;
+        (index.root.clone(), index.root_identity)
+    };
+    let mut stack = vec![(root.clone(), NodeId(0))];
     let mut physical = HashSet::new();
     let mut last_report = start;
     progress(update(shared, ScanPhase::Scanning, start)?);
@@ -138,6 +137,21 @@ fn walk(
         if !checkpoint(pool, cancel)? {
             break;
         }
+        let expected = shared
+            .read()
+            .map_err(|e| Error::Invalid(e.to_string()))?
+            .entries[parent.0 as usize]
+            .file_state
+            .as_ref()
+            .map(|state| state.identity);
+        // Keep native ancestors pinned across enumeration, worker batches and paused waits.
+        let _pins = match super::pin::directory(&path, &root, root_identity, expected) {
+            Ok(pins) => pins,
+            Err(error) => {
+                record_issue(shared, parent, &path, error.to_string())?;
+                continue;
+            }
+        };
         let mut directory = match std::fs::read_dir(&path) {
             Ok(directory) => directory,
             Err(error) => {

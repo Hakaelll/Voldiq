@@ -1,0 +1,123 @@
+{
+  "checkedUtc": "2026-11-05T22:48:12.4018083Z",
+  "startedUtc": "2026-11-05T22:45:09.9141629Z",
+  "checkoutCommit": "35578840c0fe2438d5a09998bbd13cd0adfe0553",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.776
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 7.456
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.77
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.495
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 163.34
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 4.635
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "FA2D648E388AD32CD0BC92DCEFCB5D9C4F89290B5B05F3D9B10D72B81C1D2F59",
+      "lastWriteUtc": "2026-11-05T22:34:53.7159621Z"
+    },
+    {
+      "path": "src-tauri/src/scan_control.rs",
+      "sha256": "AD432E6A617BFD95EE2D515CD131FF0378B572DCC4C7B7DCC517E91E9D853B1F",
+      "lastWriteUtc": "2026-11-05T22:34:48.5668475Z"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "34CFABD4B8A9C987E158D461E4A7BBFF1D8AB195CEB1CF7999B225B2EB5EF4C5",
+      "lastWriteUtc": "2026-11-05T22:42:15.7399686Z"
+    },
+    {
+      "path": "frontend/components/ScanPauseControl.svelte",
+      "sha256": "05977F6B654B6AEB8122EA92E34F14B43ADE46B14675B32817494F6949DB11DD",
+      "lastWriteUtc": "2026-11-05T22:45:02.6170947Z"
+    },
+    {
+      "path": "frontend/lib/scan-control.ts",
+      "sha256": "1C866C291D9205E8900B1F5EAEB78593CEC0ABE8F0374BA5D85210101C206504",
+      "lastWriteUtc": "2026-11-05T22:42:15.8433634Z"
+    },
+    {
+      "path": "frontend/lib/cleanup-selection.test.ts",
+      "sha256": "0017DCDBA3CF3176E8812ADD2A57E625BF81EDE16850F21CBC3F1EEF3AF866BF",
+      "lastWriteUtc": "2026-11-05T22:42:16.0003162Z"
+    }
+  ],
+  "sourceInputsPredateVerification": true,
+  "sidebarMarkupUnchanged": true,
+  "behaviorTests": {
+    "frontend": 1,
+    "workspaceRust": 7,
+    "total": 8,
+    "ignored": 0
+  },
+  "productionAssets": [
+    {
+      "Name": "256x256-BkkuVpWj.png",
+      "Length": 69723
+    },
+    {
+      "Name": "city.worker-DLxzT0Wm.js",
+      "Length": 2879
+    },
+    {
+      "Name": "history-export-DHqhK1Jw.js",
+      "Length": 3986
+    },
+    {
+      "Name": "history-video-0TTLyauc.js",
+      "Length": 2865
+    },
+    {
+      "Name": "index-C7vwBhJw.js",
+      "Length": 441176
+    },
+    {
+      "Name": "index-D3W6SWi-.css",
+      "Length": 90423
+    },
+    {
+      "Name": "svg-surface-D3Yw6xZb.js",
+      "Length": 6995
+    },
+    {
+      "Name": "voronoi.worker-DwJ2QmrW.js",
+      "Length": 5606
+    }
+  ],
+  "limits": [
+    "Native pause/resume/cancel, close behavior and keyboard/focus/scaling acceptance remain manual; no Computer Use",
+    "Native NTFS/USN pause remains unsupported",
+    "No new CLI/MCP pause endpoint",
+    "Full workbench goal remains active"
+  ],
+  "diagnostics": "Initial attempt passed the six exit-code gates with one Svelte retryButton warning. The reactive binding was corrected afterward; final verification is recorded separately."
+}

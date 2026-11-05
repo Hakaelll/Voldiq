@@ -8,6 +8,8 @@
   import Overview from './components/Overview.svelte';
   import StorageMap from './components/StorageMap.svelte';
   import ScanWelcome from './components/ScanWelcome.svelte';
+  import ScanPauseControl from './components/ScanPauseControl.svelte';
+  import type { ScanControlView } from './lib/scan-control';
   import BrandMark from './components/BrandMark.svelte';
   import ScanProfileSelect from './components/ScanProfileSelect.svelte';
   import { parseScanProfile, type ScanProfile } from './lib/scan-profile';
@@ -858,10 +860,15 @@
       if (navigationRefresh.finish(token) && ready) void refresh(scope);
     }
   }
+  let pauseEligible = $state(false);
+  let pauseStatus = $state<ScanControlView>({ observed: null, activity: null, problem: null });
+
   async function start(path: string, favorite?: RecordRef): Promise<void> {
     if (!path || busy) return;
     const previous = { ready, indexId, scope, historical, selection, operation, scanPath, details };
     const owner = ++scanRequest;
+    pauseEligible = scanMode === 'directory';
+    pauseStatus = { observed: null, activity: null, problem: null };
     scanId = null;
     selection = new Set();
     cleanupPreview = null;
@@ -1534,15 +1541,31 @@
           onobserved={observeLive}
         />
       {/if}
-      {#if operation && !liveBusy && !liveObservation && view !== 'settings' && view !== 'duplicates' && view !== 'history'}<div
+      {#if operation && !liveBusy && !liveObservation && (operation.phase === 'scanning' || (view !== 'settings' && view !== 'duplicates' && view !== 'history'))}<div
           class="scan-status"
           aria-live="polite"
         >
-          <span class:working={operation.phase === 'scanning'} class="status-dot"></span><span
+          <span
+            class:working={operation.phase === 'scanning' &&
+              pauseStatus.observed !== 'paused' &&
+              !pauseStatus.problem &&
+              pauseStatus.observed !== 'finished'}
+            class="status-dot"
+          ></span><span
             >{operation.phase === 'scanning'
-              ? operation.previous
-                ? 'Refreshing · previous results'
-                : 'Scanning'
+              ? pauseStatus.problem
+                ? 'Scan active · pause state unavailable'
+                : pauseStatus.activity === 'resume'
+                  ? 'Resuming…'
+                  : pauseStatus.observed === 'paused'
+                    ? 'Paused'
+                    : pauseStatus.observed === 'pause_requested' || pauseStatus.activity === 'pause'
+                      ? 'Pausing…'
+                      : pauseStatus.observed === 'finished'
+                        ? 'Finishing…'
+                        : operation.previous
+                          ? 'Refreshing · previous results'
+                          : 'Scanning'
               : operation.phase === 'complete'
                 ? 'Scan complete'
                 : operation.phase === 'cancelled'
@@ -1556,11 +1579,17 @@
             >{operation.files.toLocaleString()} files · {bytes(operation.logical)} logical · {(
               operation.elapsed_ms / 1000
             ).toFixed(1)} s</span
-          >{#if operation.errors > 0}<button onclick={inspectIssues}
+          >{#if operation.phase === 'scanning' && pauseStatus.observed === 'paused' && pauseStatus.activity !== 'resume'}<span
+              >Last reported progress</span
+            >{/if}{#if operation.errors > 0}<button onclick={inspectIssues}
               >{operation.errors} access issues</button
-            >{/if}{#if operation.phase === 'scanning'}<button
-              onclick={cancel}
-              disabled={scanId === null}>Cancel scan</button
+            >{/if}{#if operation.phase === 'scanning'}<ScanPauseControl
+              id={scanId}
+              supported={pauseEligible}
+              onstate={(state) => {
+                pauseStatus = state;
+              }}
+            /><button onclick={cancel} disabled={scanId === null}>Cancel scan</button
             >{/if}{#if operation.analyzed_at !== null}<time
               datetime={new Date(operation.analyzed_at * 1000).toISOString()}
               title="Analysis date">{date(operation.analyzed_at)}</time

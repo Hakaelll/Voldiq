@@ -28,7 +28,11 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     std::fs::write(fixture.path().join("UPPER.txt"), [5; 7]).unwrap();
     std::fs::write(fixture.path().join("Résumé.txt"), [6; 7]).unwrap();
     let first = capture(fixture.path());
-    for (stop, concurrency, expected_entries) in [(false, 8, 5), (true, 1, 2)] {
+    for (stop, replace, concurrency, expected_entries) in [
+        (false, false, 8, 5),
+        (true, false, 1, 2),
+        (false, true, 8, 5),
+    ] {
         use std::sync::{Arc, atomic::Ordering, mpsc};
         use voldiq_core::scanner::{ScanControl, ScanControlState};
         let control = Arc::new(ScanControl::default());
@@ -42,9 +46,13 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         };
         let cancel = AtomicBool::new(false);
         let (send, receive) = mpsc::sync_channel(1);
+        let nested = fixture.path().join("nested");
+        let moved = database.path().join("moved");
         std::thread::scope(|scope| {
             let observed_control = control.clone();
             let observed_cancel = &cancel;
+            let nested = &nested;
+            let moved = &moved;
             let observer = scope.spawn(move || {
                 let observed = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                     let shared: voldiq_core::scanner::SharedIndex = receive
@@ -58,6 +66,11 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                     }
                     assert_eq!(observed_control.state().unwrap(), ScanControlState::Paused);
                     assert_eq!(shared.read().unwrap().entries.len(), expected_entries);
+                    if replace {
+                        std::fs::rename(nested, moved).unwrap();
+                        std::fs::create_dir(nested).unwrap();
+                        std::fs::write(nested.join("replacement-marker"), [9; 200]).unwrap();
+                    }
                     std::thread::sleep(std::time::Duration::from_millis(30));
                     assert_eq!(shared.read().unwrap().entries.len(), expected_entries);
                 }));
@@ -85,13 +98,27 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             observer.join().unwrap().unwrap();
             let shared = result.unwrap();
             let index = shared.read().unwrap();
-            assert_eq!(index.entries[0].incomplete, stop);
+            assert_eq!(index.entries[0].incomplete, stop || replace);
             if stop {
                 assert_eq!(index.entries.len(), 2);
+            } else if replace {
+                assert_eq!((index.entries[0].logical, index.entries[0].files), (21, 3));
+                assert!(index.entries[0].incomplete);
+                assert!(index.error_count > 0);
+                assert!(
+                    !index
+                        .entries
+                        .iter()
+                        .any(|entry| entry.name == "replacement-marker")
+                );
             } else {
                 assert_eq!((index.entries[0].logical, index.entries[0].files), (33, 4));
             }
         });
+        if replace {
+            std::fs::remove_dir_all(&nested).unwrap();
+            std::fs::rename(&moved, &nested).unwrap();
+        }
         assert_eq!(control.state().unwrap(), ScanControlState::Finished);
         assert!(!control.resume().unwrap());
         assert!(!control.request_pause().unwrap());

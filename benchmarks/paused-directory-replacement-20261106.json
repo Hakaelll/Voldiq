@@ -1,0 +1,30 @@
+{
+  "checkedUtc": "2026-11-05T23:09:25.3324526Z",
+  "scope": "Owned temporary-directory fixture inside the retained history behavior test; no real user data",
+  "command": "cargo test --offline --release -p voldiq-core --test snapshots -- history_survives_restart_and_compares_actual_directory_changes --exact",
+  "initialSandboxAttempt": "Denied fixture rename; not treated as a reproduced scanner defect",
+  "beforeFix": {
+    "exitCode": 1,
+    "logicalBytes": 221,
+    "files": 4,
+    "replacementMarkerIndexed": true,
+    "expectedLogicalBytes": 21,
+    "expectedFiles": 3
+  },
+  "afterFix": {
+    "exitCode": 0,
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0,
+    "logicalBytes": 21,
+    "files": 3,
+    "partialCoverage": true,
+    "replacementMarkerIndexed": false,
+    "elapsedTestSeconds": 17.72
+  },
+  "limits": [
+    "Windows fixture and source checks only; native UI interaction remains manual",
+    "No positive junction-replacement, other filesystem or throughput acceptance claimed",
+    "No non-Windows namespace-pinning claim"
+  ]
+}

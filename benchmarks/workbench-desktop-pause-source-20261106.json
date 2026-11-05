@@ -1,0 +1,219 @@
+{
+  "checkedUtc": "2026-11-05T23:17:43.9052275Z",
+  "startedUtc": "2026-11-05T23:09:00.3801715Z",
+  "checkoutCommit": "35578840c0fe2438d5a09998bbd13cd0adfe0553",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.779
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 13.066
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.799
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.149
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 476.344
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 26.366
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "FA2D648E388AD32CD0BC92DCEFCB5D9C4F89290B5B05F3D9B10D72B81C1D2F59",
+      "lastWriteUtc": "2026-11-05T22:34:53.7159621Z"
+    },
+    {
+      "path": "src-tauri/src/scan_control.rs",
+      "sha256": "AD432E6A617BFD95EE2D515CD131FF0378B572DCC4C7B7DCC517E91E9D853B1F",
+      "lastWriteUtc": "2026-11-05T22:34:48.5668475Z"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "34CFABD4B8A9C987E158D461E4A7BBFF1D8AB195CEB1CF7999B225B2EB5EF4C5",
+      "lastWriteUtc": "2026-11-05T22:42:15.7399686Z"
+    },
+    {
+      "path": "frontend/components/ScanPauseControl.svelte",
+      "sha256": "A3FDE352DE41D73F5BE1897291EC175CB2F2383E812FE2AF3A1403A24D83011F",
+      "lastWriteUtc": "2026-11-05T22:49:59.6325787Z"
+    },
+    {
+      "path": "frontend/lib/scan-control.ts",
+      "sha256": "1C866C291D9205E8900B1F5EAEB78593CEC0ABE8F0374BA5D85210101C206504",
+      "lastWriteUtc": "2026-11-05T22:42:15.8433634Z"
+    },
+    {
+      "path": "frontend/lib/cleanup-selection.test.ts",
+      "sha256": "0017DCDBA3CF3176E8812ADD2A57E625BF81EDE16850F21CBC3F1EEF3AF866BF",
+      "lastWriteUtc": "2026-11-05T22:42:16.0003162Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/scanner.rs",
+      "sha256": "EC19D19344EAB018D45238A5D59267F885F29F2F3D506596BF95C4F32E641305",
+      "lastWriteUtc": "2026-11-05T23:03:21.7301309Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/scanner/directory.rs",
+      "sha256": "67213295CD4B09E1D90EB73B980395C21C87A70B87A6C122BF0A3FEC5649DDF4",
+      "lastWriteUtc": "2026-11-05T23:03:21.9927778Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/scanner/pin.rs",
+      "sha256": "074F133F5EA967CE6D3670756A6733AED92C4D0AB69A3B9F4F807AD23253667C",
+      "lastWriteUtc": "2026-11-05T23:03:28.3526896Z"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "B07D4BB93196737866D4B1B5D10BC818D2CBFAE628FA83DC13930950A839A841",
+      "lastWriteUtc": "2026-11-05T23:04:16.5512878Z"
+    }
+  ],
+  "sourceInputsPredateVerification": true,
+  "sidebarMarkupUnchanged": true,
+  "behaviorTests": {
+    "frontend": 1,
+    "workspaceRust": 7,
+    "total": 8,
+    "ignored": 0
+  },
+  "productionAssets": [
+    {
+      "Name": "256x256-BkkuVpWj.png",
+      "Length": 69723
+    },
+    {
+      "Name": "city.worker-DLxzT0Wm.js",
+      "Length": 2879
+    },
+    {
+      "Name": "history-export-Bt3C05MG.js",
+      "Length": 3986
+    },
+    {
+      "Name": "history-video-WnsZwrZG.js",
+      "Length": 2865
+    },
+    {
+      "Name": "index-CZXQneoU.js",
+      "Length": 441198
+    },
+    {
+      "Name": "index-DmPcbn09.css",
+      "Length": 90461
+    },
+    {
+      "Name": "svg-surface-D3Yw6xZb.js",
+      "Length": 6995
+    },
+    {
+      "Name": "voronoi.worker-DwJ2QmrW.js",
+      "Length": 5606
+    }
+  ],
+  "limits": [
+    "Native pause/resume/cancel, close behavior and keyboard/focus/scaling acceptance remain manual; no Computer Use",
+    "Native NTFS/USN pause remains unsupported",
+    "No new CLI/MCP pause endpoint",
+    "Full workbench goal remains active"
+  ],
+  "frontendLayoutFinalization": {
+    "scope": "Only flex wrapping of the status row and word wrapping of the component error text changed after the full gate; Rust and behavioral logic are unchanged",
+    "startedUtc": "2026-11-05T23:18:05.2083522Z",
+    "checkedUtc": "2026-11-05T23:18:21.6377601Z",
+    "checks": [
+      {
+        "exitCode": 0,
+        "name": "check"
+      },
+      {
+        "exitCode": 0,
+        "name": "build"
+      }
+    ],
+    "diagnostics": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "sourceInputs": [
+      {
+        "path": "src-tauri/src/main.rs",
+        "sha256": "FA2D648E388AD32CD0BC92DCEFCB5D9C4F89290B5B05F3D9B10D72B81C1D2F59",
+        "lastWriteUtc": "2026-11-05T22:34:53.7159621Z"
+      },
+      {
+        "path": "src-tauri/src/scan_control.rs",
+        "sha256": "AD432E6A617BFD95EE2D515CD131FF0378B572DCC4C7B7DCC517E91E9D853B1F",
+        "lastWriteUtc": "2026-11-05T22:34:48.5668475Z"
+      },
+      {
+        "path": "frontend/App.svelte",
+        "sha256": "34CFABD4B8A9C987E158D461E4A7BBFF1D8AB195CEB1CF7999B225B2EB5EF4C5",
+        "lastWriteUtc": "2026-11-05T22:42:15.7399686Z"
+      },
+      {
+        "path": "frontend/components/ScanPauseControl.svelte",
+        "sha256": "6B3FA28311C03DCFA29B418FC1738DE1068615A7D15072A618DC32CF73ADC8EE",
+        "lastWriteUtc": "2026-11-05T23:18:01.3412364Z"
+      },
+      {
+        "path": "frontend/lib/scan-control.ts",
+        "sha256": "1C866C291D9205E8900B1F5EAEB78593CEC0ABE8F0374BA5D85210101C206504",
+        "lastWriteUtc": "2026-11-05T22:42:15.8433634Z"
+      },
+      {
+        "path": "frontend/lib/cleanup-selection.test.ts",
+        "sha256": "0017DCDBA3CF3176E8812ADD2A57E625BF81EDE16850F21CBC3F1EEF3AF866BF",
+        "lastWriteUtc": "2026-11-05T22:42:16.0003162Z"
+      },
+      {
+        "path": "crates/voldiq-core/src/scanner.rs",
+        "sha256": "EC19D19344EAB018D45238A5D59267F885F29F2F3D506596BF95C4F32E641305",
+        "lastWriteUtc": "2026-11-05T23:03:21.7301309Z"
+      },
+      {
+        "path": "crates/voldiq-core/src/scanner/directory.rs",
+        "sha256": "67213295CD4B09E1D90EB73B980395C21C87A70B87A6C122BF0A3FEC5649DDF4",
+        "lastWriteUtc": "2026-11-05T23:03:21.9927778Z"
+      },
+      {
+        "path": "crates/voldiq-core/src/scanner/pin.rs",
+        "sha256": "074F133F5EA967CE6D3670756A6733AED92C4D0AB69A3B9F4F807AD23253667C",
+        "lastWriteUtc": "2026-11-05T23:03:28.3526896Z"
+      },
+      {
+        "path": "crates/voldiq-core/tests/snapshots.rs",
+        "sha256": "B07D4BB93196737866D4B1B5D10BC818D2CBFAE628FA83DC13930950A839A841",
+        "lastWriteUtc": "2026-11-05T23:04:16.5512878Z"
+      },
+      {
+        "path": "frontend/styles.css",
+        "sha256": "40B1C848F1980B6234401E7EB3BB205FE0DCEB9F462E3E4D639CC6B1381ABE33",
+        "lastWriteUtc": "2026-11-05T23:18:01.093802Z"
+      }
+    ],
+    "inputsPredateChecks": true
+  }
+}

@@ -1,3 +1,4 @@
+import { createScanControl, type ScanControlView } from './scan-control.ts';
 import { historicalRects } from './history-geometry.ts';
 import { paintHistoryFrame, gifPacket, webmPacket } from './history-export.ts';
 import type { HistoryClip, GifProgress, HistoryGifRequest } from './history-clip.ts';
@@ -49,6 +50,91 @@ function item(id: number): CleanupRulePage['items'][number] {
 }
 
 test('frontend interactions preserve ownership and bounded motion', async () => {
+  const pauseViews: ScanControlView[] = [];
+  let rejectLate: (error: Error) => void = () => {};
+  let nativePauseState = 'running';
+  let refuseResume = false;
+  let delayedQuery: Promise<unknown> | null = null;
+  let resolveQuery: (state: string) => void = () => {};
+  const pauseCalls: string[] = [];
+  const pause = createScanControl(
+    41,
+    {
+      query: async (id) => {
+        pauseCalls.push(`query:${id}`);
+        return delayedQuery ?? nativePauseState;
+      },
+      pause: async (id) => {
+        pauseCalls.push(`pause:${id}`);
+        nativePauseState = 'paused';
+        return 'pause_requested';
+      },
+      resume: async (id) => {
+        pauseCalls.push(`resume:${id}`);
+        if (refuseResume) throw Error('Control unavailable');
+        return 'running';
+      },
+    },
+    (value) => pauseViews.push(value),
+  );
+  await pause.load();
+  delayedQuery = new Promise((resolve) => {
+    resolveQuery = resolve;
+  });
+  const supersededQuery = pause.load();
+  await pause.pause();
+  resolveQuery('running');
+  await supersededQuery;
+  delayedQuery = null;
+  assert.equal(pauseViews.at(-1)?.observed, 'pause_requested');
+  await pause.load();
+  assert.equal(pauseViews.at(-1)?.observed, 'paused');
+  await pause.resume();
+  assert.equal(pauseViews.at(-1)?.observed, 'running');
+  assert.deepEqual(pauseCalls, ['query:41', 'query:41', 'pause:41', 'query:41', 'resume:41']);
+  await pause.pause();
+  await pause.load();
+  refuseResume = true;
+  await pause.resume();
+  assert.equal(pauseViews.at(-1)?.observed, null);
+  assert.equal(pauseViews.at(-1)?.problem, 'Control unavailable');
+  await pause.load();
+  assert.equal(pauseViews.at(-1)?.observed, 'paused');
+  refuseResume = false;
+  await pause.resume();
+  pause.dispose();
+  const oldPause = createScanControl(
+    40,
+    {
+      query: () =>
+        new Promise((_, reject) => {
+          rejectLate = reject;
+        }),
+      pause: async () => 'paused',
+      resume: async () => 'running',
+    },
+    (value) => pauseViews.push(value),
+  );
+  const stalePauseRequest = oldPause.load();
+  oldPause.dispose();
+  const countBeforeLate = pauseViews.length;
+  rejectLate(new Error('old scan failed'));
+  await stalePauseRequest;
+  assert.equal(pauseViews.length, countBeforeLate);
+  const invalidPause = createScanControl(
+    42,
+    {
+      query: async () => 'made_up_state',
+      pause: async () => 'paused',
+      resume: async () => 'running',
+    },
+    (value) => pauseViews.push(value),
+  );
+  await invalidPause.load();
+  assert.equal(pauseViews.at(-1)?.observed, null);
+  assert.equal(pauseViews.at(-1)?.problem, 'Invalid scan control response.');
+  invalidPause.dispose();
+
   const catalogueStates: CatalogueState[] = [];
   const cataloguePages: ((page: TransferPage) => void)[] = [];
   const catalogueFailures: ((error: Error) => void)[] = [];
