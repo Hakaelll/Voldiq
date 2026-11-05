@@ -133,6 +133,17 @@ impl OwnedFile {
     pub(crate) fn name(&self) -> &str {
         &self.name
     }
+    pub(crate) fn identity_text(&self) -> Result<String> {
+        self.validate()?;
+        let id = self.identity.ok_or_else(invalid)?;
+        Ok(id
+            .volume
+            .to_le_bytes()
+            .iter()
+            .chain(id.file.iter())
+            .map(|byte| format!("{byte:02x}"))
+            .collect())
+    }
     pub(crate) fn is_finished(&self) -> bool {
         self.finished
     }
@@ -145,6 +156,10 @@ impl OwnedFile {
             return Err(invalid());
         }
         self.validate()?;
+        let _permissions = windows::cleanup_io::reopen_directory(
+            &self.parent,
+            FILE_READ_ATTRIBUTES | FILE_LIST_DIRECTORY | FILE_ADD_FILE | FILE_TRAVERSE,
+        )?;
         ordinary_path(&windows::final_path(&self.parent)?.join(name))?;
         publish(
             &self.file,
@@ -156,8 +171,12 @@ impl OwnedFile {
     }
 
     pub(crate) fn validate(&self) -> Result<()> {
+        let parent = self.parent.metadata()?;
         let metadata = self.file.metadata()?;
-        if identity(&self.parent)? != self.parent_identity
+        if !parent.is_dir()
+            || windows::is_reparse(&parent)
+            || windows::requires_recall(&parent)
+            || identity(&self.parent)? != self.parent_identity
             || !metadata.is_file()
             || windows::is_reparse(&metadata)
             || windows::requires_recall(&metadata)

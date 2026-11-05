@@ -1,5 +1,7 @@
 //! Exact immutable manifests and single-use human grants. No file mutation is performed here.
 mod catalogue;
+#[cfg(windows)]
+mod copying;
 mod desktop;
 mod human;
 mod offload;
@@ -9,6 +11,8 @@ mod store;
 pub use crate::cleanup::record::FileEvidence;
 use crate::{Error, Result};
 pub use catalogue::{TransferCatalogue, TransferFile, TransferPhase, TransferUpdate};
+#[cfg(windows)]
+pub use copying::{CopyFailure, CopyPublication, PublishedContent, TransferWorker};
 pub use desktop::{Desktop, Review, ReviewPage};
 pub use human::{Begin, HumanAuthority};
 pub use offload::{Destination, Offload, OffloadRequest, Originals, VolumeBinding};

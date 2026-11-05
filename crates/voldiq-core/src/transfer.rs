@@ -13,6 +13,7 @@ const BUFFER: usize = 64 * 1024;
 pub enum Phase {
     Copying,
     Readback,
+    SourceRecheck,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -36,7 +37,10 @@ impl CopiedBytes {
     }
 }
 
-fn check(cancel: &AtomicBool, checkpoint: &mut impl FnMut() -> Result<()>) -> Result<()> {
+pub(crate) fn check(
+    cancel: &AtomicBool,
+    checkpoint: &mut impl FnMut() -> Result<()>,
+) -> Result<()> {
     if cancel.load(Ordering::Relaxed) {
         return Err(Error::Invalid("Transfer byte operation cancelled.".into()));
     }

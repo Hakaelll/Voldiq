@@ -351,6 +351,17 @@ impl Plan {
     }
 
     #[cfg(windows)]
+    pub(crate) fn copy_source(&self, id: NodeId) -> Result<VerifiedFile> {
+        self.validate_protections()?;
+        let planned = self
+            .files
+            .iter()
+            .find(|file| file.id == id)
+            .ok_or_else(|| Error::Invalid("Source is outside the approved selection.".into()))?;
+        Self::verify_file(planned, windows::cleanup_io::LeafAccess::Retain)
+    }
+
+    #[cfg(windows)]
     fn verify_file(
         planned: &PlannedFile,
         access: windows::cleanup_io::LeafAccess,
@@ -426,6 +437,24 @@ pub struct VerifiedFile {
 
 #[cfg(windows)]
 impl VerifiedFile {
+    pub(crate) fn check_read_access(&self) -> Result<()> {
+        self.check_stamp()?;
+        let parent = self
+            .parents
+            .last()
+            .ok_or_else(|| Error::Invalid("Missing source parent guard.".into()))?;
+        let name = self
+            .path
+            .file_name()
+            .ok_or_else(|| Error::Invalid("Missing source leaf.".into()))?;
+        let reader =
+            windows::cleanup_io::open_leaf(parent, name, windows::cleanup_io::LeafAccess::Retain)?;
+        if windows::file_identity(&reader)?.key != self.stamp.identity {
+            return Err(Error::Invalid("Source reader identity changed.".into()));
+        }
+        self.check_stamp()
+    }
+
     /// Reopens the retained parent object as the ordinary caller, then narrows its transferable rights.
     pub fn stage_parent(&self) -> Result<std::fs::File> {
         use std::os::windows::io::{AsRawHandle, FromRawHandle};
@@ -496,7 +525,7 @@ impl VerifiedFile {
         Ok(())
     }
 
-    fn check_stamp(&self) -> Result<()> {
+    pub(crate) fn check_stamp(&self) -> Result<()> {
         let metadata = self.file.metadata()?;
         validate_file(&metadata)?;
         let identity = windows::file_identity(&self.file)?;

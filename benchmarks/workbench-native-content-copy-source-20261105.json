@@ -1,0 +1,63 @@
+{
+  "checkedUtc": "2026-11-05T05:08:19.1390460Z",
+  "startedUtc": "2026-11-05T05:02:09.2638988Z",
+  "checkoutCommit": "25b9387280020f4fc25b0d5f8f44c4a32a287685",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 4.712
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 13.624
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1.386
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 7.206
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 303.995
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 38.924
+    }
+  ],
+  "retainedBehaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "nativeContentProbe": {
+    "ownedBytes": 262177,
+    "destinationReadback": true,
+    "sourceRecheck": true,
+    "sealedRetainedHandles": true,
+    "sourceAndDestinationWriterRefusal": true,
+    "privateCleanupOnCancelAndRecordFailure": true,
+    "publicationRetainedAfterReceiptFailure": true,
+    "wrongActionLiveGrantRefused": true,
+    "originalUnchanged": true,
+    "realCrossVolumeOffload": false,
+    "offloadApprovalAndExecutionEnabled": false,
+    "metadataRestorationGuarantee": false,
+    "performanceClaim": null,
+    "newTestDeclarations": 0
+  }
+}

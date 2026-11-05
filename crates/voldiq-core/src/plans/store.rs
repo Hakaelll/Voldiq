@@ -19,9 +19,9 @@ pub struct Store {
     pub(super) directory: crate::agents::AuthorizedPath,
 }
 
-struct Stored {
-    view: View,
-    record: Record,
+pub(super) struct Stored {
+    pub(super) view: View,
+    pub(super) record: Record,
     binding: String,
 }
 
@@ -33,7 +33,7 @@ pub(super) enum ExecutionControl {
 
 impl Store {
     #[cfg(windows)]
-    pub fn record_transfer(
+    pub(super) fn record_transfer(
         &mut self,
         context: &PlanContext<'_>,
         human: &HumanAuthority,
@@ -48,7 +48,10 @@ impl Store {
             return Err(invalid());
         }
         let stored = self.read(context, &lease.id)?;
-        if !matches!(stored.view.manifest.action, Action::Offload(_)) {
+        if stored.view.hash != lease.hash
+            || stored.view.state != State::Executing
+            || !matches!(stored.view.manifest.action, Action::Offload(_))
+        {
             return Err(invalid());
         }
         let at = now()?;
@@ -545,7 +548,7 @@ impl Store {
         Ok(self.load(context, id, now)?.view)
     }
 
-    fn read(&self, context: &PlanContext<'_>, id: &str) -> Result<Stored> {
+    pub(super) fn read(&self, context: &PlanContext<'_>, id: &str) -> Result<Stored> {
         context.check_directory(self.directory.identity())?;
         if id.len() != 64 || !id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             return Err(denied());

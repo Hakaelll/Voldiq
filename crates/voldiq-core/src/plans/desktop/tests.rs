@@ -638,22 +638,37 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
     }
     {
         use crate::{
+            plans::TransferUpdate,
+            plans::copying::{Control, CopyPublication, copy_verified},
             transfer::{Phase, copy_bytes, verify_bytes},
             windows::{self, cleanup_io, owned_file::OwnedFile},
         };
         use std::{
             ffi::OsStr,
             fs::File,
-            io::{Cursor, Seek, SeekFrom, Write},
+            io::{Cursor, Write},
             sync::atomic::Ordering,
         };
         use windows_sys::Win32::Storage::FileSystem::*;
-
-        // Owned byte transactions only: no transfer grant, catalogue or original-handling authority.
+        // Internal producer fixtures only; public offload admission and original handling remain closed.
         let destination = tempfile::tempdir().unwrap();
         let input = source.path().join("copy-fixture.data");
         let payload: Vec<u8> = (0..262_177).map(|i| (i % 251) as u8).collect();
         std::fs::write(&input, &payload).unwrap();
+        let copy_index = crate::scanner::scan(
+            source.path(),
+            &Default::default(),
+            &AtomicBool::new(false),
+            |_| {},
+        )
+        .unwrap();
+        let copy_id = copy_index
+            .entries
+            .iter()
+            .find(|entry| entry.name == "copy-fixture.data")
+            .unwrap()
+            .id;
+        let copy_plan = crate::cleanup::Plan::manual(&copy_index, &[copy_id]).unwrap();
         let pin = crate::agents::pin_directory(destination.path()).unwrap();
         let parent = cleanup_io::reopen_directory(
             &windows::open_metadata(pin.path()).unwrap(),
@@ -661,34 +676,150 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         )
         .unwrap();
         let cancelled = AtomicBool::new(false);
-        let mut owner = OwnedFile::create(&parent).unwrap();
+        let expected_hash = blake3::hash(&payload).to_hex().to_string();
+        let mut events = Vec::new();
         let mut phases = Vec::new();
-        let copied = copy_bytes(
-            &mut File::open(&input).unwrap(),
-            &mut owner.file(),
-            262_177,
+        let native = copy_verified(
+            copy_plan.copy_source(copy_id).unwrap(),
+            OwnedFile::create(&parent).unwrap(),
+            OsStr::new("copy.data"),
             &cancelled,
-            || owner.validate(),
+            |control| {
+                match control {
+                    Control::Check => {}
+                    Control::Record(update) => events.push(match update {
+                        TransferUpdate::Private { name, identity } => {
+                            assert!(name.starts_with(".voldiq-output-"));
+                            assert_eq!(identity.len(), 48);
+                            "private"
+                        }
+                        TransferUpdate::Verified { bytes, blake3 } => {
+                            assert_eq!(bytes, 262_177);
+                            assert_eq!(blake3, expected_hash);
+                            "verified"
+                        }
+                        TransferUpdate::PublishIntent => "publish_intent",
+                        TransferUpdate::Published => "published",
+                        _ => panic!("Content producer attempted an original phase"),
+                    }),
+                }
+                Ok(())
+            },
             |value| phases.push(value),
         )
         .unwrap();
-        assert_eq!(copied.bytes(), 262_177);
-        assert_eq!(copied.digest(), blake3::hash(&payload).to_hex().as_str());
-        owner.file().sync_all().unwrap();
-        owner.file().seek(SeekFrom::Start(0)).unwrap();
-        verify_bytes(
-            &mut owner.file(),
-            &copied,
+        native.check().unwrap();
+        assert_eq!(native.bytes(), 262_177);
+        assert_eq!(native.blake3(), expected_hash);
+        assert_eq!(
+            events,
+            ["private", "verified", "publish_intent", "published"]
+        );
+        assert!(
+            phases
+                .iter()
+                .any(|value| value.phase == Phase::Readback && value.bytes == 262_177)
+        );
+        assert!(
+            phases
+                .iter()
+                .any(|value| value.phase == Phase::SourceRecheck && value.bytes == 262_177)
+        );
+        assert!(
+            std::fs::OpenOptions::new()
+                .write(true)
+                .open(&input)
+                .is_err()
+        );
+        let output = destination.path().join("copy.data");
+        assert!(
+            std::fs::OpenOptions::new()
+                .write(true)
+                .open(&output)
+                .is_err()
+        );
+        drop(native);
+        assert_eq!(std::fs::read(&input).unwrap(), payload);
+        assert_eq!(std::fs::read(&output).unwrap(), payload);
+        assert!(std::fs::OpenOptions::new().write(true).open(&input).is_ok());
+        let failure = copy_verified(
+            copy_plan.copy_source(copy_id).unwrap(),
+            OwnedFile::create(&parent).unwrap(),
+            OsStr::new("not-published.data"),
             &cancelled,
-            || owner.validate(),
-            |value| phases.push(value),
+            |control| {
+                if matches!(control, Control::Record(TransferUpdate::Verified { .. })) {
+                    return Err(crate::Error::Invalid(
+                        "Fixture catalogue write failed".into(),
+                    ));
+                }
+                Ok(())
+            },
+            |_| {},
         )
+        .err()
         .unwrap();
-        assert_eq!(phases.first().unwrap().phase, Phase::Copying);
-        assert_eq!(phases.last().unwrap().phase, Phase::Readback);
-        assert_eq!(phases.last().unwrap().bytes, 262_177);
-        assert!(phases.iter().all(|value| value.total == 262_177));
-        assert!(phases.iter().any(|value| value.bytes == 65_536));
+        assert_eq!(failure.publication(), CopyPublication::NotAttempted);
+        assert!(failure.cleanup_error().is_none());
+        assert!(!destination.path().join("not-published.data").exists());
+        let failure = copy_verified(
+            copy_plan.copy_source(copy_id).unwrap(),
+            OwnedFile::create(&parent).unwrap(),
+            OsStr::new("published-unrecorded.data"),
+            &cancelled,
+            |control| {
+                if matches!(control, Control::Record(TransferUpdate::Published)) {
+                    return Err(crate::Error::Invalid(
+                        "Fixture publication receipt failed".into(),
+                    ));
+                }
+                Ok(())
+            },
+            |_| {},
+        )
+        .err()
+        .unwrap();
+        assert_eq!(failure.publication(), CopyPublication::Confirmed);
+        assert!(failure.cleanup_error().is_none());
+        assert_eq!(
+            std::fs::read(destination.path().join("published-unrecorded.data")).unwrap(),
+            payload
+        );
+        let failure = copy_verified(
+            copy_plan.copy_source(copy_id).unwrap(),
+            OwnedFile::create(&parent).unwrap(),
+            OsStr::new("copy.data"),
+            &cancelled,
+            |_| Ok(()),
+            |_| {},
+        )
+        .err()
+        .unwrap();
+        assert_eq!(failure.publication(), CopyPublication::Uncertain);
+        assert!(failure.cleanup_error().is_none());
+        assert_eq!(std::fs::read(&output).unwrap(), payload);
+        let failure = copy_verified(
+            copy_plan.copy_source(copy_id).unwrap(),
+            OwnedFile::create(&parent).unwrap(),
+            OsStr::new("cancelled.data"),
+            &cancelled,
+            |_| Ok(()),
+            |value| {
+                if value.phase == Phase::Copying && value.bytes >= 65_536 {
+                    cancelled.store(true, Ordering::Relaxed);
+                }
+            },
+        )
+        .err()
+        .unwrap();
+        assert_eq!(failure.publication(), CopyPublication::NotAttempted);
+        assert!(failure.cleanup_error().is_none());
+        cancelled.store(false, Ordering::Relaxed);
+        let mut terminal = OwnedFile::create(&parent).unwrap();
+        terminal
+            .file()
+            .write_all(b"owned terminal fixture")
+            .unwrap();
         for name in [
             "../escape.data",
             "nested/copy.data",
@@ -696,75 +827,54 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             "CON.txt",
             "copy.data:stream",
         ] {
-            assert!(owner.publish(OsStr::new(name)).is_err());
+            assert!(terminal.publish(OsStr::new(name)).is_err());
         }
-        let output = destination.path().join("copy.data");
-        owner.publish(OsStr::new("copy.data")).unwrap();
-        assert!(owner.publish(OsStr::new("renamed.data")).is_err());
-        owner.abort().unwrap(); // Published output must not be removed by cleanup or Drop.
-        drop(owner);
-        assert_eq!(std::fs::read(&output).unwrap(), payload);
-
-        let mut collision = OwnedFile::create(&parent).unwrap();
-        collision.file().write_all(b"must not replace").unwrap();
-        assert!(collision.publish(OsStr::new("copy.data")).is_err());
-        collision.abort().unwrap();
-        assert!(collision.publish(OsStr::new("resurrected.data")).is_err());
-        drop(collision);
-        assert_eq!(std::fs::read(&output).unwrap(), payload);
-
-        let mut interrupted = OwnedFile::create(&parent).unwrap();
-        assert!(
-            copy_bytes(
-                &mut File::open(&input).unwrap(),
-                &mut interrupted.file(),
-                262_177,
-                &cancelled,
-                || interrupted.validate(),
-                |value| {
-                    if value.bytes >= 65_536 {
-                        cancelled.store(true, Ordering::Relaxed);
-                    }
-                },
-            )
-            .is_err()
+        terminal.publish(OsStr::new("terminal.data")).unwrap();
+        assert!(terminal.publish(OsStr::new("renamed.data")).is_err());
+        terminal.abort().unwrap();
+        drop(terminal);
+        assert_eq!(
+            std::fs::read(destination.path().join("terminal.data")).unwrap(),
+            b"owned terminal fixture"
         );
-        assert_eq!(interrupted.file().metadata().unwrap().len(), 65_536);
-        interrupted.abort().unwrap();
-        drop(interrupted);
-        cancelled.store(false, Ordering::Relaxed);
-
-        let mut damaged = OwnedFile::create(&parent).unwrap();
+        let mut aborted = OwnedFile::create(&parent).unwrap();
+        aborted.abort().unwrap();
+        assert!(aborted.publish(OsStr::new("resurrected.data")).is_err());
+        drop(aborted);
+        let mut bytes = Vec::new();
         let copied = copy_bytes(
-            &mut File::open(&input).unwrap(),
-            &mut damaged.file(),
+            &mut Cursor::new(&payload),
+            &mut bytes,
             262_177,
             &cancelled,
-            || damaged.validate(),
+            || Ok(()),
             |_| {},
         )
         .unwrap();
-        damaged.file().seek(SeekFrom::Start(65_536)).unwrap();
-        damaged.file().write_all(b"changed").unwrap();
-        damaged.file().sync_all().unwrap();
-        damaged.file().seek(SeekFrom::Start(0)).unwrap();
+        assert_eq!(bytes, payload);
+        let mut corrupt = payload.clone();
+        corrupt[65_536] ^= 1;
         assert!(
             verify_bytes(
-                &mut damaged.file(),
+                &mut Cursor::new(corrupt),
                 &copied,
                 &cancelled,
-                || damaged.validate(),
-                |_| {},
+                || Ok(()),
+                |_| {}
             )
             .is_err()
         );
-        // Failed readback owns only a private destination; original and published output survive.
-        damaged.abort().unwrap();
-        drop(damaged);
-        let mut short = Cursor::new(b"short");
-        let mut sink = Vec::new();
-        assert!(copy_bytes(&mut short, &mut sink, 6, &cancelled, || Ok(()), |_| {}).is_err());
-        assert_eq!(sink, b"short");
+        assert!(
+            copy_bytes(
+                &mut Cursor::new(b"short"),
+                &mut Vec::new(),
+                6,
+                &cancelled,
+                || Ok(()),
+                |_| {}
+            )
+            .is_err()
+        );
         assert!(
             copy_bytes(
                 &mut Cursor::new(b"extra"),
@@ -853,10 +963,9 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             .is_err()
         );
         assert_eq!(std::fs::read(&input).unwrap(), payload);
-        assert_eq!(std::fs::read(&output).unwrap(), payload);
-        assert_eq!(std::fs::read_dir(destination.path()).unwrap().count(), 1);
+        assert_eq!(std::fs::read_dir(destination.path()).unwrap().count(), 3);
         println!(
-            "TRANSFER_BYTES_PROBE {{\"copied_bytes\":262177,\"readback\":true,\"original_unchanged\":true,\"transfer_execution\":false}}"
+            "NATIVE_CONTENT_COPY_PROBE {{\"copied_bytes\":262177,\"destination_readback\":true,\"source_recheck\":true,\"retained_sealed_handles\":true,\"published_receipt_failure_preserved\":true,\"original_unchanged\":true,\"real_offload\":false}}"
         );
     }
     assert!(matches!(
@@ -906,6 +1015,62 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
     let replay = service.plan_execute(&plan.manifest.id, &plan.hash).unwrap();
     assert_eq!(replay["dispatch"], "existing");
     assert_eq!(replay["plan"]["state"], "cancelled");
+    {
+        // A real consumed recycle grant cannot become content-copy authority.
+        cancel.store(false, std::sync::atomic::Ordering::Relaxed);
+        let recycle_only = service.plan_prepare(snapshot, &[selected]).unwrap();
+        assert!(service.plan_request(&recycle_only.manifest.id).is_err());
+        desktop
+            .approve(&recycle_only.manifest.id, &recycle_only.hash)
+            .unwrap();
+        service
+            .plan_execute(&recycle_only.manifest.id, &recycle_only.hash)
+            .unwrap();
+        let principal = registry.authenticate(issued.credential.expose()).unwrap();
+        let context = registry
+            .plan_context(&principal, Capability::ExecuteApproved)
+            .unwrap();
+        let mut plans = Store::open(state.path()).unwrap();
+        let crate::plans::Begin::Started(lease) = plans
+            .begin(
+                &context,
+                &recycle_only.manifest.id,
+                &desktop.human,
+                super::super::now().unwrap(),
+            )
+            .unwrap()
+        else {
+            panic!("Recycle fixture did not consume its real grant");
+        };
+        assert!(matches!(
+            plans.check_execution(&context, &desktop.human, &lease, super::super::now),
+            Ok(super::super::store::ExecutionControl::Proceed)
+        ));
+        let failure = plans
+            .copy_transfer_file(
+                &context,
+                &desktop.human,
+                &lease,
+                selected,
+                crate::plans::TransferWorker::new(&operation, &cancel),
+                |_| {},
+            )
+            .err()
+            .unwrap();
+        assert_eq!(
+            failure.publication(),
+            crate::plans::CopyPublication::NotAttempted
+        );
+        assert_eq!(std::fs::read(&original).unwrap(), b"owned dispatch fixture");
+        plans
+            .finish(
+                lease,
+                State::Failed,
+                serde_json::json!({"fixture":"wrong_action_denied"}),
+                super::super::now().unwrap(),
+            )
+            .unwrap();
+    }
     let next = service.plan_prepare(snapshot, &[selected]).unwrap();
     assert!(service.plan_request(&next.manifest.id).is_err());
     desktop.approve(&next.manifest.id, &next.hash).unwrap();

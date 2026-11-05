@@ -67,6 +67,44 @@ const RESERVE: u64 = 16 * 1024 * 1024;
 pub(super) const LIMITATIONS: &str = "Planning only; transfer execution and approval are unavailable until the copy/readback/catalogue pipeline is implemented. Exact flat output names; no replacement. Caller-available capacity includes a conservative allocation/entry estimate and a 16 MiB reserve, not a reservation or proof of future space. Source payload, streams, encryption, metadata preservation and destination disconnect behavior require execution preflight. No copy or original modification has occurred. Recycling originals does not imply immediate free space.";
 
 impl Offload {
+    #[cfg(windows)]
+    pub(super) fn copy_destination(
+        &self,
+        context: &PlanContext<'_>,
+        state: &Path,
+        source: &Path,
+        entry: &FileEvidence,
+    ) -> Result<AuthorizedPath> {
+        let target = self.authorize(context, source)?;
+        let current = Destination::observe(&target, state)?;
+        let mut expected = self.destination.clone();
+        expected.caller_available_bytes = current.caller_available_bytes.clone();
+        expected.observed_at = current.observed_at;
+        if current != expected || current.filesystem != "NTFS" {
+            return Err(crate::Error::Invalid(
+                "Verified content copying requires the unchanged NTFS destination profile.".into(),
+            ));
+        }
+        let (_, required) = layout(std::slice::from_ref(entry), &current)?;
+        if current
+            .caller_available_bytes
+            .parse::<u64>()
+            .map_err(|_| invalid())?
+            < required
+        {
+            return Err(crate::Error::Invalid(
+                "Destination capacity is insufficient for this file and the declared reserve."
+                    .into(),
+            ));
+        }
+        let output = self
+            .outputs
+            .iter()
+            .find(|output| output.id == entry.id)
+            .ok_or_else(invalid)?;
+        absent(&target.path().join(&output.name))?;
+        Ok(target)
+    }
     pub(super) fn authorize(
         &self,
         context: &PlanContext<'_>,
@@ -189,24 +227,26 @@ impl Offload {
         }
         for output in &self.outputs {
             let path = current.path.join(&output.name);
-            // An existing inaccessible, reparse or placeholder entry is never treated as absent.
-            #[cfg(windows)]
-            let observed = crate::windows::open_metadata(&path).map(|_| ());
-            #[cfg(not(windows))]
-            let observed = std::fs::symlink_metadata(&path)
-                .map(|_| ())
-                .map_err(crate::Error::from);
-            match observed {
-                Ok(_) => {
-                    return Err(crate::Error::Invalid(
-                        "A transfer output already exists.".into(),
-                    ));
-                }
-                Err(crate::Error::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => {}
-                Err(error) => return Err(error),
-            }
+            absent(&path)?;
         }
         Ok(())
+    }
+}
+
+fn absent(path: &Path) -> Result<()> {
+    // An inaccessible, reparse or placeholder entry is never treated as absent.
+    #[cfg(windows)]
+    let observed = crate::windows::open_metadata(path).map(|_| ());
+    #[cfg(not(windows))]
+    let observed = std::fs::symlink_metadata(path)
+        .map(|_| ())
+        .map_err(crate::Error::from);
+    match observed {
+        Ok(()) => Err(crate::Error::Invalid(
+            "A transfer output already exists.".into(),
+        )),
+        Err(crate::Error::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error),
     }
 }
 
