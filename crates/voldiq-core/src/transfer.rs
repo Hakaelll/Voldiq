@@ -8,6 +8,7 @@ use std::{
 };
 
 const BUFFER: usize = 64 * 1024;
+pub mod metadata;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Phase {

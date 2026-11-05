@@ -193,6 +193,15 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             }}))
             .unwrap();
             let json = serde_json::to_string(&historical).unwrap();
+            let roundtrip: crate::plans::Manifest = serde_json::from_str(&json).unwrap();
+            assert_eq!(serde_json::to_string(&roundtrip).unwrap(), json);
+            assert_eq!(roundtrip.action.schema_version(), 3);
+            assert!(
+                !serde_json::to_value(&roundtrip).unwrap()["action"]["offload"]
+                    .as_object()
+                    .unwrap()
+                    .contains_key("metadata")
+            );
             let hash = super::super::digest(json.as_bytes());
             let ledger = Store::open(state.path()).unwrap();
             ledger.connection.execute("INSERT INTO agent_plans(id,owner,manifest,hash,native_record,binding,state,approval_issuer,execution_nonce)
@@ -240,6 +249,68 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                     .transfer_catalogue(&human, &plan.manifest.id, None, 10)
                     .is_err()
             );
+            {
+                let principal = registry.authenticate(issued.credential.expose()).unwrap();
+                let metadata_context = registry
+                    .plan_context(&principal, Capability::Metadata)
+                    .unwrap();
+                let metadata = super::super::offload::MetadataPlan::capture(
+                    &metadata_context,
+                    &plan.manifest.entries,
+                )
+                .unwrap();
+                let value = serde_json::to_value(&metadata).unwrap();
+                assert_eq!(value["profile"], "ntfs_basic_v1");
+                assert_eq!(value["files"][0]["id"], selected.0);
+                let mut profiled = historical.clone();
+                profiled.id = "e".repeat(64);
+                profiled.entries.truncate(1);
+                profiled.logical_bytes = "22".into();
+                let Action::Offload(action) = &mut profiled.action else {
+                    unreachable!()
+                };
+                action.outputs.truncate(1);
+                action.metadata = Some(metadata);
+                let mut action_value = serde_json::to_value(&profiled.action).unwrap();
+                action_value["offload"]["required_available_bytes"] = serde_json::json!("16785408");
+                profiled.action = serde_json::from_value(action_value).unwrap();
+                profiled.schema_version = profiled.action.schema_version();
+                assert_eq!(profiled.schema_version, 4);
+                let encoded = serde_json::to_string(&profiled).unwrap();
+                let profiled_hash = super::super::digest(encoded.as_bytes());
+                assert_ne!(profiled_hash, hash);
+                let tx = ledger.connection.transaction().unwrap();
+                tx.execute("INSERT INTO agent_plans(id,owner,manifest,hash,native_record,binding,state)
+                    SELECT ?1,owner,?2,?3,native_record,binding,'draft' FROM agent_plans WHERE id=?4",
+                    rusqlite::params![profiled.id,encoded,profiled_hash,plan.manifest.id]).unwrap();
+                catalogue::prepare(&tx, &profiled, &profiled_hash).unwrap();
+                tx.commit().unwrap();
+                let recorded = ledger
+                    .transfer_catalogue(&human, &profiled.id, None, 10)
+                    .unwrap();
+                assert_eq!(recorded.manifest.schema_version, 4);
+                assert_eq!(recorded.manifest_hash, profiled_hash);
+                assert!(!recorded.manifest.action.execution_available());
+                assert_eq!(
+                    serde_json::to_value(&recorded.manifest).unwrap()["action"]["offload"]["metadata"],
+                    value
+                );
+                let mut mismatched = profiled.clone();
+                mismatched.id = "f".repeat(64);
+                let Action::Offload(action) = &mut mismatched.action else {
+                    unreachable!()
+                };
+                let mut altered = serde_json::to_value(&action.metadata).unwrap();
+                altered["files"][0]["metadata"]["dos_attributes"] = serde_json::json!(0x4000);
+                action.metadata = Some(serde_json::from_value(altered).unwrap());
+                let invalid_json = serde_json::to_string(&mismatched).unwrap();
+                let invalid_hash = super::super::digest(invalid_json.as_bytes());
+                let tx = ledger.connection.transaction().unwrap();
+                tx.execute("INSERT INTO agent_plans(id,owner,manifest,hash,native_record,binding,state)
+                    SELECT ?1,owner,?2,?3,native_record,binding,'draft' FROM agent_plans WHERE id=?4",
+                    rusqlite::params![mismatched.id,invalid_json,invalid_hash,plan.manifest.id]).unwrap();
+                assert!(catalogue::prepare(&tx, &mismatched, &invalid_hash).is_err());
+            }
             let at = historical.created;
             {
                 let tx = ledger.connection.transaction().unwrap();
@@ -655,6 +726,12 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         let input = source.path().join("copy-fixture.data");
         let payload: Vec<u8> = (0..262_177).map(|i| (i % 251) as u8).collect();
         std::fs::write(&input, &payload).unwrap();
+        let metadata_handle = windows::open_metadata(&input).unwrap();
+        assert_eq!(
+            windows::security::granted_access(&metadata_handle).unwrap() & FILE_READ_DATA,
+            0
+        );
+        let metadata = crate::transfer::metadata::BasicMetadata::observe(&metadata_handle).unwrap();
         let copy_index = crate::scanner::scan(
             source.path(),
             &Default::default(),
@@ -681,6 +758,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         let mut phases = Vec::new();
         let native = copy_verified(
             copy_plan.copy_source(copy_id).unwrap(),
+            metadata.clone(),
             OwnedFile::create(&parent).unwrap(),
             OsStr::new("copy.data"),
             &cancelled,
@@ -744,6 +822,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         assert!(std::fs::OpenOptions::new().write(true).open(&input).is_ok());
         let failure = copy_verified(
             copy_plan.copy_source(copy_id).unwrap(),
+            metadata.clone(),
             OwnedFile::create(&parent).unwrap(),
             OsStr::new("not-published.data"),
             &cancelled,
@@ -764,6 +843,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         assert!(!destination.path().join("not-published.data").exists());
         let failure = copy_verified(
             copy_plan.copy_source(copy_id).unwrap(),
+            metadata.clone(),
             OwnedFile::create(&parent).unwrap(),
             OsStr::new("published-unrecorded.data"),
             &cancelled,
@@ -787,6 +867,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         );
         let failure = copy_verified(
             copy_plan.copy_source(copy_id).unwrap(),
+            metadata.clone(),
             OwnedFile::create(&parent).unwrap(),
             OsStr::new("copy.data"),
             &cancelled,
@@ -800,6 +881,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         assert_eq!(std::fs::read(&output).unwrap(), payload);
         let failure = copy_verified(
             copy_plan.copy_source(copy_id).unwrap(),
+            metadata.clone(),
             OwnedFile::create(&parent).unwrap(),
             OsStr::new("cancelled.data"),
             &cancelled,
@@ -964,6 +1046,174 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         );
         assert_eq!(std::fs::read(&input).unwrap(), payload);
         assert_eq!(std::fs::read_dir(destination.path()).unwrap().count(), 3);
+        {
+            use crate::transfer::metadata::{BasicMetadata, DOS_FLAGS};
+            use std::os::windows::{fs::OpenOptionsExt, io::AsRawHandle};
+            let profiled = source.path().join("metadata-flags.data");
+            std::fs::write(&profiled, b"owned basic metadata fixture").unwrap();
+            let attributes = std::fs::OpenOptions::new()
+                .access_mode(FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES)
+                .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE)
+                .open(&profiled)
+                .unwrap();
+            let wanted = FILE_BASIC_INFO {
+                CreationTime: 132_000_000_000_000_000,
+                LastWriteTime: 133_000_000_000_000_000,
+                FileAttributes: DOS_FLAGS,
+                ..Default::default()
+            };
+            assert_ne!(
+                unsafe {
+                    SetFileInformationByHandle(
+                        attributes.as_raw_handle(),
+                        FileBasicInfo,
+                        (&wanted as *const FILE_BASIC_INFO).cast(),
+                        size_of::<FILE_BASIC_INFO>() as u32,
+                    )
+                },
+                0
+            );
+            let observed = BasicMetadata::observe(&attributes).unwrap();
+            assert_eq!(observed.created_windows_100ns(), Some("132000000000000000"));
+            assert_eq!(observed.modified_windows_100ns(), "133000000000000000");
+            assert_eq!(observed.dos_attributes(), DOS_FLAGS);
+            let index = crate::scanner::scan(
+                source.path(),
+                &Default::default(),
+                &AtomicBool::new(false),
+                |_| {},
+            )
+            .unwrap();
+            let id = index
+                .entries
+                .iter()
+                .find(|entry| entry.name == "metadata-flags.data")
+                .unwrap()
+                .id;
+            let planned = crate::cleanup::Plan::manual(&index, &[id]).unwrap();
+            let evidence = copy_verified(
+                planned.copy_source(id).unwrap(),
+                observed.clone(),
+                OwnedFile::create(&parent).unwrap(),
+                OsStr::new("profiled.data"),
+                &AtomicBool::new(false),
+                |_| Ok(()),
+                |_| {},
+            )
+            .unwrap();
+            evidence.check().unwrap();
+            drop(evidence);
+            let output = windows::open_metadata(&destination.path().join("profiled.data")).unwrap();
+            observed.verify_destination(&output).unwrap();
+            assert_eq!(
+                std::fs::read(destination.path().join("profiled.data")).unwrap(),
+                b"owned basic metadata fixture"
+            );
+            assert_eq!(
+                std::fs::read(&profiled).unwrap(),
+                b"owned basic metadata fixture"
+            );
+            let mut stale = serde_json::to_value(&observed).unwrap();
+            stale["modified_windows_100ns"] = serde_json::json!("133000000000000001");
+            let stale: BasicMetadata = serde_json::from_value(stale).unwrap();
+            let failed = copy_verified(
+                planned.copy_source(id).unwrap(),
+                stale,
+                OwnedFile::create(&parent).unwrap(),
+                OsStr::new("stale-metadata.data"),
+                &AtomicBool::new(false),
+                |_| Ok(()),
+                |_| {},
+            )
+            .err()
+            .unwrap();
+            assert_eq!(failed.publication(), CopyPublication::NotAttempted);
+            assert!(!destination.path().join("stale-metadata.data").exists());
+            drop(output);
+            // Reset only owned fixture attributes so ordinary temporary-directory cleanup remains possible.
+            let normal = FILE_BASIC_INFO {
+                FileAttributes: FILE_ATTRIBUTE_NORMAL,
+                ..Default::default()
+            };
+            assert_ne!(
+                unsafe {
+                    SetFileInformationByHandle(
+                        attributes.as_raw_handle(),
+                        FileBasicInfo,
+                        (&normal as *const FILE_BASIC_INFO).cast(),
+                        size_of::<FILE_BASIC_INFO>() as u32,
+                    )
+                },
+                0
+            );
+            let output = cleanup_io::open_component(
+                &parent,
+                OsStr::new("profiled.data"),
+                FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES,
+                FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+            )
+            .unwrap();
+            assert_ne!(
+                unsafe {
+                    SetFileInformationByHandle(
+                        output.as_raw_handle(),
+                        FileBasicInfo,
+                        (&normal as *const FILE_BASIC_INFO).cast(),
+                        size_of::<FILE_BASIC_INFO>() as u32,
+                    )
+                },
+                0
+            );
+            let streams = source.path().join("metadata-stream.data");
+            std::fs::write(&streams, b"default fixture").unwrap();
+            std::fs::write(
+                format!("{}:VOLDIQ_METADATA_FIXTURE", streams.display()),
+                b"owned alternate fixture",
+            )
+            .unwrap();
+            assert!(BasicMetadata::observe(&windows::open_metadata(&streams).unwrap()).is_err());
+            assert_eq!(std::fs::read(&streams).unwrap(), b"default fixture");
+            let extended = source.path().join("metadata-ea.data");
+            std::fs::write(&extended, b"owned extended attribute fixture").unwrap();
+            let writer = std::fs::OpenOptions::new()
+                .access_mode(FILE_READ_ATTRIBUTES | FILE_WRITE_EA)
+                .open(&extended)
+                .unwrap();
+            let name = b"VOLDIQ_TEST";
+            let mut encoded = vec![0u8; 8 + name.len() + 2];
+            encoded[5] = name.len() as u8;
+            encoded[6..8].copy_from_slice(&1u16.to_le_bytes());
+            encoded[8..8 + name.len()].copy_from_slice(name);
+            encoded[9 + name.len()] = 1;
+            let mut aligned = [0u64; 4];
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    encoded.as_ptr(),
+                    aligned.as_mut_ptr().cast::<u8>(),
+                    encoded.len(),
+                );
+            }
+            let mut status = windows_sys::Win32::System::IO::IO_STATUS_BLOCK::default();
+            assert_eq!(
+                unsafe {
+                    windows_sys::Wdk::Storage::FileSystem::NtSetEaFile(
+                        writer.as_raw_handle(),
+                        &mut status,
+                        aligned.as_ptr().cast(),
+                        encoded.len() as u32,
+                    )
+                },
+                0
+            );
+            assert!(BasicMetadata::observe(&windows::open_metadata(&extended).unwrap()).is_err());
+            assert_eq!(
+                std::fs::read(&extended).unwrap(),
+                b"owned extended attribute fixture"
+            );
+            println!(
+                "NTFS_METADATA_PROBE {{\"metadata_only_handle\":true,\"created_modified_and_dos_flags\":true,\"verified_after_close\":true,\"stale_metadata_refused\":true,\"named_stream_refused\":true,\"extended_attributes_refused\":true,\"real_offload\":false}}"
+            );
+        }
         println!(
             "NATIVE_CONTENT_COPY_PROBE {{\"copied_bytes\":262177,\"destination_readback\":true,\"source_recheck\":true,\"retained_sealed_handles\":true,\"published_receipt_failure_preserved\":true,\"original_unchanged\":true,\"real_offload\":false}}"
         );

@@ -5,7 +5,7 @@ use crate::{
     agents::{AuthorizedPath, PlanContext},
     cleanup::VerifiedFile,
     operations::Lease,
-    transfer::{CopiedBytes, Phase, Progress, copy_bytes, verify_bytes},
+    transfer::{CopiedBytes, Phase, Progress, copy_bytes, metadata::BasicMetadata, verify_bytes},
     windows::{self, cleanup_io, owned_file::OwnedFile},
 };
 use std::{ffi::OsStr, io::Seek, sync::atomic::AtomicBool};
@@ -80,6 +80,7 @@ pub(super) struct NativePublished {
     source: VerifiedFile,
     destination: OwnedFile,
     copied: CopiedBytes,
+    metadata: BasicMetadata,
 }
 impl NativePublished {
     pub(super) fn bytes(&self) -> u64 {
@@ -91,6 +92,10 @@ impl NativePublished {
     pub(super) fn check(&self) -> Result<()> {
         self.source.check_stamp()?;
         self.destination.validate()?;
+        if BasicMetadata::observe(&self.source.file)? != self.metadata {
+            return Err(invalid());
+        }
+        self.metadata.verify_destination(self.destination.file())?;
         if self.destination.file().metadata()?.len() != self.copied.bytes() {
             return Err(invalid());
         }
@@ -106,6 +111,7 @@ pub(super) enum Control {
 /// Crate-private producer; only the authorized store path below can expose its sealed result.
 pub(super) fn copy_verified(
     source: VerifiedFile,
+    metadata: BasicMetadata,
     mut destination: OwnedFile,
     name: &OsStr,
     cancel: &AtomicBool,
@@ -116,6 +122,9 @@ pub(super) fn copy_verified(
     let result = (|| {
         crate::transfer::check(cancel, &mut || control(Control::Check))?;
         source.check_stamp()?;
+        if BasicMetadata::observe(&source.file)? != metadata {
+            return Err(invalid());
+        }
         destination.validate()?;
         if destination.file().metadata()?.len() != 0 {
             return Err(invalid());
@@ -169,9 +178,14 @@ pub(super) fn copy_verified(
         control(Control::Record(TransferUpdate::PublishIntent))?;
         crate::transfer::check(cancel, &mut || control(Control::Check))?;
         source.check_read_access()?;
+        if BasicMetadata::observe(&source.file)? != metadata {
+            return Err(invalid());
+        }
         publication = CopyPublication::Uncertain;
         destination.publish(name)?;
         publication = CopyPublication::Confirmed;
+        crate::transfer::check(cancel, &mut || control(Control::Check))?;
+        metadata.apply_and_verify(destination.file())?;
         destination.file().sync_all()?;
         control(Control::Record(TransferUpdate::Published))?;
         Ok(copied)
@@ -181,6 +195,7 @@ pub(super) fn copy_verified(
             source,
             destination,
             copied,
+            metadata,
         }),
         Err(error) => {
             let cleanup_error = if !destination.is_finished() {
@@ -226,6 +241,7 @@ impl Store {
                 .find(|entry| entry.id == node)
                 .ok_or_else(invalid)?;
             let _source_scope = context.path(std::path::Path::new(&entry.path))?;
+            let metadata = action.file_metadata(node)?.clone();
             let target = action.copy_destination(
                 context,
                 self.directory.path(),
@@ -255,12 +271,13 @@ impl Store {
                 .ok_or_else(invalid)?
                 .name
                 .clone();
-            Ok((source, destination, target, name))
+            Ok((source, metadata, destination, target, name))
         })()
         .map_err(CopyFailure::before)?;
-        let (source, destination, target, name) = prepared;
+        let (source, metadata, destination, target, name) = prepared;
         let content = copy_verified(
             source,
+            metadata,
             destination,
             OsStr::new(&name),
             worker.cancel,

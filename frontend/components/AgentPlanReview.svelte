@@ -307,6 +307,24 @@
               )} reserve · space is not reserved
             </dd>
           </div>
+          <div class="wide">
+            <dt>Metadata</dt>
+            <dd>
+              {transfer.metadata
+                ? `${transfer.metadata.files.filter((file) => file.metadata.created_windows_100ns !== null).length} of ${transfer.metadata.files.length} creation dates recorded · modified dates and basic attributes`
+                : 'Not recorded · prepare a new plan'}
+            </dd>
+          </div>
+          {#if transfer.metadata}
+            <div class="wide">
+              <dt>Preservation limits</dt>
+              <dd>
+                Permissions, access and change dates and hard-link relationships are not copied.
+                Alternate streams, extended attributes and special files are unsupported. Full
+                restoration is not guaranteed.
+              </dd>
+            </div>
+          {/if}
         {/if}
         <div>
           <dt>Immediate freed space</dt>

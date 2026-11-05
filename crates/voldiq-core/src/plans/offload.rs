@@ -1,11 +1,81 @@
 //! Exact transfer proposals. Deserialized evidence never grants file-writing authority.
 use super::{FileEvidence, invalid};
+use crate::transfer::metadata::BasicMetadata;
 use crate::{
     Result,
     agents::{AuthorizedPath, PlanContext},
 };
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MetadataProfile {
+    NtfsBasicV1,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MetadataEntry {
+    id: crate::NodeId,
+    metadata: BasicMetadata,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MetadataPlan {
+    profile: MetadataProfile,
+    files: Vec<MetadataEntry>,
+    limitations: String,
+}
+
+impl MetadataPlan {
+    fn check_shape(&self, entries: &[FileEvidence]) -> Result<()> {
+        if self.limitations != crate::transfer::metadata::LIMITATIONS
+            || self.files.len() != entries.len()
+        {
+            return Err(invalid());
+        }
+        for (file, entry) in self.files.iter().zip(entries) {
+            if file.id != entry.id {
+                return Err(invalid());
+            }
+            file.metadata.check_shape(&entry.modified_unix_ns)?;
+        }
+        Ok(())
+    }
+
+    #[cfg(windows)]
+    pub(super) fn capture(context: &PlanContext<'_>, entries: &[FileEvidence]) -> Result<Self> {
+        let mut files = Vec::with_capacity(entries.len());
+        for entry in entries {
+            let pin = context.path(Path::new(&entry.path))?;
+            let file = crate::windows::open_metadata(pin.path())?;
+            let id = crate::windows::file_identity(&file)?;
+            if id.key != pin.identity() || entry.identity != identity(id.key) {
+                return Err(invalid());
+            }
+            let metadata = BasicMetadata::observe(&file).map_err(|error| {
+                crate::Error::Invalid(format!(
+                    "File #{} metadata admission failed: {error}",
+                    entry.id.0
+                ))
+            })?;
+            metadata.check_shape(&entry.modified_unix_ns)?;
+            files.push(MetadataEntry {
+                id: entry.id,
+                metadata,
+            });
+        }
+        let plan = Self {
+            profile: MetadataProfile::NtfsBasicV1,
+            files,
+            limitations: crate::transfer::metadata::LIMITATIONS.into(),
+        };
+        plan.check_shape(entries)?;
+        Ok(plan)
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -61,12 +131,29 @@ pub struct Offload {
     required_available_bytes: String,
     reserve_bytes: String,
     limitations: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(super) metadata: Option<MetadataPlan>,
 }
 
 const RESERVE: u64 = 16 * 1024 * 1024;
 pub(super) const LIMITATIONS: &str = "Planning only; transfer execution and approval are unavailable until the copy/readback/catalogue pipeline is implemented. Exact flat output names; no replacement. Caller-available capacity includes a conservative allocation/entry estimate and a 16 MiB reserve, not a reservation or proof of future space. Source payload, streams, encryption, metadata preservation and destination disconnect behavior require execution preflight. No copy or original modification has occurred. Recycling originals does not imply immediate free space.";
 
 impl Offload {
+    pub(super) fn schema_version(&self) -> u32 {
+        if self.metadata.is_some() { 4 } else { 3 }
+    }
+
+    pub(super) fn file_metadata(&self, node: crate::NodeId) -> Result<&BasicMetadata> {
+        self.metadata
+            .as_ref()
+            .and_then(|plan| plan.files.iter().find(|file| file.id == node))
+            .map(|file| &file.metadata)
+            .ok_or_else(|| {
+                crate::Error::Invalid(
+                    "Prepare a new transfer plan with an explicit metadata profile.".into(),
+                )
+            })
+    }
     #[cfg(windows)]
     pub(super) fn copy_destination(
         &self,
@@ -157,6 +244,16 @@ impl Offload {
             ));
         }
         let (outputs, required) = layout(entries, &destination)?;
+        if destination.filesystem != "NTFS" {
+            return Err(crate::Error::Invalid(
+                "The basic metadata transfer profile currently requires an NTFS destination."
+                    .into(),
+            ));
+        }
+        #[cfg(windows)]
+        let metadata = Some(MetadataPlan::capture(context, entries)?);
+        #[cfg(not(windows))]
+        let metadata = None;
         let result = Self {
             source_volume,
             destination,
@@ -165,12 +262,16 @@ impl Offload {
             required_available_bytes: required.to_string(),
             reserve_bytes: RESERVE.to_string(),
             limitations: LIMITATIONS.into(),
+            metadata,
         };
         result.check(context, state, source.path(), entries)?;
         Ok(result)
     }
 
     pub(super) fn check_shape(&self, entries: &[FileEvidence]) -> Result<()> {
+        if let Some(metadata) = &self.metadata {
+            metadata.check_shape(entries)?;
+        }
         let (outputs, required) = layout(entries, &self.destination)?;
         if outputs != self.outputs
             || self.required_available_bytes != required.to_string()
@@ -203,6 +304,12 @@ impl Offload {
         entries: &[FileEvidence],
     ) -> Result<()> {
         self.check_shape(entries)?;
+        #[cfg(windows)]
+        if let Some(expected) = &self.metadata
+            && MetadataPlan::capture(context, entries)? != *expected
+        {
+            return Err(invalid());
+        }
         let target = self.authorize(context, source)?;
         let current = Destination::observe(&target, state)?;
         let current_source = volume(&crate::agents::pin_directory(source)?)?;

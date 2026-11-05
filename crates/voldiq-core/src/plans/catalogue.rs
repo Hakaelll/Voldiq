@@ -391,7 +391,7 @@ impl Store {
             next_after,
             currently_connected: None,
             restore_available: false,
-            limitations: "Recorded observations, not current content or connection evidence. Interruption retains the last recorded phase; pending publication or original handling may have occurred. No automatic retry, pathname cleanup, restoration or file-operation authority. Metadata preservation and restoration are not available yet.",
+            limitations: "Recorded observations, not current content or connection evidence. Interruption retains the last recorded phase; pending publication or original handling may have occurred. No automatic retry, pathname cleanup, restoration or file-operation authority. Metadata preservation depends on the captured profile; restoration is not available yet.",
         })
     }
 }
@@ -527,7 +527,7 @@ fn validate_manifest<'a>(manifest: &'a Manifest, hash: &str) -> Result<&'a super
         || !hex(hash, 64)
         || super::digest(&json) != hash
         || !hex(&manifest.id, 64)
-        || manifest.schema_version != 3
+        || manifest.schema_version != manifest.action.schema_version()
         || manifest.policy_version != super::POLICY_VERSION
         || manifest.connection_id <= 0
         || manifest.user != super::current_user()?

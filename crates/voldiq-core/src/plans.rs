@@ -15,7 +15,10 @@ pub use catalogue::{TransferCatalogue, TransferFile, TransferPhase, TransferUpda
 pub use copying::{CopyFailure, CopyPublication, PublishedContent, TransferWorker};
 pub use desktop::{Desktop, Review, ReviewPage};
 pub use human::{Begin, HumanAuthority};
-pub use offload::{Destination, Offload, OffloadRequest, Originals, VolumeBinding};
+pub use offload::{
+    Destination, MetadataEntry, MetadataPlan, MetadataProfile, Offload, OffloadRequest, Originals,
+    VolumeBinding,
+};
 #[cfg(windows)]
 pub use recycling::{PreparedRecycling, RecyclingWorker};
 use serde::{Deserialize, Serialize};
@@ -100,7 +103,7 @@ impl Action {
     fn schema_version(&self) -> u32 {
         match self {
             Self::Recycle => 2,
-            Self::Offload(_) => 3,
+            Self::Offload(plan) => plan.schema_version(),
         }
     }
     pub fn execution_available(&self) -> bool {

@@ -14,5 +14,18 @@ export type PlanAction =
         outputs: { id: number; name: string }[];
         required_available_bytes: string;
         reserve_bytes: string;
+        metadata?: {
+          profile: 'ntfs_basic_v1';
+          files: {
+            id: number;
+            metadata: {
+              native_identity: string;
+              created_windows_100ns: string | null;
+              modified_windows_100ns: string;
+              dos_attributes: number;
+            };
+          }[];
+          limitations: string;
+        };
       };
     };
