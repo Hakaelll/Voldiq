@@ -72,6 +72,7 @@ if ($Apply) {
     if (Test-Path -LiteralPath $backup) { throw 'Preservation directory already exists.' }
     [IO.Directory]::CreateDirectory($backup) | Out-Null
     $restored = $false
+    $cleanAttempted = $false
     try {
         foreach ($file in $preserved) {
             $copy = Join-Path $backup $file.path
@@ -81,20 +82,23 @@ if ($Apply) {
         }
         Assert-IdleBuild
         $null = Measure-Release
+        $cleanAttempted = $true
         $cargoOutput = @(& cargo clean --offline --release --manifest-path (Join-Path $repository 'Cargo.toml') --target-dir $target 2>&1 | ForEach-Object { "$_" })
         if ($LASTEXITCODE -ne 0) { throw 'Cargo release cleanup failed; preserved files remain in the backup.' }
     } finally {
-        # Retain the verified backup on any restore failure, including an interrupted Cargo clean.
-        foreach ($file in $preserved) {
-            $copy = Join-Path $backup $file.path
-            if (-not (Test-Path -LiteralPath $copy)) { continue }
-            if ((Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash -ne $file.sha256) { throw "Invalid backup retained at $backup" }
-            $destination = Join-Path $release $file.path
-            [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($destination)) | Out-Null
-            Copy-Item -LiteralPath $copy -Destination $destination -Force
-            if ((Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -ne $file.sha256) { throw "Restore failed; backup retained at $backup" }
+        # A pre-clean abort must not overwrite a build that started after preservation.
+        if ($cleanAttempted) {
+            foreach ($file in $preserved) {
+                $copy = Join-Path $backup $file.path
+                if (-not (Test-Path -LiteralPath $copy)) { continue }
+                if ((Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash -ne $file.sha256) { throw "Invalid backup retained at $backup" }
+                $destination = Join-Path $release $file.path
+                [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($destination)) | Out-Null
+                Copy-Item -LiteralPath $copy -Destination $destination -Force
+                if ((Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -ne $file.sha256) { throw "Restore failed; backup retained at $backup" }
+            }
+            $restored = $true
         }
-        $restored = $true
     }
     if ($restored) {
         foreach ($file in $preserved) { Remove-Item -LiteralPath (Join-Path $backup $file.path) }

@@ -52,7 +52,7 @@ The native executable is 25,324,032 bytes. Rust metadata, dependencies, test bin
 ./scripts/clean_build_cache.ps1 -Apply
 ```
 
-The script refuses active Cargo/compiler/installer processes, a release executable running in place, and reparse points. It checks the absolute workspace target, preserves SHA-256-verified copies of the application, CLI, current installer and generated NSIS source, invokes Cargo's release-only cleaner, then restores those files at their original paths. A failed restoration retains its backup. Hash-addressed running previews, frontend dependencies, source files, application state, user data and other applications' caches are retained. The next Rust build must regenerate its dependencies. Do not run cleanup during verification or packaging.
+The script refuses active Cargo/compiler/installer processes, a release executable running in place, and reparse points. It checks the absolute workspace target, preserves SHA-256-verified copies of the application, CLI, current installer and generated NSIS source, invokes Cargo's release-only cleaner, then restores those files at their original paths. Restoration is skipped if cleanup aborts before invoking Cargo, preserving outputs of a build that started during preservation. A failed restoration retains its backup. Hash-addressed running previews, frontend dependencies, source files, application state, user data and other applications' caches are retained. The next Rust build must regenerate its dependencies. Do not run cleanup during verification or packaging.
 
 ## Artwork
 

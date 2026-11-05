@@ -1,0 +1,17 @@
+{
+  "checkedUtc": "2026-11-05T21:13:50.6455872Z",
+  "scope": "Owned disposable workspace fixtures; simulated builder starts after preservation. No real build or user data is changed. This is a manual script regression probe, not an added routine test.",
+  "original": {
+    "fixtureOwned": true,
+    "refused": true,
+    "cargoCalls": 0,
+    "newBuildResultPreserved": false
+  },
+  "fixed": {
+    "fixtureOwned": true,
+    "refused": true,
+    "cargoCalls": 0,
+    "newBuildResultPreserved": true
+  },
+  "cleanerSha256": "B261537B40C8FC886653859C7ABAC542D478B63C7D2C095CBBD4E4770E55EB26"
+}

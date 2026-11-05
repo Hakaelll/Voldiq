@@ -1,0 +1,184 @@
+{
+  "checkedUtc": "2026-11-05T21:16:31.6120952Z",
+  "sourceCommit": "3ff72da",
+  "scope": "Profile-build delivery and release cleanup before the requested dark-theme follow-up. Logical regular-file workspace bytes; reparse points skipped. No observed volume free-space claim.",
+  "before": {
+    "checkedUnix": 1793912665.4315822,
+    "elapsedSeconds": 0.766,
+    "scope": "Logical regular-file bytes inside the workspace; reparse points skipped. No files were modified. These are not measured physical allocated bytes.",
+    "totalBytes": 3433858826,
+    "skippedReparsePoints": 119,
+    "directories": [
+      {
+        "path": "target",
+        "bytes": 3257240171,
+        "files": 7047
+      },
+      {
+        "path": "node_modules",
+        "bytes": 89309395,
+        "files": 1860
+      },
+      {
+        "path": ".git",
+        "bytes": 37374928,
+        "files": 99
+      },
+      {
+        "path": "output",
+        "bytes": 16801568,
+        "files": 16
+      },
+      {
+        "path": "interface",
+        "bytes": 12841789,
+        "files": 11
+      },
+      {
+        "path": "assets",
+        "bytes": 7903038,
+        "files": 5
+      },
+      {
+        "path": "benchmarks",
+        "bytes": 5814154,
+        "files": 412
+      },
+      {
+        "path": "crates",
+        "bytes": 1984325,
+        "files": 139
+      },
+      {
+        "path": "frontend",
+        "bytes": 1168299,
+        "files": 107
+      },
+      {
+        "path": "dist",
+        "bytes": 935136,
+        "files": 10
+      },
+      {
+        "path": "docs",
+        "bytes": 873709,
+        "files": 38
+      },
+      {
+        "path": "src-tauri",
+        "bytes": 704125,
+        "files": 39
+      },
+      {
+        "path": ".impeccable",
+        "bytes": 501734,
+        "files": 17
+      },
+      {
+        "path": ".",
+        "bytes": 310399,
+        "files": 18
+      },
+      {
+        "path": "scripts",
+        "bytes": 96056,
+        "files": 18
+      }
+    ]
+  },
+  "after": {
+    "checkedUnix": 1793913391.5447645,
+    "elapsedSeconds": 0.281,
+    "scope": "Logical regular-file bytes inside the workspace; reparse points skipped. No files were modified. These are not measured physical allocated bytes.",
+    "totalBytes": 421415211,
+    "skippedReparsePoints": 119,
+    "directories": [
+      {
+        "path": "target",
+        "bytes": 244793977,
+        "files": 701
+      },
+      {
+        "path": "node_modules",
+        "bytes": 89309395,
+        "files": 1860
+      },
+      {
+        "path": ".git",
+        "bytes": 37374928,
+        "files": 99
+      },
+      {
+        "path": "output",
+        "bytes": 16801568,
+        "files": 16
+      },
+      {
+        "path": "interface",
+        "bytes": 12841789,
+        "files": 11
+      },
+      {
+        "path": "assets",
+        "bytes": 7903038,
+        "files": 5
+      },
+      {
+        "path": "benchmarks",
+        "bytes": 5815995,
+        "files": 414
+      },
+      {
+        "path": "crates",
+        "bytes": 1984325,
+        "files": 139
+      },
+      {
+        "path": "frontend",
+        "bytes": 1168782,
+        "files": 108
+      },
+      {
+        "path": "dist",
+        "bytes": 935136,
+        "files": 10
+      },
+      {
+        "path": "docs",
+        "bytes": 873709,
+        "files": 38
+      },
+      {
+        "path": "src-tauri",
+        "bytes": 704125,
+        "files": 39
+      },
+      {
+        "path": ".impeccable",
+        "bytes": 501734,
+        "files": 17
+      },
+      {
+        "path": ".",
+        "bytes": 310399,
+        "files": 18
+      },
+      {
+        "path": "scripts",
+        "bytes": 96311,
+        "files": 18
+      }
+    ]
+  },
+  "removedReleaseBytes": 3012457698,
+  "cleanerShaAtExecution": "5E7DD14C8C9AC19D0B99F6D8C5B00E81B6E48C5C4B001E37AAB400B7E989BB34",
+  "nativeBytes": 25329152,
+  "installerBytes": 9900739,
+  "executableSha256": "7D5F212B7495F4B1E124E5E08B7A1AFFD3F655A00D3DD2815986E8205307E6FD",
+  "respondingProcessId": 8248,
+  "embeddedResources": 10,
+  "limits": [
+    "Native profile interaction/elevated device acceptance remains manual",
+    "Theme/logo follow-up is being implemented separately"
+  ]
+}
