@@ -4,6 +4,8 @@
   import { date } from '../lib/types';
   import { readPlanResult } from '../lib/plan-result';
   import type { PlanAction } from '../lib/offload-plan';
+  let { requestedId = null }: { requestedId?: string | null } = $props();
+  let lastRequested: string | null = null;
 
   type PlanState =
     | 'draft'
@@ -87,6 +89,12 @@
     request = 0;
   let timer: ReturnType<typeof setInterval> | undefined;
   const native = isTauri();
+  $effect(() => {
+    if (native && requestedId !== null && requestedId !== lastRequested) {
+      lastRequested = requestedId;
+      void inspect(requestedId);
+    }
+  });
   const exactBytes = (value: string): string => `${BigInt(value).toLocaleString()} bytes`;
   const stateLabel = (value: PlanState): string => value.replaceAll('_', ' ');
 

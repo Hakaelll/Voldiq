@@ -5,6 +5,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readPlanResult } from './plan-result.ts';
 import { readPlanProgress } from './plan-progress.ts';
+import {
+  createTransferCatalogue,
+  type CatalogueState,
+  type TransferPage,
+  type TransferRecord,
+} from './transfer-catalogue.ts';
 import { updateCleanupSelection } from './cleanup-selection.ts';
 import { createNavigationRefresh } from './navigation-refresh.ts';
 import { resolveZoom, zoomBox, createTreemapAnimator } from './treemap-motion.ts';
@@ -43,6 +49,46 @@ function item(id: number): CleanupRulePage['items'][number] {
 }
 
 test('frontend interactions preserve ownership and bounded motion', async () => {
+  const catalogueStates: CatalogueState[] = [];
+  const cataloguePages: ((page: TransferPage) => void)[] = [];
+  const catalogueFailures: ((error: Error) => void)[] = [];
+  const catalogue = createTransferCatalogue({
+    list: () => new Promise<TransferPage>((resolve) => cataloguePages.push(resolve)),
+    read: () => new Promise<TransferRecord>((_, reject) => catalogueFailures.push(reject)),
+    onstate: (state) => catalogueStates.push(state),
+  });
+  const oldCataloguePage = catalogue.load('10');
+  const currentCataloguePage = catalogue.load('5');
+  cataloguePages[0]({ items: [], next_before: '9' });
+  await oldCataloguePage;
+  assert.equal(catalogueStates.at(-1)?.before, '5');
+  assert.equal(catalogueStates.at(-1)?.loading, true);
+  cataloguePages[1]({ items: [], next_before: null });
+  await currentCataloguePage;
+  assert.equal(catalogueStates.at(-1)?.loading, false);
+  const oldRecord = catalogue.select('a'.repeat(64));
+  const currentRecord = catalogue.select('b'.repeat(64));
+  catalogueFailures[0](new Error('old request'));
+  await oldRecord;
+  assert.deepEqual(catalogueStates.at(-1)?.selection, {
+    kind: 'loading',
+    id: 'b'.repeat(64),
+    after: null,
+  });
+  catalogueFailures[1](new Error('device evidence unavailable'));
+  await currentRecord;
+  assert.deepEqual(catalogueStates.at(-1)?.selection, {
+    kind: 'failed',
+    id: 'b'.repeat(64),
+    after: null,
+    error: 'Error: device evidence unavailable',
+  });
+  const disposedRecord = catalogue.select('c'.repeat(64));
+  const catalogueUpdates = catalogueStates.length;
+  catalogue.dispose();
+  catalogueFailures[2](new Error('late response'));
+  await disposedRecord;
+  assert.equal(catalogueStates.length, catalogueUpdates);
   const stopped = {
     phase: 'copy_stopped',
     copied_files: 1,

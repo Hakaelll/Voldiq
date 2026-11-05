@@ -1,0 +1,174 @@
+{
+  "checkedUtc": "2026-11-05T19:50:25.6420599Z",
+  "startedUtc": "2026-11-05T19:46:08.4629112Z",
+  "checkoutCommit": "d89cd9c542a71730354cebb87cad86cc98145cb5",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.442
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 20.074
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.76
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.493
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 221.507
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 7.879
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/plans.rs",
+      "sha256": "696927A9DC553E67FC8E3801072F0C733AF21316B9D6E990F9ECCB59161B9A01",
+      "lastWriteUtc": "2026-11-05T19:33:41.5098573Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/catalogue.rs",
+      "sha256": "4AE8A3235494F1B85470CA1D8D7412E9A24CFE92E3480FF213F0C326AAF453E2",
+      "lastWriteUtc": "2026-11-05T19:33:41.5098573Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/catalogue/listing.rs",
+      "sha256": "D9617F2A6731400C0AFD76233188F5259AA7F20BD0F80BDF4FE91AFB4960A277",
+      "lastWriteUtc": "2026-11-05T19:33:42.3197194Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/desktop.rs",
+      "sha256": "5FE3E95AE81FD01E52C4FD2855D76BA04EAC6DBE977CEF4C252988C5D59717D2",
+      "lastWriteUtc": "2026-11-05T19:17:04.4536289Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/desktop/tests.rs",
+      "sha256": "3133D8C16C2CD6AEE4684F9C57391048F42B25BF061EC52A97BD69DFE32AFCC5",
+      "lastWriteUtc": "2026-11-05T19:30:35.7449869Z"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "E92EAF42FEB65C467D4B233C818E775AA7CB85B3A9485C59F0B250FC7DD0ECC4",
+      "lastWriteUtc": "2026-11-05T19:25:52.7588156Z"
+    },
+    {
+      "path": "frontend/components/AgentPlanReview.svelte",
+      "sha256": "0C418C070182407EC50012608F5B46B2F17F041B4C30432AFCBD86C60AD193DF",
+      "lastWriteUtc": "2026-11-05T19:25:10.2097083Z"
+    },
+    {
+      "path": "frontend/components/TransferCatalogue.svelte",
+      "sha256": "7385C2CFE7F703D3E674694ED00E251C7280E2D6794336D2015C0CD1ED2DFC51",
+      "lastWriteUtc": "2026-11-05T19:41:13.7487446Z"
+    },
+    {
+      "path": "frontend/lib/cleanup-selection.test.ts",
+      "sha256": "ED4A9F20BE3B1B6E066A40EA0B427E4B76DEF09DD0A93497420FDF5A28342ED3",
+      "lastWriteUtc": "2026-11-05T19:30:33.7478378Z"
+    },
+    {
+      "path": "frontend/lib/transfer-catalogue.ts",
+      "sha256": "21CA472CD6D653EF857D12A89BB17706F8B6EC713C375A63B82CF455D87DCB7C",
+      "lastWriteUtc": "2026-11-05T19:20:25.1347593Z"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "BDF5699AEE44596C06532FBBECAB4246E18B8FD29DCA5FE98C9AD75B3B4A78BB",
+      "lastWriteUtc": "2026-11-05T19:25:10.4605722Z"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "B18EA9E9E74BA0D7F3F5E30FBA1E03FBAF403F5CADD2FDF4B5C8747137AD4BCA",
+      "lastWriteUtc": "2026-11-05T19:20:21.8753993Z"
+    },
+    {
+      "path": "src-tauri/src/plan_commands.rs",
+      "sha256": "6E5C6F36E81C1107680BBBA19317CA50434DEB4680638697DB88AAC8463BED03",
+      "lastWriteUtc": "2026-11-05T19:20:23.6798754Z"
+    }
+  ],
+  "sourceInputsPredateVerification": true,
+  "sidebarMarkupUnchangedFromCheckout": true,
+  "behaviorTests": {
+    "frontend": 1,
+    "workspaceRust": 7,
+    "total": 8,
+    "ignored": 0
+  },
+  "catalogueScope": {
+    "humanOnly": true,
+    "maximumOperations": 25,
+    "uiOperationPage": 20,
+    "maximumFiles": 100,
+    "uiFilePage": 50,
+    "sourceDestinationPreviewCharacters": 160,
+    "cursor": "canonical positive i64 decimal string; reverse insertion order",
+    "historicalPathsReopened": false,
+    "currentContentVerified": false,
+    "connectionProbed": false,
+    "ownedSqliteHistoryObserved": true,
+    "recordedPublicationsFiles": 2,
+    "recordedPublicationsBytes": "44",
+    "inconsistentRecordIsolationObserved": true,
+    "endedHumanSessionRefused": true,
+    "latePageDetailAndDisposalOwnershipObserved": true,
+    "nativePopulatedVisualKeyboardScalingAcceptance": false,
+    "secondVolumeAcceptance": "Deferred by user; transfer/restore admission remains disabled."
+  },
+  "productionAssets": [
+    {
+      "name": "city.worker-DLxzT0Wm.js",
+      "bytes": 2879,
+      "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+    },
+    {
+      "name": "history-export-BMppJozo.js",
+      "bytes": 3986,
+      "sha256": "8186D511AB9F00692A76CCD34FDF55031725A5786D861E657BA0A14877E3C722"
+    },
+    {
+      "name": "history-video-8GcgYzUE.js",
+      "bytes": 2865,
+      "sha256": "5E406CB7E15BA64219890B9499B1095659934AB66904E6C4149F3456AAA8C240"
+    },
+    {
+      "name": "index-DCSG0PXO.css",
+      "bytes": 89346,
+      "sha256": "90B0D06E663D989BCB8B455CBF682DE5A236D75E84E5AEDF52207EDE12AC6996"
+    },
+    {
+      "name": "index-J6aVAG3_.js",
+      "bytes": 435131,
+      "sha256": "0576E9FC929B51F5C497CF6E8B5AACD3360072A195CDAF8F962D1FAFCE287B48"
+    },
+    {
+      "name": "svg-surface-D3Yw6xZb.js",
+      "bytes": 6995,
+      "sha256": "16031B0D00F7998ED47803E71C5F769269D4295083881302DD52A7B7F3A450AA"
+    },
+    {
+      "name": "voronoi.worker-DwJ2QmrW.js",
+      "bytes": 5606,
+      "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+    }
+  ]
+}

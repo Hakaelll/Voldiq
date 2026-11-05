@@ -219,6 +219,12 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                 4
             );
             let human = HumanAuthority::acquire(state.path()).unwrap();
+            let operations = ledger.transfer_operations(&human, None, 1).unwrap();
+            assert_eq!(operations.items.len(), 1);
+            assert_eq!(operations.items[0].id, historical.id);
+            assert!(operations.next_before.is_none());
+            assert!(ledger.transfer_operations(&human, Some("00"), 1).is_err());
+            assert!(ledger.transfer_operations(&human, None, 0).is_err());
             let first = ledger
                 .transfer_catalogue(&human, &historical.id, None, 1)
                 .unwrap();
@@ -613,6 +619,56 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                     drop(database);
                     let database = Store::open(migration_state.path()).unwrap();
                     assert_eq!(database.connection.query_row("SELECT count(*) FROM transfer_files WHERE plan_id=?1 AND phase='kept'", [&restored.id], |row| row.get::<_, i64>(0)).unwrap(), 2);
+                    let history_reader = HumanAuthority::acquire(migration_state.path()).unwrap();
+                    let mut newer = restored.clone();
+                    newer.id = "7".repeat(64);
+                    let json = serde_json::to_string(&newer).unwrap();
+                    let newer_hash = super::super::digest(json.as_bytes());
+                    database.connection.execute("INSERT INTO agent_plans(id,owner,manifest,hash,native_record,binding,state) VALUES(?1,?2,?3,?4,'historical model','historical model','draft')", rusqlite::params![newer.id,newer.connection_id,json,newer_hash]).unwrap();
+                    let tx = database.connection.unchecked_transaction().unwrap();
+                    catalogue::prepare(&tx, &newer, &newer_hash).unwrap();
+                    tx.commit().unwrap();
+                    let page = database
+                        .transfer_operations(&history_reader, None, 1)
+                        .unwrap();
+                    assert_eq!(page.items[0].id, newer.id);
+                    assert!(matches!(
+                        &page.items[0].status,
+                        crate::plans::TransferSummaryStatus::Ready {
+                            files: 2,
+                            published_files: 0,
+                            ..
+                        }
+                    ));
+                    let older = database
+                        .transfer_operations(&history_reader, page.next_before.as_deref(), 1)
+                        .unwrap();
+                    assert_eq!(older.items[0].id, restored.id);
+                    assert!(
+                        matches!(&older.items[0].status, crate::plans::TransferSummaryStatus::Ready { files:2,published_files:2,published_bytes,.. } if published_bytes=="44")
+                    );
+                    assert!(older.next_before.is_none());
+                    database
+                        .connection
+                        .execute(
+                            "UPDATE transfer_operations SET hash=?1 WHERE plan_id=?2",
+                            rusqlite::params!["0".repeat(64), newer.id],
+                        )
+                        .unwrap();
+                    let unavailable = database
+                        .transfer_operations(&history_reader, None, 1)
+                        .unwrap();
+                    assert!(matches!(
+                        unavailable.items[0].status,
+                        crate::plans::TransferSummaryStatus::Unavailable { .. }
+                    ));
+                    assert!(unavailable.next_before.is_some());
+                    history_reader.close();
+                    assert!(
+                        database
+                            .transfer_operations(&history_reader, None, 1)
+                            .is_err()
+                    );
                     proposed["groups"][1]["destination"]["caller_available_bytes"] =
                         serde_json::json!("16785408");
                     assert!(

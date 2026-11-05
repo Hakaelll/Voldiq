@@ -3,6 +3,8 @@ use super::{Action, HumanAuthority, Manifest, State, Store, invalid};
 use crate::{NodeId, Result};
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::Serialize;
+mod listing;
+pub use listing::{TransferKind, TransferPage, TransferSummary, TransferSummaryStatus};
 
 const MANIFEST_LIMIT: usize = 440 * 1024;
 const FILE_COLUMNS: &str =
@@ -391,17 +393,12 @@ impl Store {
             return Err(invalid());
         }
         let tx = self.connection.unchecked_transaction()?;
-        let (json,hash,state,observed): (String,String,String,i64) = tx.query_row("SELECT p.manifest,p.hash,p.state,o.last_observed_at
-            FROM agent_plans p JOIN transfer_operations o ON o.plan_id=p.id AND o.owner=p.owner AND o.hash=p.hash
-            WHERE p.id=?1 AND length(p.manifest)<=?2 AND length(p.hash)=64 AND length(p.state)<=32",params![id,MANIFEST_LIMIT as i64],|row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?))).optional()?.ok_or_else(invalid)?;
-        if super::digest(json.as_bytes()) != hash {
-            return Err(invalid());
-        }
-        let manifest: Manifest = serde_json::from_str(&json).map_err(|_| invalid())?;
-        validate_manifest(&manifest, &hash)?;
-        if manifest.id != id {
-            return Err(invalid());
-        }
+        let RecordedManifest {
+            manifest,
+            hash,
+            state,
+            observed,
+        } = recorded_manifest(&tx, id)?;
         let total: i64 = tx.query_row(
             "SELECT count(*) FROM transfer_files WHERE plan_id=?1",
             [id],
@@ -435,9 +432,8 @@ impl Store {
         Ok(TransferCatalogue {
             manifest,
             manifest_hash: hash,
-            state: serde_json::from_value(serde_json::Value::String(state))
-                .map_err(|_| invalid())?,
-            last_observed_at: u64::try_from(observed).map_err(|_| invalid())?,
+            state,
+            last_observed_at: observed,
             files,
             next_after,
             currently_connected: None,
@@ -445,6 +441,36 @@ impl Store {
             limitations: "Recorded observations, not current content or connection evidence. Interruption retains the last recorded phase; pending publication or original handling may have occurred. No automatic retry, pathname cleanup, restoration or file-operation authority. Metadata preservation depends on the captured profile; restoration is not available yet.",
         })
     }
+}
+
+struct RecordedManifest {
+    manifest: Manifest,
+    hash: String,
+    state: State,
+    observed: u64,
+}
+
+fn recorded_manifest(tx: &Transaction<'_>, id: &str) -> Result<RecordedManifest> {
+    if !hex(id, 64) {
+        return Err(invalid());
+    }
+    let (json,hash,state,observed,owner): (String,String,String,i64,i64) = tx.query_row("SELECT p.manifest,p.hash,p.state,o.last_observed_at,p.owner
+        FROM agent_plans p JOIN transfer_operations o ON o.plan_id=p.id AND o.owner=p.owner AND o.hash=p.hash
+        WHERE p.id=?1 AND length(p.manifest)<=?2 AND length(p.hash)=64 AND length(p.state)<=32",params![id,MANIFEST_LIMIT as i64],|row| Ok((row.get(0)?,row.get(1)?,row.get(2)?,row.get(3)?,row.get(4)?))).optional()?.ok_or_else(invalid)?;
+    if super::digest(json.as_bytes()) != hash {
+        return Err(invalid());
+    }
+    let manifest: Manifest = serde_json::from_str(&json).map_err(|_| invalid())?;
+    validate_manifest(&manifest, &hash)?;
+    if manifest.id != id || manifest.connection_id != owner {
+        return Err(invalid());
+    }
+    Ok(RecordedManifest {
+        manifest,
+        hash,
+        state: serde_json::from_value(serde_json::Value::String(state)).map_err(|_| invalid())?,
+        observed: u64::try_from(observed).map_err(|_| invalid())?,
+    })
 }
 
 fn read_file(row: &rusqlite::Row<'_>) -> rusqlite::Result<TransferFile> {

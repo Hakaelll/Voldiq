@@ -819,6 +819,8 @@ fn main() {
             agent_commands::revoke_agent_connection,
             plan_commands::list_agent_plans,
             plan_commands::get_agent_plan,
+            plan_commands::list_transfer_records,
+            plan_commands::get_transfer_record,
             plan_commands::approve_agent_plan,
             plan_commands::reject_agent_plan,
             plan_commands::cancel_agent_plan,

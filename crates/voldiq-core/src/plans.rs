@@ -17,7 +17,10 @@ pub use crate::cleanup::record::FileEvidence;
 use crate::{Error, Result};
 #[cfg(windows)]
 pub use batch::{CopiedTransfer, TransferFailure};
-pub use catalogue::{TransferCatalogue, TransferFile, TransferPhase, TransferUpdate};
+pub use catalogue::{
+    TransferCatalogue, TransferFile, TransferKind, TransferPage, TransferPhase, TransferSummary,
+    TransferSummaryStatus, TransferUpdate,
+};
 #[cfg(windows)]
 pub use copying::{CopyFailure, CopyPublication, PublishedContent, TransferWorker};
 pub use desktop::{Desktop, ExecutionProgress, Review, ReviewPage};

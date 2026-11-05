@@ -74,6 +74,13 @@ pub enum ReviewStatus {
 }
 
 impl Desktop {
+    pub fn transfer_operations(
+        &self,
+        before: Option<&str>,
+        limit: usize,
+    ) -> Result<super::TransferPage> {
+        Store::open(&self.directory)?.transfer_operations(&self.human, before, limit)
+    }
     pub fn transfer_catalogue(
         &self,
         id: &str,

@@ -37,6 +37,7 @@
   import RestorationDialog from './components/RestorationDialog.svelte';
   import AgentConnections from './components/AgentConnections.svelte';
   import AgentPlanReview from './components/AgentPlanReview.svelte';
+  import TransferCatalogue from './components/TransferCatalogue.svelte';
   import FolderNotes from './components/FolderNotes.svelte';
   import FolderBudget from './components/FolderBudget.svelte';
   import LiveControl from './components/LiveControl.svelte';
@@ -174,6 +175,14 @@
   const entryCount = $derived(liveObservation?.entries ?? operation?.entries ?? null);
   let agentOperation = $state<number | null>(null);
   let agentNotice = $state('');
+  let cleanupSection = $state<'candidates' | 'activity' | 'requests' | 'transfers'>('candidates');
+  let requestedPlanId = $state<string | null>(null);
+  const cleanupSections = [
+    { id: 'candidates', label: 'Candidates' },
+    { id: 'activity', label: 'Activity' },
+    { id: 'requests', label: 'Agent plans' },
+    { id: 'transfers', label: 'Transfers' },
+  ] as const;
   let historical = $state<Snapshot | null>(null);
   let exploration = $state.raw<Exploration>(emptyExploration(null));
   const explored = $derived(explorationIds(exploration, indexId));
@@ -321,11 +330,13 @@
     if (ready && (next === 'overview' || next === 'explorer' || next === 'large'))
       void refresh(scope);
   }
-  async function reviewAgentPlans(): Promise<void> {
+  async function reviewAgentPlans(id: string | null = null): Promise<void> {
     if (analysisBusy) return;
-    navigate('settings');
+    cleanupSection = 'requests';
+    requestedPlanId = id;
+    navigate('cleanup');
     await tick();
-    if (view !== 'settings') return;
+    if (view !== 'cleanup' || cleanupSection !== 'requests') return;
     const heading = document.getElementById('plan-review-heading');
     heading?.focus({ preventScroll: true });
     heading?.scrollIntoView({ block: 'start', behavior: 'auto' });
@@ -1425,7 +1436,7 @@
                   : view === 'duplicates'
                     ? 'Duplicates'
                     : view === 'cleanup'
-                      ? 'Cleanup'
+                      ? 'Cleanup & operations'
                       : view === 'developer'
                         ? 'Developer storage'
                         : view === 'history'
@@ -1482,7 +1493,9 @@
         </div>{/if}
       {#if agentNotice}<div class="scan-status" role="status">
           <span>{agentNotice}</span>
-          <button disabled={analysisBusy} onclick={reviewAgentPlans}>Review agent plans</button>
+          <button disabled={analysisBusy} onclick={() => void reviewAgentPlans()}
+            >Review agent plans</button
+          >
           {#if agentOperation !== null}<button
               onclick={() => {
                 if (agentOperation !== null)
@@ -1647,8 +1660,68 @@
               >
             </div>
           </section>
-          <AgentPlanReview />
+          <div class="settings-action">
+            <button disabled={analysisBusy} onclick={() => void reviewAgentPlans()}
+              >Review agent plans in Cleanup</button
+            >
+          </div>
           <AgentConnections />
+        </section>
+      {:else if view === 'cleanup'}
+        <section class="cleanup-workbench" aria-label="Cleanup and operations">
+          <div class="cleanup-sections map-switch" role="group" aria-label="Cleanup sections">
+            {#each cleanupSections as section}<button
+                aria-pressed={cleanupSection === section.id}
+                disabled={analysisBusy}
+                onclick={() => {
+                  cleanupSection = section.id;
+                  requestedPlanId = null;
+                }}>{section.label}</button
+              >{/each}
+          </div>
+          <div class="cleanup-content">
+            {#if cleanupSection === 'requests'}
+              <AgentPlanReview requestedId={requestedPlanId} />
+            {:else if cleanupSection === 'transfers'}
+              <TransferCatalogue onreview={(id) => void reviewAgentPlans(id)} />
+            {:else if cleanupSection === 'activity'}
+              <CleanupActivity
+                {revision}
+                {busy}
+                onrestore={(receipt) => {
+                  if (!busy && !cleanupPreview && restoreReceipt === null) restoreReceipt = receipt;
+                }}
+              />
+            {:else}
+              <div class="cleanup-actions">
+                <button
+                  disabled={busy}
+                  onclick={async () => {
+                    try {
+                      await invoke('open_windows_storage');
+                    } catch (problem) {
+                      report(problem);
+                    }
+                  }}>Windows storage</button
+                >
+              </div>
+              <RecycleBin drive={volumePath} />
+              <CleanupRules
+                scanning={operation?.phase === 'scanning'}
+                {revision}
+                {busy}
+                manageable={ready && !historical}
+                onscan={start}
+                onbusy={(value) => {
+                  analysisBusy = value;
+                }}
+                onpreview={(plan) => {
+                  cleanupPreview = plan;
+                }}
+                onerror={report}
+              />
+            {/if}
+          </div>
         </section>
       {:else if view === 'developer'}
         {#key indexId}<DeveloperStorage
@@ -1673,7 +1746,7 @@
         />
       {:else}
         {#key indexId}
-          {#if !ready && view !== 'duplicates' && view !== 'cleanup'}<ScanWelcome
+          {#if !ready && view !== 'duplicates'}<ScanWelcome
               {volume}
               {busy}
               native={isTauri()}
@@ -1787,45 +1860,6 @@
                     withoutExtension = item.extension === null;
                     extension = item.extension ?? '';
                     view = 'explorer';
-                  }}
-                />
-              {:else if view === 'cleanup'}
-                <div class="cleanup-actions">
-                  <button disabled={analysisBusy || !isTauri()} onclick={reviewAgentPlans}
-                    >Review agent plans</button
-                  >
-                  <button
-                    disabled={busy}
-                    onclick={async () => {
-                      try {
-                        await invoke('open_windows_storage');
-                      } catch (problem) {
-                        report(problem);
-                      }
-                    }}>Windows storage</button
-                  >
-                </div>
-                <RecycleBin drive={volumePath} />
-                <CleanupRules
-                  scanning={operation?.phase === 'scanning'}
-                  {revision}
-                  {busy}
-                  manageable={ready && !historical}
-                  onscan={start}
-                  onbusy={(value) => {
-                    analysisBusy = value;
-                  }}
-                  onpreview={(plan) => {
-                    cleanupPreview = plan;
-                  }}
-                  onerror={report}
-                />
-                <CleanupActivity
-                  {revision}
-                  {busy}
-                  onrestore={(receipt) => {
-                    if (!busy && !cleanupPreview && restoreReceipt === null)
-                      restoreReceipt = receipt;
                   }}
                 />
               {:else if view === 'duplicates'}

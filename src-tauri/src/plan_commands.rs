@@ -133,6 +133,39 @@ pub async fn cancel_agent_plan(
 }
 
 #[tauri::command]
+pub async fn list_transfer_records(
+    reviews: tauri::State<'_, PlanReviews>,
+    before: Option<String>,
+    limit: usize,
+) -> Result<voldiq_core::plans::TransferPage, String> {
+    let desktop = reviews.desktop()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        desktop
+            .transfer_operations(before.as_deref(), limit)
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn get_transfer_record(
+    reviews: tauri::State<'_, PlanReviews>,
+    id: String,
+    after: Option<u32>,
+    limit: usize,
+) -> Result<voldiq_core::plans::TransferCatalogue, String> {
+    let desktop = reviews.desktop()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        desktop
+            .transfer_catalogue(&id, after.map(voldiq_core::NodeId), limit)
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
 pub async fn list_agent_plans(
     reviews: tauri::State<'_, PlanReviews>,
     offset: usize,
