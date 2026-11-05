@@ -1,0 +1,141 @@
+{
+  "checkedUtc": "2026-11-05T18:18:25.4170435Z",
+  "startedUtc": "2026-11-05T18:11:52.9016544Z",
+  "checkoutCommit": "b65a072425c5feb74fbee1c8b1063754a20f2688",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.725
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 6.898
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.813
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 4.926
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 367.79
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 11.35
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/plans.rs",
+      "sha256": "F45E74FD951324652CD6AF61FEF4FE555E7D50E067F3157C6C0909237DD88E73",
+      "lastWriteUtc": "2026-11-05T18:04:46.5988940Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/batch.rs",
+      "sha256": "3D360F4E4F62D547BF53169C8F20FD4A6F797D7161FC497F0A000A6047907C2E",
+      "lastWriteUtc": "2026-11-05T18:06:03.1292447Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/catalogue.rs",
+      "sha256": "7C7E622D76CF3E519843A5DAE3EE367AEE8442EB05BE3C1B836ADEF05C6A6DF9",
+      "lastWriteUtc": "2026-11-05T18:06:03.1372442Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/copying.rs",
+      "sha256": "1B1B270C236DE46687B3B0E263838A2CE055F6FD1D7CC5CE511175214E001FCA",
+      "lastWriteUtc": "2026-11-05T18:06:29.7858427Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/desktop/tests.rs",
+      "sha256": "2A8B4AB6805DD91D7C403595788BA116B18F4C1E7B1B36CD404E12046416DBDD",
+      "lastWriteUtc": "2026-11-05T18:08:55.2935445Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/restoration.rs",
+      "sha256": "81F28FDD59C18E3ADAC2BD6C4932763FBB9F5A5DB29D59D8371016B3C673836C",
+      "lastWriteUtc": "2026-11-05T18:06:03.1822466Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/store.rs",
+      "sha256": "450822AD0C0563615F50F649F9C69C9F206A490B8E227DD56BF924CC6B2D2803",
+      "lastWriteUtc": "2026-11-05T18:06:03.1932461Z"
+    }
+  ],
+  "sourceInputsPredateVerification": true,
+  "behaviorTests": {
+    "frontend": 1,
+    "workspaceRust": 7,
+    "total": 8,
+    "ignored": 0
+  },
+  "restoration": {
+    "manifestSchema": 6,
+    "planDatabaseSchema": 4,
+    "ownedContentFixtureBytes": 262177,
+    "fixtureScope": "Internal retained native producer on owned same-volume files; two-parent SQLite catalogue model. No public same-volume approval bypass.",
+    "recordedDigestRequired": true,
+    "mismatchPublicationRefused": true,
+    "mismatchPrivateCleanupObserved": true,
+    "unchangedArchiveBytesObserved": true,
+    "destinationReadbackObserved": true,
+    "migrationFromVersion3Observed": true,
+    "multipleDestinationLifecycleModel": true,
+    "originalPhaseRefused": true,
+    "partialAndCompleteCatalogueStatesObserved": true,
+    "approvedRestoreDispatch": false,
+    "positiveCrossVolumeCopy": false,
+    "deviceReconnectAcceptance": false
+  },
+  "productionAssets": [
+    {
+      "name": "city.worker-DLxzT0Wm.js",
+      "bytes": 2879,
+      "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+    },
+    {
+      "name": "history-export-DqBbiggb.js",
+      "bytes": 3986,
+      "sha256": "61C5CF760B667E13901FA308240C9F8B331F8D34717603E341E005E97CE83AE9"
+    },
+    {
+      "name": "history-video-CJVVgFec.js",
+      "bytes": 2865,
+      "sha256": "E0DA196403FC958C9401603F6D92589C38C42E0C0AB184B0D044585A81ECE168"
+    },
+    {
+      "name": "index-DH_x5BJQ.js",
+      "bytes": 414470,
+      "sha256": "77538AEA1E8226C8FC584CD97E355AA3AE699D41E4DA6ABE82792F7C262A83F9"
+    },
+    {
+      "name": "index-DHuVIEhh.css",
+      "bytes": 84066,
+      "sha256": "7D9330651693489380334813468DD163C7CB3A4ADBE9C33419EA091BD57674F4"
+    },
+    {
+      "name": "svg-surface-D3Yw6xZb.js",
+      "bytes": 6995,
+      "sha256": "16031B0D00F7998ED47803E71C5F769269D4295083881302DD52A7B7F3A450AA"
+    },
+    {
+      "name": "voronoi.worker-DwJ2QmrW.js",
+      "bytes": 5606,
+      "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+    }
+  ]
+}

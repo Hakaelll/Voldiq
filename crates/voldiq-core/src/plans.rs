@@ -121,6 +121,26 @@ impl Action {
     pub fn execution_available(&self) -> bool {
         matches!(self, Self::Recycle)
     }
+    fn transfer_groups(&self) -> Result<&[Offload]> {
+        match self {
+            Self::Offload(plan) => Ok(std::slice::from_ref(plan.as_ref())),
+            Self::Restore(plan) => Ok(&plan.groups),
+            Self::Recycle => Err(invalid()),
+        }
+    }
+    fn transfer_group(&self, node: crate::NodeId) -> Result<&Offload> {
+        self.transfer_groups()?
+            .iter()
+            .find(|group| group.outputs.iter().any(|output| output.id == node))
+            .ok_or_else(invalid)
+    }
+    fn expected_content(&self, node: crate::NodeId) -> Result<Option<blake3::Hash>> {
+        match self {
+            Self::Offload(_) => Ok(None),
+            Self::Restore(plan) => plan.expected_content(node).map(Some),
+            Self::Recycle => Err(invalid()),
+        }
+    }
 }
 
 #[derive(Serialize)]

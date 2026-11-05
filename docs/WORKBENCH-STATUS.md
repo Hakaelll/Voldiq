@@ -4,6 +4,17 @@ Delivery branch: `main`, as the user explicitly requested during implementation.
 
 The complete task remains active. See the [coverage matrix](WORKBENCH-COVERAGE.md) and [execution plan](plans/storage-workbench.md). This status does not declare pending capabilities implemented.
 
+## Hash-bound restoration copies and catalogue
+
+The native content producer now requires a typed restoration profile with the archive's recorded BLAKE3. A mismatch stops before a verified receipt or publication intent, and cleanup uses only the owned private output. Successful work retains the existing bounded copy, full destination readback, source recheck, metadata verification, exclusive handles and no-replacement publisher. It never removes the archive.
+
+The exact batch coordinator now accepts restore manifests, preflights all frozen parent groups and routes each source to its approved existing parent. Restore completion uses the retained-archive policy and full retained-source/destination revalidation. The same catalogue records each destination group, checks the archive digest independently in updates and historical reads, rejects an original-removal phase for restoration, and requires every row's confirmed kept-archive outcome before complete success. Publications followed by failure remain partial; catalogue records grant no approval, retry or recovery authority.
+
+The plan database migrates transactionally from version 3 to 4, backfilling bounded missing copy operations without rewriting serialized manifests or existing catalogue rows. The existing version-2 migration uses the same backfill. Reopening version 4 preserves recorded rows. The owned retained flow passes a 262,177-byte hash-bound copy/readback and wrong-hash refusal with no final output, one private receipt, successful owned cleanup and unchanged archive bytes. A separate two-parent catalogue model passes actual SQLite migration/reopen, wrong-digest/original-phase refusal, incomplete completion rejection and partial versus complete results. These models do not establish approved cross-volume execution. No dependency or test declaration was added.
+
+The final [source gate](../benchmarks/workbench-restore-content-source-20261105.json) passes all six stages: eight retained behavior tests, zero Svelte diagnostics, production frontend build and strict workspace Clippy. All seven changed source input hashes were frozen before the run and verified afterward. Application assets remain `index-DH_x5BJQ.js` and `index-DHuVIEhh.css`. Approved native restore/offload dispatch and positive cross-volume/device acceptance remain pending before enabling admission. Existing source/destination scope checks and human-only approval boundaries remain in force. Directory recreation, alternative collision destinations, vault UI, quotas and retention remain in the full active goal. The reference-led interface from 7cd77d5 is preserved; native visual, focus and Windows scaling acceptance remain manual.
+
+
 ## Reference-led desktop interface refinement
 
 The user's latest request prioritizes the supplied TreeMap references. The desktop now uses a stable labeled sidebar with explicit persisted collapse, a command-palette search button, and a direct light/dark shortcut. Pointer/focus movement no longer shifts the analysis canvas. The original logo, Segoe family, light default and semantic palette remain. The toolbar retains current-analysis search and scan controls.

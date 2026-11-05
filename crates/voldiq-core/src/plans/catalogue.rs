@@ -102,10 +102,6 @@ pub struct TransferCatalogue {
 }
 
 pub(super) fn migrate(tx: &Transaction<'_>) -> Result<()> {
-    let (count,size,hash_size): (i64,i64,i64) = tx.query_row("SELECT count(*),coalesce(max(length(manifest)),0),coalesce(max(length(hash)),0) FROM agent_plans", [], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?)))?;
-    if count > 10_000 || size > MANIFEST_LIMIT as i64 || hash_size > 64 {
-        return Err(invalid());
-    }
     tx.execute_batch("CREATE TABLE transfer_operations(
         plan_id TEXT PRIMARY KEY REFERENCES agent_plans(id),owner INTEGER NOT NULL,
         hash TEXT NOT NULL CHECK(length(hash)=64),last_observed_at INTEGER NOT NULL CHECK(last_observed_at>=0));
@@ -116,8 +112,17 @@ pub(super) fn migrate(tx: &Transaction<'_>) -> Result<()> {
         private_name TEXT,destination_identity TEXT,content_blake3 TEXT,verified_bytes TEXT,
         verified_at INTEGER,published_at INTEGER,updated_at INTEGER NOT NULL,interrupted_at INTEGER,
         PRIMARY KEY(plan_id,node));
-        PRAGMA user_version=3;")?;
-    let mut statement = tx.prepare("SELECT manifest,hash FROM agent_plans WHERE length(manifest)<=?1 ORDER BY rowid LIMIT 10001")?;
+        ")?;
+    migrate_restores(tx)
+}
+
+pub(super) fn migrate_restores(tx: &Transaction<'_>) -> Result<()> {
+    let (count,size,hash_size): (i64,i64,i64) = tx.query_row("SELECT count(*),coalesce(max(length(manifest)),0),coalesce(max(length(hash)),0) FROM agent_plans", [], |row| Ok((row.get(0)?,row.get(1)?,row.get(2)?)))?;
+    if count > 10_000 || size > MANIFEST_LIMIT as i64 || hash_size > 64 {
+        return Err(invalid());
+    }
+
+    let mut statement = tx.prepare("SELECT p.manifest,p.hash FROM agent_plans p WHERE length(p.manifest)<=?1 AND NOT EXISTS(SELECT 1 FROM transfer_operations o WHERE o.plan_id=p.id) ORDER BY p.rowid LIMIT 10001")?;
     let mut rows = statement.query([MANIFEST_LIMIT as i64])?;
     let mut count = 0;
     while let Some(row) = rows.next()? {
@@ -133,20 +138,29 @@ pub(super) fn migrate(tx: &Transaction<'_>) -> Result<()> {
         let manifest: Manifest = serde_json::from_str(&json).map_err(|_| invalid())?;
         prepare(tx, &manifest, &hash)?;
     }
+    tx.execute_batch("PRAGMA user_version=4;")?;
     Ok(())
 }
 
 pub(super) fn prepare(tx: &Transaction<'_>, manifest: &Manifest, hash: &str) -> Result<()> {
-    let Action::Offload(_) = &manifest.action else {
+    if matches!(manifest.action, Action::Recycle) {
         return Ok(());
-    };
-    let offload = validate_manifest(manifest, hash)?;
-    let observed = i64::try_from(offload.destination.observed_at).map_err(|_| invalid())?;
+    }
+    validate_manifest(manifest, hash)?;
+    let groups = manifest.action.transfer_groups()?;
+    let observed = i64::try_from(
+        groups
+            .iter()
+            .map(|group| group.destination.observed_at)
+            .min()
+            .ok_or_else(invalid)?,
+    )
+    .map_err(|_| invalid())?;
     tx.execute(
         "INSERT INTO transfer_operations(plan_id,owner,hash,last_observed_at) VALUES(?1,?2,?3,?4)",
         params![manifest.id, manifest.connection_id, hash, observed],
     )?;
-    for output in &offload.outputs {
+    for output in groups.iter().flat_map(|group| &group.outputs) {
         tx.execute("INSERT INTO transfer_files(plan_id,node,output_name,phase,updated_at) VALUES(?1,?2,?3,'prepared',?4)",
             params![manifest.id, output.id.0, output.name, manifest.created])?;
     }
@@ -162,9 +176,7 @@ pub(super) fn apply_update(
     update: TransferUpdate,
     at: i64,
 ) -> Result<()> {
-    let Action::Offload(offload) = &manifest.action else {
-        return Err(invalid());
-    };
+    let offload = manifest.action.transfer_group(node)?;
     let entry = manifest
         .entries
         .iter()
@@ -198,7 +210,13 @@ pub(super) fn apply_update(
             TransferPhase::Private
         }
         TransferUpdate::Verified { bytes, blake3 } if previous == TransferPhase::Private => {
-            if !hex(&blake3, 64) || bytes.to_string() != entry.logical_bytes {
+            if !hex(&blake3, 64)
+                || bytes.to_string() != entry.logical_bytes
+                || manifest
+                    .action
+                    .expected_content(node)?
+                    .is_some_and(|expected| blake3 != expected.to_hex().as_str())
+            {
                 return Err(invalid());
             }
             file.content_blake3 = Some(blake3);
@@ -299,11 +317,11 @@ pub(super) fn completion_state(
         return Err(invalid());
     }
     let manifest: Manifest = serde_json::from_str(&json).map_err(|_| invalid())?;
-    let Action::Offload(offload) = &manifest.action else {
+    if matches!(manifest.action, Action::Recycle) {
         return Ok(requested);
-    };
+    }
     validate_manifest(&manifest, hash)?;
-    let expected = match offload.originals {
+    let expected = match manifest.action.transfer_groups()?[0].originals {
         super::Originals::Keep => "kept",
         super::Originals::RecycleAfterVerification => "recycled",
     };
@@ -333,6 +351,9 @@ impl Store {
         hash: &str,
         selection: &[NodeId],
     ) -> Result<Vec<TransferFile>> {
+        if !matches!(manifest.action, Action::Offload(_)) {
+            return Err(invalid());
+        }
         validate_manifest(manifest, hash)?;
         let mut statement = self.connection.prepare(&format!("SELECT {FILE_COLUMNS} FROM transfer_files f WHERE plan_id=?1 AND node=?2 AND EXISTS(SELECT 1 FROM transfer_operations o WHERE o.plan_id=f.plan_id AND o.owner=?3 AND o.hash=?4)"))?;
         let mut files = Vec::with_capacity(selection.len());
@@ -463,9 +484,8 @@ fn private_name(name: &str) -> bool {
 }
 
 fn validate_file(file: &TransferFile, manifest: &Manifest) -> Result<()> {
-    let Action::Offload(offload) = &manifest.action else {
-        return Err(invalid());
-    };
+    let offload = manifest.action.transfer_group(file.node)?;
+    let expected = manifest.action.expected_content(file.node)?;
     let entry = manifest
         .entries
         .iter()
@@ -492,10 +512,10 @@ fn validate_file(file: &TransferFile, manifest: &Manifest) -> Result<()> {
                 || !hex(&offload.destination.native_identity, 48)
                 || !id.starts_with(&offload.destination.native_identity[..16])
         })
-        || file
-            .content_blake3
-            .as_ref()
-            .is_some_and(|digest| !hex(digest, 64))
+        || file.content_blake3.as_ref().is_some_and(|digest| {
+            !hex(digest, 64)
+                || expected.is_some_and(|expected| digest != expected.to_hex().as_str())
+        })
         || file
             .verified_bytes
             .as_ref()
@@ -548,10 +568,8 @@ fn validate_file(file: &TransferFile, manifest: &Manifest) -> Result<()> {
     Ok(())
 }
 
-fn validate_manifest<'a>(manifest: &'a Manifest, hash: &str) -> Result<&'a super::Offload> {
-    let Action::Offload(offload) = &manifest.action else {
-        return Err(invalid());
-    };
+fn validate_manifest(manifest: &Manifest, hash: &str) -> Result<()> {
+    let groups = manifest.action.transfer_groups()?;
     let json = serde_json::to_vec(manifest).map_err(|_| invalid())?;
     if json.len() > MANIFEST_LIMIT
         || !hex(hash, 64)
@@ -565,13 +583,19 @@ fn validate_manifest<'a>(manifest: &'a Manifest, hash: &str) -> Result<&'a super
         || manifest.created.checked_add(super::PLAN_TTL) != Some(manifest.expires)
         || manifest.entries.is_empty()
         || manifest.entries.len() > 500
-        || !hex(&offload.destination.native_identity, 48)
+        || groups
+            .iter()
+            .any(|group| !hex(&group.destination.native_identity, 48))
     {
         return Err(invalid());
     }
-    offload.check_shape(&manifest.entries)?;
+    match &manifest.action {
+        Action::Offload(plan) => plan.check_shape(&manifest.entries)?,
+        Action::Restore(plan) => plan.check_shape(&manifest.entries)?,
+        Action::Recycle => return Err(invalid()),
+    }
     let (logical, reclaim) = super::store::totals(&manifest.entries)?;
-    let reclaim = if offload.originals == super::Originals::Keep {
+    let reclaim = if groups[0].originals == super::Originals::Keep {
         0
     } else {
         reclaim
@@ -582,5 +606,5 @@ fn validate_manifest<'a>(manifest: &'a Manifest, hash: &str) -> Result<&'a super
     {
         return Err(invalid());
     }
-    Ok(offload)
+    Ok(())
 }

@@ -42,7 +42,7 @@ pub struct Restore {
     transfer_plan_id: String,
     transfer_manifest_hash: String,
     files: Vec<RestoreFile>,
-    groups: Vec<Offload>,
+    pub(super) groups: Vec<Offload>,
     required_available_bytes: String,
     limitations: String,
 }
@@ -55,6 +55,14 @@ struct Archive {
 }
 
 impl Restore {
+    pub(super) fn expected_content(&self, node: NodeId) -> Result<blake3::Hash> {
+        let file = self
+            .files
+            .iter()
+            .find(|file| file.source_id == node)
+            .ok_or_else(invalid)?;
+        blake3::Hash::from_hex(&file.content_blake3).map_err(|_| invalid())
+    }
     pub(super) fn check_shape(&self, entries: &[FileEvidence]) -> Result<()> {
         if !hex(&self.transfer_plan_id, 64)
             || !hex(&self.transfer_manifest_hash, 64)

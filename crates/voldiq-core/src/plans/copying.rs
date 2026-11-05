@@ -1,5 +1,5 @@
 //! Retained-handle content copies. Approval, metadata compatibility and original handling are separate.
-use super::{Action, ExecutionLease, HumanAuthority, State, Store, TransferUpdate, invalid, now};
+use super::{ExecutionLease, HumanAuthority, State, Store, TransferUpdate, invalid, now};
 use crate::{
     Error, NodeId, Result,
     agents::{AuthorizedPath, PlanContext},
@@ -167,21 +167,48 @@ pub(super) enum Control {
     Record(TransferUpdate),
 }
 
+pub(super) enum CopyProfile {
+    Offload(BasicMetadata),
+    Restore {
+        metadata: BasicMetadata,
+        expected: blake3::Hash,
+    },
+}
+impl CopyProfile {
+    fn metadata(&self) -> &BasicMetadata {
+        match self {
+            Self::Offload(metadata) | Self::Restore { metadata, .. } => metadata,
+        }
+    }
+    fn verify_content(&self, copied: &CopiedBytes) -> Result<()> {
+        if let Self::Restore { expected, .. } = self
+            && copied.digest() != expected.to_hex().as_str()
+        {
+            return Err(Error::Invalid(
+                "Archive content differs from its recorded BLAKE3; restoration was not published."
+                    .into(),
+            ));
+        }
+        Ok(())
+    }
+}
+
 /// Crate-private producer; only the authorized store path below can expose its sealed result.
 pub(super) fn copy_verified(
     source: VerifiedFile,
-    metadata: BasicMetadata,
+    profile: CopyProfile,
     mut destination: OwnedFile,
     name: &OsStr,
     cancel: &AtomicBool,
     mut control: impl FnMut(Control) -> Result<()>,
     mut progress: impl FnMut(Progress),
 ) -> std::result::Result<NativePublished, CopyFailure> {
+    let metadata = profile.metadata();
     let mut publication = CopyPublication::NotAttempted;
     let result = (|| {
         crate::transfer::check(cancel, &mut || control(Control::Check))?;
         source.check_stamp()?;
-        if BasicMetadata::observe(&source.file)? != metadata {
+        if &BasicMetadata::observe(&source.file)? != metadata {
             return Err(invalid());
         }
         destination.validate()?;
@@ -207,6 +234,7 @@ pub(super) fn copy_verified(
             )?
         };
         destination.file().sync_all()?;
+        profile.verify_content(&copied)?;
         source.check_stamp()?;
         destination.file().rewind()?;
         verify_bytes(
@@ -237,7 +265,7 @@ pub(super) fn copy_verified(
         control(Control::Record(TransferUpdate::PublishIntent))?;
         crate::transfer::check(cancel, &mut || control(Control::Check))?;
         source.check_read_access()?;
-        if BasicMetadata::observe(&source.file)? != metadata {
+        if &BasicMetadata::observe(&source.file)? != metadata {
             return Err(invalid());
         }
         publication = CopyPublication::Uncertain;
@@ -254,7 +282,7 @@ pub(super) fn copy_verified(
             source,
             destination,
             copied,
-            metadata,
+            metadata: metadata.clone(),
         }),
         Err(error) => {
             let cleanup_error = if !destination.is_finished() {
@@ -272,8 +300,8 @@ pub(super) fn copy_verified(
 }
 
 impl Store {
-    /// Requires an existing consumed offload grant. This does not approve, finish or modify originals.
-    /// Offload admission remains disabled until metadata, recovery and original handling are integrated.
+    /// Requires an existing consumed copy grant. This does not approve, finish or modify originals.
+    /// Offload/restore admission remains disabled pending native dispatch and acceptance.
     pub fn copy_transfer_file<'a>(
         &mut self,
         context: &PlanContext<'_>,
@@ -289,9 +317,7 @@ impl Store {
             if stored.view.hash != lease.hash || stored.view.state != State::Executing {
                 return Err(invalid());
             }
-            let Action::Offload(action) = &stored.view.manifest.action else {
-                return Err(invalid());
-            };
+            let action = stored.view.manifest.action.transfer_group(node)?;
             let entry = stored
                 .view
                 .manifest
@@ -301,6 +327,10 @@ impl Store {
                 .ok_or_else(invalid)?;
             let _source_scope = context.path(std::path::Path::new(&entry.path))?;
             let metadata = action.file_metadata(node)?.clone();
+            let profile = match stored.view.manifest.action.expected_content(node)? {
+                Some(expected) => CopyProfile::Restore { metadata, expected },
+                None => CopyProfile::Offload(metadata),
+            };
             let target = action.copy_destination(
                 context,
                 self.directory.path(),
@@ -333,13 +363,13 @@ impl Store {
                 .ok_or_else(invalid)?
                 .name
                 .clone();
-            Ok((source, metadata, destination, target, name))
+            Ok((source, profile, destination, target, name))
         })()
         .map_err(CopyFailure::before)?;
-        let (source, metadata, destination, target, name) = prepared;
+        let (source, profile, destination, target, name) = prepared;
         let content = copy_verified(
             source,
-            metadata,
+            profile,
             destination,
             OsStr::new(&name),
             worker.cancel,

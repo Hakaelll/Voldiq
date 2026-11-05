@@ -216,7 +216,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                     .connection
                     .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
                     .unwrap(),
-                3
+                4
             );
             let human = HumanAuthority::acquire(state.path()).unwrap();
             let first = ledger
@@ -451,6 +451,168 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                         .unwrap()
                         .check_shape(&entries)
                         .unwrap();
+                    let mut restored = bounded.clone();
+                    restored.id = "6".repeat(64);
+                    restored.schema_version = 6;
+                    restored.entries = entries.to_vec();
+                    restored.logical_bytes = "44".into();
+                    restored.potential_reclaim_bytes = "0".into();
+                    restored.action = Action::Restore(Box::new(
+                        serde_json::from_value(proposed.clone()).unwrap(),
+                    ));
+                    let json = serde_json::to_string(&restored).unwrap();
+                    let hash = super::super::digest(json.as_bytes());
+                    let migration_state = tempfile::tempdir().unwrap();
+                    let database = Store::open(migration_state.path()).unwrap();
+                    database.connection.execute("INSERT INTO agent_plans(id,owner,manifest,hash,native_record,binding,state) VALUES(?1,?2,?3,?4,'historical model','historical model','draft')",
+                        rusqlite::params![restored.id,restored.connection_id,json,hash]).unwrap();
+                    database
+                        .connection
+                        .execute_batch("PRAGMA user_version=3;")
+                        .unwrap();
+                    drop(database);
+                    let mut database = Store::open(migration_state.path()).unwrap();
+                    assert_eq!(
+                        database
+                            .connection
+                            .query_row(
+                                "SELECT count(*) FROM transfer_files WHERE plan_id=?1",
+                                [&restored.id],
+                                |row| row.get::<_, i64>(0)
+                            )
+                            .unwrap(),
+                        2
+                    );
+                    assert_eq!(
+                        database
+                            .connection
+                            .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
+                            .unwrap(),
+                        4
+                    );
+                    let tx = database.connection.transaction().unwrap();
+                    for node in [entries[0].id, entries[1].id] {
+                        catalogue::apply_update(
+                            &tx,
+                            &restored,
+                            &hash,
+                            node,
+                            TransferUpdate::Private {
+                                name: format!(".voldiq-output-{:032x}.tmp", node.0),
+                                identity: "efcdab896745230133333333333333333333333333333333".into(),
+                            },
+                            restored.created,
+                        )
+                        .unwrap();
+                        assert!(
+                            catalogue::apply_update(
+                                &tx,
+                                &restored,
+                                &hash,
+                                node,
+                                TransferUpdate::Verified {
+                                    bytes: 22,
+                                    blake3: "b".repeat(64)
+                                },
+                                restored.created
+                            )
+                            .is_err()
+                        );
+                        catalogue::apply_update(
+                            &tx,
+                            &restored,
+                            &hash,
+                            node,
+                            TransferUpdate::Verified {
+                                bytes: 22,
+                                blake3: "a".repeat(64),
+                            },
+                            restored.created,
+                        )
+                        .unwrap();
+                        catalogue::apply_update(
+                            &tx,
+                            &restored,
+                            &hash,
+                            node,
+                            TransferUpdate::PublishIntent,
+                            restored.created,
+                        )
+                        .unwrap();
+                        catalogue::apply_update(
+                            &tx,
+                            &restored,
+                            &hash,
+                            node,
+                            TransferUpdate::Published,
+                            restored.created,
+                        )
+                        .unwrap();
+                        assert!(
+                            catalogue::apply_update(
+                                &tx,
+                                &restored,
+                                &hash,
+                                node,
+                                TransferUpdate::OriginalIntent,
+                                restored.created
+                            )
+                            .is_err()
+                        );
+                    }
+                    assert!(
+                        catalogue::completion_state(
+                            &tx,
+                            &restored.id,
+                            restored.connection_id,
+                            &hash,
+                            State::Completed,
+                            restored.created
+                        )
+                        .is_err()
+                    );
+                    tx.execute_batch("SAVEPOINT partial_result;").unwrap();
+                    assert_eq!(
+                        catalogue::completion_state(
+                            &tx,
+                            &restored.id,
+                            restored.connection_id,
+                            &hash,
+                            State::Failed,
+                            restored.created
+                        )
+                        .unwrap(),
+                        State::PartiallyCompleted
+                    );
+                    tx.execute_batch("ROLLBACK TO partial_result; RELEASE partial_result;")
+                        .unwrap();
+                    for node in [entries[0].id, entries[1].id] {
+                        catalogue::apply_update(
+                            &tx,
+                            &restored,
+                            &hash,
+                            node,
+                            TransferUpdate::Kept,
+                            restored.created,
+                        )
+                        .unwrap();
+                    }
+                    assert_eq!(
+                        catalogue::completion_state(
+                            &tx,
+                            &restored.id,
+                            restored.connection_id,
+                            &hash,
+                            State::Completed,
+                            restored.created
+                        )
+                        .unwrap(),
+                        State::Completed
+                    );
+                    tx.commit().unwrap();
+                    drop(database);
+                    let database = Store::open(migration_state.path()).unwrap();
+                    assert_eq!(database.connection.query_row("SELECT count(*) FROM transfer_files WHERE plan_id=?1 AND phase='kept'", [&restored.id], |row| row.get::<_, i64>(0)).unwrap(), 2);
                     proposed["groups"][1]["destination"]["caller_available_bytes"] =
                         serde_json::json!("16785408");
                     assert!(
@@ -912,7 +1074,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
     {
         use crate::{
             plans::TransferUpdate,
-            plans::copying::{Control, CopyPublication, copy_verified},
+            plans::copying::{Control, CopyProfile, CopyPublication, copy_verified},
             transfer::{Phase, copy_bytes, verify_bytes},
             windows::{self, cleanup_io, owned_file::OwnedFile},
         };
@@ -960,7 +1122,10 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         let mut phases = Vec::new();
         let native = copy_verified(
             copy_plan.copy_source(copy_id).unwrap(),
-            metadata.clone(),
+            CopyProfile::Restore {
+                metadata: metadata.clone(),
+                expected: blake3::hash(&payload),
+            },
             OwnedFile::create(&parent).unwrap(),
             OsStr::new("copy.data"),
             &cancelled,
@@ -1021,6 +1186,32 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         drop(native);
         assert_eq!(std::fs::read(&input).unwrap(), payload);
         assert_eq!(std::fs::read(&output).unwrap(), payload);
+        let mut refused_events = Vec::new();
+        let refused = copy_verified(
+            copy_plan.copy_source(copy_id).unwrap(),
+            CopyProfile::Restore {
+                metadata: metadata.clone(),
+                expected: blake3::Hash::from_bytes([0; 32]),
+            },
+            OwnedFile::create(&parent).unwrap(),
+            OsStr::new("restore-wrong-hash.data"),
+            &cancelled,
+            |control| {
+                if let Control::Record(update) = control {
+                    refused_events.push(update);
+                }
+                Ok(())
+            },
+            |_| {},
+        )
+        .err()
+        .unwrap();
+        assert_eq!(refused.publication(), CopyPublication::NotAttempted);
+        assert!(refused.cleanup_error().is_none());
+        assert_eq!(refused_events.len(), 1);
+        assert!(matches!(refused_events[0], TransferUpdate::Private { .. }));
+        assert!(!destination.path().join("restore-wrong-hash.data").exists());
+        assert_eq!(std::fs::read(&input).unwrap(), payload);
         assert!(std::fs::OpenOptions::new().write(true).open(&input).is_ok());
         {
             // Owned same-volume content fixtures, not an approved offload or source-removal path.
@@ -1029,7 +1220,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             let copies = copy_all(&nodes, |node| {
                 copy_verified(
                     copy_plan.copy_source(copy_id).unwrap(),
-                    metadata.clone(),
+                    CopyProfile::Offload(metadata.clone()),
                     OwnedFile::create(&parent).unwrap(),
                     OsStr::new(&format!("batch-complete-{}.data", node.0)),
                     &cancelled,
@@ -1051,7 +1242,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                 attempted.push(node);
                 copy_verified(
                     copy_plan.copy_source(copy_id).unwrap(),
-                    metadata.clone(),
+                    CopyProfile::Offload(metadata.clone()),
                     OwnedFile::create(&parent).unwrap(),
                     OsStr::new(&format!("batch-partial-{}.data", node.0)),
                     &cancelled,
@@ -1090,7 +1281,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         }
         let failure = copy_verified(
             copy_plan.copy_source(copy_id).unwrap(),
-            metadata.clone(),
+            CopyProfile::Offload(metadata.clone()),
             OwnedFile::create(&parent).unwrap(),
             OsStr::new("not-published.data"),
             &cancelled,
@@ -1111,7 +1302,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         assert!(!destination.path().join("not-published.data").exists());
         let failure = copy_verified(
             copy_plan.copy_source(copy_id).unwrap(),
-            metadata.clone(),
+            CopyProfile::Offload(metadata.clone()),
             OwnedFile::create(&parent).unwrap(),
             OsStr::new("published-unrecorded.data"),
             &cancelled,
@@ -1135,7 +1326,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         );
         let failure = copy_verified(
             copy_plan.copy_source(copy_id).unwrap(),
-            metadata.clone(),
+            CopyProfile::Offload(metadata.clone()),
             OwnedFile::create(&parent).unwrap(),
             OsStr::new("copy.data"),
             &cancelled,
@@ -1149,7 +1340,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         assert_eq!(std::fs::read(&output).unwrap(), payload);
         let failure = copy_verified(
             copy_plan.copy_source(copy_id).unwrap(),
-            metadata.clone(),
+            CopyProfile::Offload(metadata.clone()),
             OwnedFile::create(&parent).unwrap(),
             OsStr::new("cancelled.data"),
             &cancelled,
@@ -1377,7 +1568,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             let planned = crate::cleanup::Plan::manual(&index, &[id]).unwrap();
             let evidence = copy_verified(
                 planned.copy_source(id).unwrap(),
-                observed.clone(),
+                CopyProfile::Offload(observed.clone()),
                 OwnedFile::create(&parent).unwrap(),
                 OsStr::new("profiled.data"),
                 &AtomicBool::new(false),
@@ -1402,7 +1593,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             let stale: BasicMetadata = serde_json::from_value(stale).unwrap();
             let failed = copy_verified(
                 planned.copy_source(id).unwrap(),
-                stale,
+                CopyProfile::Offload(stale),
                 OwnedFile::create(&parent).unwrap(),
                 OsStr::new("stale-metadata.data"),
                 &AtomicBool::new(false),
@@ -1507,7 +1698,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             // Actual retained-handle fixtures; no offload grant, UAC launch or original admission.
             let kept = copy_verified(
                 copy_plan.copy_source(copy_id).unwrap(),
-                metadata.clone(),
+                CopyProfile::Offload(metadata.clone()),
                 OwnedFile::create(&parent).unwrap(),
                 OsStr::new("handoff-keep.data"),
                 &cancelled,
@@ -1544,7 +1735,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             source_guard.check_read_access().unwrap();
             let copied = copy_verified(
                 source_guard,
-                metadata.clone(),
+                CopyProfile::Offload(metadata.clone()),
                 OwnedFile::create(&parent).unwrap(),
                 OsStr::new("handoff-recycle.data"),
                 &cancelled,

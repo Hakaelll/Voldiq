@@ -50,7 +50,10 @@ impl Store {
         let stored = self.read(context, &lease.id)?;
         if stored.view.hash != lease.hash
             || stored.view.state != State::Executing
-            || !matches!(stored.view.manifest.action, Action::Offload(_))
+            || !matches!(
+                stored.view.manifest.action,
+                Action::Offload(_) | Action::Restore(_)
+            )
         {
             return Err(invalid());
         }
@@ -146,11 +149,13 @@ impl Store {
                 CREATE INDEX execution_requests_session ON execution_requests(issuer,requested);
                 PRAGMA user_version=2;",
             )?;
-        } else if version > 3 {
+        } else if version > 4 {
             return Err(invalid());
         }
         if version <= 2 {
             super::catalogue::migrate(&tx)?;
+        } else if version == 3 {
+            super::catalogue::migrate_restores(&tx)?;
         }
         tx.commit()?;
         Ok(Self {

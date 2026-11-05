@@ -86,20 +86,40 @@ impl Store {
             if stored.view.hash != lease.hash || stored.view.state != State::Executing {
                 return Err(invalid());
             }
-            let Action::Offload(action) = &stored.view.manifest.action else {
-                return Err(invalid());
+            let action = &stored.view.manifest.action;
+            let originals = match action {
+                Action::Offload(plan) => {
+                    plan.execution_limit()?;
+                    plan.originals
+                }
+                Action::Restore(plan) => {
+                    plan.execution_limit()?;
+                    Originals::Keep
+                }
+                Action::Recycle => return Err(invalid()),
             };
-            action.execution_limit()?;
             for entry in &stored.view.manifest.entries {
                 let _scope = context.path(std::path::Path::new(&entry.path))?;
             }
             stored.record.validate(lease.directory)?;
-            action.check(
-                context,
-                self.directory.path(),
-                std::path::Path::new(&stored.view.manifest.root),
-                &stored.view.manifest.entries,
-            )?;
+            let root = std::path::Path::new(&stored.view.manifest.root);
+            match action {
+                Action::Offload(plan) => {
+                    plan.check(
+                        context,
+                        self.directory.path(),
+                        root,
+                        &stored.view.manifest.entries,
+                    )?;
+                }
+                Action::Restore(plan) => plan.check(
+                    context,
+                    self.directory.path(),
+                    root,
+                    &stored.view.manifest.entries,
+                )?,
+                Action::Recycle => return Err(invalid()),
+            }
             self.copy_checkpoint(context, human, &lease, &worker)?;
             Ok((
                 stored
@@ -109,7 +129,7 @@ impl Store {
                     .iter()
                     .map(|entry| entry.id)
                     .collect::<Vec<_>>(),
-                action.originals,
+                originals,
             ))
         })();
         let (nodes, originals) = match prepared {
