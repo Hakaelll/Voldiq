@@ -9,11 +9,13 @@
   } from '../lib/live-session';
   import { bytes } from '../lib/types';
   import { utcDate } from '../lib/history-activity';
+  import type { ScanProfile } from '../lib/scan-profile';
   let {
     indexId,
     path,
     disabled,
     concurrency,
+    profile,
     onbusy,
     onobserved,
   }: {
@@ -21,6 +23,7 @@
     path: string;
     disabled: boolean;
     concurrency: number | 'auto';
+    profile: ScanProfile;
     onbusy: (value: boolean) => void;
     onobserved: (event: LiveObservation) => Promise<void>;
   } = $props();
@@ -34,10 +37,10 @@
   let restoreControls = false;
   const session = createLiveSession(
     {
-      start: (indexId, concurrency, receive) => {
+      start: (indexId, concurrency, profile, receive) => {
         const progress = new Channel<LiveEvent>();
         progress.onmessage = receive;
-        return invoke<number>('start_live', { indexId, concurrency, progress });
+        return invoke<number>('start_live', { indexId, concurrency, profile, progress });
       },
       stop: (id) => invoke('stop_live', { id }),
       acknowledge: (id, indexId) => invoke('acknowledge_live', { id, indexId }),
@@ -109,7 +112,7 @@
       {:else}
         <button
           disabled={disabled || hidden || !isTauri()}
-          onclick={() => void session.start(indexId, concurrency)}>Start Live</button
+          onclick={() => void session.start(indexId, concurrency, profile)}>Start Live</button
         >
       {/if}
     </div>

@@ -1,8 +1,10 @@
 mod directory;
+mod profile;
 use crate::{
     Entry, Error, Issue, Kind, NodeId, Progress, Result, ScanOptions, ScanPhase, index::Index,
     windows,
 };
+pub use profile::{ScanProfile, ScanResources};
 use std::{
     path::Path,
     sync::{
@@ -53,7 +55,7 @@ pub fn refresh_or_scan(
                 .max_entries
                 .unwrap_or(5_000_000)
                 .clamp(1, u32::MAX as usize);
-            if let Ok(mut updated) = crate::ntfs::refresh(&index, limit, cancel) {
+            if let Ok(mut updated) = crate::ntfs::refresh(&index, limit, cancel, options.profile) {
                 updated.record_observation(cancel.load(Ordering::Relaxed));
                 let update = Progress {
                     previous: false,
@@ -176,7 +178,14 @@ pub fn scan_live(
         .clamp(1, u32::MAX as usize);
     #[cfg(windows)]
     if options.mode == crate::ScanMode::Auto
-        && crate::ntfs::try_scan(&shared, limit, cancel, &mut progress, start)?
+        && crate::ntfs::try_scan(
+            &shared,
+            limit,
+            cancel,
+            &mut progress,
+            start,
+            options.profile,
+        )?
     {
         shared
             .write()
@@ -184,16 +193,16 @@ pub fn scan_live(
             .record_observation(cancel.load(Ordering::Relaxed));
         return Ok(shared);
     }
-    let workers = if cancel.load(Ordering::Relaxed) {
-        1
+    let concurrency = if cancel.load(Ordering::Relaxed) {
+        crate::ScanConcurrency::default()
     } else {
-        options.concurrency.for_path(&root)
+        options.concurrency
     };
     directory::enumerate(
         &shared,
         &exclusions,
         limit,
-        workers,
+        options.profile.resources(concurrency, &root),
         cancel,
         &mut progress,
         start,

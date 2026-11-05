@@ -25,6 +25,8 @@ struct Measured {
 }
 
 struct Pool {
+    profile: crate::ScanProfile,
+    workers: usize,
     capacity: usize,
     jobs: mpsc::SyncSender<(usize, Input)>,
     results: mpsc::Receiver<(usize, Option<Measured>)>,
@@ -54,12 +56,13 @@ pub(super) fn enumerate(
     shared: &SharedIndex,
     exclusions: &[PathBuf],
     limit: usize,
-    workers: usize,
+    resources: super::ScanResources,
     cancel: &AtomicBool,
     progress: &mut impl FnMut(Progress),
     start: Instant,
 ) -> Result<()> {
-    let batch_size = workers * 16;
+    let workers = resources.workers;
+    let batch_size = resources.batch_entries;
     let (jobs_tx, jobs_rx) = mpsc::sync_channel::<(usize, Input)>(batch_size);
     let (results_tx, results_rx) = mpsc::sync_channel(batch_size);
     let jobs_rx = Mutex::new(jobs_rx);
@@ -89,19 +92,13 @@ pub(super) fn enumerate(
         }
         drop(results_tx);
         let pool = Pool {
+            profile: resources.profile,
+            workers,
             capacity: batch_size,
             jobs: jobs_tx,
             results: results_rx,
         };
-        walk(
-            shared,
-            exclusions,
-            limit,
-            (workers > 1).then_some(&pool),
-            cancel,
-            progress,
-            start,
-        )
+        walk(shared, exclusions, limit, &pool, cancel, progress, start)
     })
 }
 
@@ -109,12 +106,12 @@ fn walk(
     shared: &SharedIndex,
     exclusions: &[PathBuf],
     limit: usize,
-    pool: Option<&Pool>,
+    pool: &Pool,
     cancel: &AtomicBool,
     progress: &mut impl FnMut(Progress),
     start: Instant,
 ) -> Result<()> {
-    let batch_size = pool.map_or(1, |pool| pool.capacity);
+    let batch_size = if pool.workers > 1 { pool.capacity } else { 1 };
     let root = shared
         .read()
         .map_err(|e| Error::Invalid(e.to_string()))?
@@ -136,7 +133,7 @@ fn walk(
             }
         };
         loop {
-            if cancel.load(Ordering::Relaxed) {
+            if !pool.profile.checkpoint(cancel) {
                 break 'scan;
             }
             let remaining = limit.saturating_sub(
@@ -183,9 +180,9 @@ fn walk(
                     }
                 }
             }
-            let measured = match pool {
-                Some(pool) => pool.measure(inputs)?,
-                None => inputs
+            let measured = match pool.workers {
+                2.. => pool.measure(inputs)?,
+                _ => inputs
                     .into_iter()
                     .map(|input| {
                         if cancel.load(Ordering::Relaxed) {

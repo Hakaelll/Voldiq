@@ -67,7 +67,12 @@ pub struct Session {
 }
 
 impl Session {
-    pub fn start(index: &Index, concurrency: ScanConcurrency, control: Control) -> Result<Self> {
+    pub fn start(
+        index: &Index,
+        concurrency: ScanConcurrency,
+        profile: crate::ScanProfile,
+        control: Control,
+    ) -> Result<Self> {
         if control.is_stopped() || index.snapshot_id.is_some() {
             return Err(Error::Invalid(
                 "Live requires a current analysis and a new control.".into(),
@@ -103,6 +108,7 @@ impl Session {
                 mode: ScanMode::Directory,
                 exclusions,
                 concurrency,
+                profile,
                 max_entries: None,
             },
             previous: measurement(index)?,

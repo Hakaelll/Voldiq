@@ -21,6 +21,7 @@ pub struct VolumeReader {
     pub root: PathBuf,
     pub serial: u64,
     max_name_units: u32,
+    profile: crate::ScanProfile,
 }
 
 impl VolumeReader {
@@ -101,7 +102,13 @@ impl VolumeReader {
             root: PathBuf::from(OsString::from_wide(&root[..root_length])),
             serial: u64::from(serial),
             max_name_units,
+            profile: crate::ScanProfile::Auto,
         })
+    }
+
+    pub fn with_profile(mut self, profile: crate::ScanProfile) -> Self {
+        self.profile = profile;
+        self
     }
 
     fn control(&self, code: u32, input: &[u8], output: &mut [u8]) -> Result<usize> {
@@ -162,11 +169,14 @@ impl VolumeReader {
         let journal = self.journal()?;
         let mut input = [0_u8; 24];
         input[16..24].copy_from_slice(&i64::MAX.to_le_bytes());
-        let mut buffer = vec![0; 256 * 1024];
+        let mut buffer = vec![0; self.profile.ntfs_buffer_bytes()];
         let mut cursor = 0;
         let mut items = Vec::new();
         let mut complete = false;
         while items.len() < limit && !cancel.load(Ordering::Relaxed) {
+            if !self.profile.checkpoint(cancel) {
+                break;
+            }
             input[..8].copy_from_slice(&u64::to_le_bytes(cursor));
             let returned = match self.control(FSCTL_ENUM_USN_DATA, &input, &mut buffer) {
                 Ok(returned) => returned,
@@ -250,11 +260,14 @@ impl VolumeReader {
         let mut input = [0_u8; 40];
         input[8..12].copy_from_slice(&u32::MAX.to_le_bytes());
         input[32..40].copy_from_slice(&journal.id.to_le_bytes());
-        let mut buffer = vec![0; 256 * 1024];
+        let mut buffer = vec![0; self.profile.ntfs_buffer_bytes()];
         let mut cursor = checkpoint.next;
         let mut items = Vec::new();
         let mut overflow = false;
         while cursor < journal.next && items.len() < limit && !cancel.load(Ordering::Relaxed) {
+            if !self.profile.checkpoint(cancel) {
+                break;
+            }
             input[..8].copy_from_slice(&cursor.to_le_bytes());
             let returned = self.control(FSCTL_READ_USN_JOURNAL, &input, &mut buffer)?;
             let mut last_usn = cursor - 1;

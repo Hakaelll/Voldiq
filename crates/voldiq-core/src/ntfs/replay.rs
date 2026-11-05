@@ -8,7 +8,12 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
-pub fn refresh(index: &Index, limit: usize, cancel: &AtomicBool) -> Result<Index> {
+pub fn refresh(
+    index: &Index,
+    limit: usize,
+    cancel: &AtomicBool,
+    profile: crate::ScanProfile,
+) -> Result<Index> {
     cancelled(cancel)?;
     let checkpoint = index.ntfs_checkpoint.ok_or_else(resync)?;
     if index.root.parent().is_some()
@@ -16,12 +21,17 @@ pub fn refresh(index: &Index, limit: usize, cancel: &AtomicBool) -> Result<Index
     {
         return Err(resync());
     }
-    let reader = VolumeReader::open(&index.root)?;
+    let reader = VolumeReader::open(&index.root)?.with_profile(profile);
     let changes = reader.changes(checkpoint, limit, cancel)?;
     replay(
         index,
         changes,
-        |reference| reader.file(reference),
+        |reference| {
+            if !profile.checkpoint(cancel) {
+                return Err(Error::Invalid("NTFS refresh cancelled.".into()));
+            }
+            reader.file(reference)
+        },
         limit,
         cancel,
         |next| {

@@ -93,6 +93,7 @@ impl Sessions {
 pub(crate) fn start_live(
     index_id: IndexId,
     concurrency: ScanConcurrency,
+    profile: voldiq_core::ScanProfile,
     progress: Channel<Event>,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<u64, String> {
@@ -121,6 +122,7 @@ pub(crate) fn start_live(
                 index_id,
                 index,
                 concurrency,
+                profile,
                 &control,
                 &receive,
                 &progress,
@@ -136,7 +138,7 @@ pub(crate) fn start_live(
     }
     #[cfg(not(windows))]
     {
-        let _ = (index_id, concurrency, progress, engine);
+        let _ = (index_id, concurrency, profile, progress, engine);
         Err("Live notifications are available on Windows only.".into())
     }
 }
@@ -149,13 +151,14 @@ fn run_session(
     mut expected: IndexId,
     baseline: SharedIndex,
     concurrency: ScanConcurrency,
+    profile: voldiq_core::ScanProfile,
     control: &voldiq_core::live::Control,
     acknowledgements: &std::sync::mpsc::Receiver<IndexId>,
     progress: &Channel<Event>,
 ) -> Result<(), String> {
     let mut session = {
         let index = baseline.read().map_err(|error| error.to_string())?;
-        voldiq_core::live::Session::start(&index, concurrency, control.clone())
+        voldiq_core::live::Session::start(&index, concurrency, profile, control.clone())
             .map_err(|error| error.to_string())?
     };
     drop(baseline);

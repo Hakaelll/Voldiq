@@ -4,7 +4,7 @@ The reader uses existing Windows filesystem APIs. It never creates a journal, ch
 
 ## Implemented reader
 
-The reader resolves the volume mount point and GUID, verifies NTFS, queries journal bounds, and enumerates records with a reusable 256 KiB buffer. It opens metadata by file ID with read-attribute access and reparse-point handling. It reads journal changes only when volume identity, journal ID and saved cursor remain continuous. Record limits and cancellation return distinct states without a completed checkpoint.
+The reader resolves the volume mount point and GUID, verifies NTFS, queries journal bounds, and enumerates records with one reusable buffer. Auto and Balanced use 256 KiB, Eco 64 KiB and Fast 1 MiB. Eco yields for 2 ms before each enumeration/change-buffer request and before each per-file metadata open. Cancellation is checked before and after each yield. These are resource bounds, not CPU or disk-throughput guarantees. Metadata reads remain serial in this engine. The reader opens metadata by file ID with read-attribute access and reparse-point handling. It reads journal changes only when volume identity, journal ID and saved cursor remain continuous. Record limits and cancellation return distinct states without a completed checkpoint.
 
 The parser reads little-endian fields from checked slices. It requires V2 records, aligned lengths, bounded UTF-16 names and dynamic offsets. V2 minor extensions retain the recorded filename offset. Unsupported major versions return an error for resynchronization or conventional fallback. No binary record is cast to an unchecked Rust pointer.
 

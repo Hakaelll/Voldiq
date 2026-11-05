@@ -293,7 +293,8 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   } satisfies LiveReport;
   const live = createLiveSession(
     {
-      start: (_index, _concurrency, receive) => {
+      start: (_index, _concurrency, profile, receive) => {
+        assert.equal(profile, 'eco');
         receivers.push(receive);
         return receivers.length === 1
           ? pendingStart
@@ -319,7 +320,7 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
       await adoption;
     },
   );
-  const firstLive = live.start(10, 'auto');
+  const firstLive = live.start(10, 'auto', 'eco');
   await live.stop('hidden');
   const receiveFirst = receivers[0];
   assert.ok(receiveFirst);
@@ -329,7 +330,7 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   await firstLive;
   await receiveFirst({ kind: 'ended', id: 1, error: null });
   assert.deepEqual(liveStates.at(-1), { kind: 'idle', reason: 'hidden', report: null });
-  await live.start(10, 'auto');
+  await live.start(10, 'auto', 'eco');
   const receiveSecond = receivers[1];
   assert.ok(receiveSecond);
   await receiveSecond({ kind: 'started', id: 2 });
@@ -362,7 +363,7 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   await receiveSecond({ kind: 'ended', id: 2, error: null });
   assert.deepEqual(adopted, [16, 17]);
   assert.deepEqual(liveCalls, ['ack:2:16', 'resync:2', 'stop:2']);
-  const thirdLive = live.start(17, 'auto');
+  const thirdLive = live.start(17, 'auto', 'eco');
   const visibleStates = liveStates.length;
   await receiveSecond({ kind: 'ended', id: 2, error: 'late error' });
   assert.equal(liveStates.length, visibleStates);

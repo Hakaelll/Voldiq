@@ -36,6 +36,8 @@ The retained dispatch flow now also uses the native producer with a mandatory re
 
 ## Run the source gate
 
+The retained history flow also scans the same owned four-file fixture through the Auto baseline and explicit Eco/Balanced/Fast profiles. It checks literal 33-byte/4-file totals, complete coverage, profile resource ceilings, cancellation without processed files, default/invalid JSON handling, and uses Eco through the existing native Live stop/restart/resynchronization flow. The retained frontend lifecycle flow observes the exact Eco profile reaching its transport before exercising stale events, stop and disposal. This adds no test declaration and makes no timing or elevated raw-device performance claim.
+
 Use the Rust MSVC toolchain, C++ Build Tools and installed project dependencies:
 
 ```powershell

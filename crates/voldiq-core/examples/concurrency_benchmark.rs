@@ -60,6 +60,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let options = ScanOptions {
                     mode: ScanMode::Directory,
                     concurrency,
+                    profile: if requested.is_some() {
+                        voldiq_core::ScanProfile::Fast
+                    } else {
+                        voldiq_core::ScanProfile::Auto
+                    },
                     ..ScanOptions::default()
                 };
                 let cpu = cpu_ms()?;
@@ -105,6 +110,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 let options = ScanOptions {
                     mode: ScanMode::Directory,
                     concurrency,
+                    profile: if requested.is_some() {
+                        voldiq_core::ScanProfile::Fast
+                    } else {
+                        voldiq_core::ScanProfile::Auto
+                    },
                     ..ScanOptions::default()
                 };
                 cancel.store(false, Ordering::Relaxed);

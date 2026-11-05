@@ -1,3 +1,5 @@
+import type { ScanProfile } from './scan-profile.ts';
+
 export interface LiveMeasurement {
   logical: string;
   files: number;
@@ -35,6 +37,7 @@ export interface LiveTransport {
   start(
     index: number,
     concurrency: number | 'auto',
+    profile: ScanProfile,
     receive: (event: LiveEvent) => Promise<void>,
   ): Promise<number>;
   stop(id: number): Promise<void>;
@@ -126,7 +129,7 @@ export function createLiveSession(
     } else emit(run);
   }
   return {
-    async start(index: number, concurrency: number | 'auto'): Promise<void> {
+    async start(index: number, concurrency: number | 'auto', profile: ScanProfile): Promise<void> {
       if (current) return;
       const run: Run = {
         activity: { kind: 'starting', id: null },
@@ -137,7 +140,9 @@ export function createLiveSession(
       current = run;
       emit(run);
       try {
-        const id = await transport.start(index, concurrency, (event) => receive(run, event));
+        const id = await transport.start(index, concurrency, profile, (event) =>
+          receive(run, event),
+        );
         if (current !== run) {
           await transport.stop(id);
           return;

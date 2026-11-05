@@ -24,6 +24,7 @@ pub mod space;
 pub mod transfer;
 pub mod windows;
 pub mod workbench;
+pub use scanner::ScanProfile;
 
 use serde::{Deserialize, Serialize};
 
@@ -124,6 +125,8 @@ pub struct ScanOptions {
     pub max_entries: Option<usize>,
     #[serde(default)]
     pub concurrency: ScanConcurrency,
+    #[serde(default)]
+    pub profile: ScanProfile,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

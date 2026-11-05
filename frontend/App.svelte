@@ -8,6 +8,8 @@
   import Overview from './components/Overview.svelte';
   import StorageMap from './components/StorageMap.svelte';
   import ScanWelcome from './components/ScanWelcome.svelte';
+  import ScanProfileSelect from './components/ScanProfileSelect.svelte';
+  import { parseScanProfile, type ScanProfile } from './lib/scan-profile';
   import FileTable from './components/FileTable.svelte';
   import AdvancedSearch from './components/AdvancedSearch.svelte';
   import SavedWorkspaces from './components/SavedWorkspaces.svelte';
@@ -111,6 +113,7 @@
   let defaultDrive = $state('');
   let scanMode = $state<'auto' | 'directory'>('auto');
   let scanConcurrency = $state<number | 'auto'>('auto');
+  let scanProfile = $state<ScanProfile>('auto');
   let recentPaths = $state<string[]>([]);
   let operation = $state<Progress | null>(null),
     scanId = $state<number | null>(null);
@@ -925,6 +928,7 @@
         options: {
           mode: scanMode,
           concurrency: scanConcurrency,
+          profile: scanProfile,
           exclusions: excluded
             .split('\n')
             .map((line) => line.trim())
@@ -1149,6 +1153,7 @@
         if ('defaultDrive' in value && typeof value.defaultDrive === 'string')
           defaultDrive = volumePath = value.defaultDrive;
         if ('recentPaths' in value) recentPaths = readRecentPaths(value.recentPaths);
+        if ('scanProfile' in value) scanProfile = parseScanProfile(value.scanProfile) ?? 'auto';
         if ('scanMode' in value && (value.scanMode === 'auto' || value.scanMode === 'directory'))
           scanMode = value.scanMode;
         if (
@@ -1224,6 +1229,7 @@
           defaultDrive,
           scanMode,
           scanConcurrency,
+          scanProfile,
           recentPaths,
         }),
       );
@@ -1449,6 +1455,12 @@
             </p>{/if}
         </div>
         <div class="page-actions">
+          {#if view !== 'settings' && view !== 'history'}<ScanProfileSelect
+              bind:profile={scanProfile}
+              disabled={busy}
+              compact
+              onchange={savePreferences}
+            />{/if}
           {#if graphicExport}<GraphicExport
               indexId={graphicExport.indexId}
               context={graphicExport.context}
@@ -1514,6 +1526,7 @@
           path={scanPath}
           disabled={busy}
           concurrency={scanConcurrency}
+          profile={scanProfile}
           onbusy={(value) => {
             liveBusy = value;
           }}
@@ -1611,6 +1624,11 @@
           </section>
           <section aria-labelledby="scanning-heading">
             <h2 id="scanning-heading">Scanning</h2>
+            <ScanProfileSelect
+              bind:profile={scanProfile}
+              disabled={busy}
+              onchange={savePreferences}
+            />
             <label
               >Scan mode<select bind:value={scanMode} onchange={savePreferences} disabled={busy}>
                 <option value="auto">Automatic</option><option value="directory"

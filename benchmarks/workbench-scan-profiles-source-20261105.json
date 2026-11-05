@@ -1,0 +1,277 @@
+{
+  "checkedUtc": "2026-11-05T20:50:05.8318847Z",
+  "startedUtc": "2026-11-05T20:33:40.9099208Z",
+  "checkoutCommit": "17b1bb18224ab98213180e1f3260dbe941efd4e2",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.565
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 14.357
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1.223
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 8.205
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 826.695
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 132.853
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/examples/concurrency_benchmark.rs",
+      "sha256": "721436FA5096C647A28B8805E58CB3B8CF033C0B3A0D833EE7609BC5FE606A0A",
+      "lastWriteUtc": "2026-11-05T20:30:52.549315Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/lib.rs",
+      "sha256": "64703561912EAEF9F2EBF48A08E2047B2407788A2309921CCF26B359D15ADBBF",
+      "lastWriteUtc": "2026-11-05T20:27:59.5365725Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/live/native.rs",
+      "sha256": "35E5A0E5E3C67C443EABC684C2F939E7381337F6581B7C605E99D8484A983155",
+      "lastWriteUtc": "2026-11-05T20:30:55.9206498Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/ntfs/indexing.rs",
+      "sha256": "266E189DD4CE7D5BA2077378A2910E9FF4CC1E90F6A797BF22491B9DA28B4E27",
+      "lastWriteUtc": "2026-11-05T20:30:55.9403177Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/ntfs/replay.rs",
+      "sha256": "5751727FBD04B01812DC1923E443117E3E4329D21C305C7336CA537F15B3E27C",
+      "lastWriteUtc": "2026-11-05T20:30:55.9458387Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/ntfs/volume.rs",
+      "sha256": "504D288E734A73728E8194AAD7FCA01F5B366C464969FA03A9C99472C196D3B4",
+      "lastWriteUtc": "2026-11-05T20:30:55.9509648Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/scanner.rs",
+      "sha256": "159AEF292F1717BC734419FA174B368879A6C7A22DE50C058504DFE58CFA8361",
+      "lastWriteUtc": "2026-11-05T20:30:56.1089249Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/scanner/directory.rs",
+      "sha256": "802061F71AF8A3B82B7860EF399CCFE6B46287569339BB6BE14861C0986EF2C6",
+      "lastWriteUtc": "2026-11-05T20:30:56.1036192Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/scanner/profile.rs",
+      "sha256": "5E68A25AECC10114ECD0CDEDE6DC040B20480F9691C153886BBB27A8BE5A9F2E",
+      "lastWriteUtc": "2026-11-05T20:30:56.1057873Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/resume.rs",
+      "sha256": "08E2A7379B7733BF184CEDBBD035CE9928BDC23E7B03CDDAA14BAD87CD804022",
+      "lastWriteUtc": "2026-11-05T20:28:00.6519579Z"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "8778084186F839EF61E56429F93B1549BC706D759B6B33285CECB8EF5B125A52",
+      "lastWriteUtc": "2026-11-05T20:33:06.2168343Z"
+    },
+    {
+      "path": "frontend/components/LiveControl.svelte",
+      "sha256": "1A07DEFF4C8A42748F80B737F36967FB572F6840DEF6909B1C0BC59677A52AD3",
+      "lastWriteUtc": "2026-11-05T20:30:00.7018768Z"
+    },
+    {
+      "path": "frontend/components/ScanProfileSelect.svelte",
+      "sha256": "D34F4ED407C3A8595D582228FFC47C99BB947BB9EFAC7A35E160A9583F7E7CB8",
+      "lastWriteUtc": "2026-11-05T20:33:00.1738751Z"
+    },
+    {
+      "path": "frontend/lib/live-session.ts",
+      "sha256": "707CB51162065A1CDF2524C61D9594DFE73241B697AA4B2C6D6A065EC45556A2",
+      "lastWriteUtc": "2026-11-05T20:32:58.5640003Z"
+    },
+    {
+      "path": "frontend/lib/scan-profile.ts",
+      "sha256": "3F3356E02066926D5C272697117169DE0F8C0833634546A821343C4DBEC57BC3",
+      "lastWriteUtc": "2026-11-05T20:32:58.3276533Z"
+    },
+    {
+      "path": "src-tauri/src/live_commands.rs",
+      "sha256": "B307BFBA61F8CB5C0CAA5C3B3A4B487501115B1A32D675369C94F571368C5CD7",
+      "lastWriteUtc": "2026-11-05T20:29:58.1183753Z"
+    }
+  ],
+  "sourceInputsPredateVerification": true,
+  "sidebarMarkupUnchangedFromCheckout": true,
+  "behaviorTests": {
+    "frontend": 1,
+    "workspaceRust": 7,
+    "total": 8,
+    "ignored": 0
+  },
+  "productionAssets": [
+    {
+      "Name": "city.worker-DLxzT0Wm.js",
+      "Length": 2879
+    },
+    {
+      "Name": "history-export-DKGM_69z.js",
+      "Length": 3986
+    },
+    {
+      "Name": "history-video-Bx7MrANA.js",
+      "Length": 2865
+    },
+    {
+      "Name": "index-CvIc4OA6.js",
+      "Length": 437027
+    },
+    {
+      "Name": "index-QJpn6h9U.css",
+      "Length": 89843
+    },
+    {
+      "Name": "svg-surface-D3Yw6xZb.js",
+      "Length": 6995
+    },
+    {
+      "Name": "voronoi.worker-DwJ2QmrW.js",
+      "Length": 5606
+    }
+  ],
+  "limits": [
+    "No CPU/IOPS/throughput guarantee or benchmark",
+    "Actual elevated NTFS profile use and native visual/keyboard/scaling acceptance remain manual",
+    "Scan pause remains pending",
+    "Full workbench goal remains active"
+  ],
+  "frontendStyleFinalization": {
+    "checkedUtc": "2026-11-05T20:52:13.5917174Z",
+    "scope": "Only selector CSS alignment and 840px stacking changed after the full gate; script and template are identical. Frontend diagnostics, retained behavior test and production build passed again. All Rust inputs retain full-gate hashes.",
+    "changedPath": "frontend/components/ScanProfileSelect.svelte",
+    "initialSha256": "D34F4ED407C3A8595D582228FFC47C99BB947BB9EFAC7A35E160A9583F7E7CB8",
+    "finalSha256": "09751358010DBA717A3D7C724BDB0CBF568C4C2C4C96D4DD4D443687B1BF8E21",
+    "checks": [
+      "Prettier check",
+      "pnpm check: zero errors/warnings",
+      "pnpm test: one passed, zero skipped",
+      "pnpm build"
+    ],
+    "finalSourceInputs": [
+      {
+        "path": "crates/voldiq-core/examples/concurrency_benchmark.rs",
+        "sha256": "721436FA5096C647A28B8805E58CB3B8CF033C0B3A0D833EE7609BC5FE606A0A"
+      },
+      {
+        "path": "crates/voldiq-core/src/lib.rs",
+        "sha256": "64703561912EAEF9F2EBF48A08E2047B2407788A2309921CCF26B359D15ADBBF"
+      },
+      {
+        "path": "crates/voldiq-core/src/live/native.rs",
+        "sha256": "35E5A0E5E3C67C443EABC684C2F939E7381337F6581B7C605E99D8484A983155"
+      },
+      {
+        "path": "crates/voldiq-core/src/ntfs/indexing.rs",
+        "sha256": "266E189DD4CE7D5BA2077378A2910E9FF4CC1E90F6A797BF22491B9DA28B4E27"
+      },
+      {
+        "path": "crates/voldiq-core/src/ntfs/replay.rs",
+        "sha256": "5751727FBD04B01812DC1923E443117E3E4329D21C305C7336CA537F15B3E27C"
+      },
+      {
+        "path": "crates/voldiq-core/src/ntfs/volume.rs",
+        "sha256": "504D288E734A73728E8194AAD7FCA01F5B366C464969FA03A9C99472C196D3B4"
+      },
+      {
+        "path": "crates/voldiq-core/src/scanner.rs",
+        "sha256": "159AEF292F1717BC734419FA174B368879A6C7A22DE50C058504DFE58CFA8361"
+      },
+      {
+        "path": "crates/voldiq-core/src/scanner/directory.rs",
+        "sha256": "802061F71AF8A3B82B7860EF399CCFE6B46287569339BB6BE14861C0986EF2C6"
+      },
+      {
+        "path": "crates/voldiq-core/src/scanner/profile.rs",
+        "sha256": "5E68A25AECC10114ECD0CDEDE6DC040B20480F9691C153886BBB27A8BE5A9F2E"
+      },
+      {
+        "path": "crates/voldiq-core/src/snapshots/resume.rs",
+        "sha256": "08E2A7379B7733BF184CEDBBD035CE9928BDC23E7B03CDDAA14BAD87CD804022"
+      },
+      {
+        "path": "frontend/App.svelte",
+        "sha256": "8778084186F839EF61E56429F93B1549BC706D759B6B33285CECB8EF5B125A52"
+      },
+      {
+        "path": "frontend/components/LiveControl.svelte",
+        "sha256": "1A07DEFF4C8A42748F80B737F36967FB572F6840DEF6909B1C0BC59677A52AD3"
+      },
+      {
+        "path": "frontend/components/ScanProfileSelect.svelte",
+        "sha256": "09751358010DBA717A3D7C724BDB0CBF568C4C2C4C96D4DD4D443687B1BF8E21"
+      },
+      {
+        "path": "frontend/lib/live-session.ts",
+        "sha256": "707CB51162065A1CDF2524C61D9594DFE73241B697AA4B2C6D6A065EC45556A2"
+      },
+      {
+        "path": "frontend/lib/scan-profile.ts",
+        "sha256": "3F3356E02066926D5C272697117169DE0F8C0833634546A821343C4DBEC57BC3"
+      },
+      {
+        "path": "src-tauri/src/live_commands.rs",
+        "sha256": "B307BFBA61F8CB5C0CAA5C3B3A4B487501115B1A32D675369C94F571368C5CD7"
+      }
+    ],
+    "finalProductionAssets": [
+      {
+        "Name": "city.worker-DLxzT0Wm.js",
+        "Length": 2879
+      },
+      {
+        "Name": "history-export-C7sehHdO.js",
+        "Length": 3986
+      },
+      {
+        "Name": "history-video-BH5Jcr3u.js",
+        "Length": 2865
+      },
+      {
+        "Name": "index-BsOsNoqk.css",
+        "Length": 90290
+      },
+      {
+        "Name": "index-Dxyvojws.js",
+        "Length": 437027
+      },
+      {
+        "Name": "svg-surface-D3Yw6xZb.js",
+        "Length": 6995
+      },
+      {
+        "Name": "voronoi.worker-DwJ2QmrW.js",
+        "Length": 5606
+      }
+    ]
+  }
+}

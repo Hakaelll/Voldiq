@@ -28,6 +28,47 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     std::fs::write(fixture.path().join("UPPER.txt"), [5; 7]).unwrap();
     std::fs::write(fixture.path().join("Résumé.txt"), [6; 7]).unwrap();
     let first = capture(fixture.path());
+    for (profile, workers, buffer) in [
+        (voldiq_core::ScanProfile::Eco, 1, 64 * 1024),
+        (voldiq_core::ScanProfile::Balanced, 2, 256 * 1024),
+        (voldiq_core::ScanProfile::Fast, 8, 1024 * 1024),
+    ] {
+        let options = ScanOptions {
+            mode: voldiq_core::ScanMode::Directory,
+            concurrency: voldiq_core::ScanConcurrency::try_from(8).unwrap(),
+            profile,
+            ..Default::default()
+        };
+        let resources = profile.resources(options.concurrency, fixture.path());
+        assert_eq!(
+            (
+                resources.workers,
+                resources.batch_entries,
+                resources.ntfs_buffer_bytes
+            ),
+            (workers, workers * 16, buffer)
+        );
+        let measured = scan(fixture.path(), &options, &loading, |_| {}).unwrap();
+        assert_eq!(
+            (measured.entries[0].logical, measured.entries[0].files),
+            (33, 4)
+        );
+        assert!(!measured.entries[0].incomplete);
+        let cancelled = AtomicBool::new(false);
+        let partial = scan(fixture.path(), &options, &cancelled, |_| {
+            cancelled.store(true, std::sync::atomic::Ordering::Relaxed);
+        })
+        .unwrap();
+        assert!(partial.entries[0].incomplete);
+        assert_eq!(partial.entries[0].files, 0);
+    }
+    assert!(serde_json::from_str::<ScanOptions>(r#"{"profile":"turbo"}"#).is_err());
+    assert_eq!(
+        serde_json::from_str::<ScanOptions>(r#"{}"#)
+            .unwrap()
+            .profile,
+        voldiq_core::ScanProfile::Auto
+    );
     assert_eq!(
         voldiq_core::recovery::cim_datetime("20240229013000.123456+090"),
         Some(1709164800)
@@ -2687,8 +2728,13 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         std::fs::create_dir(watched.join("nested")).unwrap();
         let baseline = scan(&watched, &options, &loading, |_| {}).unwrap();
         let control = Control::new().unwrap();
-        let mut live =
-            Session::start(&baseline, ScanConcurrency::default(), control.clone()).unwrap();
+        let mut live = Session::start(
+            &baseline,
+            ScanConcurrency::default(),
+            voldiq_core::ScanProfile::Eco,
+            control.clone(),
+        )
+        .unwrap();
         let initial = live.observe().unwrap().unwrap();
         assert_eq!(initial.report.reason, Reason::Initial);
         assert_eq!(initial.report.after.logical, "4");
@@ -2753,6 +2799,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             Session::start(
                 &store.load(saved_changed, &loading).unwrap(),
                 ScanConcurrency::default(),
+                voldiq_core::ScanProfile::Eco,
                 Control::new().unwrap()
             )
             .is_err()
@@ -2764,6 +2811,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         let mut partial_live = Session::start(
             &partial,
             ScanConcurrency::default(),
+            voldiq_core::ScanProfile::Eco,
             partial_control.clone(),
         )
         .unwrap();
@@ -2778,6 +2826,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             Session::start(
                 &partial,
                 ScanConcurrency::default(),
+                voldiq_core::ScanProfile::Eco,
                 Control::new().unwrap()
             )
             .is_err()
@@ -2791,11 +2840,20 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         assert!(live.observe().unwrap().is_none());
         stopper.join().unwrap();
         drop(live);
-        assert!(Session::start(&refreshed.index, ScanConcurrency::default(), control).is_err());
+        assert!(
+            Session::start(
+                &refreshed.index,
+                ScanConcurrency::default(),
+                voldiq_core::ScanProfile::Eco,
+                control
+            )
+            .is_err()
+        );
         let restart_control = Control::new().unwrap();
         let mut restarted = Session::start(
             &refreshed.index,
             ScanConcurrency::default(),
+            voldiq_core::ScanProfile::Eco,
             restart_control.clone(),
         )
         .unwrap();

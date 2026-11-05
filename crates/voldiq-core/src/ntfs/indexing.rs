@@ -20,6 +20,7 @@ pub(crate) fn try_scan(
     cancel: &AtomicBool,
     progress: &mut impl FnMut(Progress),
     start: Instant,
+    profile: crate::ScanProfile,
 ) -> Result<bool> {
     let root = shared
         .read()
@@ -32,7 +33,7 @@ pub(crate) fn try_scan(
     report(shared, ScanPhase::Scanning, start, progress)?;
     // Capability errors occur before any non-root ID is published.
     let prepared = (|| {
-        let reader = VolumeReader::open(&root)?;
+        let reader = VolumeReader::open(&root)?.with_profile(profile);
         let records = reader.enumerate(limit, cancel)?;
         Ok::<_, Error>((reader, records))
     })();
@@ -55,7 +56,12 @@ pub(crate) fn try_scan(
     if let Err(error) = populate(
         shared,
         records.items,
-        |reference| reader.file(reference),
+        |reference| {
+            if !profile.checkpoint(cancel) {
+                return Err(Error::Invalid("NTFS scan cancelled.".into()));
+            }
+            reader.file(reference)
+        },
         limit,
         cancel,
         &mut *progress,

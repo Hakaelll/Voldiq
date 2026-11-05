@@ -1,5 +1,13 @@
 # Performance measurements
 
+## Scan resource profiles
+
+The shared scanner accepts Auto, Eco, Balanced and Fast independently of the Automatic/Directory engine selector. The existing 1–8 concurrency setting is a ceiling. Auto uses one worker for unknown or seek-penalty storage, or up to two for observed storage without a seek penalty. Eco uses one worker and cancellable 2 ms yields before each directory metadata batch. Balanced permits up to two workers; Fast permits up to eight. Without an explicit worker ceiling, Balanced/Fast also respect the reported processor count, capped at eight. Single-worker enumeration measures one entry per batch; parallel queues hold at most 16 entries per worker.
+
+Native NTFS enumeration and USN resume retain one metadata worker. Their bounded request buffers are 64 KiB in Eco, 256 KiB in Auto/Balanced and 1 MiB in Fast; Eco yields before each buffer request and metadata open. Profiles do not read file content, follow reparse points, change exclusions or request elevation. Live rescans retain their explicitly selected profile. Agents continue with the shared Automatic default under existing policy limits.
+
+The desktop selector is available beside scan actions and in Settings. It applies to subsequent normal/favorite scans and Live starts, remains disabled during owned operations, and is saved with existing local preferences. No CPU percentage, throughput, responsiveness or speedup is claimed. Cooperative pause remains pending until engine-specific acknowledgement is implemented. Elevated raw-device behavior and populated native interaction require separate acceptance.
+
 ## Extension grouping allocation
 
 Extension grouping borrows lowercase ASCII extensions from the existing index strings instead of allocating a lowercase string for every file. Uppercase and non-ASCII extensions retain the existing Unicode lowercase conversion. Returned groups still own their strings; index layout, grouping, ranking, cancellation checkpoints and JSON fields are unchanged. No persistent normalization cache is introduced.
