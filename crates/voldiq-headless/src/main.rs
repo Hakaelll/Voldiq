@@ -36,7 +36,7 @@ type CliError = (&'static str, String, i32);
 async fn run(args: &mut Vec<String>) -> Result<Option<Value>, CliError> {
     if args.is_empty() || args == &["--help"] {
         return Ok(Some(success(
-            json!({"commands":["capabilities","translate <description>","scan <root> [--wait]","query <snapshot_id> [JSON filters]","stats <snapshot_id>","export <snapshot_id> <JSON CSV request>","space <snapshot_id>","history [offset] [limit]","compare <before_id> <after_id> [offset] [limit]","calendar <snapshot_id> <YYYY-MM> [day] [offset] [limit]","diary <snapshot_id> [offset] [limit]","details <snapshot_id> <node_id>","folder <snapshot_id> <node_id> [--note]","budget <snapshot_id> <node_id>","jobs <job_id>","cancel <job_id>","plan prepare <snapshot_id> <JSON node IDs>","plan offload <snapshot_id> <JSON node IDs> <JSON destination/originals request>","plan get <plan_id>","plan request <plan_id>","plan execute <plan_id> <manifest_hash>","plan cancel <plan_id> <manifest_hash>","plan audit <plan_id> [after_sequence] [limit]","mcp serve --stdio"],"state":"--state <directory> before command (default: Voldiq local application data)","authentication":"Human-provisioned VOLDIQ_AGENT_TOKEN environment variable. No credential arguments or approval bypass."}),
+            json!({"commands":["capabilities","translate <description>","scan <root> [--wait]","query <snapshot_id> [JSON filters]","stats <snapshot_id>","export <snapshot_id> <JSON CSV request>","space <snapshot_id>","history [offset] [limit]","compare <before_id> <after_id> [offset] [limit]","calendar <snapshot_id> <YYYY-MM> [day] [offset] [limit]","diary <snapshot_id> [offset] [limit]","details <snapshot_id> <node_id>","folder <snapshot_id> <node_id> [--note]","budget <snapshot_id> <node_id>","jobs <job_id>","cancel <job_id>","plan prepare <snapshot_id> <JSON node IDs>","plan offload <snapshot_id> <JSON node IDs> <JSON destination/originals request>","plan restore <archive_snapshot_id> <JSON transfer_plan_id/node_ids request>","plan get <plan_id>","plan request <plan_id>","plan execute <plan_id> <manifest_hash>","plan cancel <plan_id> <manifest_hash>","plan audit <plan_id> [after_sequence] [limit]","mcp serve --stdio"],"state":"--state <directory> before command (default: Voldiq local application data)","authentication":"Human-provisioned VOLDIQ_AGENT_TOKEN environment variable. No credential arguments or approval bypass."}),
         )));
     }
     let directory = if args.first().is_some_and(|arg| arg == "--state") {
@@ -304,6 +304,19 @@ async fn run(args: &mut Vec<String>) -> Result<Option<Value>, CliError> {
             serde_json::to_value(
                 service
                     .plan_prepare_offload(number(&args[2])?, &selection, &request)
+                    .map_err(plan_operation)?,
+            )
+            .map_err(|_| operation())?
+        }
+        ("plan", 4) if args[1] == "restore" => {
+            if args[3].len() > 32768 {
+                return Err(arguments());
+            }
+            let request = serde_json::from_str::<voldiq_core::plans::RestoreRequest>(&args[3])
+                .map_err(|_| arguments())?;
+            serde_json::to_value(
+                service
+                    .plan_prepare_restore(number(&args[2])?, &request)
                     .map_err(plan_operation)?,
             )
             .map_err(|_| operation())?

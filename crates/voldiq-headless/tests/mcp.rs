@@ -505,6 +505,25 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     let injected_offload = call(&client, "voldiq_plan_prepare_offload",
         json!({"snapshot_id":snapshot,"node_ids":[selected],"destination":source.path(),"originals":"keep","approved":true})).await;
     assert_eq!(injected_offload.is_error, Some(true));
+    assert!(
+        tools
+            .iter()
+            .any(|tool| tool.name == "voldiq_plan_prepare_restore")
+    );
+    let restore = call(
+        &client,
+        "voldiq_plan_prepare_restore",
+        json!({"snapshot_id":snapshot,"transfer_plan_id":"0".repeat(64),"node_ids":[selected]}),
+    )
+    .await;
+    assert_eq!(restore.is_error, Some(true));
+    assert!(restore.structured_content.unwrap()["result"].is_null());
+    let injected_restore = call(&client, "voldiq_plan_prepare_restore", json!({"snapshot_id":snapshot,"transfer_plan_id":"0".repeat(64),"node_ids":[selected],"approved":true})).await;
+    assert_eq!(injected_restore.is_error, Some(true));
+    assert_eq!(
+        std::fs::read(source.path().join("measured.txt")).unwrap(),
+        [1; 11]
+    );
     let prepared = call(
         &client,
         "voldiq_plan_prepare",

@@ -346,6 +346,154 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                     unreachable!()
                 };
                 assert!(unsupported.check_shape(&bounded.entries).is_err());
+                {
+                    let volume: super::super::VolumeBinding = serde_json::from_value(
+                        serde_json::to_value(&observed).unwrap()["volume"].clone(),
+                    )
+                    .unwrap();
+                    let recorded_root = source.path().ancestors().last().unwrap();
+                    let stale_path = std::path::Path::new("Z:\\")
+                        .join(source.path().strip_prefix(recorded_root).unwrap());
+                    let resolved = volume.restore_parent_path(&stale_path).unwrap();
+                    assert_eq!(
+                        crate::windows::identity(&resolved).unwrap().key,
+                        crate::windows::identity(source.path()).unwrap().key
+                    );
+                    let record =
+                        crate::cleanup::record::Record::capture(&index, &[selected]).unwrap();
+                    record
+                        .check_restore_ancestry(
+                            selected,
+                            &crate::agents::pin_directory(&resolved).unwrap(),
+                        )
+                        .unwrap();
+                    let mut reordered = serde_json::to_value(&record).unwrap();
+                    reordered["files"][0]["parents"]
+                        .as_array_mut()
+                        .unwrap()
+                        .swap(0, 1);
+                    let reordered: crate::cleanup::record::Record =
+                        serde_json::from_value(reordered).unwrap();
+                    assert!(
+                        reordered
+                            .check_restore_ancestry(
+                                selected,
+                                &crate::agents::pin_directory(&resolved).unwrap()
+                            )
+                            .is_err()
+                    );
+                    assert!(
+                        record
+                            .check_restore_ancestry(
+                                selected,
+                                &crate::agents::pin_directory(destination.path()).unwrap()
+                            )
+                            .is_err()
+                    );
+                    println!(
+                        "RESTORE_VOLUME_RESOLUTION_PROBE {{\"recorded_letter_ignored\":true,\"current_guid_mount_resolved\":true,\"ordered_parent_ancestry_checked\":true,\"reordered_ancestry_refused\":true,\"replacement_parent_refused\":true,\"volume_mounted\":false,\"physical_reconnect_tested\":false}}"
+                    );
+                }
+                {
+                    // Serialization/capacity model only. Fictional destination volumes never grant I/O.
+                    let group = serde_json::to_value(&bounded.action).unwrap()["offload"].clone();
+                    let metadata = group["metadata"]["files"][0]["metadata"].clone();
+                    let name = std::path::Path::new(&bounded.entries[0].path)
+                        .file_name()
+                        .unwrap();
+                    let target =
+                        std::path::Path::new(group["destination"]["path"].as_str().unwrap())
+                            .join(name);
+                    let reference = serde_json::json!({"source_id":selected.0,"original_id":12345,
+                        "original_path":target,"archive_identity":metadata["native_identity"],"content_blake3":"a".repeat(64),
+                        "bytes":"22","original_metadata":metadata});
+                    let mut proposed = serde_json::json!({"transfer_plan_id":bounded.id,"transfer_manifest_hash":bounded_hash,
+                        "files":[reference],"groups":[group],"required_available_bytes":"16785408",
+                        "limitations":super::super::restoration::LIMITATIONS});
+                    let restore: crate::plans::Restore =
+                        serde_json::from_value(proposed.clone()).unwrap();
+                    restore.check_shape(&bounded.entries).unwrap();
+                    let action = Action::Restore(Box::new(restore));
+                    assert_eq!(action.schema_version(), 6);
+                    assert!(!action.execution_available());
+                    let encoded = serde_json::to_string(&action).unwrap();
+                    assert_eq!(
+                        serde_json::to_string(&serde_json::from_str::<Action>(&encoded).unwrap())
+                            .unwrap(),
+                        encoded
+                    );
+                    let mut second = bounded.entries[0].clone();
+                    second.id = crate::NodeId(u32::MAX - 2);
+                    second.path = source
+                        .path()
+                        .join("restore-second.data")
+                        .to_str()
+                        .unwrap()
+                        .into();
+                    let mut group = proposed["groups"][0].clone();
+                    let second_parent = destination.path().join("second-parent");
+                    group["destination"]["path"] = serde_json::json!(second_parent);
+                    group["destination"]["native_identity"] =
+                        serde_json::json!("efcdab896745230122222222222222222222222222222222");
+                    group["outputs"][0] =
+                        serde_json::json!({"id":second.id.0,"name":"restore-second.data"});
+                    group["metadata"]["files"][0]["id"] = serde_json::json!(second.id.0);
+                    let mut reference = proposed["files"][0].clone();
+                    reference["source_id"] = serde_json::json!(second.id.0);
+                    reference["original_id"] = serde_json::json!(12346);
+                    reference["original_path"] =
+                        serde_json::json!(second_parent.join("restore-second.data"));
+                    proposed["files"].as_array_mut().unwrap().push(reference);
+                    proposed["groups"].as_array_mut().unwrap().push(group);
+                    proposed["required_available_bytes"] = serde_json::json!("16793600");
+                    let entries = [bounded.entries[0].clone(), second];
+                    serde_json::from_value::<crate::plans::Restore>(proposed.clone())
+                        .unwrap()
+                        .check_shape(&entries)
+                        .unwrap();
+                    proposed["groups"][1]["destination"]["caller_available_bytes"] =
+                        serde_json::json!("16785408");
+                    assert!(
+                        serde_json::from_value::<crate::plans::Restore>(proposed.clone())
+                            .unwrap()
+                            .check_shape(&entries)
+                            .is_err()
+                    );
+                    proposed["groups"][1]["destination"]["caller_available_bytes"] =
+                        serde_json::json!("16793600");
+                    proposed["files"][1]["archive_identity"] = serde_json::json!("0".repeat(48));
+                    assert!(
+                        serde_json::from_value::<crate::plans::Restore>(proposed)
+                            .unwrap()
+                            .check_shape(&entries)
+                            .is_err()
+                    );
+                    assert!(serde_json::from_value::<crate::plans::RestoreRequest>(serde_json::json!({"transfer_plan_id":bounded.id,"node_ids":[selected],"approved":true})).is_err());
+                    let context = registry
+                        .plan_context(&principal, Capability::PreparePlans)
+                        .unwrap();
+                    let refusal = ledger
+                        .create_restore(
+                            &context,
+                            snapshot,
+                            &index,
+                            &crate::plans::RestoreRequest {
+                                transfer_plan_id: bounded.id.clone(),
+                                node_ids: vec![selected],
+                            },
+                            super::super::now().unwrap(),
+                        )
+                        .err()
+                        .unwrap();
+                    assert!(
+                        refusal.to_string().contains("confirmed publication"),
+                        "{refusal}"
+                    );
+                    assert_eq!(std::fs::read(&original).unwrap(), b"owned dispatch fixture");
+                    println!(
+                        "RESTORE_PROPOSAL_MODEL_PROBE {{\"schema\":6,\"groups\":2,\"shared_reserve_bytes\":16777216,\"required_bytes\":16793600,\"per_group_capacity_overcommit_refused\":true,\"archive_identity_mismatch_refused\":true,\"approval_injection_refused\":true,\"unpublished_catalogue_refused\":true,\"real_restore\":false}}"
+                    );
+                }
                 println!(
                     "TRANSFER_EXECUTION_WINDOW_PROBE {{\"admission_seconds\":120,\"maximum_seconds\":14400,\"post_admission_checkpoint\":true,\"wall_and_monotonic_limits\":true,\"legacy_3_4_unchanged\":true,\"real_offload\":false}}"
                 );

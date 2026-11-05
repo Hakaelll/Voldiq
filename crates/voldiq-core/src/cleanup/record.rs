@@ -27,6 +27,43 @@ pub struct FileEvidence {
 }
 
 impl Record {
+    pub(crate) fn check_restore_ancestry(
+        &self,
+        id: NodeId,
+        pin: &crate::agents::AuthorizedPath,
+    ) -> Result<()> {
+        let file = self
+            .files
+            .iter()
+            .find(|file| file.id == id)
+            .ok_or_else(invalid)?;
+        let expected = file
+            .parents
+            .iter()
+            .rev()
+            .map(|(_, identity)| *identity)
+            .collect::<Vec<_>>();
+        let actual = pin.ancestor_identities()?;
+        if actual != expected {
+            return Err(invalid());
+        }
+        Ok(())
+    }
+    pub(crate) fn restore_parent(&self, id: NodeId) -> Result<(&std::path::Path, (u64, u64))> {
+        let file = self
+            .files
+            .iter()
+            .find(|file| file.id == id)
+            .ok_or_else(invalid)?;
+        let parent = file.path.parent().ok_or_else(invalid)?;
+        let identity = file
+            .parents
+            .iter()
+            .find(|(path, _)| path == parent)
+            .map(|(_, identity)| *identity)
+            .ok_or_else(invalid)?;
+        Ok((parent, identity))
+    }
     #[cfg(windows)]
     pub(crate) fn into_plan(self) -> Result<Plan> {
         let mut preview = super::Preview {

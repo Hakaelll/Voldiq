@@ -1,0 +1,145 @@
+{
+  "checkedUtc": "2026-11-05T17:28:22.6073947Z",
+  "startedUtc": "2026-11-05T17:21:32.8905863Z",
+  "checkoutCommit": "c95739351e159357896e92432921ce41bcb55d8d",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.836
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 6.613
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.842
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 4.633
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 385.596
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 11.167
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/cleanup/record.rs",
+      "sha256": "14B1FF6F7724F6AFB0070FBD897B0382D913EE3B79EA6C38E5ACF085766198AA"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans.rs",
+      "sha256": "0FC78347576E13006008062AB0D115C530EA7B28F58DA3BA4E93C9B323CFA67C"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/catalogue.rs",
+      "sha256": "D97B78085226BB5467B1562FED4EFBDBED9A40DBCC4071E2BA1175F8FE83AA0C"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/desktop/tests.rs",
+      "sha256": "D85DD10DC17BE4C86F6E7EDDA2389E86B4DD15D424951E7A1FAF521E2349B49A"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/offload.rs",
+      "sha256": "529EA7D03F7EF33BBAC7CD4F6B2F6D316F370625F9CED7A641984EFC98CA2834"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/offload/native.rs",
+      "sha256": "C389BC67AA21E1B76A4CA7ADE92829C050BFFBCDEB82530FF9C6956D6884A3A2"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/restoration.rs",
+      "sha256": "56FF02FE70F7246E7BCE8C20F6D0AE6576C92136B057A481EED41BF0C4FD2C18"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/store.rs",
+      "sha256": "70916B576D4CC7E1215881A955E72658C2692E2F50490B687DAFAB993EC5E910"
+    },
+    {
+      "path": "crates/voldiq-core/src/service.rs",
+      "sha256": "83A1FC8911ACE4571CF3A525A64E6EFF32185275D2439E23FCB5741797F415CC"
+    },
+    {
+      "path": "crates/voldiq-core/src/transfer/metadata.rs",
+      "sha256": "12B844DCB09B90FFE97A4DC805A3D918E5DC4889F6D53EF1A05E421564354EBB"
+    },
+    {
+      "path": "crates/voldiq-headless/src/main.rs",
+      "sha256": "15664E7DFB06C507738BBCA5E7F74F5BA9EA21AFFF283E6483E299FFFBCF3A77"
+    },
+    {
+      "path": "crates/voldiq-headless/src/mcp.rs",
+      "sha256": "95AB15C61CC252D0588B5C5D25EE9721823E9714EBD885C8117CEEDEDF4E5C36"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/headless.rs",
+      "sha256": "211DE87E17F1B02D5BDAF39D061D5318948FA59B8477989C957DEA25A5E002A4"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/mcp.rs",
+      "sha256": "0B9573C7B606BB2DC57E9FF7FBD142DEDA222AED7C89CC3E4BAECDE40911EAA4"
+    },
+    {
+      "path": "frontend/components/AgentPlanReview.svelte",
+      "sha256": "95609DFCBC241FAF12839DEA3F9FFBFEEDDE93E90BBE9CD8B77A34B363C0AD42"
+    },
+    {
+      "path": "frontend/lib/offload-plan.ts",
+      "sha256": "AEC33FE32AA10D215ADF9AA1DD5F9358E1F20522255F823DEA2C2E1ED2FB205A"
+    }
+  ],
+  "retainedBehaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "restoreProposal": {
+    "schema": 6,
+    "groupedParents": 2,
+    "sharedReserveBytes": 16777216,
+    "requiredBytes": 16793600,
+    "aggregateCapacityGuard": true,
+    "unpublishedCatalogueRefused": true,
+    "archiveIdentityMismatchRefused": true,
+    "approvalInjectionRefused": true,
+    "realCliAndSdkDenials": true,
+    "legacySerializationPreserved": true,
+    "fileContentReadByPlanner": false,
+    "approvalOrExecutionEnabled": false,
+    "realCrossVolumePreparationVerified": false,
+    "restoreCopyVerified": false
+  },
+  "volumeResolution": {
+    "currentLogicalDrives": [
+      {
+        "device": "C:",
+        "filesystem": "NTFS",
+        "driveType": 3
+      }
+    ],
+    "recordedZResolvedThroughCurrentGuid": true,
+    "orderedAncestryChecked": true,
+    "reorderedAndWrongParentRefused": true,
+    "nativeLowercasePrefixReturned87": true,
+    "nativeWindowsFormAccepted": true,
+    "anyVolumeMounted": false,
+    "physicalReconnectTested": false
+  }
+}

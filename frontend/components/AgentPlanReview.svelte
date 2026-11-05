@@ -249,7 +249,14 @@
     {@const review = selection.review}
     {@const plan = review.plan}
     {@const manifest = plan.manifest}
-    {@const transfer = manifest.action === 'recycle' ? null : manifest.action.offload}
+    {@const transfer =
+      typeof manifest.action === 'object' && 'offload' in manifest.action
+        ? manifest.action.offload
+        : null}
+    {@const restore =
+      typeof manifest.action === 'object' && 'restore' in manifest.action
+        ? manifest.action.restore
+        : null}
     {@const outcome = readPlanResult(plan.result)}
     <article class="selection" aria-labelledby="selected-plan-heading">
       <div class="review-heading">
@@ -264,11 +271,13 @@
         <div>
           <dt>Action</dt>
           <dd>
-            {transfer
-              ? transfer.originals === 'keep'
-                ? 'Verified transfer · keep originals'
-                : 'Verified transfer · recycle originals only after verification'
-              : 'Send to Recycle Bin · manual review'}
+            {restore
+              ? 'Restore verified copies · keep archives'
+              : transfer
+                ? transfer.originals === 'keep'
+                  ? 'Verified transfer · keep originals'
+                  : 'Verified transfer · recycle originals only after verification'
+                : 'Send to Recycle Bin · manual review'}
           </dd>
         </div>
         <div class="wide">
@@ -334,6 +343,56 @@
             </div>
           {/if}
         {/if}
+        {#if restore}
+          {#each restore.groups as group}
+            <div class="wide">
+              <dt>Restore folder</dt>
+              <dd>
+                {group.destination.path}<small
+                  ><code>{group.destination.volume.guid_root}</code> · {group.destination.volume
+                    .serial} · {group.destination.filesystem}</small
+                ><small
+                  >Available {exactBytes(group.destination.caller_available_bytes)} · observed {date(
+                    group.destination.observed_at,
+                  )}</small
+                >
+              </dd>
+            </div>
+          {/each}
+          <div class="wide">
+            <dt>Source transfer</dt>
+            <dd>
+              <code>{restore.transfer_plan_id}</code><small
+                >Recorded manifest <code>{restore.transfer_manifest_hash}</code></small
+              >
+            </dd>
+          </div>
+          <div>
+            <dt>Estimated capacity required</dt>
+            <dd>
+              {exactBytes(restore.required_available_bytes)} including a shared 16 MiB reserve · not reserved
+            </dd>
+          </div>
+          <div>
+            <dt>Execution time limit</dt>
+            <dd>4 hours from the one-time start · approval is separate</dd>
+          </div>
+          <div class="wide">
+            <dt>Restore limits</dt>
+            <dd>
+              Existing original folders only. Keep archive copies and never replace an existing
+              file. Basic dates and attributes only; permissions, access and change dates and link
+              relationships are not restored. Full restoration is not guaranteed.
+            </dd>
+          </div>
+          <div class="wide">
+            <dt>Unknown original creation dates</dt>
+            <dd>
+              {restore.files.filter((file) => file.original_metadata.created_windows_100ns === null)
+                .length} files · the observed archive creation date is used for these copies
+            </dd>
+          </div>
+        {/if}
         <div>
           <dt>Immediate freed space</dt>
           <dd>{exactBytes(manifest.immediate_free_bytes)}</dd>
@@ -343,7 +402,7 @@
           <dd>{exactBytes(manifest.potential_reclaim_bytes)} · not guaranteed</dd>
         </div>
         <div>
-          <dt>{transfer ? 'Approval start deadline' : 'Valid until'}</dt>
+          <dt>{transfer || restore ? 'Approval start deadline' : 'Valid until'}</dt>
           <dd>
             {date(plan.approval_expires ?? manifest.expires)} · {Math.max(
               0,
@@ -373,6 +432,11 @@
                       >Destination name: {transfer.outputs.find((output) => output.id === entry.id)
                         ?.name ?? 'unavailable'}</small
                     >{/if}
+                  {#if restore}{@const restored = restore.files.find(
+                      (file) => file.source_id === entry.id,
+                    )}{#if restored}<small>Restore to: {restored.original_path}</small><small
+                        >Expected BLAKE3: <code>{restored.content_blake3}</code></small
+                      >{/if}{/if}
                 </td><td>{exactBytes(entry.logical_bytes)}</td><td
                   >{exactBytes(entry.allocated_bytes)}</td
                 ><td>{entry.hard_links}</td></tr
@@ -441,6 +505,10 @@
             </p>{/if}
         </section>{/if}
       <div class="decisions">
+        {#if restore}<p role="note">
+            This is a restore proposal. Approval and execution are not available yet. Preparing it
+            changes no source or destination file.
+          </p>{/if}
         {#if transfer}<p role="note">
             This is a transfer proposal. Copying, verification and original handling are not
             available yet; it cannot be approved or executed.
@@ -458,7 +526,7 @@
         <button
           class="primary"
           disabled={busy ||
-            Boolean(transfer) ||
+            manifest.action !== 'recycle' ||
             plan.state !== 'awaiting_approval' ||
             now >= manifest.expires}
           onclick={() => decide('approve')}>{busy ? 'Working…' : 'Review and approve plan'}</button

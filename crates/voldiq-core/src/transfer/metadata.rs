@@ -17,6 +17,9 @@ pub struct BasicMetadata {
 }
 
 impl BasicMetadata {
+    pub(crate) fn native_identity(&self) -> &str {
+        &self.native_identity
+    }
     pub fn created_windows_100ns(&self) -> Option<&str> {
         self.created_windows_100ns.as_deref()
     }

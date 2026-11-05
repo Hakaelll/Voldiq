@@ -195,7 +195,7 @@ impl Store {
         })
     }
 
-    fn create_using(
+    pub(super) fn create_using(
         &mut self,
         context: &PlanContext<'_>,
         snapshot: i64,
@@ -237,6 +237,7 @@ impl Store {
         record.validate(self.directory.identity())?;
         let reclaim = match &action {
             Action::Offload(plan) if plan.originals == Originals::Keep => 0,
+            Action::Restore(_) => 0,
             _ => reclaim,
         };
         let manifest = Manifest {
@@ -559,6 +560,28 @@ impl Store {
     }
 
     pub(super) fn read(&self, context: &PlanContext<'_>, id: &str) -> Result<Stored> {
+        self.read_with_binding(context, id, true)
+    }
+
+    pub(super) fn read_restore_archive(
+        &self,
+        context: &PlanContext<'_>,
+        id: &str,
+    ) -> Result<Stored> {
+        context.check(Capability::PreparePlans)?;
+        let stored = self.read_with_binding(context, id, false)?;
+        if !matches!(stored.view.manifest.action, Action::Offload(_)) {
+            return Err(invalid());
+        }
+        Ok(stored)
+    }
+
+    fn read_with_binding(
+        &self,
+        context: &PlanContext<'_>,
+        id: &str,
+        require_binding: bool,
+    ) -> Result<Stored> {
         context.check_directory(self.directory.identity())?;
         if id.len() != 64 || !id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             return Err(denied());
@@ -567,6 +590,9 @@ impl Store {
             params![id,context.owner(),MANIFEST_LIMIT as i64,RECORD_LIMIT as i64], |row| Ok((row.get::<_,String>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,String>(3)?,row.get::<_,String>(4)?,row.get::<_,Option<i64>>(5)?,row.get::<_,Option<String>>(6)?))).optional()?.ok_or_else(denied)?;
         let (json, hash, native, binding, state, approval_expires, result) = values;
         let manifest: Manifest = serde_json::from_str(&json).map_err(|_| invalid())?;
+        if !require_binding && !matches!(manifest.action, Action::Offload(_)) {
+            return Err(invalid());
+        }
         if hash != digest(json.as_bytes())
             || manifest.native_record_hash != digest(native.as_bytes())
             || manifest.id != id
@@ -574,7 +600,7 @@ impl Store {
             || manifest.policy_version != POLICY_VERSION
             || manifest.connection_id != context.owner()
             || manifest.user != current_user()?
-            || binding != context.binding()?
+            || (require_binding && binding != context.binding()?)
             || manifest.risk != "review"
             || manifest.created < 0
             || manifest.expires != manifest.created.checked_add(PLAN_TTL).ok_or_else(invalid)?
@@ -592,13 +618,21 @@ impl Store {
             return Err(invalid());
         }
         let scope = record.scope();
-        let _root = context.snapshot(&scope)?;
+        let _root = if require_binding {
+            Some(context.snapshot(&scope)?)
+        } else {
+            None
+        };
         let evidence = record.evidence()?;
         let (logical, reclaim) = totals(&evidence)?;
         let reclaim = match &manifest.action {
             Action::Offload(plan) => {
                 plan.check_shape(&evidence)?;
-                let _target = plan.authorize(context, &scope.root)?;
+                let _target = if require_binding {
+                    Some(plan.authorize(context, &scope.root)?)
+                } else {
+                    None
+                };
                 if plan.originals == Originals::Keep {
                     0
                 } else {
@@ -606,6 +640,11 @@ impl Store {
                 }
             }
             Action::Recycle => reclaim,
+            Action::Restore(plan) => {
+                plan.check_shape(&evidence)?;
+                plan.authorize(context, &scope.root)?;
+                0
+            }
         };
         if manifest.entries != evidence
             || manifest.logical_bytes != logical.to_string()
@@ -772,7 +811,15 @@ impl Store {
                 .validate(self.directory.identity())
                 .and_then(|()| match &stored.view.manifest.action {
                     Action::Recycle => Ok(()),
-                    Action::Offload(plan) => plan.check(
+                    Action::Offload(plan) => plan
+                        .check(
+                            context,
+                            self.directory.path(),
+                            &stored.record.scope().root,
+                            entries,
+                        )
+                        .map(|_| ()),
+                    Action::Restore(plan) => plan.check(
                         context,
                         self.directory.path(),
                         &stored.record.scope().root,

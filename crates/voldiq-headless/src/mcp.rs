@@ -147,6 +147,13 @@ struct OffloadArgs {
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct RestoreArgs {
+    snapshot_id: i64,
+    transfer_plan_id: String,
+    node_ids: Vec<voldiq_core::NodeId>,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct PlanArgs {
     plan_id: String,
 }
@@ -404,6 +411,21 @@ fn invoke(
             )
             .map_err(unavailable)
         }
+        "voldiq_plan_prepare_restore" => {
+            let args: RestoreArgs = parse(args)?;
+            serde_json::to_value(
+                service
+                    .plan_prepare_restore(
+                        args.snapshot_id,
+                        &voldiq_core::plans::RestoreRequest {
+                            transfer_plan_id: args.transfer_plan_id,
+                            node_ids: args.node_ids,
+                        },
+                    )
+                    .map_err(plan_unavailable)?,
+            )
+            .map_err(unavailable)
+        }
         "voldiq_plan_execute" => {
             let args: ExecutionArgs = parse(args)?;
             service
@@ -558,6 +580,7 @@ fn tools() -> Vec<Tool> {
         ("voldiq_diary", "Read adjacent retained observations in the authorized capture's root/identity/exclusion group, through that capture. Paged baselines/comparisons retain partial/unknown/incompatible evidence and opaque historical context IDs. Does not establish who caused a change, bytes written, current paths or file-operation authority.", json!({"snapshot_id":integer,"offset":{"type":"integer","minimum":0,"maximum":10000},"limit":{"type":"integer","minimum":1,"maximum":10,"default":5}}), json!(["snapshot_id"])),
         ("voldiq_plan_prepare", "Prepare an immutable recycling manifest from exact indexed file IDs, with fresh scope/identity/protection validation. Changes no files and grants no approval.", json!({"snapshot_id":integer,"node_ids":{"type":"array","minItems":1,"maxItems":500,"uniqueItems":true,"items":{"type":"integer","minimum":0,"maximum":4294967295u64}}}), json!(["snapshot_id","node_ids"])),
         ("voldiq_plan_prepare_offload", "Prepare a read-only, exact cross-volume transfer proposal. Source, destination and destination volume root must be explicitly authorized. No copying, original modification or approval; execution is not available yet.", json!({"snapshot_id":integer,"node_ids":{"type":"array","minItems":1,"maxItems":500,"uniqueItems":true,"items":{"type":"integer","minimum":0,"maximum":4294967295u64}},"destination":{"type":"string","minLength":1,"maxLength":32768},"originals":{"type":"string","enum":["keep","recycle_after_verification"]}}), json!(["snapshot_id","node_ids","destination","originals"])) ,
+        ("voldiq_plan_prepare_restore", "Prepare an exact read-only restore proposal from this connection's confirmed transfer catalogue and a fresh archive snapshot. node_ids refer to original catalogue nodes. Current archive, original parents and volume scopes are required. Keep backups, never overwrite; approval and execution remain unavailable.", json!({"snapshot_id":integer,"transfer_plan_id":plan_id,"node_ids":{"type":"array","minItems":1,"maxItems":500,"uniqueItems":true,"items":{"type":"integer","minimum":0,"maximum":4294967295u64}}}), json!(["snapshot_id","transfer_plan_id","node_ids"])),
         ("voldiq_plan_get", "Read this connection's exact manifest and current state. An approved row is not execution authority.", json!({"plan_id":plan_id}), json!(["plan_id"])),
         ("voldiq_plan_execute", "Queue one exact human-approved recycling plan in the open Voldiq desktop. Requires ExecuteApproved and a live independent human session; cannot approve, expand or permanently delete. Poll plan_get for actual results; repeat calls do not repeat execution.", json!({"plan_id":plan_id,"manifest_hash":{"type":"string","pattern":"^[a-f0-9]{64}$"}}), json!(["plan_id","manifest_hash"])),
         ("voldiq_plan_cancel", "Cancel this connection's exact queued plan or request a running worker to stop safely. Inspect plan_get for actual partial or unknown outcomes. Cannot purge the bin or undo unrelated work.", json!({"plan_id":plan_id,"manifest_hash":{"type":"string","pattern":"^[a-f0-9]{64}$"}}), json!(["plan_id","manifest_hash"])),

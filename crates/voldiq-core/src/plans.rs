@@ -11,6 +11,7 @@ mod offload;
 mod originals;
 #[cfg(windows)]
 mod recycling;
+mod restoration;
 mod store;
 pub use crate::cleanup::record::FileEvidence;
 use crate::{Error, Result};
@@ -29,6 +30,7 @@ pub use offload::{
 pub use originals::{OriginalTransferResult, PreparedOffloadRecycling};
 #[cfg(windows)]
 pub use recycling::{PreparedRecycling, RecyclingWorker};
+pub use restoration::{Restore, RestoreRequest};
 use serde::{Deserialize, Serialize};
 pub use store::{Enqueue, ExecutionRequest, Store};
 
@@ -105,6 +107,7 @@ pub struct Manifest {
 pub enum Action {
     Recycle,
     Offload(Box<Offload>),
+    Restore(Box<Restore>),
 }
 
 impl Action {
@@ -112,6 +115,7 @@ impl Action {
         match self {
             Self::Recycle => 2,
             Self::Offload(plan) => plan.schema_version(),
+            Self::Restore(_) => 6,
         }
     }
     pub fn execution_available(&self) -> bool {
@@ -174,6 +178,9 @@ impl ExecutionWindow {
         let deadline = match action {
             Action::Recycle => admission_expires,
             Action::Offload(plan) => at
+                .checked_add(plan.execution_limit()?)
+                .ok_or_else(invalid)?,
+            Action::Restore(plan) => at
                 .checked_add(plan.execution_limit()?)
                 .ok_or_else(invalid)?,
         };

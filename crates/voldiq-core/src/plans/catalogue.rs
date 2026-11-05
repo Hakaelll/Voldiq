@@ -327,6 +327,36 @@ pub(super) fn completion_state(
 }
 
 impl Store {
+    pub(super) fn restoration_files(
+        &self,
+        manifest: &Manifest,
+        hash: &str,
+        selection: &[NodeId],
+    ) -> Result<Vec<TransferFile>> {
+        validate_manifest(manifest, hash)?;
+        let mut statement = self.connection.prepare(&format!("SELECT {FILE_COLUMNS} FROM transfer_files f WHERE plan_id=?1 AND node=?2 AND EXISTS(SELECT 1 FROM transfer_operations o WHERE o.plan_id=f.plan_id AND o.owner=?3 AND o.hash=?4)"))?;
+        let mut files = Vec::with_capacity(selection.len());
+        for node in selection {
+            let file = statement
+                .query_row(
+                    params![manifest.id, node.0, manifest.connection_id, hash],
+                    read_file,
+                )
+                .optional()?
+                .ok_or_else(invalid)?;
+            validate_file(&file, manifest)?;
+            if file.published_at.is_none()
+                || file.content_blake3.is_none()
+                || file.destination_identity.is_none()
+                || file.verified_bytes.is_none()
+            {
+                return Err(crate::Error::Invalid("Restoration requires a recorded confirmed publication and content verification.".into()));
+            }
+            files.push(file);
+        }
+        Ok(files)
+    }
+
     /// Human-only historical read. It deliberately does not reopen a potentially disconnected volume.
     pub(super) fn transfer_catalogue(
         &self,

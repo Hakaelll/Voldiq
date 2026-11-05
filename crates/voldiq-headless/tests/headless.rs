@@ -68,6 +68,29 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     assert_eq!(offload.status.code(), Some(4));
     let rejected: Value = serde_json::from_slice(&offload.stdout).unwrap();
     assert!(rejected["result"].is_null());
+    let restore_request = json!({"transfer_plan_id":"0".repeat(64),"node_ids":[node]});
+    let restore = run(&[
+        "plan",
+        "restore",
+        &snapshot.to_string(),
+        &restore_request.to_string(),
+    ]);
+    assert_eq!(restore.status.code(), Some(4));
+    let restore: Value = serde_json::from_slice(&restore.stdout).unwrap();
+    assert!(restore["result"].is_null());
+    let mut injected_restore = restore_request;
+    injected_restore["approved"] = json!(true);
+    assert_eq!(
+        run(&[
+            "plan",
+            "restore",
+            &snapshot.to_string(),
+            &injected_restore.to_string()
+        ])
+        .status
+        .code(),
+        Some(2)
+    );
     let injected =
         json!({"destination":source.path(),"originals":"keep","approved":true}).to_string();
     assert_eq!(

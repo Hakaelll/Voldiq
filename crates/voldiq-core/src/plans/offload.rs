@@ -80,23 +80,37 @@ impl MetadataPlan {
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct VolumeBinding {
-    guid_root: String,
-    serial: String,
+    pub(super) guid_root: String,
+    pub(super) serial: String,
+}
+
+impl VolumeBinding {
+    pub(super) fn restore_parent_path(&self, recorded: &Path) -> Result<PathBuf> {
+        #[cfg(windows)]
+        {
+            native::restore_parent_path(self, recorded)
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = recorded;
+            Err(invalid())
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Destination {
-    path: PathBuf,
-    identity: String,
+    pub(super) path: PathBuf,
+    pub(super) identity: String,
     ancestors: Vec<String>,
     pub(super) native_identity: String,
-    volume: VolumeBinding,
+    pub(super) volume: VolumeBinding,
     filesystem: String,
     filesystem_flags: u32,
     maximum_name_units: u32,
     allocation_unit_bytes: u64,
-    caller_available_bytes: String,
+    pub(super) caller_available_bytes: String,
     pub(super) observed_at: u64,
 }
 
@@ -132,11 +146,11 @@ const MAXIMUM_EXECUTION_SECONDS: i64 = 4 * 60 * 60;
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Offload {
-    source_volume: VolumeBinding,
+    pub(super) source_volume: VolumeBinding,
     pub(super) destination: Destination,
     pub(super) originals: Originals,
     pub(super) outputs: Vec<Output>,
-    required_available_bytes: String,
+    pub(super) required_available_bytes: String,
     reserve_bytes: String,
     limitations: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -145,7 +159,7 @@ pub struct Offload {
     execution: Option<ExecutionPolicy>,
 }
 
-const RESERVE: u64 = 16 * 1024 * 1024;
+pub(super) const RESERVE: u64 = 16 * 1024 * 1024;
 pub(super) const LIMITATIONS: &str = "Planning only; transfer execution and approval are unavailable until the copy/readback/catalogue pipeline is implemented. Exact flat output names; no replacement. Caller-available capacity includes a conservative allocation/entry estimate and a 16 MiB reserve, not a reservation or proof of future space. Source payload, streams, encryption, metadata preservation and destination disconnect behavior require execution preflight. No copy or original modification has occurred. Recycling originals does not imply immediate free space.";
 
 impl Offload {
@@ -341,7 +355,7 @@ impl Offload {
         state: &Path,
         source: &Path,
         entries: &[FileEvidence],
-    ) -> Result<()> {
+    ) -> Result<u64> {
         self.check_shape(entries)?;
         #[cfg(windows)]
         if let Some(expected) = &self.metadata
@@ -375,7 +389,10 @@ impl Offload {
             let path = current.path.join(&output.name);
             absent(&path)?;
         }
-        Ok(())
+        current
+            .caller_available_bytes
+            .parse()
+            .map_err(|_| invalid())
     }
 }
 
