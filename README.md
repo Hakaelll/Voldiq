@@ -63,11 +63,11 @@ pnpm tauri build --features production --bundles nsis
 
 The source gate runs formatting, Svelte diagnostics, frontend and Rust behavior tests, the frontend production build and strict Clippy. It reuses the release target and offline Cargo dependencies. Output installers are in `target/release/bundle/nsis`.
 
-New builds use a small WebView2 bootstrapper: the measured installer is 9.9 MB and the application executable is 25.3 MB. If WebView2 is missing, installation downloads Microsoft's runtime; the application itself works offline. For a complete offline installer, add `--config src-tauri/tauri.offline.conf.json` and verify it with `./scripts/verify_distribution.ps1 -Offline`. The previously published 0.2.0 installer still includes the full runtime.
+New builds use a small WebView2 bootstrapper: the measured installer is 9.9 MB and the application executable is 25.4 MB. If WebView2 is missing, installation downloads Microsoft's runtime; the application itself works offline. For a complete offline installer, add `--config src-tauri/tauri.offline.conf.json` and verify it with `./scripts/verify_distribution.ps1 -Offline`. The previously published 0.2.0 installer still includes the full runtime.
 
 Rust build and test artifacts can occupy several GB; they are not application contents. After verification and packaging, run `./scripts/clean_build_cache.ps1` to inspect what will be kept, then add `-Apply` to remove inactive release artifacts. It retains the application, CLI, current installer and running previews. The next Rust build regenerates its cache. See [Windows distribution](docs/DISTRIBUTION.md) for the measured footprint and acceptance limits.
 
-A direct native build must use `cargo build --offline --release -p voldiq --features production --bin voldiq`. Release optimization alone does not enable Tauri's embedded interface. Preview and distribution checks execute the embedded-asset probe to verify production mode and the bundled frontend.
+A direct native build must enable production assets. The verified workspace command is `cargo build --offline --release --workspace --features voldiq/production --bin voldiq`. Release optimization alone does not enable Tauri's embedded interface. Preview and distribution checks execute the embedded-asset probe to verify production mode and the bundled frontend.
 
 `pnpm dev` provides a browser-only frontend preview. Use the native application for filesystem access. See [Windows distribution](docs/DISTRIBUTION.md) for packaging and preview commands.
 

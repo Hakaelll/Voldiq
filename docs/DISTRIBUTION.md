@@ -32,7 +32,7 @@ The script only prepares the executable; it never launches or closes a process. 
 
 `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/clean_obsolete_previews.ps1` lists obsolete preview candidates. Add `-Apply` to remove them. It verifies each executable against its hash-named directory, retains the current release and running images, and removes only that file and its empty directory. Unknown contents and reparse points are skipped. It does not clear build dependencies, application state or system caches.
 
-`src-tauri/tauri.conf.json` selects `embedBootstrapper`. It reuses an installed WebView2 runtime; when the runtime is absent, Microsoft's embedded bootstrapper downloads it during installation. This keeps the measured setup at 9,899,254 bytes instead of the older 221,757,215-byte offline setup. Voldiq itself still works offline. Both modes install for the current user. See the [official Windows installer documentation](https://v2.tauri.app/distribute/windows-installer/#webview2-installation-options).
+`src-tauri/tauri.conf.json` selects `embedBootstrapper`. It reuses an installed WebView2 runtime; when the runtime is absent, Microsoft's embedded bootstrapper downloads it during installation. This keeps the measured setup at about 9.9 MB instead of the older 221.8 MB offline setup. Voldiq itself still works offline. Both modes install for the current user. See the [official Windows installer documentation](https://v2.tauri.app/distribute/windows-installer/#webview2-installation-options).
 
 For installation without downloading WebView2, build and verify the optional full package:
 
@@ -45,7 +45,7 @@ The two modes write the same versioned setup filename. Keep the required variant
 
 ### Build-cache footprint
 
-The native executable is 25,324,032 bytes. Rust metadata, dependencies, test binaries and old packages accounted for most of the measured 9.27 GB workspace; those files are not bundled into the application. After all source checks and packaging finish, inspect and clean this workspace's release artifacts with:
+The latest verified native executable is 25,399,296 bytes. Rust metadata, dependencies, test binaries and old packages accounted for most of the measured 9.27 GB workspace; those files are not bundled into the application. After all source checks and packaging finish, inspect and clean this workspace's release artifacts with:
 
 ```powershell
 ./scripts/clean_build_cache.ps1

@@ -35,7 +35,10 @@ function Measure-Release {
 
 function Assert-IdleBuild {
     $builders = @(Get-Process cargo,rustc,link,makensis -ErrorAction SilentlyContinue)
-    if ($builders.Count -gt 0) { throw 'A Rust build or installer process is active. Finish it before cleaning.' }
+    if ($builders.Count -gt 0) {
+        $active = ($builders | ForEach-Object { "$($_.Name):$($_.Id)" }) -join ', '
+        throw "A Rust build or installer process is active. Finish it before cleaning. Processes: $active"
+    }
     foreach ($process in Get-Process voldiq,voldiq-cli -ErrorAction SilentlyContinue) {
         if (-not $process.Path) { throw 'Cannot determine a running Voldiq image; cleanup stopped.' }
         $image = [IO.Path]::GetFullPath($process.Path)
