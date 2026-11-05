@@ -1,0 +1,30 @@
+{
+  "checkedUtc": "2026-11-05T14:21:20.1070599Z",
+  "sourceCommit": "f803c3802b721e6d68218d4afba14d168dd12abc",
+  "preview": {
+    "processId": 1792,
+    "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\5698263A6E25D10B4E08363EE32513103659195FDF461ED132C563384149B7C5\\voldiq.exe",
+    "mainWindowHandle": 132786,
+    "executableSha256": "5698263A6E25D10B4E08363EE32513103659195FDF461ED132C563384149B7C5"
+  },
+  "previewCleanup": {
+    "applied": true,
+    "removedBytes": 24927232,
+    "previews": [
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\37A3D89BE443E863351C496CFD54A94644F9122E9844F292829F5D0247FE0FB3",
+        "bytes": 24927232,
+        "status": "Removed"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\5698263A6E25D10B4E08363EE32513103659195FDF461ED132C563384149B7C5",
+        "bytes": 24967680,
+        "status": "KeptCurrent"
+      }
+    ]
+  },
+  "totalLogicalArtifactBytesRemoved": 24927232,
+  "debugArtifactsPresent": false,
+  "excluded": "Running/current previews, current workspace test executables, current standalone core probe, reusable release builds, final reviewed fixtures, application state, Windows and other applications.",
+  "observedVolumeFreeSpaceChange": null
+}

@@ -1,0 +1,104 @@
+{
+  "checkedUtc": "2026-11-05T14:20:56.4583538Z",
+  "sourceCommit": "f803c3802b721e6d68218d4afba14d168dd12abc",
+  "executableSha256": "5698263A6E25D10B4E08363EE32513103659195FDF461ED132C563384149B7C5",
+  "executableBytes": 24967680,
+  "preview": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\5698263A6E25D10B4E08363EE32513103659195FDF461ED132C563384149B7C5\\voldiq.exe",
+  "processId": 1792,
+  "mainWindowHandle": 132786,
+  "observation": "ready",
+  "startupEvents": [
+    {
+      "event": "process-start",
+      "pid": 1792,
+      "unixMs": 1793888453426
+    },
+    {
+      "event": "setup-start",
+      "pid": 1792,
+      "unixMs": 1793888454266
+    },
+    {
+      "event": "snapshot-open-start",
+      "pid": 1792,
+      "unixMs": 1793888454267
+    },
+    {
+      "event": "snapshot-open-end",
+      "pid": 1792,
+      "unixMs": 1793888455224
+    },
+    {
+      "event": "setup-end",
+      "pid": 1792,
+      "unixMs": 1793888456090
+    },
+    {
+      "event": "ready",
+      "pid": 1792,
+      "unixMs": 1793888456090
+    },
+    {
+      "event": "page-finished",
+      "pid": 1792,
+      "unixMs": 1793888456230
+    }
+  ],
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "assets/city.worker-DLxzT0Wm.js",
+        "bytes": 2879,
+        "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+      },
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "75CD5EF7765E26F4E04180EF6E13789B2434CCBF911D14C70CFD11B06DE4AFE2"
+      },
+      {
+        "path": "assets/history-export-BcUNsCas.js",
+        "bytes": 3986,
+        "sha256": "6B2D68D87FA25D66DCF8CB9836E19348123062438F8A82C021036212CC15046D"
+      },
+      {
+        "path": "assets/history-video-DV7t4DmK.js",
+        "bytes": 2865,
+        "sha256": "9F1D914B8A85882D7C029295C6C5141F2F97A7CF100C7ED2906D53271EDC3A24"
+      },
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      },
+      {
+        "path": "assets/index-D02PeFaT.css",
+        "bytes": 83328,
+        "sha256": "E4D7F128F5B444A860C255637C6143C0D209C87D5B3868A5BF3880050C71D256"
+      },
+      {
+        "path": "assets/svg-surface-D3Yw6xZb.js",
+        "bytes": 6995,
+        "sha256": "16031B0D00F7998ED47803E71C5F769269D4295083881302DD52A7B7F3A450AA"
+      },
+      {
+        "path": "assets/index-DWqq5y9M.js",
+        "bytes": 410193,
+        "sha256": "ED8BD3024AEBF8EAD50C9EA2B82A247C17CB88718EAF8EDE3FB77901C975D8CF"
+      },
+      {
+        "path": "assets/voronoi.worker-DwJ2QmrW.js",
+        "bytes": 5606,
+        "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+      }
+    ]
+  },
+  "scope": "Production native startup and exact embedded resources only. Startup does not exercise metadata transfer or populated review. Approved offload/batch/original handling, restoration/device behavior, populated UI, focus, scaling and performance acceptance remain separate."
+}
