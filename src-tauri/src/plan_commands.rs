@@ -93,8 +93,19 @@ pub fn start_dispatcher(app: &tauri::AppHandle) -> Result<(), String> {
                     fn drop(&mut self) { let _=self.app.emit("agent-operation",serde_json::json!({"id":self.id,"phase":"finished"})); }
                 }
                 let _event = EndOperation { app:app.clone(), id:operation.id };
+                let mut last_progress: Option<(std::time::Instant,voldiq_core::plans::ExecutionProgress)> = None;
                 let result = desktop.execute_request(&request.plan_id,&request.manifest_hash,journal,
-                    voldiq_core::plans::RecyclingWorker::new(&operation._lease,&operation.cancel,&apartment),|_|{});
+                    voldiq_core::plans::RecyclingWorker::new(&operation._lease,&operation.cancel,&apartment),|progress| {
+                        let boundary = match &progress {
+                            voldiq_core::plans::ExecutionProgress::Copy { bytes,total,.. } => bytes=="0" || bytes==total,
+                            voldiq_core::plans::ExecutionProgress::Recycling { processed } => *processed==0,
+                        };
+                        if last_progress.as_ref().is_none_or(|(_,previous)|previous!=&progress)
+                            && (boundary || last_progress.as_ref().is_none_or(|(last,_)|last.elapsed()>=std::time::Duration::from_millis(100))) {
+                            let _=app.emit("agent-operation",serde_json::json!({"id":operation.id,"phase":"progress","progress":progress}));
+                            last_progress=Some((std::time::Instant::now(),progress));
+                        }
+                    });
                 result.map(|_|()).map_err(|error|error.to_string())
             })();
             // Discovery and busy leases may be unavailable temporarily; execution states prevent replay.

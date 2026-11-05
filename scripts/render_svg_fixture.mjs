@@ -34,7 +34,28 @@ const nodes = [
   { id: 4, name: 'Video.mp4', value: 20, directory: false, files: 1 },
   { id: 5, name: 'Other.bin', value: 10, directory: false, files: 1 },
 ];
-const source = createStorageLayout(nodes, 3);
+if (process.argv[3] && process.argv[3] !== '--palette') throw new Error('Unknown fixture option.');
+const paletteNodes = [
+  {
+    id: 1,
+    name: 'Projects',
+    value: 35,
+    directory: true,
+    files: 3,
+    children: [
+      { id: 2, name: 'Photo.jpg', value: 16, directory: false, files: 1 },
+      { id: 3, name: 'Engine.rs', value: 12, directory: false, files: 1 },
+      { id: 4, name: 'Report.pdf', value: 7, directory: false, files: 1 },
+    ],
+  },
+  { id: 5, name: 'Video.mp4', value: 28, directory: false, files: 1 },
+  { id: 6, name: 'Audio.flac', value: 15, directory: false, files: 1 },
+  { id: 7, name: 'Archive.zip', value: 12, directory: false, files: 1 },
+  { id: 8, name: 'Data.bin', value: 6, directory: false, files: 1 },
+  { id: 9, name: 'Folder', value: 4, directory: true, files: 1 },
+  { id: -10, name: 'Other contents', value: 4, directory: true, category: 'remainder', files: 1 },
+];
+const source = createStorageLayout(process.argv[3] === '--palette' ? paletteNodes : nodes, 3);
 const width = 1000,
   height = 700;
 const base = {
@@ -109,6 +130,7 @@ console.log(
   JSON.stringify(
     {
       checkedUtc: new Date().toISOString(),
+      fixture: process.argv[3] === '--palette' ? 'chart-palette' : 'export-safety',
       output,
       width,
       height,

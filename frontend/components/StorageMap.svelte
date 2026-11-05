@@ -7,6 +7,7 @@
 </script>
 
 <script lang="ts">
+  import { CHART_PAINTS, SIZE_PAINTS, AGE_PAINTS } from '../lib/chart-colors';
   import { onMount, untrack } from 'svelte';
   import type { GraphicCapture, GraphicView, GraphicScene } from '../lib/graphic-export';
   import {
@@ -1186,11 +1187,11 @@
     {:else}
       <span
         >{colorMode === 'size' ? 'Small' : 'Recent'}
-        {#each ['#b6d2c6', '#91b9aa', '#679b8e', '#3e7c73', '#23625f'] as fill}<i
-            style:background={fill}
+        {#each colorMode === 'size' ? SIZE_PAINTS : AGE_PAINTS as paint}<i
+            style:background={paint.fill}
           ></i>{/each}
         {colorMode === 'size' ? 'Large · folder-relative' : '10+ years'}
-        <i style:background="#6b706b"></i>Unknown
+        <i style:background={CHART_PAINTS.unknown.fill}></i>Unknown
       </span>
     {/if}
     <span

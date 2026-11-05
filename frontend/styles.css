@@ -19,6 +19,10 @@
   --radius: 6px;
   --workspace: var(--surface);
   --panel: var(--canvas);
+  --chart-blue: #3272d1;
+  --chart-violet: #7a63c6;
+  --chart-growth: #a64420;
+  --chart-reduction: #066c5f;
   color-scheme: light;
   --motion: 140ms;
 }
@@ -26,6 +30,10 @@
   --canvas: #181b20;
   --workspace: var(--canvas);
   --panel: var(--surface);
+  --chart-blue: #6ba7ff;
+  --chart-violet: #b195f3;
+  --chart-growth: #f29b65;
+  --chart-reduction: #40c6b4;
   --surface: #1e2228;
   --paper: #252a31;
   --border: #343a43;
@@ -1338,6 +1346,12 @@ main {
   gap: 12px;
   padding: 16px;
   flex-wrap: wrap;
+}
+.cleanup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
 }
 .filter-bar label {
   display: grid;
@@ -2665,6 +2679,35 @@ main {
 }
 .history-change-columns {
   color: var(--secondary);
+}
+.history-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 0 18px 16px;
+  color: var(--secondary);
+  font-size: 11px;
+}
+.history-chart-legend > span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.history-chart-legend i {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.change-row > small {
+  border-radius: 4px;
+  padding: 3px 6px;
+  background: var(--paper);
+}
+.change-row.growth > small {
+  color: var(--chart-growth);
+}
+.change-row.reduction > small {
+  color: var(--chart-reduction);
 }
 .history-coverage-summary {
   color: var(--secondary);

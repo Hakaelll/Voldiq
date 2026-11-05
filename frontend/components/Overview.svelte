@@ -150,7 +150,7 @@
           {#if usedPercent !== null}<div
               class="overview-volume-ring"
               aria-hidden="true"
-              style:background={`conic-gradient(var(--accent-fill) ${usedPercent}%, var(--paper) 0)`}
+              style:background={`conic-gradient(from -90deg, var(--chart-blue) 0%, var(--chart-violet) ${usedPercent}%, var(--paper) ${usedPercent}% 100%)`}
             >
               <div><strong>{usedPercent.toFixed(0)}<small>%</small></strong><span>used</span></div>
             </div>{/if}

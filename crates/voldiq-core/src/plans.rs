@@ -20,7 +20,7 @@ pub use batch::{CopiedTransfer, TransferFailure};
 pub use catalogue::{TransferCatalogue, TransferFile, TransferPhase, TransferUpdate};
 #[cfg(windows)]
 pub use copying::{CopyFailure, CopyPublication, PublishedContent, TransferWorker};
-pub use desktop::{Desktop, Review, ReviewPage};
+pub use desktop::{Desktop, ExecutionProgress, Review, ReviewPage};
 pub use human::{Begin, HumanAuthority};
 pub use offload::{
     Destination, MetadataEntry, MetadataPlan, MetadataProfile, Offload, OffloadRequest, Originals,

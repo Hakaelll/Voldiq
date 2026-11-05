@@ -1,5 +1,6 @@
 import { layout, type Rect as TreemapRect, type WeightedNode } from './treemap.ts';
 import { remainderSearch } from './storage-nodes.ts';
+import { CHART_PAINTS as paints, SIZE_PAINTS, AGE_PAINTS } from './chart-colors.ts';
 
 export type HeightMode = 'modified' | 'files' | 'depth';
 export type ColorMode = 'type' | 'size' | 'age';
@@ -207,16 +208,6 @@ export function heightDescription(rect: Rect, mode: HeightMode, now: number): st
   }
 }
 
-const paints = {
-  amber: { fill: '#d5a94e', ink: '#171a18' },
-  terracotta: { fill: '#ad563d', ink: '#ffffff' },
-  olive: { fill: '#8b9859', ink: '#11160e' },
-  teal: { fill: '#397c7c', ink: '#ffffff' },
-  violet: { fill: '#796b97', ink: '#ffffff' },
-  neutral: { fill: '#9b9d97', ink: '#171a18' },
-  unknown: { fill: '#6b706b', ink: '#ffffff' },
-};
-
 export function categoryLabel(node: WeightedNode): string {
   if (node.category === 'remainder' || node.id < 0) return 'Other contents';
   if (node.directory) return 'Folder';
@@ -254,31 +245,25 @@ export function categoryLabel(node: WeightedNode): string {
 export function categoryPaint(node: WeightedNode): { fill: string; ink: string } {
   switch (categoryLabel(node)) {
     case 'Folder':
+      return paints.folder;
     case 'Image':
-      return paints.amber;
+      return paints.image;
     case 'Video':
-      return paints.terracotta;
+      return paints.video;
     case 'Audio':
+      return paints.audio;
     case 'Document':
-      return paints.olive;
+      return paints.document;
     case 'Code':
-      return paints.teal;
+      return paints.code;
     case 'Archive':
-      return paints.violet;
+      return paints.archive;
     case 'Other contents':
       return paints.unknown;
     default:
       return paints.neutral;
   }
 }
-
-const sequentialPaints = [
-  { fill: '#b6d2c6', ink: '#10231f' },
-  { fill: '#91b9aa', ink: '#10231f' },
-  { fill: '#679b8e', ink: '#10231f' },
-  { fill: '#3e7c73', ink: '#ffffff' },
-  { fill: '#23625f', ink: '#ffffff' },
-];
 
 export function visualPaint(
   rect: WeightedNode & { modified: number | null },
@@ -291,9 +276,9 @@ export function visualPaint(
     if (rect.modified === null) return paints.unknown;
     const days = Math.max(0, now - rect.modified) / 86400;
     const index = days < 30 ? 0 : days < 180 ? 1 : days < 365 ? 2 : days < 3652 ? 3 : 4;
-    return sequentialPaints[index] ?? paints.unknown;
+    return AGE_PAINTS[index] ?? paints.unknown;
   }
   const fraction = maximum > 0 ? Math.log1p(Math.max(0, rect.value)) / Math.log1p(maximum) : 0;
   const index = Math.min(4, Math.max(0, Math.floor(fraction * 5)));
-  return sequentialPaints[index] ?? paints.unknown;
+  return SIZE_PAINTS[index] ?? paints.unknown;
 }

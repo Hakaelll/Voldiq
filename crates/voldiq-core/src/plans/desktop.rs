@@ -1,5 +1,5 @@
 //! Human-only facade, intentionally absent from the headless service and tool catalogue.
-use super::{HumanAuthority, State, Store, View, invalid, now};
+use super::{Action, HumanAuthority, Originals, State, Store, View, invalid, now};
 use crate::{
     Result,
     agents::{Capability, Registry},
@@ -31,6 +31,32 @@ pub struct ReviewSummary {
     pub connection: String,
     #[serde(flatten)]
     pub status: ReviewStatus,
+}
+
+#[derive(Debug, PartialEq, Eq, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum ExecutionProgress {
+    Recycling {
+        processed: usize,
+    },
+    Copy {
+        node: crate::NodeId,
+        stage: crate::transfer::Phase,
+        bytes: String,
+        total: String,
+    },
+}
+
+#[cfg(windows)]
+impl ExecutionProgress {
+    fn copy(node: crate::NodeId, progress: crate::transfer::Progress) -> Self {
+        Self::Copy {
+            node,
+            stage: progress.phase,
+            bytes: progress.bytes.to_string(),
+            total: progress.total.to_string(),
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -82,7 +108,7 @@ impl Desktop {
         hash: &str,
         journal: &mut crate::cleanup::journal::Journal,
         worker: super::RecyclingWorker<'_>,
-        progress: impl FnMut(usize),
+        progress: impl FnMut(ExecutionProgress),
     ) -> Result<View> {
         let result = self.execute_request_using(
             id,
@@ -105,7 +131,7 @@ impl Desktop {
         hash: &str,
         journal: &mut crate::cleanup::journal::Journal,
         worker: super::RecyclingWorker<'_>,
-        progress: impl FnMut(usize),
+        mut progress: impl FnMut(ExecutionProgress),
         launch: impl FnOnce(
             &crate::cleanup::recycle::ShellApartment,
         ) -> std::io::Result<crate::cleanup::helper::Session>,
@@ -122,18 +148,79 @@ impl Desktop {
         let context = registry.plan_context(&principal, Capability::ExecuteApproved)?;
         match store.begin(&context, id, &self.human, now()?)? {
             super::Begin::Existing(_) => {}
-            super::Begin::Started(lease) => {
-                let prepared =
-                    store.prepare_recycling(&context, &self.human, lease, journal, worker)?;
-                prepared.execute_using(
-                    &mut store,
-                    &context,
-                    &self.human,
-                    journal,
-                    progress,
-                    launch,
-                )?;
-            }
+            super::Begin::Started(lease) => match view.manifest.action {
+                Action::Recycle => {
+                    let prepared =
+                        store.prepare_recycling(&context, &self.human, lease, journal, worker)?;
+                    prepared.execute_using(
+                        &mut store,
+                        &context,
+                        &self.human,
+                        journal,
+                        |processed| progress(ExecutionProgress::Recycling { processed }),
+                        launch,
+                    )?;
+                }
+                Action::Offload(_) | Action::Restore(_) => {
+                    let copied = store.copy_transfer_batch(
+                        &context,
+                        &self.human,
+                        lease,
+                        super::TransferWorker::new(worker.operation, worker.cancel),
+                        |node, value| progress(ExecutionProgress::copy(node, value)),
+                    );
+                    match copied {
+                        Ok(copied) if copied.originals() == Originals::Keep => {
+                            if let Err(failure) = store.finish_kept_transfer(
+                                &context,
+                                &self.human,
+                                copied,
+                                super::TransferWorker::new(worker.operation, worker.cancel),
+                                |node, value| progress(ExecutionProgress::copy(node, value)),
+                            ) && (failure.recorded_state.is_none()
+                                || failure.finalization_error.is_some())
+                            {
+                                return Err(crate::Error::Invalid(failure.to_string()));
+                            }
+                        }
+                        Ok(copied) => {
+                            let prepared = store.prepare_offload_recycling(
+                                &context,
+                                &self.human,
+                                copied,
+                                journal,
+                                worker,
+                                |node, value| progress(ExecutionProgress::copy(node, value)),
+                            );
+                            let result = match prepared {
+                                Ok(prepared) => prepared.execute_using(
+                                    &mut store,
+                                    &context,
+                                    &self.human,
+                                    journal,
+                                    |processed| {
+                                        progress(ExecutionProgress::Recycling { processed })
+                                    },
+                                    launch,
+                                ),
+                                Err(result) => *result,
+                            };
+                            if result.recorded_state.is_none()
+                                || result.finalization_error.is_some()
+                            {
+                                return Err(crate::Error::Invalid("Transfer result could not be finalized; reconcile its catalogue and journal before further work.".into()));
+                            }
+                        }
+                        Err(failure) => {
+                            if failure.recorded_state.is_none()
+                                || failure.finalization_error.is_some()
+                            {
+                                return Err(crate::Error::Invalid(failure.to_string()));
+                            }
+                        }
+                    }
+                }
+            },
         }
         store.get(&metadata, id, now()?)
     }

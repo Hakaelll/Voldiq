@@ -186,7 +186,7 @@
 
 <section class="plan-review" aria-labelledby="plan-review-heading">
   <div class="review-heading">
-    <h2 id="plan-review-heading">Agent plan review</h2>
+    <h2 id="plan-review-heading" tabindex="-1">Agent plan review</h2>
     <button onclick={refresh} disabled={!native || loading || busy}>Refresh requests</button>
   </div>
   <p class="description">
@@ -194,8 +194,9 @@
     and lasts at most two minutes.
   </p>
   <p class="description">
-    Permitted connections may request an exact approved batch while Voldiq is open. Each batch uses
-    the native helper. Cancellation can leave partial results that need review.
+    Permitted connections may request an exact approved batch while Voldiq is open. Recycling uses
+    the native helper; content copying uses the shared core worker. Cancellation can leave partial
+    results that need review.
   </p>
   {#if !native}<p>Human review requires the Windows application.</p>{/if}
   {#if error}<p class="error" role="alert">{error}</p>{/if}
@@ -475,6 +476,46 @@
       </details>
       {#if plan.result !== null}<section aria-label="Recorded operation result">
           <h4>Recorded result</h4>
+          {#if outcome.kind !== 'unavailable' && outcome.copies}
+            <dl class="metrics">
+              <div>
+                <dt>Confirmed copies</dt>
+                <dd>{outcome.copies.files}</dd>
+              </div>
+              <div>
+                <dt>Verified content</dt>
+                <dd>{exactBytes(outcome.copies.verifiedBytes)}</dd>
+              </div>
+              <div>
+                <dt>Immediate freed space</dt>
+                <dd>0 bytes</dd>
+              </div>
+            </dl>
+            <p class="description">
+              {outcome.copies.originals === 'kept'
+                ? 'Source copies were kept.'
+                : outcome.copies.originals === 'unchanged'
+                  ? 'The copy worker left originals unchanged.'
+                  : 'Review the original recycling outcomes below.'} Supported metadata only; full restoration
+              is not guaranteed.
+            </p>
+            {#if outcome.copies.publication === 'Uncertain'}<p role="status">
+                Publication of the stopped file is uncertain. Recorded copy counts exclude that
+                file; reconcile it before further work.
+              </p>
+            {:else if outcome.copies.publication === 'Confirmed'}<p role="status">
+                The stopped file was published, but its metadata or final confirmation did not
+                complete. Recorded copy counts exclude it; review the catalogue.
+              </p>{/if}
+            {#if outcome.copies.privateCleanupFailed}<p role="status">
+                Cleanup of an owned temporary output failed. Review it in the local operation
+                journal.
+              </p>{/if}
+            {#if outcome.copies.requiresReview}<p role="status">
+                The copy or original phase needs review in the catalogue and local operation
+                journal.
+              </p>{/if}
+          {/if}
           {#if outcome.kind === 'execution'}<dl class="metrics">
               <div>
                 <dt>Recycled</dt>
@@ -500,7 +541,7 @@
             {#if outcome.requiresReview}<p role="status">
                 Some outcomes or recovery records require review in the local operation journal.
               </p>{/if}
-          {:else}<p class="description">
+          {:else if outcome.kind === 'unavailable'}<p class="description">
               Result details are unavailable here. Review the local operation journal.
             </p>{/if}
         </section>{/if}
@@ -537,6 +578,11 @@
 </section>
 
 <style>
+  h2:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 4px;
+    border-radius: 2px;
+  }
   .plan-review {
     display: grid;
     gap: 14px;

@@ -37,7 +37,7 @@
       </header>
       {#if percent !== null && space}<div
           class="drive-ring"
-          style:background={`conic-gradient(var(--accent-fill) ${percent}%, var(--paper) 0)`}
+          style:background={`conic-gradient(from -90deg, var(--chart-blue) 0%, var(--chart-violet) ${percent}%, var(--paper) ${percent}% 100%)`}
           aria-hidden="true"
         >
           <div><strong>{percent.toFixed(1)}<small>%</small></strong><span>Used</span></div>

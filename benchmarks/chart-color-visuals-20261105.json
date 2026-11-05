@@ -1,0 +1,247 @@
+{
+  "checkedUtc": "2026-11-05T18:56:36.214270+00:00",
+  "baselineCommit": "ad90ab9adb36178cd339100288279eb6d414b831",
+  "width": 1000,
+  "height": 700,
+  "maps": [
+    {
+      "mode": "treemap",
+      "geometryIdentical": true,
+      "images": [
+        {
+          "stage": "before",
+          "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\svg-painters-dRbhcf\\treemap-canvas.png",
+          "bytes": 20499,
+          "sha256": "21D0EB764EA08ABE43611BACDF2CC432812DC386CCE3016750EAC9ECCA9557BE"
+        },
+        {
+          "stage": "after",
+          "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\svg-painters-MGVIvi\\treemap-canvas.png",
+          "bytes": 20493,
+          "sha256": "F3F968D0C10365B87201D30A90F11B38FD156F528681B07A86353078A8430F79"
+        }
+      ]
+    },
+    {
+      "mode": "sunburst",
+      "geometryIdentical": true,
+      "images": [
+        {
+          "stage": "before",
+          "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\svg-painters-dRbhcf\\sunburst-canvas.png",
+          "bytes": 49170,
+          "sha256": "83FA8782384776082090F2A2A0AA95632FEAB844623B954051F0E42DBE9D8151"
+        },
+        {
+          "stage": "after",
+          "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\svg-painters-MGVIvi\\sunburst-canvas.png",
+          "bytes": 48264,
+          "sha256": "CD188445EFE51016BDA0A234E4C968DE576E041CC8E2962CBD208B8C6F6C57CA"
+        }
+      ]
+    },
+    {
+      "mode": "circles",
+      "geometryIdentical": true,
+      "images": [
+        {
+          "stage": "before",
+          "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\svg-painters-dRbhcf\\circles-canvas.png",
+          "bytes": 52917,
+          "sha256": "B14E692530748C61AFA7A5F3A21D6C9460EC3D1ED121AF8F2C526D24D8B4434C"
+        },
+        {
+          "stage": "after",
+          "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\svg-painters-MGVIvi\\circles-canvas.png",
+          "bytes": 52064,
+          "sha256": "9A3B19C97873FAF039EF63A0D240DBDAFBFC0DE7655738D539CBF228800C67F0"
+        }
+      ]
+    },
+    {
+      "mode": "voronoi",
+      "geometryIdentical": true,
+      "images": [
+        {
+          "stage": "before",
+          "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\svg-painters-dRbhcf\\voronoi-canvas.png",
+          "bytes": 48557,
+          "sha256": "28E68F3F5B67FCE88292589F55D4ACE838246C973C3366FDB3A6B49A7ED60033"
+        },
+        {
+          "stage": "after",
+          "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\svg-painters-MGVIvi\\voronoi-canvas.png",
+          "bytes": 47590,
+          "sha256": "C92749EC4AB938CA13BA611E45815565E2CA5E38426E6D395171FEDD168A3974"
+        }
+      ]
+    },
+    {
+      "mode": "city",
+      "geometryIdentical": true,
+      "images": [
+        {
+          "stage": "before",
+          "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\svg-painters-dRbhcf\\city-canvas.png",
+          "bytes": 147774,
+          "sha256": "339F7CFAD2D7198233CB44A67C828AF123DCE061585DE1FAFA7360D7B559CC76"
+        },
+        {
+          "stage": "after",
+          "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\svg-painters-MGVIvi\\city-canvas.png",
+          "bytes": 149320,
+          "sha256": "F342EAD693032E0EB6CFDD27593D28E3740F0490A4C229D372E1A27045C774D0"
+        }
+      ]
+    }
+  ],
+  "contrast": {
+    "checkedUtc": "2026-11-05T18:48:36.985Z",
+    "minimum": 4.705104949419427,
+    "items": [
+      {
+        "name": "folder",
+        "fill": "#3272d1",
+        "ink": "#ffffff",
+        "contrast": 4.705104949419427
+      },
+      {
+        "name": "image",
+        "fill": "#e8aa35",
+        "ink": "#24210c",
+        "contrast": 7.884070383847552
+      },
+      {
+        "name": "video",
+        "fill": "#e36a4a",
+        "ink": "#241813",
+        "contrast": 5.289136836058517
+      },
+      {
+        "name": "audio",
+        "fill": "#b76ac5",
+        "ink": "#201528",
+        "contrast": 4.903866446354533
+      },
+      {
+        "name": "code",
+        "fill": "#219b8c",
+        "ink": "#05241f",
+        "contrast": 4.795828047514793
+      },
+      {
+        "name": "archive",
+        "fill": "#7a63c6",
+        "ink": "#ffffff",
+        "contrast": 4.742874641336433
+      },
+      {
+        "name": "document",
+        "fill": "#4aa3d5",
+        "ink": "#0c2736",
+        "contrast": 5.511602397012424
+      },
+      {
+        "name": "neutral",
+        "fill": "#8a96a8",
+        "ink": "#142130",
+        "contrast": 5.433180170171549
+      },
+      {
+        "name": "unknown",
+        "fill": "#616e81",
+        "ink": "#ffffff",
+        "contrast": 5.177967526636101
+      },
+      {
+        "name": "size-1",
+        "fill": "#55bfd5",
+        "ink": "#172232",
+        "contrast": 7.473038199857227
+      },
+      {
+        "name": "size-2",
+        "fill": "#5998e8",
+        "ink": "#172232",
+        "contrast": 5.400213672533352
+      },
+      {
+        "name": "size-3",
+        "fill": "#a28ce3",
+        "ink": "#172232",
+        "contrast": 5.64075127282083
+      },
+      {
+        "name": "size-4",
+        "fill": "#e6b74a",
+        "ink": "#172232",
+        "contrast": 8.569260554949581
+      },
+      {
+        "name": "size-5",
+        "fill": "#ed8549",
+        "ink": "#172232",
+        "contrast": 6.1405636822221785
+      },
+      {
+        "name": "age-1",
+        "fill": "#39b4a0",
+        "ink": "#102820",
+        "contrast": 6.097782659442735
+      },
+      {
+        "name": "age-2",
+        "fill": "#8fc56a",
+        "ink": "#202a16",
+        "contrast": 7.379753790422387
+      },
+      {
+        "name": "age-3",
+        "fill": "#e6bd53",
+        "ink": "#302813",
+        "contrast": 8.180576897763874
+      },
+      {
+        "name": "age-4",
+        "fill": "#e99457",
+        "ink": "#322317",
+        "contrast": 6.365794307024556
+      },
+      {
+        "name": "age-5",
+        "fill": "#9a79d0",
+        "ink": "#21172d",
+        "contrast": 4.913624699759388
+      },
+      {
+        "name": "light-growth",
+        "fill": "#e9ece7",
+        "ink": "#a64420",
+        "contrast": 5.0782026491119865
+      },
+      {
+        "name": "light-reduction",
+        "fill": "#e9ece7",
+        "ink": "#066c5f",
+        "contrast": 5.309446510729481
+      },
+      {
+        "name": "dark-growth",
+        "fill": "#252a31",
+        "ink": "#f29b65",
+        "contrast": 6.637265434469152
+      },
+      {
+        "name": "dark-reduction",
+        "fill": "#252a31",
+        "ink": "#40c6b4",
+        "contrast": 6.845479419645997
+      }
+    ],
+    "scope": "Computed WCAG relative luminance for actual tile fill/ink pairs; this does not prove rendered UI/focus/scaling acceptance."
+  },
+  "generator": "scripts/render_svg_fixture.mjs",
+  "generatorSha256": "F42FCFFC83F4E446C3EC7F6996C09B12EDFBAA7F1D705BBA73BF2347C25BCF95",
+  "argument": "--palette",
+  "scope": "Owned synthetic fixture through the five production Canvas/SVG painters, before and after the palette change. All SVG geometry attributes match and each rendered Canvas image changes. Computed fill/ink and theme badge contrast is separate from populated native UI, keyboard/focus or Windows scaling acceptance."
+}

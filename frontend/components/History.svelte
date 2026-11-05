@@ -517,7 +517,9 @@
               >
             </div>{/if}
         </section>
-        {#if chart}<section class="panel history-trend" aria-label="Recorded logical size">
+        {#if chart}
+          {@const plotPoints = chart.points.map((point) => `${point.x},${point.y}`).join(' ')}
+          <section class="panel history-trend" aria-label="Recorded logical size">
             <div class="panel-heading">
               <h2>Logical size</h2>
               <span>{bytes(trend[0]?.logical ?? 0)} → {bytes(trend.at(-1)?.logical ?? 0)}</span>
@@ -540,15 +542,28 @@
                     >{bytes(tick.value)}</text
                   >
                 {/each}
+                <polygon
+                  points={`${chart.points[0].x},180 ${plotPoints} ${chart.points[chart.points.length - 1].x},180`}
+                  fill="var(--chart-blue)"
+                  opacity="0.12"
+                />
                 <polyline
-                  points={chart.points.map((point) => `${point.x},${point.y}`).join(' ')}
+                  points={plotPoints}
                   fill="none"
-                  stroke="var(--accent)"
-                  stroke-width="2"
+                  stroke="var(--chart-blue)"
+                  stroke-width="2.5"
                   vector-effect="non-scaling-stroke"
                 />
                 {#each chart.points as point, i}
-                  <circle cx={point.x} cy={point.y} r="3" fill="var(--accent)"
+                  <circle
+                    cx={point.x}
+                    cy={point.y}
+                    r={i === chart.points.length - 1 ? 4.5 : 3.5}
+                    fill={i === chart.points.length - 1 ? 'var(--chart-violet)' : 'var(--panel)'}
+                    stroke={i === chart.points.length - 1
+                      ? 'var(--chart-violet)'
+                      : 'var(--chart-blue)'}
+                    stroke-width="2"
                     ><title>{date(point.captured)} · {bytes(point.logical)}</title></circle
                   >
                   {#if point.labelled}
@@ -585,6 +600,10 @@
                   {/if}
                 {/each}
               </svg>
+            </div>
+            <div class="history-chart-legend">
+              <span><i style:background="var(--chart-blue)"></i>Recorded logical size</span>
+              <span><i style:background="var(--chart-violet)"></i>Latest capture</span>
             </div>
           </section>{/if}
       </div>
@@ -717,10 +736,20 @@
                   <span>Path</span><span>Change</span><span>Before</span><span>After</span>
                 </div>{/if}
               {#each comparison.changes as change}
-                <div class="change-row">
+                <div
+                  class="change-row"
+                  class:growth={change.kind === 'changed' && change.after > change.before}
+                  class:reduction={change.kind === 'changed' && change.after < change.before}
+                >
                   <Icon name={change.directory ? 'folder' : 'file'} /><span title={change.path}
                     >{change.path}</span
-                  ><small>{labels[change.kind]}</small>
+                  ><small
+                    >{change.kind === 'changed' && change.after !== change.before
+                      ? change.after > change.before
+                        ? 'Grew'
+                        : 'Shrank'
+                      : labels[change.kind]}</small
+                  >
                   <span class="number"
                     >{change.kind === 'added'
                       ? '—'

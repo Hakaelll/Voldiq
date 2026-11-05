@@ -1,0 +1,187 @@
+{
+  "checkedUtc": "2026-11-05T19:00:42.4054161Z",
+  "startedUtc": "2026-11-05T18:52:50.3759136Z",
+  "checkoutCommit": "ad90ab9adb36178cd339100288279eb6d414b831",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.866
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 10.17
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1.088
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.941
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 437.536
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 16.412
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/plans.rs",
+      "sha256": "90E7A87B9263248238C4ED66B3A83C63D4AF68F5670B4C5BF0BB53F79570FDC8",
+      "lastWriteUtc": "2026-11-05T18:30:35.5918494Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/batch.rs",
+      "sha256": "158CC4535DA7528CE5C4569A869F796D21C6146EEB72092EB82905B3A0109792",
+      "lastWriteUtc": "2026-11-05T18:30:35.7939053Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/desktop.rs",
+      "sha256": "1BEC3F3319CF47F206376274C1066752A6047538258679306FEE752FDF7689EA",
+      "lastWriteUtc": "2026-11-05T18:35:49.5349988Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/desktop/tests.rs",
+      "sha256": "4E1CD62D7DC944BCA8906E57B42693FB9E93D3D03201A9934708D73A3FBD3B27",
+      "lastWriteUtc": "2026-11-05T18:45:42.4832100Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/transfer.rs",
+      "sha256": "A3E00FF31CA9179F11E8128F28BC69B41E8080225ADC9404EC56850B6BC764AC",
+      "lastWriteUtc": "2026-11-05T18:32:28.6213697Z"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "124C68B9E7DCA4CA50E22215907C2ACBA3F3EF7859560B817437918B3552B555",
+      "lastWriteUtc": "2026-11-05T18:51:12.3392403Z"
+    },
+    {
+      "path": "frontend/components/AgentPlanReview.svelte",
+      "sha256": "62069CA911CE83228301E0C11884C7589F1317425175BF257497266B70DF317D",
+      "lastWriteUtc": "2026-11-05T18:51:04.3234139Z"
+    },
+    {
+      "path": "frontend/components/History.svelte",
+      "sha256": "EA08C41A99D1FABE3B83161BEDD5C62D9154ECE59F6F636507B28559DFECF286",
+      "lastWriteUtc": "2026-11-05T18:46:26.3943854Z"
+    },
+    {
+      "path": "frontend/components/Overview.svelte",
+      "sha256": "10FF5FBF49BA7CE916243E11ECD6CEF8ED051C0F0767406E0835D63794587645",
+      "lastWriteUtc": "2026-11-05T18:45:38.6794260Z"
+    },
+    {
+      "path": "frontend/components/ScanWelcome.svelte",
+      "sha256": "B539DAB6B7E044A92FC6186386CF33E85629445DC3AF5316ABD2DBB15DD2E660",
+      "lastWriteUtc": "2026-11-05T18:45:38.8780076Z"
+    },
+    {
+      "path": "frontend/components/StorageMap.svelte",
+      "sha256": "8CC115E036FE5EE165AD5088D379651173864A0D9C89A369C30EDF72B74C6404",
+      "lastWriteUtc": "2026-11-05T18:45:38.4811913Z"
+    },
+    {
+      "path": "frontend/lib/chart-colors.ts",
+      "sha256": "483E259D65E3D3F6D8E92F7DB1F0F01D4B8FC31EB22219890784880FA5CA1356",
+      "lastWriteUtc": "2026-11-05T18:45:38.0762707Z"
+    },
+    {
+      "path": "frontend/lib/cleanup-selection.test.ts",
+      "sha256": "EE7F8ADB797576A1130435B6D7400A4554CEA8A849BE582C7188D705731E5DAA",
+      "lastWriteUtc": "2026-11-05T18:33:49.5889855Z"
+    },
+    {
+      "path": "frontend/lib/plan-progress.ts",
+      "sha256": "91EC3DB466404016C96D20C6C5F8AEFB169CAACF01742C2CD863FF0A083CB156",
+      "lastWriteUtc": "2026-11-05T18:33:49.5305960Z"
+    },
+    {
+      "path": "frontend/lib/plan-result.ts",
+      "sha256": "678EC29976CB1424C3D77FE8ABD1727018070E1A1EDCE191F12CBA578EEDA3D0",
+      "lastWriteUtc": "2026-11-05T18:33:49.5215418Z"
+    },
+    {
+      "path": "frontend/lib/storage-map.ts",
+      "sha256": "D2B13EF250BD06608F5187B3A4E01ACD01F1CA8E0152274290605C543005D7DA",
+      "lastWriteUtc": "2026-11-05T18:45:38.2782327Z"
+    },
+    {
+      "path": "frontend/lib/treemap.ts",
+      "sha256": "AF4BC641E3B9BC22E44327A5D2FEACD6FDBA3C6587CC396FE095A19DC71488EE",
+      "lastWriteUtc": "2026-11-05T18:46:21.5410152Z"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "0A33DCA8AFFC1834F83DB8545E0D0854BDA781995D2D8396B2F7454FFD88D782",
+      "lastWriteUtc": "2026-11-05T18:51:04.7837888Z"
+    },
+    {
+      "path": "src-tauri/src/plan_commands.rs",
+      "sha256": "C8CD6268BC8C25D48280F1C91936EBAD0207FFD657720D9049DCD6D952066328",
+      "lastWriteUtc": "2026-11-05T18:35:49.7315042Z"
+    }
+  ],
+  "sourceInputsPredateVerification": true,
+  "behaviorTests": {
+    "frontend": 1,
+    "workspaceRust": 7,
+    "total": 8,
+    "ignored": 0
+  },
+  "sidebarMarkupUnchangedFromCheckout": true,
+  "visualReceipt": "benchmarks/chart-color-visuals-20261105.json",
+  "visualReceiptSha256": "43D48E7753FD4E63BD568114277EDDD9F041E8D4B6E2AAEC329358DB63B332AD",
+  "operationScope": "Frozen-action desktop routes and typed byte/recycling progress; retained real recycling/helper-refusal flow, component copy/catalogue fixtures and strict frontend result/counter boundaries. Transfer/restore admission remains disabled; the user defers actual second-volume verification. Native UI/focus/scaling acceptance remains manual.",
+  "productionAssets": [
+    {
+      "name": "city.worker-DLxzT0Wm.js",
+      "bytes": 2879,
+      "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+    },
+    {
+      "name": "history-export-BglJ8iGN.js",
+      "bytes": 3986,
+      "sha256": "2C6840D4BB308FA6F66923B0832F78B950E3711E971E9F156849A1A94D7F8C43"
+    },
+    {
+      "name": "history-video-BjpgA2X_.js",
+      "bytes": 2865,
+      "sha256": "E97ABCF087B4AA64D02EA3F8B991B11F3971B68679937A90341EC2FCDAC375D6"
+    },
+    {
+      "name": "index-C1iVp5Jb.css",
+      "bytes": 84857,
+      "sha256": "67AF13A05483954A60432CD0E2DF9F5166757185A49AB0A24353CF5BF50F513C"
+    },
+    {
+      "name": "index-DVrvWe8f.js",
+      "bytes": 421195,
+      "sha256": "CE422E0F4CAA35DF780BF505D2126B4EB58E45D740BBE9FFDEF11E4B2AD9D936"
+    },
+    {
+      "name": "svg-surface-D3Yw6xZb.js",
+      "bytes": 6995,
+      "sha256": "16031B0D00F7998ED47803E71C5F769269D4295083881302DD52A7B7F3A450AA"
+    },
+    {
+      "name": "voronoi.worker-DwJ2QmrW.js",
+      "bytes": 5606,
+      "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+    }
+  ]
+}

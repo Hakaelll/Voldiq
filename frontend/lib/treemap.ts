@@ -1,3 +1,5 @@
+import { RANKED_PAINTS as colors, CHART_PAINTS } from './chart-colors.ts';
+
 export interface WeightedNode {
   id: number;
   name: string;
@@ -102,21 +104,13 @@ export function nestedLayout(nodes: WeightedNode[], width: number, height: numbe
   return output;
 }
 
-const colors = [
-  { fill: '#075bdd', ink: '#ffffff' },
-  { fill: '#123f86', ink: '#ffffff' },
-  { fill: '#087f8c', ink: '#ffffff' },
-  { fill: '#ed701b', ink: '#101820' },
-  { fill: '#c59127', ink: '#101820' },
-  { fill: '#717a84', ink: '#000000' },
-];
 export function rankColor(rank: number): { fill: string; ink: string } {
   return colors[Math.min(Math.max(0, rank), colors.length - 1)] ?? colors[0];
 }
 export function mapColor(name: string): { fill: string; ink: string } {
   let hash = 0;
   for (const char of name) hash = (Math.imul(hash, 31) + char.charCodeAt(0)) | 0;
-  return colors[(hash >>> 0) % colors.length] ?? { fill: '#717a84', ink: '#000000' };
+  return colors[(hash >>> 0) % colors.length] ?? CHART_PAINTS.neutral;
 }
 export function color(name: string): string {
   return mapColor(name).fill;

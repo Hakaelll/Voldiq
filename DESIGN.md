@@ -27,12 +27,15 @@ colors:
   dark-accent-fill: "#315ba6"
   dark-selected: "#263c60"
   dark-error: "#f29797"
-  map-blue: "#075bdd"
-  map-navy: "#123f86"
-  map-teal: "#087f8c"
-  map-orange: "#ed701b"
-  map-ochre: "#c59127"
-  map-slate: "#717a84"
+  map-blue: "#3272d1"
+  map-violet: "#7a63c6"
+  map-teal: "#219b8c"
+  map-orange: "#e36a4a"
+  map-ochre: "#e8aa35"
+  map-pink: "#b76ac5"
+  map-cyan: "#4aa3d5"
+  map-slate: "#8a96a8"
+  map-unknown: "#616e81"
 typography:
   headline:
     fontFamily: "Segoe UI Variable, Segoe UI, sans-serif"
@@ -169,7 +172,7 @@ History extends this system with saved-snapshot controls and compact comparisons
 
 ## Colors
 
-The palette uses white and neutral gray for structure, blue for interaction, and muted category colors for the storage map. Frontmatter records exact source values. Each `dark-` token replaces its matching light role under the root dark-theme attribute.
+The palette uses white and neutral gray for structure, blue for interaction, and distinct category colors for the storage map. Frontmatter records exact source values. Each `dark-` token replaces its matching light role under the root dark-theme attribute.
 
 ### Primary
 
@@ -178,7 +181,7 @@ The palette uses white and neutral gray for structure, blue for interaction, and
 
 ### Secondary
 
-- **Measured map colors** use the six `map-` tokens. Root regions receive colors in size-rank order, with later regions using slate. Nested children inherit their enclosing region's fill and paired text color. Largest-item swatches match these regions. File-type summaries retain name-based colors. Neither palette encodes a semantic file-type taxonomy.
+- **Measured map colors** share `frontend/lib/chart-colors.ts`. Type mode distinguishes folders (blue), images (gold), video (coral), audio (pink), code (teal), archives (violet), documents (cyan) and other files (slate). Remainder/unknown data stays neutral. Legacy ranked maps use the same eight-color palette. Size and age keep their existing logarithmic/date bands and use separate five-color ramps drawn from this single palette source; legends consume those exact ramps. Colors describe data categories or the selected metric, never cleanup permission or risk.
 
 ### Neutral
 
@@ -465,3 +468,9 @@ Agent connection creation exposes an independent, initially unchecked Export ind
 Overview places a closed Recovery copies section beside the existing space explanation. Query copies explicitly requests Windows metadata for the analyzed root's containing volume. The root and check date remain visible, with distinct loading, cancellation, pause, transport failure and native-unavailable states. The section reuses existing typography, panels, borders, buttons and focus styles. No copy query runs while closed or on an idle timer.
 
 A compact table presents reported copy IDs, optional provider IDs, recorded UTC dates and written Yes/No/Unknown flags for Previous Versions and persistence. Long identifiers wrap within fixed table columns. An empty completed query says no records were returned; limited or timed-out enumeration explicitly remains incomplete. The first bounded provider prefix is sorted by known recorded date, without claiming it contains the newest copies. Advice directs people to Windows Previous Versions or their backup application's recovery controls and a separate destination. No restore, overwrite, purge or elevation action is introduced by discovery. Native rendering, populated providers, keyboard/focus, assistive technology and Windows scaling remain manual acceptance.
+
+## Chart color and operation feedback refinement
+
+The user explicitly keeps the stable sidebar behavior. The graph refinement changes category/ramp colors, not map geometry, filters, measurements, selection or saved color modes. The file-type donut, ranked rows, five shared map painters and graphic/history exports reuse the palette. Measured volume rings blend the existing blue role into violet within the actual used arc; the rest stays neutral. History adds a light area under the recorded line, separate latest-capture markers and a text legend. Growth/reduction badges pair color with Grew/Shrank text; unknown coverage retains explicit wording. Theme-aware chart line/badge roles supplement the existing accent, which remains reserved for interactions.
+
+Operation progress is scoped to the current native operation ID. The core sends actual copy, destination-readback and source-recheck byte counters as decimal strings; the desktop coalesces updates while retaining phase boundaries. The UI rejects malformed or out-of-range counters rather than rounding. Recorded results separate confirmed copy counts, verified bytes, original outcomes, publication uncertainty and cleanup problems, with no promise of full metadata restoration or immediate freed space. Cleanup and the active-operation notice link directly to the existing human review section, with owned focus/scroll after navigation. The approval boundary and sidebar behavior are unchanged.

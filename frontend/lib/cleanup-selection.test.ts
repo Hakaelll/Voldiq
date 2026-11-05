@@ -3,6 +3,8 @@ import { paintHistoryFrame, gifPacket, webmPacket } from './history-export.ts';
 import type { HistoryClip, GifProgress, HistoryGifRequest } from './history-clip.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readPlanResult } from './plan-result.ts';
+import { readPlanProgress } from './plan-progress.ts';
 import { updateCleanupSelection } from './cleanup-selection.ts';
 import { createNavigationRefresh } from './navigation-refresh.ts';
 import { resolveZoom, zoomBox, createTreemapAnimator } from './treemap-motion.ts';
@@ -41,6 +43,49 @@ function item(id: number): CleanupRulePage['items'][number] {
 }
 
 test('frontend interactions preserve ownership and bounded motion', async () => {
+  const stopped = {
+    phase: 'copy_stopped',
+    copied_files: 1,
+    verified_bytes: '262177',
+    originals: 'unchanged',
+    publication: 'Uncertain',
+    private_cleanup_failed: true,
+    immediate_free_bytes: '0',
+    full_restore_verified: false,
+  };
+  assert.deepEqual(readPlanResult(stopped), {
+    kind: 'copy',
+    copies: {
+      files: 1,
+      verifiedBytes: '262177',
+      originals: 'unchanged',
+      publication: 'Uncertain',
+      privateCleanupFailed: true,
+      requiresReview: true,
+    },
+  });
+  assert.deepEqual(readPlanResult({ ...stopped, verified_bytes: '-1' }), { kind: 'unavailable' });
+  assert.deepEqual(readPlanResult({ ...stopped, copied_files: 0 }), { kind: 'unavailable' });
+  assert.deepEqual(
+    readPlanProgress({
+      kind: 'copy',
+      node: 7,
+      stage: 'readback',
+      bytes: '9007199254740993',
+      total: '9007199254740994',
+    }),
+    {
+      kind: 'copy',
+      node: 7,
+      stage: 'readback',
+      bytes: '9007199254740993',
+      total: '9007199254740994',
+    },
+  );
+  assert.equal(
+    readPlanProgress({ kind: 'copy', node: 7, stage: 'readback', bytes: '5', total: '4' }),
+    null,
+  );
   const current = new Map(Array.from({ length: 499 }, (_, id) => [id, item(id)]));
   assert.equal(updateCleanupSelection(current, [item(499), item(500)], true), null);
   assert.equal(current.size, 499);

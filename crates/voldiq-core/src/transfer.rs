@@ -10,7 +10,8 @@ use std::{
 const BUFFER: usize = 64 * 1024;
 pub mod metadata;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum Phase {
     Copying,
     Readback,

@@ -1848,6 +1848,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
     let apartment = ShellApartment::new().unwrap();
     let mut journal = Journal::open(&state.path().join("cleanup.db")).unwrap();
     let mut launches = 0;
+    let mut dispatch_progress = Vec::new();
     assert!(
         desktop
             .execute_request_using(
@@ -1866,7 +1867,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             &plan.hash,
             &mut journal,
             super::super::RecyclingWorker::new(&operation, &cancel, &apartment),
-            |_| {},
+            |value| dispatch_progress.push(serde_json::to_value(value).unwrap()),
             |_| {
                 launches += 1;
                 Err(std::io::Error::from_raw_os_error(1223))
@@ -1874,6 +1875,10 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         )
         .unwrap();
     assert_eq!(launches, 1);
+    assert_eq!(
+        dispatch_progress,
+        [serde_json::json!({"kind":"recycling","processed":1})]
+    );
     assert_eq!(result.state, State::Cancelled);
     assert_eq!(result.result.as_ref().unwrap()["confirmed_admissions"], 0);
     assert!(desktop.pending_execution(25).unwrap().is_empty());

@@ -3,6 +3,7 @@
   import { onMount, tick } from 'svelte';
   import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
+  import { readPlanProgress } from './lib/plan-progress';
   import Icon from './components/Icon.svelte';
   import Overview from './components/Overview.svelte';
   import StorageMap from './components/StorageMap.svelte';
@@ -319,6 +320,15 @@
     text = '';
     if (ready && (next === 'overview' || next === 'explorer' || next === 'large'))
       void refresh(scope);
+  }
+  async function reviewAgentPlans(): Promise<void> {
+    if (analysisBusy) return;
+    navigate('settings');
+    await tick();
+    if (view !== 'settings') return;
+    const heading = document.getElementById('plan-review-heading');
+    heading?.focus({ preventScroll: true });
+    heading?.scrollIntoView({ block: 'start', behavior: 'auto' });
   }
   async function focusFileSearch(): Promise<void> {
     if (!ready || indexId === null || analysisBusy) return;
@@ -1089,6 +1099,23 @@
               operation = null;
               scanId = null;
             }
+          } else if (
+            payload.phase === 'progress' &&
+            agentOperation === payload.id &&
+            'progress' in payload
+          ) {
+            const progress = readPlanProgress(payload.progress);
+            if (progress?.kind === 'copy') {
+              const stage =
+                progress.stage === 'copying'
+                  ? 'Copying'
+                  : progress.stage === 'readback'
+                    ? 'Verifying destination'
+                    : 'Rechecking source';
+              agentNotice = `File #${progress.node} · ${stage} · ${BigInt(progress.bytes).toLocaleString()} of ${BigInt(progress.total).toLocaleString()} bytes`;
+            } else if (progress?.kind === 'recycling') {
+              agentNotice = `Approved recycling · ${progress.processed.toLocaleString()} files processed. Review the final recorded outcomes.`;
+            }
           } else if (payload.phase === 'finished' && agentOperation === payload.id) {
             agentOperation = null;
             agentNotice =
@@ -1455,6 +1482,7 @@
         </div>{/if}
       {#if agentNotice}<div class="scan-status" role="status">
           <span>{agentNotice}</span>
+          <button disabled={analysisBusy} onclick={reviewAgentPlans}>Review agent plans</button>
           {#if agentOperation !== null}<button
               onclick={() => {
                 if (agentOperation !== null)
@@ -1762,16 +1790,21 @@
                   }}
                 />
               {:else if view === 'cleanup'}
-                <button
-                  disabled={busy}
-                  onclick={async () => {
-                    try {
-                      await invoke('open_windows_storage');
-                    } catch (problem) {
-                      report(problem);
-                    }
-                  }}>Windows storage</button
-                >
+                <div class="cleanup-actions">
+                  <button disabled={analysisBusy || !isTauri()} onclick={reviewAgentPlans}
+                    >Review agent plans</button
+                  >
+                  <button
+                    disabled={busy}
+                    onclick={async () => {
+                      try {
+                        await invoke('open_windows_storage');
+                      } catch (problem) {
+                        report(problem);
+                      }
+                    }}>Windows storage</button
+                  >
+                </div>
                 <RecycleBin drive={volumePath} />
                 <CleanupRules
                   scanning={operation?.phase === 'scanning'}

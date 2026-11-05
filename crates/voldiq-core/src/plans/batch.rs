@@ -214,7 +214,7 @@ impl Store {
         }
         let copied_files = transfer.copied_files();
         let verified_bytes = transfer.verified_bytes();
-        let result = serde_json::json!({"copied_files":copied_files,"verified_bytes":verified_bytes.to_string(),
+        let result = serde_json::json!({"phase":"copy_completed","copied_files":copied_files,"verified_bytes":verified_bytes.to_string(),
             "originals":"kept","immediate_free_bytes":"0","full_restore_verified":false});
         let completed =
             now().and_then(|at| self.finish(transfer.lease, State::Completed, result, at));
@@ -247,7 +247,7 @@ impl Store {
         } else {
             State::Failed
         };
-        let result = serde_json::json!({"copied_files":copied_files,"verified_bytes":verified_bytes.to_string(),
+        let result = serde_json::json!({"phase":"copy_stopped","copied_files":copied_files,"verified_bytes":verified_bytes.to_string(),
             "failed_node":failed_node,"publication":format!("{:?}",error.publication()),
             "private_cleanup_failed":error.cleanup_error().is_some(),"originals":"unchanged",
             "immediate_free_bytes":"0","full_restore_verified":false});
