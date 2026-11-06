@@ -37,6 +37,7 @@
   import DeveloperStorage from './components/DeveloperStorage.svelte';
   import CleanupPreviewDialog from './components/CleanupPreview.svelte';
   import CleanupRules from './components/CleanupRules.svelte';
+  import type { ApplicationCleanupContext } from './lib/applications';
   import RecycleBin from './components/RecycleBin.svelte';
   import CleanupActivity from './components/CleanupActivity.svelte';
   import RestorationDialog from './components/RestorationDialog.svelte';
@@ -182,6 +183,9 @@
   let agentOperation = $state<number | null>(null);
   let agentNotice = $state('');
   let cleanupSection = $state<'candidates' | 'activity' | 'requests' | 'transfers'>('candidates');
+  let applicationCleanup = $state<{ indexId: IndexId; context: ApplicationCleanupContext } | null>(
+    null,
+  );
   let requestedPlanId = $state<string | null>(null);
   const cleanupSections = [
     { id: 'candidates', label: 'Candidates' },
@@ -1755,6 +1759,12 @@
               </div>
               <RecycleBin drive={volumePath} />
               <CleanupRules
+                application={applicationCleanup?.indexId === indexId
+                  ? applicationCleanup.context
+                  : null}
+                onclearapplication={() => {
+                  applicationCleanup = null;
+                }}
                 scanning={operation?.phase === 'scanning'}
                 {revision}
                 {busy}
@@ -1849,6 +1859,16 @@
             >
               {#if view === 'overview'}
                 <Overview
+                  manageable={ready && !historical}
+                  onreviewcache={(context) => {
+                    if (indexId === null || busy || historical || context.scope !== scope) return;
+                    applicationCleanup = { indexId, context };
+                    cleanupSection = 'candidates';
+                    view = 'cleanup';
+                    void tick().then(() =>
+                      document.querySelector<HTMLElement>('.cleanup-rules')?.focus(),
+                    );
+                  }}
                   appFilters={query}
                   scopeId={scope}
                   onexport={isTauri() ? exportMap : undefined}

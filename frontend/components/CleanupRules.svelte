@@ -1,5 +1,7 @@
 <script lang="ts">
-  import { invokeIndexed } from '../lib/index-context';
+  import { invokeIndexed, getIndexContext } from '../lib/index-context';
+  import { applicationCacheQueries } from '../lib/queries';
+  import { readApplicationCachePage, type ApplicationCleanupContext } from '../lib/applications';
   import { onDestroy, untrack, tick } from 'svelte';
   import { invoke, isTauri } from '@tauri-apps/api/core';
   import { bytes, date, type CleanupRulePage, type CleanupPreview } from '../lib/types';
@@ -14,6 +16,8 @@
     onbusy,
     onpreview,
     onerror,
+    application = null,
+    onclearapplication,
   }: {
     revision: number;
     manageable: boolean;
@@ -23,9 +27,14 @@
     onbusy: (value: boolean) => void;
     onpreview: (plan: CleanupPreview) => void;
     onerror: (problem: unknown) => void;
+    application?: ApplicationCleanupContext | null;
+    onclearapplication: () => void;
   } = $props();
   const limit = 50;
   let rule = $state<'user_temp' | 'old_files' | 'project_temp' | 'browser_cache'>('user_temp');
+  const activeRule = $derived(application ? 'browser_cache' : rule);
+  let applicationName = $state<string | null>(null);
+  let cancelRead = () => {};
   let page = $state<CleanupRulePage | null>(null),
     offset = $state(0);
   let loadState = $state<'loading' | 'ready' | 'unavailable'>('loading');
@@ -52,15 +61,39 @@
   let selectionRegion: HTMLElement;
   async function load(next: number): Promise<void> {
     const token = ++generation;
+    cancelRead();
     const focusTarget = document.activeElement;
     const restoreFocus = region?.contains(focusTarget) && !selectionRegion?.contains(focusTarget);
     loadState = 'loading';
+    page = null;
     try {
-      const result = await invokeIndexed<CleanupRulePage>('query_cleanup_rule', {
-        rule,
-        offset: next,
-        limit,
-      });
+      let result: CleanupRulePage;
+      if (application) {
+        const indexId = getIndexContext();
+        if (indexId === null) throw Error('Scan a live folder before reviewing application cache.');
+        const context = application;
+        const request = applicationCacheQueries.request({
+          indexId,
+          request: { context, offset: next, limit },
+        });
+        cancelRead = request.cancel;
+        const value = await request.result;
+        if (token !== generation) return;
+        if (value === null || indexId !== getIndexContext())
+          throw Error('Application cache review cancelled.');
+        const response = readApplicationCachePage(value);
+        if (response.application.id !== context.application_id)
+          throw Error('Application evidence changed.');
+        applicationName = response.application.name;
+        result = response.candidates;
+      } else {
+        applicationName = null;
+        result = await invokeIndexed<CleanupRulePage>('query_cleanup_rule', {
+          rule: activeRule,
+          offset: next,
+          limit,
+        });
+      }
       if (token !== generation) return;
       page = result;
       offset = next;
@@ -88,12 +121,14 @@
     if (!manageable || busy || reviewing || selected.size === 0) return;
     reviewing = true;
     onbusy(true);
+    const owner = generation;
     try {
       const plan = await invokeIndexed<CleanupPreview>('preview_cleanup_rule', {
-        rule,
+        rule: activeRule,
+        application,
         selection: [...selected.keys()],
       });
-      if (alive) onpreview(plan);
+      if (alive && owner === generation) onpreview(plan);
       else await invoke('discard_cleanup', { id: plan.id });
     } catch (problem) {
       if (alive) onerror(problem);
@@ -105,6 +140,7 @@
   $effect(() => {
     revision;
     rule;
+    application;
     untrack(() => {
       selected = new Map();
       offset = 0;
@@ -115,6 +151,7 @@
   onDestroy(() => {
     alive = false;
     generation += 1;
+    cancelRead();
   });
 </script>
 
@@ -126,30 +163,42 @@
   bind:this={region}
 >
   <div class="rule-heading">
-    <div class="rule-choices" role="group" aria-label="Cleanup rule">
-      {#each rules as choice}<button
-          class:active={rule === choice.id}
-          aria-pressed={rule === choice.id}
-          disabled={busy || reviewing || loadState === 'loading'}
-          onclick={() => {
-            rule = choice.id;
-          }}><Icon name={choice.icon} size={17} />{choice.name}</button
-        >{/each}
-    </div>
+    {#if application}<div class="application-review-heading">
+        <strong>{applicationName ?? 'Application cache review'}</strong>
+        <small>Browser HTTP cache · explicit file selection</small>
+      </div>
+      <button onclick={onclearapplication} disabled={busy || reviewing}>All cleanup rules</button>
+    {:else}
+      <div class="rule-choices" role="group" aria-label="Cleanup rule">
+        {#each rules as choice}<button
+            class:active={rule === choice.id}
+            aria-pressed={rule === choice.id}
+            disabled={busy || reviewing || loadState === 'loading'}
+            onclick={() => {
+              rule = choice.id;
+            }}><Icon name={choice.icon} size={17} />{choice.name}</button
+          >{/each}
+      </div>
+    {/if}
     {#if page && loadState === 'ready'}<button
         class="primary"
         onclick={() => {
           if (page) void onscan(page.root);
         }}
         disabled={busy || !page.root}
-        ><Icon name="scan" />{rule === 'user_temp' ? 'Scan user temp' : 'Rescan'}</button
+        ><Icon name="scan" />{activeRule === 'user_temp' ? 'Scan user temp' : 'Rescan'}</button
       >{/if}
   </div>
+  {#if application}<p class="application-review-note">
+      Only supported external Blockfile payloads unchanged for seven days are listed. Close the
+      browser before review. Folder scope is retained; Explorer file filters are not applied.
+      Nothing is selected automatically.
+    </p>{/if}
   {#if page && loadState === 'ready'}<div class="rule-summary">
       <span
-        >{rule === 'old_files'
+        >{activeRule === 'old_files'
           ? '90+ days · Manual selection'
-          : rule === 'browser_cache'
+          : activeRule === 'browser_cache'
             ? '7+ days · Close browser before review'
             : '7+ days · .tmp / .temp'}</span
       >
@@ -281,6 +330,22 @@
 </div>
 
 <style>
+  .application-review-heading {
+    display: grid;
+    gap: 4px;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  .application-review-heading small,
+  .application-review-note {
+    color: var(--secondary);
+    font-size: 12px;
+  }
+  .application-review-note {
+    border-left: 3px solid var(--accent);
+    padding-left: 12px;
+    line-height: 1.6;
+  }
   .cleanup-rules {
     min-width: 0;
     margin-top: 24px;

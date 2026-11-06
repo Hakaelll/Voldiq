@@ -3,12 +3,15 @@ use crate::{Error, Kind, NodeId, Result, index::Index, windows};
 use serde::Serialize;
 use std::{
     collections::HashSet,
-    path::{Component, Path},
+    path::Path,
+    sync::atomic::{AtomicBool, Ordering},
     time::{SystemTime, UNIX_EPOCH},
 };
 
 const MINIMUM_AGE: u64 = 7 * 24 * 60 * 60;
 const OLD_FILE_AGE: u64 = 90 * 24 * 60 * 60;
+mod scope;
+use scope::DirectoryScope;
 
 #[derive(Clone, Copy, serde::Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -24,7 +27,7 @@ enum RuleSource<'a> {
     UserTemp,
     OldFiles,
     ProjectTemp(&'a [crate::developer::CacheLocation]),
-    BrowserCache(&'a Path),
+    BrowserCache(&'a Path, Option<(NodeId, &'a AtomicBool)>),
 }
 
 impl RuleSource<'_> {
@@ -33,7 +36,7 @@ impl RuleSource<'_> {
             Self::UserTemp => RuleKind::UserTemp,
             Self::OldFiles => RuleKind::OldFiles,
             Self::ProjectTemp(_) => RuleKind::ProjectTemp,
-            Self::BrowserCache(_) => RuleKind::BrowserCache,
+            Self::BrowserCache(..) => RuleKind::BrowserCache,
         }
     }
 }
@@ -196,7 +199,32 @@ pub fn query_browser_cache(
         now,
         offset,
         limit,
-        RuleSource::BrowserCache(local_data),
+        RuleSource::BrowserCache(local_data, None),
+        protections,
+    )
+}
+
+pub struct BrowserCacheQuery {
+    pub scope: NodeId,
+    pub offset: usize,
+    pub limit: usize,
+}
+
+pub fn query_browser_cache_scoped(
+    index: &Index,
+    local_data: &Path,
+    now: u64,
+    request: &BrowserCacheQuery,
+    protections: &crate::metadata::Protections,
+    cancel: &AtomicBool,
+) -> Result<Page> {
+    query_scoped(
+        Some(index),
+        local_data,
+        now,
+        request.offset,
+        request.limit,
+        RuleSource::BrowserCache(local_data, Some((request.scope, cancel))),
         protections,
     )
 }
@@ -243,6 +271,11 @@ fn query_scoped(
     protections: &crate::metadata::Protections,
 ) -> Result<Page> {
     let kind = source.kind();
+    let uncancelled = AtomicBool::new(false);
+    let cancel = match source {
+        RuleSource::BrowserCache(_, Some((_, cancel))) => cancel,
+        _ => &uncancelled,
+    };
     let temporary = verified_root(temporary)?;
     let mut page = Page {
         rule: kind.metadata(),
@@ -261,14 +294,24 @@ fn query_scoped(
     if index.snapshot_id.is_some() {
         return Ok(page);
     }
-    let Some(scope_id) = scope(index, &temporary)? else {
+    let Some(binding) = DirectoryScope::bind(index, &temporary)? else {
         return Ok(page);
     };
+    let mut scope_id = binding.id;
+    if let RuleSource::BrowserCache(_, Some((requested, _))) = source {
+        if index.entry(requested)?.kind != Kind::Directory || !index.in_scope(requested, scope_id) {
+            return Err(Error::Invalid(
+                "Application cache scope is outside the current browser rule.".into(),
+            ));
+        }
+        scope_id = requested;
+        page.root = index.path(scope_id)?.to_string_lossy().into_owned();
+    }
     page.indexed = true;
     page.complete = !index.entry(NodeId(0))?.incomplete
         && !index.entry(scope_id)?.incomplete
-        && temporary.starts_with(&index.root);
-    let mask = protections.for_index(index, &std::sync::atomic::AtomicBool::new(false))?;
+        && (binding.whole || matches!(source, RuleSource::BrowserCache(_, Some(_))));
+    let mask = protections.for_index(index, cancel)?;
     page.unverified_branches = mask.unverified_branches(scope_id)?;
     page.complete &= page.unverified_branches == 0;
     let mut protected_scopes = Vec::new();
@@ -278,7 +321,7 @@ fn query_scoped(
         RuleKind::OldFiles | RuleKind::ProjectTemp | RuleKind::BrowserCache
     ) {
         for path in windows::protected_directories()? {
-            let path = std::fs::canonicalize(path)?;
+            let path = verified_root(&path)?;
             if let Some(id) = scope(index, &path)? {
                 protected_scopes.push(id);
             }
@@ -289,14 +332,15 @@ fn query_scoped(
     } else {
         Default::default()
     };
-    let browser_scopes = if let RuleSource::BrowserCache(local_data) = source {
-        browser_cache_scopes(index, local_data)?
+    let browser_scopes = if let RuleSource::BrowserCache(local_data, _) = source {
+        browser_cache_scopes(index, local_data, cancel)?
     } else {
         HashSet::new()
     };
     let mut candidates: Vec<_> = index
         .entries
         .iter()
+        .take_while(|_| !cancel.load(Ordering::Relaxed))
         .filter(|entry| {
             eligible(entry, now, kind)
                 && mask.allows(entry.id)
@@ -309,6 +353,9 @@ fn query_scoped(
                     .any(|&protected| index.in_scope(entry.id, protected))
         })
         .collect();
+    if cancel.load(Ordering::Relaxed) {
+        return Err(Error::Invalid("Application cache query cancelled.".into()));
+    }
     candidates.sort_unstable_by_key(|entry| (entry.modified, entry.id.0));
     page.total = candidates.len();
     for entry in &candidates {
@@ -378,7 +425,7 @@ pub fn preview_browser_cache(
     now: u64,
     selection: &[NodeId],
 ) -> Result<Plan> {
-    let scopes = browser_cache_scopes(index, local_data)?;
+    let scopes = browser_cache_scopes(index, local_data, &AtomicBool::new(false))?;
     for &id in selection {
         let entry = index.entry(id)?;
         if !entry.parent.is_some_and(|parent| scopes.contains(&parent)) {
@@ -390,16 +437,28 @@ pub fn preview_browser_cache(
     preview_scoped(index, local_data, now, selection, RuleKind::BrowserCache)
 }
 
-fn browser_cache_scopes(index: &Index, local_data: &Path) -> Result<HashSet<NodeId>> {
-    let root = verified_root(local_data)?;
+fn browser_cache_scopes(
+    index: &Index,
+    local_data: &Path,
+    cancel: &AtomicBool,
+) -> Result<HashSet<NodeId>> {
     let mut scopes = HashSet::new();
+    let Some(binding) = DirectoryScope::bind(index, local_data)? else {
+        return Ok(scopes);
+    };
     for entry in index.entries.iter().filter(|entry| {
         entry.kind == Kind::Directory
             && !entry.incomplete
             && entry.name.eq_ignore_ascii_case("Cache_Data")
     }) {
-        let path = index.path(entry.id)?;
-        let Ok(relative) = path.strip_prefix(&root) else {
+        if cancel.load(Ordering::Relaxed) {
+            return Err(Error::Invalid("Application cache query cancelled.".into()));
+        }
+        if !index.in_scope(entry.id, binding.id) {
+            continue;
+        }
+        let path = binding.path(index, entry.id)?;
+        let Ok(relative) = path.strip_prefix(binding.root.path()) else {
             continue;
         };
         let parts: Vec<_> = relative
@@ -461,13 +520,7 @@ fn preview_scoped(
 }
 
 fn verified_root(path: &Path) -> Result<std::path::PathBuf> {
-    let metadata = std::fs::symlink_metadata(path)?;
-    if !metadata.is_dir() || windows::is_reparse(&metadata) || windows::requires_recall(&metadata) {
-        return Err(Error::Invalid(
-            "Rule directory is redirected or unavailable.".into(),
-        ));
-    }
-    let root = std::fs::canonicalize(path)?;
+    let root = crate::agents::pin_directory(path)?.path().to_owned();
     if root.to_str().is_none() {
         return Err(Error::Invalid(
             "Rule path cannot be represented exactly.".into(),
@@ -477,32 +530,7 @@ fn verified_root(path: &Path) -> Result<std::path::PathBuf> {
 }
 
 fn scope(index: &Index, temporary: &Path) -> Result<Option<NodeId>> {
-    if index.root.starts_with(temporary) {
-        return Ok(Some(NodeId(0)));
-    }
-    let Ok(relative) = temporary.strip_prefix(&index.root) else {
-        return Ok(None);
-    };
-    let mut scope = NodeId(0);
-    for component in relative.components() {
-        let Component::Normal(name) = component else {
-            return Err(Error::Invalid("Invalid cleanup scope.".into()));
-        };
-        let Some(entry) = index.entries.iter().find(|entry| {
-            entry.parent == Some(scope)
-                && entry.kind == Kind::Directory
-                && index
-                    .native_names
-                    .get(&entry.id)
-                    .map(|native| native.as_os_str())
-                    .unwrap_or_else(|| std::ffi::OsStr::new(&entry.name))
-                    == name
-        }) else {
-            return Ok(None);
-        };
-        scope = entry.id;
-    }
-    Ok(Some(scope))
+    Ok(DirectoryScope::bind(index, temporary)?.map(|scope| scope.id))
 }
 
 fn eligible(entry: &crate::Entry, now: u64, kind: RuleKind) -> bool {

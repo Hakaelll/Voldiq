@@ -649,6 +649,51 @@ pub(crate) fn translate_search(source: String) -> Result<voldiq_core::search::Tr
 }
 
 #[tauri::command]
+pub(crate) async fn query_application_cache(
+    index_id: IndexId,
+    request: voldiq_core::applications::review::Request,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<voldiq_core::applications::review::Page>, String> {
+    let directory = engine.operations.clone();
+    run_query(
+        index_id,
+        epoch,
+        QueryFamily::Applications,
+        request_id,
+        engine.inner().clone(),
+        move |index, cancelled| {
+            let result = (|| {
+                let local_data = voldiq_core::windows::local_app_data()?;
+                let protections =
+                    voldiq_core::metadata::Store::open(directory.directory())?.protections()?;
+                let catalog = voldiq_core::applications::installed_programs(cancelled)?;
+                voldiq_core::applications::review::query(
+                    index,
+                    catalog,
+                    &request,
+                    &voldiq_core::applications::review::Environment {
+                        local_data: &local_data,
+                        now: voldiq_core::cleanup::rules::now()?,
+                        protections: &protections,
+                    },
+                    cancelled,
+                )
+            })();
+            if cancelled.load(Ordering::Relaxed) {
+                Ok(None)
+            } else {
+                result
+                    .map(Some)
+                    .map_err(|error: voldiq_core::Error| error.to_string())
+            }
+        },
+    )
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn query_details_cancellable(
     index_id: IndexId,
     epoch: u64,

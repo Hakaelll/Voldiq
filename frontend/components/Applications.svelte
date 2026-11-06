@@ -14,6 +14,8 @@
     type ApplicationItem,
     type ApplicationQuery,
     type ApplicationCategory,
+    type ApplicationCleanupContext,
+    canReviewApplicationCache,
   } from '../lib/applications';
   let {
     indexId,
@@ -22,6 +24,8 @@
     filters,
     paused,
     onopen,
+    manageable,
+    onreviewcache,
   }: {
     indexId: IndexId;
     scope: number;
@@ -29,6 +33,8 @@
     filters: Query;
     paused: boolean;
     onopen: (id: number) => void;
+    manageable: boolean;
+    onreviewcache: (context: ApplicationCleanupContext) => void;
   } = $props();
   type Model =
     | { kind: 'loading' | 'paused' | 'cancelled' }
@@ -331,6 +337,17 @@
                 </div>
               {/each}
             </dl>
+            {#if canReviewApplicationCache(app)}<button
+                disabled={paused || !manageable}
+                onclick={() => {
+                  if (page && !paused && manageable)
+                    onreviewcache({ scope, application_id: app.id });
+                }}>Review supported cache files</button
+              >
+              <p class="application-caption">
+                Select supported old cache files in Cleanup. Folder scope is retained; file filters
+                are not applied to this review.
+              </p>{/if}
           </details>
         </li>
       {/each}

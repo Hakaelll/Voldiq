@@ -279,13 +279,23 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             use voldiq_core::applications::{BrowserLayout, Category, ProfileLocation};
             use voldiq_core::scanner;
             let profiles = tempfile::tempdir().unwrap();
-            let data = profiles.path().join("User Data");
+            let local = profiles.path().join("local");
+            let data = local.join("Google/Chrome/User Data");
             let cache = data.join("Default/Cache/Cache_Data");
             std::fs::create_dir_all(&cache).unwrap();
             std::fs::write(profiles.path().join("browser.exe"), [1; 11]).unwrap();
             std::fs::write(data.join("Local State"), [2; 5]).unwrap();
             std::fs::write(data.join("chrome_debug.log"), [3; 3]).unwrap();
             std::fs::write(cache.join("f_000001"), [4; 7]).unwrap();
+            let review_now = voldiq_core::cleanup::rules::now().unwrap();
+            std::fs::OpenOptions::new()
+                .write(true)
+                .open(cache.join("f_000001"))
+                .unwrap()
+                .set_times(std::fs::FileTimes::new().set_modified(
+                    std::time::UNIX_EPOCH + std::time::Duration::from_secs(review_now - 8 * 86400),
+                ))
+                .unwrap();
             std::fs::write(cache.parent().unwrap().join("legacy.data"), [6; 1]).unwrap();
             std::fs::create_dir_all(data.join("custom/Cache/Cache_Data")).unwrap();
             std::fs::write(data.join("custom/Cache/Cache_Data/private"), [5; 13]).unwrap();
@@ -321,6 +331,116 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                 (&"40".to_string(), 6)
             );
             assert_eq!(measured.overlapping.files, 0);
+            use voldiq_core::applications::review;
+            let review_state = tempfile::tempdir().unwrap();
+            let mut notes = voldiq_core::metadata::Store::open(review_state.path()).unwrap();
+            let protections = notes.protections().unwrap();
+            let environment = review::Environment {
+                local_data: &local,
+                now: review_now,
+                protections: &protections,
+            };
+            let context = review::Context {
+                scope: voldiq_core::NodeId(0),
+                application_id: measured.applications[0].id.clone(),
+            };
+            let review_request = review::Request {
+                context: context.clone(),
+                offset: 0,
+                limit: 50,
+            };
+            let candidates = review::query(
+                &indexed,
+                claims.clone(),
+                &review_request,
+                &environment,
+                &loading,
+            )
+            .unwrap();
+            assert_eq!(
+                (candidates.candidates.total, candidates.candidates.logical),
+                (1, 7)
+            );
+            assert_eq!(
+                candidates.candidates.rule.id,
+                "old-browser-http-cache-files"
+            );
+            let selected = [candidates.candidates.items[0].id];
+            let planned = review::preview(
+                &indexed,
+                claims.clone(),
+                &context,
+                &environment,
+                &selected,
+                &loading,
+            )
+            .unwrap()
+            .with_protections(review_state.path())
+            .unwrap();
+            assert_eq!(
+                (planned.preview().items.len(), planned.preview().logical),
+                (1, 7)
+            );
+            assert_eq!(std::fs::read(cache.join("f_000001")).unwrap(), [4; 7]);
+            assert!(
+                review::preview(
+                    &indexed,
+                    claims.clone(),
+                    &context,
+                    &environment,
+                    &[selected[0], selected[0]],
+                    &loading
+                )
+                .is_err()
+            );
+            let log = indexed
+                .entries
+                .iter()
+                .find(|entry| entry.name == "chrome_debug.log")
+                .unwrap()
+                .id;
+            assert!(
+                review::preview(
+                    &indexed,
+                    claims.clone(),
+                    &context,
+                    &environment,
+                    &[log],
+                    &loading
+                )
+                .is_err()
+            );
+            assert!(
+                review::query(
+                    &indexed,
+                    claims.clone(),
+                    &review_request,
+                    &environment,
+                    &AtomicBool::new(true)
+                )
+                .is_err()
+            );
+            let mut changed_claims = claims.clone();
+            changed_claims.registrations[0].version = Some("changed".into());
+            assert!(
+                review::preview(
+                    &indexed,
+                    changed_claims,
+                    &context,
+                    &environment,
+                    &selected,
+                    &loading
+                )
+                .is_err()
+            );
+            if std::env::var("VOLDIQ_KEEP_APPLICATION_FIXTURE").as_deref() == Ok("1") {
+                std::fs::write(
+                    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                        .join("../../target/probes/application-cache-fixture.json"),
+                    serde_json::to_vec_pretty(&candidates).unwrap(),
+                )
+                .unwrap();
+            }
             if std::env::var("VOLDIQ_KEEP_APPLICATION_FIXTURE").as_deref() == Ok("1") {
                 let output = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                     .join("../../target/probes/application-profile-fixture.json");
@@ -357,6 +477,16 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                 install_location: Some(cache.clone()),
                 profile: None,
             });
+            assert!(
+                review::query(
+                    &indexed,
+                    shared.clone(),
+                    &review_request,
+                    &environment,
+                    &loading
+                )
+                .is_err()
+            );
             let shared =
                 voldiq_core::applications::query(&indexed, shared, &AppQuery::default(), &loading)
                     .unwrap();
@@ -384,7 +514,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                 ),
                 (&"1".to_string(), &"7".to_string())
             );
-            let scoped = scanner::scan(&cache, &Default::default(), &loading, |_| {}).unwrap();
+            let mut scoped = scanner::scan(&cache, &Default::default(), &loading, |_| {}).unwrap();
             let narrow = voldiq_core::applications::query(
                 &scoped,
                 claims.clone(),
@@ -398,6 +528,69 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                 Category::Cache
             );
             assert_eq!(narrow.applications[0].exclusive.logical_bytes, "7");
+            let narrow_context = review::Context {
+                scope: voldiq_core::NodeId(0),
+                application_id: narrow.applications[0].id.clone(),
+            };
+            let narrow_page = review::query(
+                &scoped,
+                claims.clone(),
+                &review::Request {
+                    context: narrow_context,
+                    offset: 0,
+                    limit: 50,
+                },
+                &environment,
+                &loading,
+            )
+            .unwrap();
+            assert_eq!(
+                (narrow_page.candidates.total, narrow_page.candidates.logical),
+                (1, 7)
+            );
+            scoped.snapshot_id = Some(1);
+            assert!(
+                review::query(
+                    &scoped,
+                    claims.clone(),
+                    &review_request,
+                    &environment,
+                    &loading
+                )
+                .is_err()
+            );
+            notes.protect_folder(&cache).unwrap();
+            let protected = notes.protections().unwrap();
+            let protected_environment = review::Environment {
+                local_data: &local,
+                now: review_now,
+                protections: &protected,
+            };
+            assert_eq!(
+                review::query(
+                    &indexed,
+                    claims.clone(),
+                    &review_request,
+                    &protected_environment,
+                    &loading
+                )
+                .unwrap()
+                .candidates
+                .total,
+                0
+            );
+            assert!(planned.validate_protections().is_err());
+            assert!(
+                review::preview(
+                    &indexed,
+                    claims.clone(),
+                    &context,
+                    &protected_environment,
+                    &selected,
+                    &loading
+                )
+                .is_err()
+            );
             let data_index = scanner::scan(&data, &Default::default(), &loading, |_| {}).unwrap();
             let state = tempfile::tempdir().unwrap();
             use voldiq_core::agents::{Capability, Limits, Policy, Registry};

@@ -350,9 +350,14 @@ pub async fn preview_cleanup_rule(
     app: tauri::AppHandle,
     rule: voldiq_core::cleanup::rules::RuleKind,
     selection: Vec<NodeId>,
+    application: Option<voldiq_core::applications::review::Context>,
     engine: State<'_, Arc<Engine>>,
     plans: State<'_, CleanupPlans>,
 ) -> Result<CleanupPreview, String> {
+    if application.is_some() && !matches!(rule, voldiq_core::cleanup::rules::RuleKind::BrowserCache)
+    {
+        return Err("Application review requires the browser cache rule.".into());
+    }
     let caches = crate::developer_commands::cache_locations(&app);
     let engine = engine.inner().clone();
     let operation = engine.begin()?;
@@ -373,12 +378,33 @@ pub async fn preview_cleanup_rule(
             voldiq_core::cleanup::rules::RuleKind::BrowserCache => {
                 let local_data =
                     voldiq_core::windows::local_app_data().map_err(|e| e.to_string())?;
-                voldiq_core::cleanup::rules::preview_browser_cache(
-                    &guard,
-                    &local_data,
-                    now,
-                    &selection,
-                )
+                if let Some(context) = application {
+                    let protections =
+                        voldiq_core::metadata::Store::open(engine.operations.directory())
+                            .and_then(|mut store| store.protections())
+                            .map_err(|e| e.to_string())?;
+                    let catalog = voldiq_core::applications::installed_programs(&_operation.cancel)
+                        .map_err(|e| e.to_string())?;
+                    voldiq_core::applications::review::preview(
+                        &guard,
+                        catalog,
+                        &context,
+                        &voldiq_core::applications::review::Environment {
+                            local_data: &local_data,
+                            now,
+                            protections: &protections,
+                        },
+                        &selection,
+                        &_operation.cancel,
+                    )
+                } else {
+                    voldiq_core::cleanup::rules::preview_browser_cache(
+                        &guard,
+                        &local_data,
+                        now,
+                        &selection,
+                    )
+                }
             }
             voldiq_core::cleanup::rules::RuleKind::ProjectTemp => {
                 voldiq_core::cleanup::rules::preview_project(&guard, now, &selection, &caches)

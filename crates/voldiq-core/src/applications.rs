@@ -10,6 +10,7 @@ use std::{
 mod locations;
 #[cfg(windows)]
 mod registry;
+pub mod review;
 pub use locations::{BrowserLayout, Category, CategoryMeasurement, ProfileLocation};
 
 pub const MAX_REGISTRATIONS: usize = 1024;
@@ -104,6 +105,7 @@ pub struct Application {
     pub publisher: Option<String>,
     pub version: Option<String>,
     pub root: NodeId,
+    pub profile_scope: Option<NodeId>,
     pub sources: Vec<Source>,
     pub evidence: &'static str,
     pub confidence: Confidence,
@@ -228,7 +230,18 @@ pub fn query_authorized(
     catalog: Catalog,
     query: &Query,
     cancel: &AtomicBool,
+    authorize: impl FnMut(&std::path::Path) -> Result<crate::agents::AuthorizedPath>,
+) -> Result<Page> {
+    query_selected(index, catalog, query, cancel, authorize, None)
+}
+
+fn query_selected(
+    index: &Index,
+    catalog: Catalog,
+    query: &Query,
+    cancel: &AtomicBool,
     mut authorize: impl FnMut(&std::path::Path) -> Result<crate::agents::AuthorizedPath>,
+    selected: Option<&str>,
 ) -> Result<Page> {
     let compiled = compiled_request(index, query)?;
     if catalog.registrations.len() > MAX_REGISTRATIONS || catalog.coverage.len() > 5 {
@@ -459,43 +472,62 @@ pub fn query_authorized(
     check(cancel)?;
     let mut applications: Vec<_> = bound
         .into_iter()
-        .filter(|app| app.exclusive.files + app.overlapping.files > 0)
-        .map(|app| Application {
-            id: app.id,
-            name: app.registration.name,
-            publisher: app.registration.publisher,
-            version: app.registration.version,
-            root: app.root,
-            sources: app.sources,
-            evidence: if app.registration.source == Source::SuppliedMetadata {
-                "supplied_claim"
-            } else if app
-                .breakdown
-                .keys()
-                .any(|category| *category != Category::Installation)
-            {
-                "registered_default_profile_claim"
+        .filter(|app| {
+            app.exclusive.files + app.overlapping.files > 0
+                && selected.is_none_or(|id| id == app.id)
+        })
+        .map(|app| {
+            let mut roots: Vec<_> = app
+                .locations
+                .iter()
+                .filter(|location| location.profile.is_some())
+                .map(|location| location.root.0)
+                .collect();
+            roots.sort_unstable();
+            roots.dedup();
+            let profile_scope = if roots.len() == 1 {
+                Some(NodeId(roots[0]))
             } else {
-                "registered_location_claim"
-            },
-            confidence: if app.breakdown.contains_key(&Category::Unknown) {
-                Confidence::Ambiguous
-            } else if app.registration.source == Source::SuppliedMetadata {
-                Confidence::Supplied
-            } else {
-                Confidence::Contextual
-            },
-            exclusive: app.exclusive.view(),
-            overlapping: app.overlapping.view(),
-            breakdown: app
-                .breakdown
-                .into_iter()
-                .map(|(category, (exclusive, overlapping))| CategoryMeasurement {
-                    category,
-                    exclusive: exclusive.view(),
-                    overlapping: overlapping.view(),
-                })
-                .collect(),
+                None
+            };
+            Application {
+                id: app.id,
+                name: app.registration.name,
+                publisher: app.registration.publisher,
+                version: app.registration.version,
+                root: app.root,
+                profile_scope,
+                sources: app.sources,
+                evidence: if app.registration.source == Source::SuppliedMetadata {
+                    "supplied_claim"
+                } else if app
+                    .breakdown
+                    .keys()
+                    .any(|category| *category != Category::Installation)
+                {
+                    "registered_default_profile_claim"
+                } else {
+                    "registered_location_claim"
+                },
+                confidence: if app.breakdown.contains_key(&Category::Unknown) {
+                    Confidence::Ambiguous
+                } else if app.registration.source == Source::SuppliedMetadata {
+                    Confidence::Supplied
+                } else {
+                    Confidence::Contextual
+                },
+                exclusive: app.exclusive.view(),
+                overlapping: app.overlapping.view(),
+                breakdown: app
+                    .breakdown
+                    .into_iter()
+                    .map(|(category, (exclusive, overlapping))| CategoryMeasurement {
+                        category,
+                        exclusive: exclusive.view(),
+                        overlapping: overlapping.view(),
+                    })
+                    .collect(),
+            }
         })
         .collect();
     applications.sort_by(|a, b| {

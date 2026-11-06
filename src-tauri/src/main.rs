@@ -864,6 +864,7 @@ fn main() {
             query_commands::query_folder_budget,
             query_commands::query_space_account,
             query_commands::query_applications,
+            query_commands::query_application_cache,
             query_commands::query_recovery_copies,
             query_commands::query_snapshot_visual,
             query_commands::query_snapshot_changes,

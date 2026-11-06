@@ -1,4 +1,4 @@
-import type { Query } from './types';
+import type { Query, CleanupRulePage } from './types';
 import { detachedQuery } from './workbench.ts';
 
 export type ApplicationSource =
@@ -19,6 +19,7 @@ export interface ApplicationItem {
   publisher: string | null;
   version: string | null;
   root: number;
+  profile_scope: number | null;
   sources: ApplicationSource[];
   evidence: 'supplied_claim' | 'registered_location_claim' | 'registered_default_profile_claim';
   confidence: 'contextual' | 'supplied' | 'ambiguous';
@@ -59,6 +60,74 @@ export interface ApplicationQuery {
   limit: number;
   sort: 'size' | 'name' | 'files';
   filters: Query;
+}
+export interface ApplicationCleanupContext {
+  scope: number;
+  application_id: string;
+}
+export interface ApplicationCachePage {
+  application: ApplicationItem;
+  candidates: CleanupRulePage;
+}
+export function canReviewApplicationCache(app: ApplicationItem): boolean {
+  return (
+    app.profile_scope !== null &&
+    app.confidence !== 'ambiguous' &&
+    app.overlapping.files === 0 &&
+    app.breakdown.some((part) => part.category === 'cache' && part.exclusive.files > 0)
+  );
+}
+export function readApplicationCachePage(value: unknown): ApplicationCachePage {
+  const response = record(value),
+    page = record(response.candidates),
+    rule = record(page.rule);
+  if (rule.id !== 'old-browser-http-cache-files' || rule.policy !== 'recycle') return invalid();
+  const items = list(page.items, 100, (value) => {
+    const item = record(value);
+    return {
+      id: integer(item.id, 0xffffffff),
+      path: text(item.path),
+      logical: integer(item.logical),
+      reclaimable: integer(item.reclaimable),
+      hard_link: boolean(item.hard_link),
+      modified: item.modified === null ? null : integer(item.modified),
+    };
+  });
+  const total = integer(page.total),
+    logical = integer(page.logical),
+    reclaimable = integer(page.reclaimable);
+  if (
+    items.length > total ||
+    new Set(items.map((item) => item.id)).size !== items.length ||
+    items.reduce((sum, item) => sum + item.logical, 0) > logical ||
+    items.reduce((sum, item) => sum + item.reclaimable, 0) > reclaimable
+  )
+    return invalid();
+  return {
+    application: application(response.application),
+    candidates: {
+      rule: {
+        id: rule.id,
+        policy: rule.policy,
+        name: text(rule.name),
+        description: text(rule.description),
+        discovery: text(rule.discovery),
+        selection: text(rule.selection),
+        exclusions: text(rule.exclusions),
+        risk: text(rule.risk),
+        permissions: text(rule.permissions),
+        verification: text(rule.verification),
+      },
+      root: text(page.root),
+      indexed: boolean(page.indexed),
+      complete: boolean(page.complete),
+      unverified_branches: integer(page.unverified_branches),
+      items,
+      total,
+      logical,
+      reclaimable,
+    },
+  };
 }
 export function applicationFilters(query: Query): Query {
   return { ...detachedQuery(query), sort: 'size' };
@@ -182,6 +251,7 @@ function application(value: unknown): ApplicationItem {
     publisher: nullableText(item.publisher),
     version: nullableText(item.version),
     root: integer(item.root, 0xffffffff),
+    profile_scope: item.profile_scope === null ? null : integer(item.profile_scope, 0xffffffff),
     sources,
     exclusive,
     overlapping,

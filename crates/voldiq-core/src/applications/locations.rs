@@ -64,7 +64,7 @@ impl BrowserLayout {
 pub(super) struct Location {
     pub root: NodeId,
     pub priority: usize,
-    profile: Option<BrowserLayout>,
+    pub(super) profile: Option<BrowserLayout>,
     prefix: Vec<String>,
     prefix_depth: usize,
 }

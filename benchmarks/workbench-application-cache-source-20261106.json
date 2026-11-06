@@ -1,0 +1,133 @@
+{
+  "checkedUtc": "2026-11-06T15:46:33.0577493Z",
+  "startedUtc": "2026-11-06T15:35:09.7278549Z",
+  "checkoutCommit": "b9670082d7da0e5771b83902bebb6bd5cb0c01b0",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.964
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.172
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1.0
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.87
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 590.609
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 76.699
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/applications.rs",
+      "sha256": "8CC3D6027AF7AAD71055F98503737B8F60CE0F654D5D1C96DE2C1553F0C1936A",
+      "lastWriteUtc": "2026-11-06T15:28:14.7933405Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/applications/locations.rs",
+      "sha256": "431FD8402426D6C47A26E0D85E166781270903F6EB8A8B661D01C9C647384E46",
+      "lastWriteUtc": "2026-11-06T15:18:33.7261193Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/applications/review.rs",
+      "sha256": "256ABA2D80A77DE99CE3C8D59C8D19A5471773414E7EA2E8AB19D0A230A4D9B6",
+      "lastWriteUtc": "2026-11-06T15:31:15.8690533Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/cleanup/rules.rs",
+      "sha256": "FE06FA84B9EC49C4F35F6B95339B7EC3375D1B99CF0B9FCC8B9A22C05B695B5D",
+      "lastWriteUtc": "2026-11-06T15:31:15.9621989Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/cleanup/rules/scope.rs",
+      "sha256": "B366D54E03D7B6DCE6C840583E7C5088416BD83E2FB9D08031651CA62F4F0EF6",
+      "lastWriteUtc": "2026-11-06T15:28:14.8382586Z"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "8E5DD8A81C5D7B9FDCB428FBFC715D3DAE964CD9B5476DB95A1DF2ED7654F810",
+      "lastWriteUtc": "2026-11-06T15:34:29.1892863Z"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "1954EBA28F49FE12E4DFBAADF0A4F6B06E0B4F25C1ABC462E19C09E85366EEA1",
+      "lastWriteUtc": "2026-11-06T15:32:00.0067815Z"
+    },
+    {
+      "path": "frontend/components/Applications.svelte",
+      "sha256": "EEF320571089CED742D44CF482DB234B1619F961A737CB0662F636000B538E77",
+      "lastWriteUtc": "2026-11-06T15:32:00.1895830Z"
+    },
+    {
+      "path": "frontend/components/CleanupRules.svelte",
+      "sha256": "CDECE5BA3FB302A1E9733AEDF8E57FF1B12ACDA265070899EDC9C909E6F54094",
+      "lastWriteUtc": "2026-11-06T15:32:00.2965857Z"
+    },
+    {
+      "path": "frontend/components/Overview.svelte",
+      "sha256": "436756DD9A9A275F421AE4C3F17F2B0EAB7ADDA5B15DD673EB461ABE15C8DE5E",
+      "lastWriteUtc": "2026-11-06T15:26:31.0158571Z"
+    },
+    {
+      "path": "frontend/lib/applications.ts",
+      "sha256": "B53F6063959FE24AC63DD66C5FBD46CF09F1CB0055538AEE1E0EB6C7B4050D8B",
+      "lastWriteUtc": "2026-11-06T15:32:00.4668423Z"
+    },
+    {
+      "path": "frontend/lib/queries.ts",
+      "sha256": "CABD6F3D82EA4BCE0D40977E2BA61805CAE9EF63B08FE5EA969C7CEABD3A31EF",
+      "lastWriteUtc": "2026-11-06T15:32:00.4998431Z"
+    },
+    {
+      "path": "src-tauri/src/cleanup_commands.rs",
+      "sha256": "87D90E402E1693CFAB5BB5F1675522ABD31A17806BE8868703A86E9DB79D7DAC",
+      "lastWriteUtc": "2026-11-06T15:28:15.4220454Z"
+    },
+    {
+      "path": "src-tauri/src/query_commands.rs",
+      "sha256": "02A9137070B5CE7CC64567E95F1D4466962E121B81641D170AA1EF7C5B3301BE",
+      "lastWriteUtc": "2026-11-06T15:28:15.5008884Z"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "09E84EB2E0B30478CF2ACBD91D0DAAF8C29598121382A41FA5749DB2ED68E921",
+      "lastWriteUtc": "2026-11-06T15:25:08.7042283Z"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "8483705264AA7AD1675252E4589AB1A96502C73E3B8BC014D7D996A4132C280B",
+      "lastWriteUtc": "2026-11-06T15:35:04.1522951Z"
+    }
+  ],
+  "sourceInputsPredateVerification": true,
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "freshCategoryFixtureContract": true,
+  "contractProbeSha256": "3B38CF60D0F52F481D66D6F57878948E364A37006A18EE40E7713A88887CCAE8",
+  "limits": "Owned synthetic location claims and native metadata authorization. Current-user supported stable browser defaults only; no registry writes or real browser content. Wider/custom layouts and broader cleanup recipes, captured app history, native rendering/keyboard/scaling and device performance remain separate acceptance."
+}

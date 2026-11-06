@@ -4,6 +4,7 @@
   import SpaceAccount from './SpaceAccount.svelte';
   import RecoveryCopies from './RecoveryCopies.svelte';
   import Applications from './Applications.svelte';
+  import type { ApplicationCleanupContext } from '../lib/applications';
   import type { Query } from '../lib/types';
   import type { IndexId } from '../lib/index-context';
   import { volumeMeasurement, volumeCaller, volumeObservationLabel } from '../lib/volume-space';
@@ -62,6 +63,8 @@
     exportDisabled = false,
     appFilters,
     scopeId,
+    manageable,
+    onreviewcache,
   }: {
     indexId: IndexId | null;
     paused: boolean;
@@ -101,6 +104,8 @@
     exportDisabled?: boolean;
     appFilters: Query;
     scopeId: number;
+    manageable: boolean;
+    onreviewcache: (context: ApplicationCleanupContext) => void;
   } = $props();
   let section = $state<'summary' | 'applications'>('summary');
   const distribution = $derived(visibleFileTypes(types));
@@ -150,6 +155,8 @@
 {#if section === 'applications'}
   {#if indexId !== null && directory && directory.entry.id === scopeId}
     <Applications
+      {manageable}
+      {onreviewcache}
       {indexId}
       scope={scopeId}
       scopeName={directory.path}
