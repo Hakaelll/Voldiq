@@ -1,0 +1,31 @@
+{
+  "checkedUtc": "2026-11-06T14:37:37.651Z",
+  "scope": "Fresh owned Rust measurements parsed by production TypeScript; location-category conservation, absent category, malformed sums/duplicate categories/confidence and exact large integers. No native rendering or real browser content tested.",
+  "fixtureSha256": "ca3bb17331eb54c9c5ffb289191c05b1a003b304921cc050ae413b41eea87c36",
+  "baselineSha256": "198cd69d5729b9c82442c025c222da220c3ff94616a6c1020478fbddf8d4f822",
+  "totalBytes": "40",
+  "categories": [
+    {
+      "category": "installation",
+      "bytes": "11",
+      "files": 1
+    },
+    {
+      "category": "data",
+      "bytes": "18",
+      "files": 2
+    },
+    {
+      "category": "cache",
+      "bytes": "8",
+      "files": 2
+    },
+    {
+      "category": "logs",
+      "bytes": "3",
+      "files": 1
+    }
+  ],
+  "malformedResponsesRejected": true,
+  "exactLargeInteger": "9007199254740993"
+}

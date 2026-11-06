@@ -7,6 +7,12 @@ export interface ApplicationFootprint {
   logical_bytes: string;
   files: number;
 }
+export type ApplicationCategory = 'installation' | 'data' | 'cache' | 'logs' | 'unknown';
+export interface ApplicationCategoryMeasurement {
+  category: ApplicationCategory;
+  exclusive: ApplicationFootprint;
+  overlapping: ApplicationFootprint;
+}
 export interface ApplicationItem {
   id: string;
   name: string;
@@ -14,9 +20,11 @@ export interface ApplicationItem {
   version: string | null;
   root: number;
   sources: ApplicationSource[];
-  evidence: 'supplied_claim' | 'registered_location_claim';
+  evidence: 'supplied_claim' | 'registered_location_claim' | 'registered_default_profile_claim';
+  confidence: 'contextual' | 'supplied' | 'ambiguous';
   exclusive: ApplicationFootprint;
   overlapping: ApplicationFootprint;
+  breakdown: ApplicationCategoryMeasurement[];
 }
 export interface ApplicationCoverage {
   source: ApplicationSource;
@@ -115,26 +123,69 @@ function application(value: unknown): ApplicationItem {
     evidence = item.evidence;
   if (
     !/^[0-9a-f]{64}$/.test(id) ||
-    (evidence !== 'supplied_claim' && evidence !== 'registered_location_claim')
+    (evidence !== 'supplied_claim' &&
+      evidence !== 'registered_location_claim' &&
+      evidence !== 'registered_default_profile_claim')
   )
     return invalid();
   const sources = list(item.sources, 5, source);
+  const confidence = item.confidence;
+  if (confidence !== 'contextual' && confidence !== 'supplied' && confidence !== 'ambiguous')
+    return invalid();
   if (
     !sources.length ||
-    (evidence === 'registered_location_claim' && sources.includes('supplied_metadata')) ||
+    (evidence !== 'supplied_claim' && sources.includes('supplied_metadata')) ||
     (evidence === 'supplied_claim') !== sources.every((value) => value === 'supplied_metadata')
+  )
+    return invalid();
+  const exclusive = footprint(item.exclusive),
+    overlapping = footprint(item.overlapping);
+  const breakdown = list(item.breakdown, 5, (value): ApplicationCategoryMeasurement => {
+    const row = record(value),
+      category = row.category;
+    if (
+      category !== 'installation' &&
+      category !== 'data' &&
+      category !== 'cache' &&
+      category !== 'logs' &&
+      category !== 'unknown'
+    )
+      return invalid();
+    return {
+      category,
+      exclusive: footprint(row.exclusive),
+      overlapping: footprint(row.overlapping),
+    };
+  });
+  if (!breakdown.length || new Set(breakdown.map((row) => row.category)).size !== breakdown.length)
+    return invalid();
+  const measures: ('exclusive' | 'overlapping')[] = ['exclusive', 'overlapping'];
+  for (const measure of measures) {
+    const expected = measure === 'exclusive' ? exclusive : overlapping;
+    if (
+      breakdown.reduce((sum, row) => sum + BigInt(row[measure].logical_bytes), 0n) !==
+        BigInt(expected.logical_bytes) ||
+      breakdown.reduce((sum, row) => sum + row[measure].files, 0) !== expected.files
+    )
+      return invalid();
+  }
+  if (
+    (confidence === 'ambiguous') !== breakdown.some((row) => row.category === 'unknown') ||
+    (confidence !== 'ambiguous' && (confidence === 'supplied') !== (evidence === 'supplied_claim'))
   )
     return invalid();
   return {
     id,
     evidence,
+    confidence,
     name: text(item.name),
     publisher: nullableText(item.publisher),
     version: nullableText(item.version),
     root: integer(item.root, 0xffffffff),
     sources,
-    exclusive: footprint(item.exclusive),
-    overlapping: footprint(item.overlapping),
+    exclusive,
+    overlapping,
+    breakdown,
   };
 }
 function coverage(value: unknown): ApplicationCoverage {

@@ -50,6 +50,8 @@ pub(super) fn read(cancel: &AtomicBool) -> Result<Catalog> {
     let mut registrations = Vec::new();
     let mut coverage = Vec::new();
     let mut visited = 0;
+    let local =
+        windows::known_folder_location(&windows_sys::Win32::UI::Shell::FOLDERID_LocalAppData).ok();
     for (source, hive, view) in [
         (Source::CurrentUser64, HKEY_CURRENT_USER, KEY_WOW64_64KEY),
         (Source::CurrentUser32, HKEY_CURRENT_USER, KEY_WOW64_32KEY),
@@ -130,8 +132,13 @@ pub(super) fn read(cancel: &AtomicBool) -> Result<Catalog> {
                     continue;
                 }
             };
-            match record(&child, source, name) {
-                Ok(Record::Application(application)) => registrations.push(application),
+            match record(&child, source, name, local.as_deref()) {
+                Ok(Record::Application(application)) => {
+                    if application.install_location.is_none() {
+                        status.missing_location += 1;
+                    }
+                    registrations.push(application);
+                }
                 Ok(Record::MissingLocation) => status.missing_location += 1,
                 Ok(Record::NoDisplayName) => {}
                 Err(_) => {
@@ -159,22 +166,37 @@ enum Record {
     MissingLocation,
     NoDisplayName,
 }
-fn record(key: &Key, source: Source, name: String) -> Result<Record> {
+fn record(
+    key: &Key,
+    source: Source,
+    name: String,
+    local: Option<&std::path::Path>,
+) -> Result<Record> {
     let before = revision(key)?;
     let Some(display_name) = string(key, "DisplayName", 1024)? else {
         return Ok(Record::NoDisplayName);
     };
-    let Some(location) = string(key, "InstallLocation", 4096)? else {
-        return Ok(Record::MissingLocation);
-    };
-    let record = Registration {
+    let location = string(key, "InstallLocation", 4096)?;
+    let mut record = Registration {
         source,
         key: name,
         name: display_name,
-        install_location: PathBuf::from(location),
+        install_location: location.map(PathBuf::from),
+        profile: None,
         publisher: string(key, "Publisher", 1024)?,
         version: string(key, "DisplayVersion", 1024)?,
     };
+    if let Some(local) = local
+        && let Some(layout) = super::BrowserLayout::registered(&record)
+    {
+        record.profile = Some(super::ProfileLocation {
+            path: layout.default_path(local),
+            layout,
+        });
+    }
+    if record.install_location.is_none() && record.profile.is_none() {
+        return Ok(Record::MissingLocation);
+    }
     if !super::valid_registration(&record) {
         return Err(Error::Invalid("Unsupported registration metadata.".into()));
     }

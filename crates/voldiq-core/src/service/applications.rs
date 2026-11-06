@@ -42,35 +42,19 @@ impl AgentService {
         let index = self.index(snapshot)?;
         applications::compiled_request(&index, &request)?;
         request.limit = request.limit.min(policy.limits().page_size);
-        let mut catalog = match applications::installed_programs(cancel) {
+        let catalog = match applications::installed_programs(cancel) {
             Ok(catalog) => catalog,
             Err(_) if cancel.load(Ordering::Relaxed) => return Ok(None),
             Err(error) => return Err(error),
         };
-        let mut authorized = Vec::new();
-        for record in catalog.registrations {
-            if cancel.load(Ordering::Relaxed) {
-                return Ok(None);
-            }
-            // Registry paths are context, never authority to inspect another folder.
-            if applications::local_install_path(&record.install_location)
-                && registry
-                    .authorize(
-                        &self.principal,
-                        Capability::Metadata,
-                        &record.install_location,
-                    )
-                    .is_ok()
-            {
-                authorized.push(record);
-            }
-        }
-        catalog.registrations = authorized;
-        let mut result = match applications::query(&index, catalog, &request, cancel) {
-            Ok(page) => page,
-            Err(_) if cancel.load(Ordering::Relaxed) => return Ok(None),
-            Err(error) => return Err(error),
-        };
+        let mut result =
+            match applications::query_authorized(&index, catalog, &request, cancel, |path| {
+                registry.authorize(&self.principal, Capability::Metadata, path)
+            }) {
+                Ok(page) => page,
+                Err(_) if cancel.load(Ordering::Relaxed) => return Ok(None),
+                Err(error) => return Err(error),
+            };
         let current = self.registry()?;
         let policy = current.policy(&self.principal, Capability::Metadata)?;
         let _root = current.authorize_index(&self.principal, &index)?;
@@ -93,7 +77,7 @@ impl AgentService {
                     complete: source.complete,
                 })
                 .collect(),
-            attribution_scope: "current registrations with authorized local installation locations; indexed file paths only; not a historical or complete inventory; data/cache/log categories unavailable",
+            attribution_scope: "current registrations with individually authorized local installation/profile locations; indexed file paths only; supported default Chrome/Edge profile layouts; category sizes are location claims, not cleanup authority; missing categories unavailable; not a historical or complete inventory",
             partial_index: result.partial_index,
             excluded_roots: result.excluded_roots,
             exclusive: result.exclusive,

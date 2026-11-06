@@ -1,0 +1,98 @@
+{
+  "checkedUtc": "2026-11-06T14:37:37.4460076Z",
+  "startedUtc": "2026-11-06T14:22:11.2929467Z",
+  "checkoutCommit": "087407091b3cb80302ea9bbd4e90e0e230d7f2c6",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 2.978
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 54.569
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 2.658
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 17.228
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 769.229
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 79.002
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/applications.rs",
+      "sha256": "BDE013FD4D63291BB87783287CFF8CE2F08B5F5FEDBD219D570B53BA533FC717",
+      "lastWriteUtc": "2026-11-06T14:19:58.1909282Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/applications/locations.rs",
+      "sha256": "8BF64578A4F2FFC6CF1A710A3958BA953E021C617E5ABB8A9777F0465F65BB7F",
+      "lastWriteUtc": "2026-11-06T14:09:59.8900119Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/applications/registry.rs",
+      "sha256": "9EEA318EA02565CA88C8CF17EE49E0B9DE2E5A6C4D7C53FBF22498FF446FBCE1",
+      "lastWriteUtc": "2026-11-06T14:09:59.8920243Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/service/applications.rs",
+      "sha256": "2F97C29A2ED5C01248867C5E0A69C937104B5F0B7D188F0BACCF0A4609A7FDEF",
+      "lastWriteUtc": "2026-11-06T13:50:15.0325919Z"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "56616CA198F3009E658CB89A48B386D0B3DF43D32DD72F29B7EF2C41D9149B74",
+      "lastWriteUtc": "2026-11-06T14:10:00.3147689Z"
+    },
+    {
+      "path": "crates/voldiq-headless/src/mcp.rs",
+      "sha256": "3CDE14738D4979059C496BE59D902F078F2A53EE10333B5191506B04D6BAC576",
+      "lastWriteUtc": "2026-11-06T13:59:19.8952773Z"
+    },
+    {
+      "path": "frontend/lib/applications.ts",
+      "sha256": "41E834967CFEF93BB939B641C22A78EA8A69FE7B4BC4DDFADB26355FB82ABA37",
+      "lastWriteUtc": "2026-11-06T14:20:05.3995052Z"
+    },
+    {
+      "path": "frontend/components/Applications.svelte",
+      "sha256": "5DBD107E8AF8D6BA40BB68E872190DE395F1D239FCFB45441C3228AAC625A36B",
+      "lastWriteUtc": "2026-11-06T14:10:01.4714328Z"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "A875C7BE60BD3E6B4B75930E8EDE0C3EFE3A0E54C8E0511477D3B12C9259E4A3",
+      "lastWriteUtc": "2026-11-06T14:15:54.0870134Z"
+    }
+  ],
+  "sourceInputsPredateVerification": true,
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "freshCategoryFixtureContract": true,
+  "contractProbeSha256": "240E58462F02649D8EF64F2F4165848A8E29D12C09E6263321EDCCBAA1C68E26",
+  "limits": "Owned synthetic location claims and native metadata authorization. Current-user supported stable browser defaults only; no registry writes or real browser content. Wider/custom layouts, category cleanup, captured app history, native rendering/keyboard/scaling and device performance remain separate acceptance."
+}

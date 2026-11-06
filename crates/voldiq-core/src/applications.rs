@@ -7,8 +7,10 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
+mod locations;
 #[cfg(windows)]
 mod registry;
+pub use locations::{BrowserLayout, Category, CategoryMeasurement, ProfileLocation};
 
 pub const MAX_REGISTRATIONS: usize = 1024;
 
@@ -29,7 +31,8 @@ pub struct Registration {
     pub name: String,
     pub publisher: Option<String>,
     pub version: Option<String>,
-    pub install_location: PathBuf,
+    pub install_location: Option<PathBuf>,
+    pub profile: Option<ProfileLocation>,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -86,6 +89,14 @@ pub struct Footprint {
     pub files: u64,
 }
 
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Confidence {
+    Contextual,
+    Supplied,
+    Ambiguous,
+}
+
 #[derive(Clone, Serialize)]
 pub struct Application {
     pub id: String,
@@ -95,8 +106,10 @@ pub struct Application {
     pub root: NodeId,
     pub sources: Vec<Source>,
     pub evidence: &'static str,
+    pub confidence: Confidence,
     pub exclusive: Footprint,
     pub overlapping: Footprint,
+    pub breakdown: Vec<CategoryMeasurement>,
 }
 
 #[derive(Serialize)]
@@ -144,6 +157,20 @@ struct Bound {
     sources: Vec<Source>,
     exclusive: Count,
     overlapping: Count,
+    breakdown: BTreeMap<Category, (Count, Count)>,
+    locations: Vec<locations::Location>,
+}
+
+struct Resolved {
+    registration: Registration,
+    installation: Option<(u64, u64)>,
+    profile: Option<(u64, u64)>,
+}
+
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum RegistrationLocation {
+    Native((u64, u64)),
+    Declared(Option<PathBuf>),
 }
 
 pub fn installed_programs(cancel: &AtomicBool) -> Result<Catalog> {
@@ -192,6 +219,17 @@ pub(crate) fn compiled_request<'a>(
 
 /// Only supplied claims and observed directory identities are used; no file contents are read.
 pub fn query(index: &Index, catalog: Catalog, query: &Query, cancel: &AtomicBool) -> Result<Page> {
+    query_authorized(index, catalog, query, cancel, crate::agents::pin_directory)
+}
+
+/// The embedding service supplies current metadata authorization for each location independently.
+pub fn query_authorized(
+    index: &Index,
+    catalog: Catalog,
+    query: &Query,
+    cancel: &AtomicBool,
+    mut authorize: impl FnMut(&std::path::Path) -> Result<crate::agents::AuthorizedPath>,
+) -> Result<Page> {
     let compiled = compiled_request(index, query)?;
     if catalog.registrations.len() > MAX_REGISTRATIONS || catalog.coverage.len() > 5 {
         return Err(Error::Invalid(
@@ -214,25 +252,32 @@ pub fn query(index: &Index, catalog: Catalog, query: &Query, cancel: &AtomicBool
                 "Invalid application registration metadata.".into(),
             ));
         }
-        if !local_install_path(&registration.install_location) {
-            unbound_records += 1;
-            continue;
-        }
-        let pin = match crate::agents::pin_directory(&registration.install_location) {
-            Ok(pin) => pin,
-            Err(_) => {
-                unbound_records += 1;
-                continue;
+        let mut observe = |path: &std::path::Path| {
+            if !local_install_path(path) {
+                return None;
             }
+            let pin = authorize(path).ok()?;
+            let identity = pin.identity();
+            (!generic_roots.contains(&identity)).then_some(identity)
         };
-        let identity = pin.identity();
-        if generic_roots.contains(&identity) {
-            unbound_records += 1;
-            continue;
-        }
-        resolved.push((registration, identity));
+        let installation = registration
+            .install_location
+            .as_deref()
+            .and_then(&mut observe);
+        let profile = registration
+            .profile
+            .as_ref()
+            .and_then(|profile| observe(&profile.path));
+        resolved.push(Resolved {
+            registration,
+            installation,
+            profile,
+        });
     }
-    let wanted: HashSet<_> = resolved.iter().map(|(_, identity)| *identity).collect();
+    let wanted: HashSet<_> = resolved
+        .iter()
+        .flat_map(|record| [record.installation, record.profile].into_iter().flatten())
+        .collect();
     let mut indexed_roots = HashMap::new();
     for entry in &index.entries {
         if entry.id.0 % 256 == 0 {
@@ -248,22 +293,51 @@ pub fn query(index: &Index, catalog: Catalog, query: &Query, cancel: &AtomicBool
     let mut bound = Vec::<Bound>::new();
     let mut unique = BTreeMap::new();
     let mut duplicate_records = 0;
-    for (registration, identity) in resolved {
+    for Resolved {
+        registration,
+        installation,
+        profile,
+    } in resolved
+    {
         check(cancel)?;
-        let root = match indexed_roots.get(&identity).copied() {
-            Some(root) => root,
-            None if ancestors.contains(&identity) => NodeId(0),
-            None => {
-                unbound_records += 1;
-                continue;
-            }
+        let mut locations = Vec::new();
+        if let Some(identity) = installation
+            && let Some(location) = locations::Location::bind(
+                root_pin.path(),
+                &indexed_roots,
+                &ancestors,
+                identity,
+                None,
+            )
+        {
+            locations.push(location);
+        }
+        if let Some(identity) = profile
+            && let Some(profile) = &registration.profile
+            && let Some(location) = locations::Location::bind(
+                root_pin.path(),
+                &indexed_roots,
+                &ancestors,
+                identity,
+                Some(profile.layout),
+            )
+        {
+            locations.push(location);
+        }
+        let Some(root) = locations.first().map(|location| location.root) else {
+            unbound_records += 1;
+            continue;
         };
         let key = (
             registration.key.to_ascii_lowercase(),
             registration.name.clone(),
             registration.publisher.clone(),
             registration.version.clone(),
-            identity,
+            installation
+                .map(RegistrationLocation::Native)
+                .unwrap_or_else(|| {
+                    RegistrationLocation::Declared(registration.install_location.clone())
+                }),
             match registration.source {
                 Source::SuppliedMetadata => 2,
                 _ => 0,
@@ -275,6 +349,7 @@ pub fn query(index: &Index, catalog: Catalog, query: &Query, cancel: &AtomicBool
                 app.sources.push(registration.source);
             }
             duplicate_records += 1;
+            app.locations.extend(locations);
             continue;
         }
         let id = blake3::hash(format!("{key:?}").as_bytes())
@@ -289,11 +364,15 @@ pub fn query(index: &Index, catalog: Catalog, query: &Query, cancel: &AtomicBool
             sources: vec![source],
             exclusive: Count::default(),
             overlapping: Count::default(),
+            breakdown: BTreeMap::new(),
+            locations,
         });
     }
-    let mut claims: HashMap<NodeId, Vec<usize>> = HashMap::new();
+    let mut claims: HashMap<NodeId, Vec<(usize, usize)>> = HashMap::new();
     for (slot, app) in bound.iter().enumerate() {
-        claims.entry(app.root).or_default().push(slot);
+        for (location, claim) in app.locations.iter().enumerate() {
+            claims.entry(claim.root).or_default().push((slot, location));
+        }
     }
     let (mut exclusive, mut overlapping, mut unattributed, mut total) = (
         Count::default(),
@@ -301,20 +380,21 @@ pub fn query(index: &Index, catalog: Catalog, query: &Query, cancel: &AtomicBool
         Count::default(),
         Count::default(),
     );
-    let mut owners = Vec::new();
+    let mut owners = HashMap::new();
     let mut work = crate::search::GLOB_WORK_LIMIT;
     let mut cancelled = || cancel.load(Ordering::Relaxed);
     for entry in &index.entries {
         if entry.id.0 % 256 == 0 {
             check(cancel)?;
         }
-        if !entry.is_metadata_file() {
+        if !entry.is_metadata_file() && entry.kind != Kind::Directory {
             continue;
         }
         owners.clear();
         let mut within_scope = false;
         let mut parent = Some(entry.id);
         let mut depth = 0;
+        let mut trail = [None; 3];
         while let Some(id) = parent {
             if depth % 256 == 0 {
                 check(cancel)?;
@@ -324,12 +404,33 @@ pub fn query(index: &Index, catalog: Catalog, query: &Query, cancel: &AtomicBool
             }
             within_scope |= id == query.scope;
             if let Some(apps) = claims.get(&id) {
-                owners.extend_from_slice(apps);
+                for &(slot, location) in apps {
+                    let location = &bound[slot].locations[location];
+                    let category = location.category(&trail, depth, entry.is_metadata_file());
+                    let observed =
+                        owners
+                            .entry(slot)
+                            .or_insert((depth, location.priority, category));
+                    if depth == observed.0 {
+                        if location.priority > observed.1 {
+                            *observed = (depth, location.priority, category)
+                        } else if location.priority == observed.1 && category != observed.2 {
+                            observed.2 = Category::Unknown
+                        }
+                    }
+                }
             }
+            trail = [Some(index.entry(id)?.name.as_str()), trail[0], trail[1]];
             parent = index.entry(id)?.parent;
             depth += 1;
         }
         if !within_scope {
+            continue;
+        }
+        for (&slot, &(_, _, category)) in &owners {
+            bound[slot].breakdown.entry(category).or_default();
+        }
+        if !entry.is_metadata_file() {
             continue;
         }
         match index.matches_compiled_cancellable(&compiled, entry, &mut work, &mut cancelled)? {
@@ -337,20 +438,21 @@ pub fn query(index: &Index, catalog: Catalog, query: &Query, cancel: &AtomicBool
             Some(false) => continue,
             None => return Err(Error::Invalid("Application query cancelled.".into())),
         }
-        owners.sort_unstable();
-        owners.dedup();
         total.add(entry.logical);
-        match owners.as_slice() {
-            [] => unattributed.add(entry.logical),
-            [slot] => {
-                exclusive.add(entry.logical);
-                bound[*slot].exclusive.add(entry.logical);
-            }
-            _ => {
-                overlapping.add(entry.logical);
-                for &slot in &owners {
-                    bound[slot].overlapping.add(entry.logical);
-                }
+        match owners.len() {
+            0 => unattributed.add(entry.logical),
+            1 => exclusive.add(entry.logical),
+            _ => overlapping.add(entry.logical),
+        }
+        for (&slot, &(_, _, category)) in &owners {
+            let app = &mut bound[slot];
+            let counts = app.breakdown.entry(category).or_default();
+            if owners.len() == 1 {
+                counts.0.add(entry.logical);
+                app.exclusive.add(entry.logical);
+            } else {
+                counts.1.add(entry.logical);
+                app.overlapping.add(entry.logical);
             }
         }
     }
@@ -367,11 +469,33 @@ pub fn query(index: &Index, catalog: Catalog, query: &Query, cancel: &AtomicBool
             sources: app.sources,
             evidence: if app.registration.source == Source::SuppliedMetadata {
                 "supplied_claim"
+            } else if app
+                .breakdown
+                .keys()
+                .any(|category| *category != Category::Installation)
+            {
+                "registered_default_profile_claim"
             } else {
                 "registered_location_claim"
             },
+            confidence: if app.breakdown.contains_key(&Category::Unknown) {
+                Confidence::Ambiguous
+            } else if app.registration.source == Source::SuppliedMetadata {
+                Confidence::Supplied
+            } else {
+                Confidence::Contextual
+            },
             exclusive: app.exclusive.view(),
             overlapping: app.overlapping.view(),
+            breakdown: app
+                .breakdown
+                .into_iter()
+                .map(|(category, (exclusive, overlapping))| CategoryMeasurement {
+                    category,
+                    exclusive: exclusive.view(),
+                    overlapping: overlapping.view(),
+                })
+                .collect(),
         })
         .collect();
     applications.sort_by(|a, b| {
@@ -441,9 +565,16 @@ fn valid_registration(record: &Registration) -> bool {
         && text(&record.name)
         && record.publisher.as_deref().is_none_or(text)
         && record.version.as_deref().is_none_or(text)
-        && record.install_location.is_absolute()
+        && record
+            .install_location
+            .as_ref()
+            .is_none_or(|path| path.is_absolute())
+        && (record.install_location.is_some() || record.profile.is_some())
+        && record.profile.as_ref().is_none_or(|profile| {
+            profile.path.is_absolute() && BrowserLayout::registered(record) == Some(profile.layout)
+        })
 }
-pub(crate) fn local_install_path(path: &std::path::Path) -> bool {
+fn local_install_path(path: &std::path::Path) -> bool {
     #[cfg(windows)]
     {
         use std::path::{Component, Prefix};

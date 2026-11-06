@@ -13,6 +13,7 @@
     type ApplicationPage,
     type ApplicationItem,
     type ApplicationQuery,
+    type ApplicationCategory,
   } from '../lib/applications';
   let {
     indexId,
@@ -56,6 +57,14 @@
     page && BigInt(page.total.logical_bytes) > 0n
       ? Number((BigInt(value) * 10000n) / BigInt(page.total.logical_bytes)) / 100
       : 0;
+  const categories: ApplicationCategory[] = ['installation', 'data', 'cache', 'logs', 'unknown'];
+  const categoryStyle = {
+    installation: { label: 'Installation', paint: RANKED_PAINTS[0] },
+    data: { label: 'Profile data', paint: RANKED_PAINTS[4] },
+    cache: { label: 'HTTP cache', paint: RANKED_PAINTS[2] },
+    logs: { label: 'Logs', paint: RANKED_PAINTS[5] },
+    unknown: { label: 'Unknown / ambiguous', paint: RANKED_PAINTS[7] },
+  } satisfies Record<ApplicationCategory, { label: string; paint: { fill: string; ink: string } }>;
   $effect(() => {
     void context;
     untrack(() => {
@@ -151,8 +160,9 @@
     </div>
   </header>
   <p class="application-caption">
-    Registered install locations matched to this index. Filters match file records, not registration
-    names; data, caches and logs are not classified by this view.
+    Registered locations matched to this index. Supported current-user Chrome and Edge profiles add
+    data and HTTP-cache categories; Chrome's documented debug log is separate. Filters match file
+    records, not registration names. Custom paths and unsupported layouts remain unclassified.
   </p>
   {#if model.kind === 'loading'}<p class="application-state" role="status">
       Reading registration metadata and indexed sizes…
@@ -281,17 +291,47 @@
               >{applicationBytes(app.exclusive.logical_bytes)}</strong
             ><span>{app.exclusive.files.toLocaleString()} exclusive paths</span>
             <span class="application-track" aria-hidden="true"
-              ><span
-                style:width={`${percent(app.exclusive.logical_bytes)}%`}
-                style:background={paints(app).fill}
-              ></span></span
+              >{#each app.breakdown as part (part.category)}<span
+                  style:width={`${percent(part.exclusive.logical_bytes)}%`}
+                  style:background={categoryStyle[part.category].paint.fill}
+                ></span>{/each}</span
             >
           </div>
           <button
             onclick={() => explore(app)}
             disabled={paused}
-            title="Explore the indexed portion of this registered location">Explore</button
+            title="Explore one indexed location associated with this application">Explore</button
           >
+          <details class="application-breakdown">
+            <summary
+              >Location breakdown · {app.confidence === 'supplied'
+                ? 'supplied metadata'
+                : app.confidence === 'ambiguous'
+                  ? 'conflicting locations'
+                  : 'contextual evidence'}</summary
+            >
+            <dl>
+              {#each categories as category}
+                {@const measure = app.breakdown.find((part) => part.category === category)}
+                <div>
+                  <dt>
+                    <span aria-hidden="true" style:background={categoryStyle[category].paint.fill}
+                    ></span>{categoryStyle[category].label}
+                  </dt>
+                  <dd>
+                    {#if measure}<strong title={`${measure.exclusive.logical_bytes} logical bytes`}
+                        >{applicationBytes(measure.exclusive.logical_bytes)}</strong
+                      >
+                      <small
+                        >{measure.exclusive.files.toLocaleString()} exclusive paths{#if measure.overlapping.files}
+                          · {applicationBytes(measure.overlapping.logical_bytes)} shared, not additive{/if}</small
+                      >
+                    {:else}<span>Not classified in this scope</span>{/if}
+                  </dd>
+                </div>
+              {/each}
+            </dl>
+          </details>
         </li>
       {/each}
     </ul>
@@ -325,6 +365,13 @@
         Registration claims are contextual evidence, not proof of ownership, recoverability or
         permission to clean. Shared claims are counted once in the matching total. These are logical
         path bytes; per-application physical allocation is unavailable.
+      </p>
+      <p>
+        Categories describe indexed locations, not verified file contents. Profile data includes
+        unclassified profile content; HTTP cache covers Cache folders in supported default profile
+        layouts. Missing categories are unavailable, not zero. Unknown marks conflicting location
+        claims. Bars show the exclusive share of all matching bytes, with the same category colors
+        as the breakdown. No category grants cleanup permission or promises reclaimable space.
       </p>
       <p>
         Index measurement: {date(page.indexed_at)}. Registration read: {date(
@@ -529,6 +576,7 @@
     font-size: 14px;
   }
   .application-track {
+    display: flex;
     height: 4px;
     background: var(--paper);
     border-radius: 2px;
@@ -537,6 +585,53 @@
   .application-track > span {
     height: 100%;
     display: block;
+  }
+  .application-breakdown {
+    grid-column: 2 / -1;
+    color: var(--secondary);
+    min-width: 0;
+    font-size: 11px;
+  }
+  .application-breakdown summary {
+    cursor: pointer;
+    padding-block: 6px;
+  }
+  .application-breakdown summary:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+  .application-breakdown dl {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 14px 20px;
+    margin: 12px 0 4px;
+  }
+  .application-breakdown dt {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .application-breakdown dt > span {
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+  .application-breakdown dd {
+    margin: 6px 0 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow-wrap: anywhere;
+    font-variant-numeric: tabular-nums;
+  }
+  .application-breakdown strong {
+    color: var(--text);
+    font-size: 13px;
+  }
+  .application-breakdown small {
+    font-size: 11px;
+    line-height: 1.4;
   }
   .application-pagination {
     margin-top: 16px;

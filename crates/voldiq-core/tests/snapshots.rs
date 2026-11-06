@@ -46,7 +46,8 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             name: "Suite".into(),
             publisher: Some("Fixture publisher".into()),
             version: Some("1".into()),
-            install_location: suite.clone(),
+            install_location: Some(suite.clone()),
+            profile: None,
         };
         let mut duplicate = suite_record.clone();
         duplicate.source = Source::CurrentUser32;
@@ -67,7 +68,8 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                     name: "Module".into(),
                     publisher: None,
                     version: None,
-                    install_location: module.clone(),
+                    install_location: Some(module.clone()),
+                    profile: None,
                 },
                 Registration {
                     source: Source::SuppliedMetadata,
@@ -75,7 +77,8 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                     name: "Missing".into(),
                     publisher: None,
                     version: None,
-                    install_location: owned.path().join("missing"),
+                    install_location: Some(owned.path().join("missing")),
+                    profile: None,
                 },
             ],
         };
@@ -271,6 +274,271 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             assert_eq!(actual.coverage.len(), 4);
             assert!(actual.registrations.len() <= voldiq_core::applications::MAX_REGISTRATIONS);
             assert!(actual.observed_at > 0);
+        }
+        {
+            use voldiq_core::applications::{BrowserLayout, Category, ProfileLocation};
+            use voldiq_core::scanner;
+            let profiles = tempfile::tempdir().unwrap();
+            let data = profiles.path().join("User Data");
+            let cache = data.join("Default/Cache/Cache_Data");
+            std::fs::create_dir_all(&cache).unwrap();
+            std::fs::write(profiles.path().join("browser.exe"), [1; 11]).unwrap();
+            std::fs::write(data.join("Local State"), [2; 5]).unwrap();
+            std::fs::write(data.join("chrome_debug.log"), [3; 3]).unwrap();
+            std::fs::write(cache.join("f_000001"), [4; 7]).unwrap();
+            std::fs::write(cache.parent().unwrap().join("legacy.data"), [6; 1]).unwrap();
+            std::fs::create_dir_all(data.join("custom/Cache/Cache_Data")).unwrap();
+            std::fs::write(data.join("custom/Cache/Cache_Data/private"), [5; 13]).unwrap();
+            let browser = Registration {
+                source: Source::SuppliedMetadata,
+                key: "Google Chrome".into(),
+                name: "Google Chrome".into(),
+                publisher: Some("Google LLC".into()),
+                version: Some("1".into()),
+                install_location: Some(profiles.path().to_owned()),
+                profile: Some(ProfileLocation {
+                    path: data.clone(),
+                    layout: BrowserLayout::ChromeStable,
+                }),
+            };
+            let claims = Catalog {
+                started_at: 1000,
+                observed_at: 1001,
+                registrations: vec![browser.clone()],
+                coverage: vec![],
+            };
+            let indexed =
+                scanner::scan(profiles.path(), &Default::default(), &loading, |_| {}).unwrap();
+            let measured = voldiq_core::applications::query(
+                &indexed,
+                claims.clone(),
+                &AppQuery::default(),
+                &loading,
+            )
+            .unwrap();
+            assert_eq!(
+                (&measured.total.logical_bytes, measured.total.files),
+                (&"40".to_string(), 6)
+            );
+            assert_eq!(measured.overlapping.files, 0);
+            if std::env::var("VOLDIQ_KEEP_APPLICATION_FIXTURE").as_deref() == Ok("1") {
+                let output = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                    .join("../../target/probes/application-profile-fixture.json");
+                std::fs::write(output, serde_json::to_vec_pretty(&measured).unwrap()).unwrap();
+            }
+            let breakdown: Vec<_> = measured.applications[0]
+                .breakdown
+                .iter()
+                .map(|row| {
+                    (
+                        row.category,
+                        row.exclusive.logical_bytes.as_str(),
+                        row.exclusive.files,
+                        row.overlapping.files,
+                    )
+                })
+                .collect();
+            assert_eq!(
+                breakdown,
+                vec![
+                    (Category::Installation, "11", 1, 0),
+                    (Category::Data, "18", 2, 0),
+                    (Category::Cache, "8", 2, 0),
+                    (Category::Logs, "3", 1, 0)
+                ]
+            );
+            let mut shared = claims.clone();
+            shared.registrations.push(Registration {
+                source: Source::SuppliedMetadata,
+                key: "Cache consumer".into(),
+                name: "Cache consumer".into(),
+                publisher: None,
+                version: None,
+                install_location: Some(cache.clone()),
+                profile: None,
+            });
+            let shared =
+                voldiq_core::applications::query(&indexed, shared, &AppQuery::default(), &loading)
+                    .unwrap();
+            assert_eq!(
+                (
+                    &shared.exclusive.logical_bytes,
+                    &shared.overlapping.logical_bytes
+                ),
+                (&"33".to_string(), &"7".to_string())
+            );
+            let browser_row = shared
+                .applications
+                .iter()
+                .find(|app| app.name == "Google Chrome")
+                .unwrap();
+            let cache_row = browser_row
+                .breakdown
+                .iter()
+                .find(|row| row.category == Category::Cache)
+                .unwrap();
+            assert_eq!(
+                (
+                    &cache_row.exclusive.logical_bytes,
+                    &cache_row.overlapping.logical_bytes
+                ),
+                (&"1".to_string(), &"7".to_string())
+            );
+            let scoped = scanner::scan(&cache, &Default::default(), &loading, |_| {}).unwrap();
+            let narrow = voldiq_core::applications::query(
+                &scoped,
+                claims.clone(),
+                &AppQuery::default(),
+                &loading,
+            )
+            .unwrap();
+            assert_eq!(narrow.applications[0].breakdown.len(), 1);
+            assert_eq!(
+                narrow.applications[0].breakdown[0].category,
+                Category::Cache
+            );
+            assert_eq!(narrow.applications[0].exclusive.logical_bytes, "7");
+            let data_index = scanner::scan(&data, &Default::default(), &loading, |_| {}).unwrap();
+            let state = tempfile::tempdir().unwrap();
+            use voldiq_core::agents::{Capability, Limits, Policy, Registry};
+            let mut registry = Registry::open(&state.path().join("agents.db")).unwrap();
+            let connection = registry
+                .provision(
+                    "Profile-only fixture",
+                    Policy::new(
+                        vec![data.clone()],
+                        vec![],
+                        vec![Capability::Metadata],
+                        Limits::default(),
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+            let principal = registry
+                .authenticate(connection.credential.expose())
+                .unwrap();
+            assert!(
+                registry
+                    .authorize(&principal, Capability::Metadata, profiles.path())
+                    .is_err()
+            );
+            let authorized = voldiq_core::applications::query_authorized(
+                &data_index,
+                claims.clone(),
+                &AppQuery::default(),
+                &loading,
+                |path| registry.authorize(&principal, Capability::Metadata, path),
+            )
+            .unwrap();
+            assert_eq!(authorized.applications.len(), 1);
+            assert_eq!(authorized.applications[0].exclusive.logical_bytes, "29");
+            assert_eq!(authorized.unattributed.files, 0);
+            assert!(
+                !authorized.applications[0]
+                    .breakdown
+                    .iter()
+                    .any(|row| row.category == Category::Installation)
+            );
+            let mut missing = browser.clone();
+            let mut profile_only = browser.clone();
+            profile_only.install_location = None;
+            let profile_only = voldiq_core::applications::query(
+                &indexed,
+                Catalog {
+                    registrations: vec![profile_only],
+                    ..claims.clone()
+                },
+                &AppQuery::default(),
+                &loading,
+            )
+            .unwrap();
+            assert_eq!(profile_only.exclusive.logical_bytes, "29");
+            assert_eq!(profile_only.unattributed.logical_bytes, "11");
+            assert!(
+                !profile_only.applications[0]
+                    .breakdown
+                    .iter()
+                    .any(|row| row.category == Category::Installation)
+            );
+            missing.profile.as_mut().unwrap().path = profiles.path().join("unavailable");
+            let missing = voldiq_core::applications::query(
+                &indexed,
+                Catalog {
+                    registrations: vec![missing],
+                    ..claims.clone()
+                },
+                &AppQuery::default(),
+                &loading,
+            )
+            .unwrap();
+            assert_eq!(missing.applications[0].breakdown.len(), 1);
+            assert_eq!(
+                missing.applications[0].breakdown[0].category,
+                Category::Installation
+            );
+            let mut conflict = browser.clone();
+            conflict.profile.as_mut().unwrap().path = profiles.path().to_owned();
+            let conflict = voldiq_core::applications::query(
+                &indexed,
+                Catalog {
+                    registrations: vec![conflict],
+                    ..claims.clone()
+                },
+                &AppQuery::default(),
+                &loading,
+            )
+            .unwrap();
+            assert!(
+                conflict.applications[0]
+                    .breakdown
+                    .iter()
+                    .any(|row| row.category == Category::Unknown)
+            );
+            let mut invalid = browser;
+            let mut edge = invalid.clone();
+            edge.key = "Microsoft Edge".into();
+            edge.name = "Microsoft Edge".into();
+            edge.publisher = Some("Microsoft Corporation".into());
+            edge.profile.as_mut().unwrap().layout = BrowserLayout::EdgeStable;
+            let edge = voldiq_core::applications::query(
+                &indexed,
+                Catalog {
+                    registrations: vec![edge],
+                    ..claims.clone()
+                },
+                &AppQuery::default(),
+                &loading,
+            )
+            .unwrap();
+            assert!(
+                !edge.applications[0]
+                    .breakdown
+                    .iter()
+                    .any(|row| row.category == Category::Logs)
+            );
+            assert_eq!(
+                edge.applications[0]
+                    .breakdown
+                    .iter()
+                    .find(|row| row.category == Category::Data)
+                    .unwrap()
+                    .exclusive
+                    .logical_bytes,
+                "21"
+            );
+            invalid.publisher = Some("Unrecognized publisher".into());
+            assert!(
+                voldiq_core::applications::query(
+                    &indexed,
+                    Catalog {
+                        registrations: vec![invalid],
+                        ..claims
+                    },
+                    &AppQuery::default(),
+                    &loading
+                )
+                .is_err()
+            );
         }
     }
     for (stop, replace, concurrency, expected_entries) in [
