@@ -156,7 +156,7 @@ History compares logical file changes with three bars on a shared signed scale a
 
 Voldiq puts paths, file sizes and scan coverage in a compact desktop workspace. The built interface follows the user-selected white Windows direction and supplied Palantir, Linear and Dub references. Fine dividers organize the rail, toolbar and content without decorative elevation. Segoe UI keeps the controls consistent with Windows expectations.
 
-The supplied stacked-storage logo is the identity asset. Its disc-shaped top and blue segment remain intact. Light mode is the default; dark mode changes the same semantic color roles. The dark navigation logo has an intentional pale circular backing, with a small inset, so the original raster remains legible without exposing a rectangular matte.
+The supplied stacked-storage logo is the identity asset. Its disc-shaped top and blue segment remain intact. Light mode is the default; dark mode changes the same semantic color roles. Both themes use the original raster through a centered 160% viewport crop in a bounded rounded frame, without added backing or padding.
 
 **Key Characteristics:**
 
@@ -225,7 +225,7 @@ Buttons transition their background over the root motion duration of 140ms. Rail
 
 Controls, panels, notices and selection backgrounds use the radius token. Smaller chart insets and keyboard hints use the inset radius. The dialog uses the dialog radius. Table rows use square corners and bottom dividers.
 
-Icons are inline outline SVGs, generally 18px, with a 24-unit viewbox, 1.6-unit current-color stroke and round caps and joins. The navigation's dark-theme logo backing is circular, pale paper, and inset by 3px inside its 32px image box. This is a deliberate treatment for the supplied identity raster, not a general button or card shape.
+Icons are inline outline SVGs, generally 18px, with a 24-unit viewbox, 1.6-unit current-color stroke and round caps and joins. The shared BrandMark crops the original 256px artwork identically in navigation and welcome states. Its frame follows the requested size without an added dark-theme circle or inset.
 
 ## Components
 
@@ -326,7 +326,7 @@ Preview, incomplete coverage and engine errors appear as compact bordered messag
 ### Do:
 
 - Do use the semantic theme colors and the existing compact text hierarchy.
-- Do preserve the supplied logo geometry and its intentional pale circular backing in dark navigation.
+- Do preserve the supplied logo geometry and the shared centered crop in both themes.
 - Do keep measured sizes, paths and incomplete coverage visible beside storage graphics.
 - Do provide a list route for the Canvas map and visible keyboard focus on controls.
 - Do honor both the saved motion preference and the system reduced-motion preference.

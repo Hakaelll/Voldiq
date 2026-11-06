@@ -1,0 +1,8 @@
+{
+  "checkedUtc": "2026-11-06T12:58:34.8438050Z",
+  "scope": "Owned duplicate preservation copies left by a pre-clean abort. All four copies and retained release originals matched the successful cleanup manifest before deletion. No recursive deletion, application state or other project artifacts touched.",
+  "removedBytes": 41772827,
+  "removedFiles": 4,
+  "target": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\cache-preserve-531731bc59f04b7bae68e5564feeee1a",
+  "originalDeliverablesPreserved": true
+}
