@@ -118,6 +118,44 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         tokio::time::sleep(std::time::Duration::from_millis(25)).await;
     };
     let stats = call(&client, "voldiq_stats", json!({"snapshot_id":snapshot})).await;
+    assert!(tools.iter().any(|tool| tool.name == "voldiq_applications"));
+    #[cfg(windows)]
+    {
+        let applications = call(
+            &client,
+            "voldiq_applications",
+            json!({"snapshot_id":snapshot}),
+        )
+        .await;
+        assert_ne!(applications.is_error, Some(true));
+        let response = applications.structured_content.unwrap();
+        assert_eq!(response["schema_version"], 1);
+        let result = &response["result"];
+        assert_eq!(result["total"], json!({"logical_bytes":"11","files":1}));
+        assert_eq!(result["unattributed"], result["total"]);
+        assert_eq!(result["applications"], json!([]));
+        assert_eq!(result["next_offset"], Value::Null);
+        assert!(result.get("chart").is_none());
+        assert!(result.get("unbound_records").is_none());
+        assert!(result.get("coverage").is_none());
+        for source in result["registration_sources"].as_array().unwrap() {
+            assert_eq!(source.as_object().unwrap().len(), 2);
+        }
+    }
+    let injected = call(
+        &client,
+        "voldiq_applications",
+        json!({"snapshot_id":snapshot,"approved":true}),
+    )
+    .await;
+    assert_eq!(injected.is_error, Some(true));
+    let invalid = call(
+        &client,
+        "voldiq_applications",
+        json!({"snapshot_id":snapshot,"query":{"limit":0}}),
+    )
+    .await;
+    assert_eq!(invalid.is_error, Some(true));
     let readonly = registry
         .provision(
             "Read without export",
@@ -332,6 +370,39 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
             .is_err()
     );
     let cancelled = std::sync::atomic::AtomicBool::new(true);
+    let scan_only = registry
+        .provision(
+            "Scan without metadata",
+            Policy::new(
+                vec![source.path().to_owned()],
+                vec![],
+                vec![Capability::Scan],
+                Limits::default(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let scan_only = voldiq_core::service::AgentService::new(
+        state.path().to_owned(),
+        registry
+            .authenticate(scan_only.credential.expose())
+            .unwrap(),
+    )
+    .unwrap();
+    assert!(
+        scan_only
+            .applications(snapshot, Default::default(), &cancelled)
+            .is_err()
+    );
+    assert!(
+        reader
+            .applications(
+                snapshot,
+                Default::default(),
+                &std::sync::atomic::AtomicBool::new(false)
+            )
+            .is_err()
+    );
     assert!(
         reader
             .calendar(
@@ -368,6 +439,12 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     );
     assert!(
         reader
+            .applications(snapshot, Default::default(), &cancelled)
+            .unwrap()
+            .is_none()
+    );
+    assert!(
+        reader
             .space_account(snapshot, &cancelled)
             .unwrap()
             .is_none()
@@ -388,6 +465,16 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
             &[],
         )
         .unwrap();
+    let unavailable = call(
+        &client,
+        "voldiq_applications",
+        json!({"snapshot_id":foreign}),
+    )
+    .await;
+    assert_eq!(
+        unavailable.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
+    );
     for (a, b) in [(snapshot, foreign), (foreign, snapshot)] {
         let rejected = call(&client, "voldiq_compare", json!({"before":a,"after":b})).await;
         assert_eq!(
@@ -611,6 +698,10 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     );
     registry.revoke(provisioned.id).unwrap();
     for (name, args) in [
+        (
+            "voldiq_applications",
+            json!({"snapshot_id":snapshot,"query":{"filters":{"expression":"size>secret"}}}),
+        ),
         (
             "voldiq_calendar",
             json!({"snapshot_id":snapshot,"month":"invalid"}),

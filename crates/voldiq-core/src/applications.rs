@@ -165,7 +165,7 @@ pub fn read_desktop(index: &Index, request: &Query, cancel: &AtomicBool) -> Resu
     query(index, installed_programs(cancel)?, request, cancel)
 }
 
-fn compiled_request<'a>(
+pub(crate) fn compiled_request<'a>(
     index: &Index,
     request: &'a Query,
 ) -> Result<crate::search::CompiledQuery<'a>> {
@@ -443,7 +443,7 @@ fn valid_registration(record: &Registration) -> bool {
         && record.version.as_deref().is_none_or(text)
         && record.install_location.is_absolute()
 }
-fn local_install_path(path: &std::path::Path) -> bool {
+pub(crate) fn local_install_path(path: &std::path::Path) -> bool {
     #[cfg(windows)]
     {
         use std::path::{Component, Prefix};

@@ -57,6 +57,62 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     )
     .unwrap();
     let node = files["result"]["items"][0]["id"].as_u64().unwrap();
+    #[cfg(windows)]
+    {
+        let output = run(&["applications", &snapshot.to_string()]);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        let response: Value = serde_json::from_slice(&output.stdout).unwrap();
+        assert_eq!(response["schema_version"], 1);
+        let result = &response["result"];
+        assert_eq!(result["snapshot_id"], snapshot);
+        assert_eq!(result["total"], json!({"logical_bytes":"7","files":1}));
+        assert_eq!(result["unattributed"], result["total"]);
+        assert_eq!(result["applications"], json!([]));
+        assert_eq!(result["next_offset"], Value::Null);
+        assert!(result.get("chart").is_none());
+        assert!(result.get("unbound_records").is_none());
+        assert!(result.get("duplicate_records").is_none());
+        assert!(result.get("coverage").is_none());
+        let filtered = run(&[
+            "applications",
+            &snapshot.to_string(),
+            r#"{"filters":{"expression":"size>1GiB"}}"#,
+        ]);
+        assert!(filtered.status.success());
+        let filtered: Value = serde_json::from_slice(&filtered.stdout).unwrap();
+        assert_eq!(
+            filtered["result"]["total"],
+            json!({"logical_bytes":"0","files":0})
+        );
+    }
+    assert_eq!(
+        run(&["applications", &snapshot.to_string(), "--yes"])
+            .status
+            .code(),
+        Some(2)
+    );
+    assert_eq!(
+        run(&[
+            "applications",
+            &snapshot.to_string(),
+            r#"{"approved":true}"#
+        ])
+        .status
+        .code(),
+        Some(2)
+    );
+    let invalid = run(&[
+        "applications",
+        &snapshot.to_string(),
+        r#"{"filters":{"expression":"size>secret"}}"#,
+    ]);
+    assert_eq!(invalid.status.code(), Some(2));
+    let invalid: Value = serde_json::from_slice(&invalid.stdout).unwrap();
+    assert_eq!(invalid["error"]["code"], "invalid_query");
     let target = json!({"destination":source.path(),"originals":"keep"}).to_string();
     let offload = run(&[
         "plan",

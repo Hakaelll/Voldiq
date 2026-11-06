@@ -18,6 +18,9 @@ use std::{
     time::Duration,
 };
 
+mod applications;
+pub use applications::ApplicationPage;
+
 #[derive(Clone)]
 pub struct AgentService {
     directory: Coordinator,
@@ -188,7 +191,7 @@ impl AgentService {
             && crate::plans::HumanAuthority::is_active(self.directory.directory())?;
         Ok(
             serde_json::json!({"schema_version":1,"capabilities":policy.capabilities(),"limits":policy.limits(),
-            "transport":"local_stdio","approval":"independent_human_required","plan_preparation_available":true,"execution_available":execution,
+            "transport":"local_stdio","approval":"independent_human_required","plan_preparation_available":true,"execution_available":execution,"application_attribution_available":cfg!(windows),
             "scope":"Stored snapshots whose native root identity and exclusion coverage satisfy this connection's current policy."}),
         )
     }

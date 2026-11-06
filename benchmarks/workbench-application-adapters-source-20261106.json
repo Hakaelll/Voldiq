@@ -1,0 +1,88 @@
+{
+  "checkedUtc": "2026-11-06T13:27:31.149041Z",
+  "startedUtc": "2026-11-06T13:15:05.8888499Z",
+  "checkoutCommit": "ae817e07628615a18b88f40a1f899a20f7ab568e",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.243
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 13.714
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.953
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 9.781
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 649.838
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 69.712
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/applications.rs",
+      "sha256": "2C08DCEF9794F36D9FF26E198F9BA5E45629645C4F4D07181F6E4C1A0CB550C2",
+      "lastWriteUtc": "2026-11-06T13:05:48.0388783Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/service.rs",
+      "sha256": "F1933087A602347B1963F3CDFE8BDAED790078D0024B8F5AB8B5E4148E82D0CD",
+      "lastWriteUtc": "2026-11-06T13:11:06.1789671Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/service/applications.rs",
+      "sha256": "741C6D11EEABFFEB3D7F626BC36806EE5F0601CAA6B2DFB085C2C9232FDF7503",
+      "lastWriteUtc": "2026-11-06T13:08:56.8874224Z"
+    },
+    {
+      "path": "crates/voldiq-headless/src/main.rs",
+      "sha256": "A398BCC9246554D8E95C22CC2EA9E01CF4A701D4FFDEA549807F1E1821A7CED2",
+      "lastWriteUtc": "2026-11-06T13:07:33.2665246Z"
+    },
+    {
+      "path": "crates/voldiq-headless/src/mcp.rs",
+      "sha256": "DE3E792EAD82EFC030E4AAD3B0B870BE82048F6D6766404B4519033E919DEE17",
+      "lastWriteUtc": "2026-11-06T13:10:06.2880003Z"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/headless.rs",
+      "sha256": "794FC009D25070589D401827F7CA64C1F974F13999E5CEE5466AF0E5E139A894",
+      "lastWriteUtc": "2026-11-06T13:10:06.4166873Z"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/mcp.rs",
+      "sha256": "2543984B929C3E043026AD606D87EF124562E136D4CF5F7488A0676FFA337FF4",
+      "lastWriteUtc": "2026-11-06T13:10:06.5489787Z"
+    }
+  ],
+  "sourceInputsPredateVerification": true,
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "toolCount": 25,
+  "limits": "Real owned CLI/official-SDK transport fixtures use unattributed file scopes; positive claims are covered by the retained core fixture. No registry records were created. Positive registered-app transport, OS signal delivery, native interaction, registry/profile variants and device performance remain separate acceptance.",
+  "provenanceNote": "The initial receipt compared locally parsed timestamp strings with a UTC DateTime. The comparison is corrected using DateTimeOffset UTC instants; all seven original timestamps predate the run and all original frozen hashes still match. No product source or verification command changed."
+}

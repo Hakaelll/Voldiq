@@ -1,0 +1,195 @@
+{
+  "checkedUtc": "2026-11-06T13:31:35.2648446Z",
+  "baseCommit": "ae817e07628615a18b88f40a1f899a20f7ab568e",
+  "sourceGate": "workbench-application-adapters-source-20261106.json",
+  "sourceGateSha256": "0C2786A2FF96AA86581AD84141DD445F2781F1A4D1920534DC7F614435E9A61F",
+  "sourceInputsVerified": 7,
+  "scope": "Standalone CLI/MCP adapter delivery. The previous GUI executable and installer are retained; no new native GUI build or installer is claimed. Logical regular-file workspace bytes with reparse points skipped; not physical allocation or observed free-space gain.",
+  "cli": {
+    "bytes": 6376960,
+    "sha256": "216E0EE567AE4EFE8C4FB3F6BC069D1A01C1F483CEDC3F1E4B67915C77DDCB18",
+    "helpExitCode": 0,
+    "applicationsCommand": "applications <snapshot_id> [JSON scope/sort/page/file filters]"
+  },
+  "preservedDeliverablesVerified": 4,
+  "desktop": {
+    "sourceCommit": "16dadeb65a61689c0fca4ebc77cb0c5e498839f4",
+    "embeddedResources": 11,
+    "exactPayloadHashMatches": 10,
+    "html": "Tauri-processed HTML references pass the native probe; raw dist HTML byte identity is not claimed.",
+    "previewProcess": 8164,
+    "previewRunning": true,
+    "mainWindowHandle": 198144
+  },
+  "debugArtifactsPresent": false,
+  "removedReleaseBytes": 2840599576,
+  "before": {
+    "checkedUnix": 1793971755.6340892,
+    "elapsedSeconds": 0.297,
+    "scope": "Logical regular-file bytes inside the workspace; reparse points skipped. No files were modified. These are not measured physical allocated bytes.",
+    "totalBytes": 3106314722,
+    "skippedReparsePoints": 119,
+    "directories": [
+      {
+        "path": "target",
+        "bytes": 2928821055,
+        "files": 7021
+      },
+      {
+        "path": "node_modules",
+        "bytes": 89309395,
+        "files": 1860
+      },
+      {
+        "path": ".git",
+        "bytes": 37820385,
+        "files": 69
+      },
+      {
+        "path": "output",
+        "bytes": 16801568,
+        "files": 16
+      },
+      {
+        "path": "interface",
+        "bytes": 12841789,
+        "files": 11
+      },
+      {
+        "path": "assets",
+        "bytes": 7903038,
+        "files": 5
+      },
+      {
+        "path": "benchmarks",
+        "bytes": 6010147,
+        "files": 443
+      },
+      {
+        "path": "crates",
+        "bytes": 2042054,
+        "files": 144
+      },
+      {
+        "path": "frontend",
+        "bytes": 1208758,
+        "files": 112
+      },
+      {
+        "path": "dist",
+        "bytes": 1033344,
+        "files": 11
+      },
+      {
+        "path": "docs",
+        "bytes": 904848,
+        "files": 38
+      },
+      {
+        "path": "src-tauri",
+        "bytes": 709695,
+        "files": 40
+      },
+      {
+        "path": ".impeccable",
+        "bytes": 501734,
+        "files": 17
+      },
+      {
+        "path": ".",
+        "bytes": 310483,
+        "files": 18
+      },
+      {
+        "path": "scripts",
+        "bytes": 96429,
+        "files": 18
+      }
+    ]
+  },
+  "after": {
+    "checkedUnix": 1793971895.2207706,
+    "elapsedSeconds": 0.047,
+    "scope": "Logical regular-file bytes inside the workspace; reparse points skipped. No files were modified. These are not measured physical allocated bytes.",
+    "totalBytes": 265716942,
+    "skippedReparsePoints": 119,
+    "directories": [
+      {
+        "path": "node_modules",
+        "bytes": 89309395,
+        "files": 1860
+      },
+      {
+        "path": "target",
+        "bytes": 88222041,
+        "files": 733
+      },
+      {
+        "path": ".git",
+        "bytes": 37820385,
+        "files": 69
+      },
+      {
+        "path": "output",
+        "bytes": 16801568,
+        "files": 16
+      },
+      {
+        "path": "interface",
+        "bytes": 12841789,
+        "files": 11
+      },
+      {
+        "path": "assets",
+        "bytes": 7903038,
+        "files": 5
+      },
+      {
+        "path": "benchmarks",
+        "bytes": 6011381,
+        "files": 444
+      },
+      {
+        "path": "crates",
+        "bytes": 2042054,
+        "files": 144
+      },
+      {
+        "path": "frontend",
+        "bytes": 1208758,
+        "files": 112
+      },
+      {
+        "path": "dist",
+        "bytes": 1033344,
+        "files": 11
+      },
+      {
+        "path": "docs",
+        "bytes": 904848,
+        "files": 38
+      },
+      {
+        "path": "src-tauri",
+        "bytes": 709695,
+        "files": 40
+      },
+      {
+        "path": ".impeccable",
+        "bytes": 501734,
+        "files": 17
+      },
+      {
+        "path": ".",
+        "bytes": 310483,
+        "files": 18
+      },
+      {
+        "path": "scripts",
+        "bytes": 96429,
+        "files": 18
+      }
+    ]
+  },
+  "limitations": "Positive registered-app transport, OS signal delivery, native interaction/scaling, registry/profile variants and device performance remain unverified. The retained core fixture verifies positive claims; real CLI/official-SDK flows verify owned unattributed scopes and authorization. No registry data or other application caches were modified."
+}
