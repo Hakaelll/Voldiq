@@ -228,7 +228,7 @@ impl AgentService {
         let registry = self.registry()?;
         let mut phase = ScanPhase::Scanning;
         let mut reporting_failed = false;
-        let index = scanner::scan(permit.root.path(), &permit.options, &cancel, |progress| {
+        let mut index = scanner::scan(permit.root.path(), &permit.options, &cancel, |progress| {
             phase = progress.phase;
             let revoked = registry.policy(&self.principal, Capability::Scan).is_err();
             match jobs.progress(self.principal.id(), id, &progress) {
@@ -250,6 +250,15 @@ impl AgentService {
             return jobs.finish(self.principal.id(), id, JobState::Cancelled, None);
         }
         registry.authorize_index(&self.principal, &index)?;
+        index.captured_applications = Some(
+            crate::applications::installed_programs(&cancel)
+                .and_then(|catalog| {
+                    crate::applications::capture_authorized(&index, catalog, &cancel, |path| {
+                        registry.authorize(&self.principal, Capability::Metadata, path)
+                    })
+                })
+                .unwrap_or_else(|_| crate::applications::Capture::unavailable()),
+        );
         let mut store = Store::open(&self.directory.directory().join("snapshots.db"))?;
         let snapshot = store.save(&index, &cancel, &[])?;
         jobs.finish(self.principal.id(), id, JobState::Completed, Some(snapshot))

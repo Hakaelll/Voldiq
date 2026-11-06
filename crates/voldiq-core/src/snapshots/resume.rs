@@ -27,6 +27,7 @@ impl Store {
             ));
         }
         index.snapshot_id = None;
+        index.captured_applications = None;
         index.ntfs_checkpoint = Some(checkpoint);
         Ok(index)
     }

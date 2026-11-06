@@ -135,13 +135,13 @@
   });
 </script>
 
-<div class="overview-sections" role="group" aria-label="Overview sections">
+<div class="overview-sections section-navigation" role="group" aria-label="Overview sections">
   <button
     class:active={section === 'summary'}
     aria-pressed={section === 'summary'}
     onclick={() => {
       section = 'summary';
-    }}>Storage overview</button
+    }}>Summary</button
   >
   <button
     class:active={section === 'applications'}

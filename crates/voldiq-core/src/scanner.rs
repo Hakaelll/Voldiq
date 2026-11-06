@@ -180,6 +180,7 @@ pub fn scan_live(
         exclusions: exclusions.clone(),
         snapshot_id: None,
         captured_caches: Vec::new(),
+        captured_applications: None,
         observation: None,
         ntfs_checkpoint: None,
     }));

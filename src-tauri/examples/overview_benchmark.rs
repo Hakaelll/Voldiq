@@ -58,6 +58,7 @@ fn fixture(shape: &str) -> (Index, NodeId, u64) {
         exclusions: Vec::new(),
         snapshot_id: None,
         captured_caches: Vec::new(),
+        captured_applications: None,
         observation: None,
         ntfs_checkpoint: None,
     };
@@ -205,6 +206,7 @@ fn check_extension_groups() -> Result<(), Box<dyn std::error::Error>> {
         exclusions: Vec::new(),
         snapshot_id: None,
         captured_caches: Vec::new(),
+        captured_applications: None,
         observation: None,
         ntfs_checkpoint: None,
     };

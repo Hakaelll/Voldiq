@@ -39,6 +39,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         exclusions: Vec::new(),
         snapshot_id: None,
         captured_caches: Vec::new(),
+        captured_applications: None,
         observation: None,
         ntfs_checkpoint: None,
     };

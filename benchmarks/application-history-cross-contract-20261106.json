@@ -1,0 +1,39 @@
+{
+  "checkedUtc": "2026-11-06T17:26:30.163Z",
+  "historicalFixtureSha256": "9f3e759a84a0c73e34807d649c97ebf55ff3c8667f6ddcc59a73c4e2834c9eb2",
+  "historicalAttribution": "captured",
+  "recordedRegistrationRead": 1001,
+  "currentAndRecordedBreakdownsMatch": true,
+  "cacheFixtureSha256": "022c60f0f2759ca5419ea859c412b452b9ef658142c9bbe48e6e85a359ee71da",
+  "supportedCacheFiles": 1,
+  "supportedCacheLogicalBytes": 7,
+  "malformedCacheResponsesRejected": true,
+  "scope": "Fresh owned Rust measurements parsed by production TypeScript; location-category conservation, absent category, malformed sums/duplicate categories/confidence and exact large integers. No native rendering or real browser content tested.",
+  "fixtureSha256": "ae5c63f88a4afe426c0d49bab57f20988a9d38766d041771f43e1082736313ab",
+  "baselineSha256": "cad774b0ee48af3c7e765fed408cb5ae0719e9cb15e7ab17e584be5c6a46e13c",
+  "totalBytes": "40",
+  "categories": [
+    {
+      "category": "installation",
+      "bytes": "11",
+      "files": 1
+    },
+    {
+      "category": "data",
+      "bytes": "18",
+      "files": 2
+    },
+    {
+      "category": "cache",
+      "bytes": "8",
+      "files": 2
+    },
+    {
+      "category": "logs",
+      "bytes": "3",
+      "files": 1
+    }
+  ],
+  "malformedResponsesRejected": true,
+  "exactLargeInteger": "9007199254740993"
+}

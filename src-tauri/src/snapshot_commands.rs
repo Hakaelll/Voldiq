@@ -96,10 +96,15 @@ pub async fn save_snapshot(
     let store = database.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = active_operation;
-        let index = index.read().map_err(|e| e.to_string())?;
+        let mut index = index.write().map_err(|e| e.to_string())?;
         if index.snapshot_id.is_some() {
             return Err("Rescan before saving a new snapshot.".into());
         }
+        index.captured_applications = Some(
+            voldiq_core::applications::installed_programs(&cancel)
+                .and_then(|catalog| voldiq_core::applications::capture(&index, catalog, &cancel))
+                .unwrap_or_else(|_| voldiq_core::applications::Capture::unavailable()),
+        );
         let caches = crate::developer_commands::cache_locations(&app);
         let saved = store
             .lock()

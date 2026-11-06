@@ -216,6 +216,7 @@ pub fn replay(
         exclusions: index.exclusions.clone(),
         snapshot_id: None,
         captured_caches: Vec::new(),
+        captured_applications: None,
         observation: None,
         ntfs_checkpoint: None,
     };

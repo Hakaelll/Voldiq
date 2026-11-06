@@ -39,7 +39,7 @@ colors:
 typography:
   headline:
     fontFamily: "Segoe UI Variable, Segoe UI, sans-serif"
-    fontSize: "30px"
+    fontSize: "26px"
     fontWeight: 600
     lineHeight: 1.25
     letterSpacing: "-0.02em"
@@ -53,6 +53,11 @@ typography:
     fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.6
+  data:
+    fontFamily: "Segoe UI Variable, Segoe UI, sans-serif"
+    fontSize: "13px"
+    fontWeight: 400
+    lineHeight: 1.5
   label:
     fontFamily: "Segoe UI Variable, Segoe UI, sans-serif"
     fontSize: "12px"
@@ -477,6 +482,8 @@ Operation progress is scoped to the current native operation ID. The core sends 
 
 ## Application location breakdown
 
+Application evidence carries Current or Captured provenance. Live analysis reads current registration claims. A saved snapshot uses only the evidence recorded with it, keeping its registration-read window separate from the indexed measurement date. Older snapshots or failed evidence capture show an explicit unavailable state; they never fall back to the current Windows registry or display a measured zero. Existing app categories, colors, list, chart and scope controls are reused. Historical views keep cleanup disabled. Native visual, keyboard and scaling acceptance remain manual.
+
 The supported HTTP cache category offers Review supported cache files for live analyses with a unique profile location and no overlapping application claims. It opens the existing Cleanup workspace with that folder scope and no automatic selection. The review states that Explorer file filters are not carried across and that only the existing seven-day external Blockfile recipe applies. Application name and the recipe lead the contextual heading; All cleanup rules restores the generic rule chooser. Category counts are storage measurements, not a promise that the recipe can clean that amount. Preview recomputes current application context, then uses the shared exact-file plan and human confirmation. Main sidebar behavior is unchanged. Native interaction and scaling acceptance remain manual.
 
 Applications keeps its existing list, scoped chart, measured totals and navigation. Each row adds a closed native Location breakdown disclosure with installation, remaining profile data, supported HTTP cache, logs and unknown/ambiguous claims. Existing blue, gold, teal, pink and slate paints distinguish these categories. The thin row bar retains its global exclusive-byte scale and divides that measured share by category; shared claims remain separate, non-additive text. Missing categories say Not classified in this scope instead of displaying zero. Contextual, supplied and conflicting evidence are named, without invented percentages or cleanup permission.
@@ -488,3 +495,13 @@ The expanded definition list uses wrapping columns with tabular byte/count label
 Cleanup is available without a loaded scan. A compact button group selects Candidates, Activity, Agent plans or Transfers; only the active section mounts, so hidden sections perform no queries or polling. Candidates retain the existing rule/bin controls and still require a current scan before index-based actions. Activity retains historical journal restoration. Human agent review moves out of Settings into this workspace; Settings links to it beside connection permissions. Global progress links retain focus ownership when opening the review heading, and a recorded operation can request its exact plan by ID without granting authority.
 
 Transfers uses a bounded list/detail composition with existing 20px spacing, 8px panel corners, blue/violet/teal status roles and a stacked layout below 1180px. The native list returns 20 rows; each file page returns at most 50. Source/destination previews are labelled as recorded context, while full paths, volume identity, dated caller capacity and metadata profile remain in the selected detail. Destination groups mount only when their disclosure opens. The file table scrolls within a keyboard-focusable region rather than widening the window. Loading, retry, empty, invalid-evidence and interrupted states have explicit text. Unknown connection/content status never becomes connected, zero or restorable. Recorded publication counts do not claim current file availability or freed space. The sidebar and chart palette remain unchanged.
+
+## Reading and control hierarchy
+
+The storage workbench uses open sections, aligned rows and separators instead of a framed card for every information group. Overview and application sections use plain secondary navigation with an active underline. Summary headings use sentence case and existing title sizes; list text uses 13px and supporting metadata generally 12px. The black theme, chart palette, original artwork and main sidebar behavior remain in place.
+
+The header groups location controls and scoped search. Search and its advanced editor appear in indexed-file views, where they apply. Saved views stay globally accessible. The first scan remains a primary action; Rescan is secondary after an index is available. Secondary header actions are quiet, with visible hover and keyboard focus.
+
+The map keeps a native representation selector, List/Grid, current selection tools, export and inspection directly available. Area, depth, cloud filtering, height and color live in a native View options disclosure. Its closed summary still names the active encodings and indicates a cloud filter. No filter, selection or scan behavior changes when opening this disclosure. Map navigation controls and operations sections use underlines instead of nested outlined button groups.
+
+The application scatter keeps a readable vector width and larger axis text, using a horizontal scroll region on narrower windows. Point and axis geometry share one definition. Keyboard point focus scrolls the relevant point into view, and the measured list remains the alternative. Responsive summary separators follow the one- or two-column layout. Rendering, keyboard interaction and Windows scaling remain manual under the user's no-Computer-Use instruction; source checks and a successful build do not establish visual acceptance.

@@ -133,6 +133,7 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         let result = &response["result"];
         assert_eq!(result["total"], json!({"logical_bytes":"11","files":1}));
         assert_eq!(result["unattributed"], result["total"]);
+        assert_eq!(result["attribution"], "captured");
         assert_eq!(result["applications"], json!([]));
         assert_eq!(result["next_offset"], Value::Null);
         assert!(result.get("chart").is_none());
@@ -696,6 +697,58 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         std::fs::read(source.path().join("measured.txt")).unwrap(),
         [1; 11]
     );
+    #[cfg(windows)]
+    {
+        let recorded_root = tempfile::tempdir_in(source.path()).unwrap();
+        std::fs::write(recorded_root.path().join("app-measurement.data"), [1; 11]).unwrap();
+        let cancel = std::sync::atomic::AtomicBool::new(false);
+        let mut recorded =
+            voldiq_core::scanner::scan(recorded_root.path(), &Default::default(), &cancel, |_| {})
+                .unwrap();
+        recorded.captured_applications = Some(
+            voldiq_core::applications::capture(
+                &recorded,
+                voldiq_core::applications::Catalog {
+                    started_at: 1000,
+                    observed_at: 1001,
+                    coverage: vec![],
+                    registrations: vec![voldiq_core::applications::Registration {
+                        source: voldiq_core::applications::Source::SuppliedMetadata,
+                        key: "Recorded SDK fixture".into(),
+                        name: "Recorded SDK fixture".into(),
+                        publisher: None,
+                        version: None,
+                        install_location: Some(recorded_root.path().to_owned()),
+                        profile: None,
+                    }],
+                },
+                &cancel,
+            )
+            .unwrap(),
+        );
+        let recorded_id = voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db"))
+            .unwrap()
+            .save(&recorded, &cancel, &[])
+            .unwrap();
+        let recorded_reply = call(
+            &client,
+            "voldiq_applications",
+            json!({"snapshot_id":recorded_id}),
+        )
+        .await;
+        assert_ne!(recorded_reply.is_error, Some(true));
+        let recorded_reply = recorded_reply.structured_content.unwrap();
+        assert_eq!(recorded_reply["result"]["attribution"], "captured");
+        assert_eq!(
+            recorded_reply["result"]["applications"][0]["name"],
+            "Recorded SDK fixture"
+        );
+        assert_eq!(
+            recorded_reply["result"]["exclusive"],
+            json!({"logical_bytes":"11","files":1})
+        );
+        assert_eq!(recorded_reply["result"]["registrations_observed_at"], 1001);
+    }
     registry.revoke(provisioned.id).unwrap();
     for (name, args) in [
         (

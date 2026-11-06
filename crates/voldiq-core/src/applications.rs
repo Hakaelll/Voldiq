@@ -7,7 +7,9 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
+pub(crate) mod capture;
 mod locations;
+pub use capture::{Capture, capture, capture_authorized, query_captured};
 #[cfg(windows)]
 mod registry;
 pub mod review;
@@ -15,7 +17,7 @@ pub use locations::{BrowserLayout, Category, CategoryMeasurement, ProfileLocatio
 
 pub const MAX_REGISTRATIONS: usize = 1024;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Source {
     CurrentUser64,
@@ -36,7 +38,8 @@ pub struct Registration {
     pub profile: Option<ProfileLocation>,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct SourceCoverage {
     pub source: Source,
     pub complete: bool,
@@ -114,8 +117,16 @@ pub struct Application {
     pub breakdown: Vec<CategoryMeasurement>,
 }
 
+#[derive(Clone, Copy, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Attribution {
+    Current,
+    Captured,
+}
+
 #[derive(Serialize)]
 pub struct Page {
+    pub attribution: Attribution,
     pub scope: NodeId,
     pub indexed_at: Option<u64>,
     pub registrations_observed_at: u64,
@@ -154,13 +165,38 @@ impl Count {
 }
 struct Bound {
     id: String,
-    registration: Registration,
+    metadata: Metadata,
     root: NodeId,
     sources: Vec<Source>,
     exclusive: Count,
     overlapping: Count,
     breakdown: BTreeMap<Category, (Count, Count)>,
     locations: Vec<locations::Location>,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Metadata {
+    name: String,
+    publisher: Option<String>,
+    version: Option<String>,
+    source: Source,
+}
+
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Evidence {
+    started_at: u64,
+    observed_at: u64,
+    coverage: Vec<SourceCoverage>,
+    unbound_records: usize,
+    duplicate_records: usize,
+}
+
+struct Bindings {
+    evidence: Evidence,
+    bound: Vec<Bound>,
+    _root: Option<crate::agents::AuthorizedPath>,
 }
 
 struct Resolved {
@@ -191,7 +227,11 @@ pub fn installed_programs(cancel: &AtomicBool) -> Result<Catalog> {
 
 pub fn read_desktop(index: &Index, request: &Query, cancel: &AtomicBool) -> Result<Page> {
     compiled_request(index, request)?;
-    query(index, installed_programs(cancel)?, request, cancel)
+    if index.snapshot_id.is_some() {
+        query_captured(index, request, cancel, |_| Ok(()))
+    } else {
+        query(index, installed_programs(cancel)?, request, cancel)
+    }
 }
 
 pub(crate) fn compiled_request<'a>(
@@ -232,6 +272,11 @@ pub fn query_authorized(
     cancel: &AtomicBool,
     authorize: impl FnMut(&std::path::Path) -> Result<crate::agents::AuthorizedPath>,
 ) -> Result<Page> {
+    if index.snapshot_id.is_some() {
+        return Err(Error::Invalid(
+            "Historical application queries require the evidence recorded in that snapshot.".into(),
+        ));
+    }
     query_selected(index, catalog, query, cancel, authorize, None)
 }
 
@@ -240,10 +285,26 @@ fn query_selected(
     catalog: Catalog,
     query: &Query,
     cancel: &AtomicBool,
-    mut authorize: impl FnMut(&std::path::Path) -> Result<crate::agents::AuthorizedPath>,
+    authorize: impl FnMut(&std::path::Path) -> Result<crate::agents::AuthorizedPath>,
     selected: Option<&str>,
 ) -> Result<Page> {
-    let compiled = compiled_request(index, query)?;
+    compiled_request(index, query)?;
+    aggregate(
+        index,
+        bind(index, catalog, cancel, authorize)?,
+        query,
+        cancel,
+        selected,
+        Attribution::Current,
+    )
+}
+
+fn bind(
+    index: &Index,
+    catalog: Catalog,
+    cancel: &AtomicBool,
+    mut authorize: impl FnMut(&std::path::Path) -> Result<crate::agents::AuthorizedPath>,
+) -> Result<Bindings> {
     if catalog.registrations.len() > MAX_REGISTRATIONS || catalog.coverage.len() > 5 {
         return Err(Error::Invalid(
             "Application query exceeds its work bounds.".into(),
@@ -372,7 +433,12 @@ fn query_selected(
         let source = registration.source;
         bound.push(Bound {
             id,
-            registration,
+            metadata: Metadata {
+                name: registration.name,
+                publisher: registration.publisher,
+                version: registration.version,
+                source,
+            },
             root,
             sources: vec![source],
             exclusive: Count::default(),
@@ -381,6 +447,33 @@ fn query_selected(
             locations,
         });
     }
+    Ok(Bindings {
+        bound,
+        _root: Some(root_pin),
+        evidence: Evidence {
+            started_at: catalog.started_at,
+            observed_at: catalog.observed_at,
+            coverage: catalog.coverage,
+            unbound_records,
+            duplicate_records,
+        },
+    })
+}
+
+fn aggregate(
+    index: &Index,
+    bindings: Bindings,
+    query: &Query,
+    cancel: &AtomicBool,
+    selected: Option<&str>,
+    attribution: Attribution,
+) -> Result<Page> {
+    let compiled = compiled_request(index, query)?;
+    let Bindings {
+        mut bound,
+        evidence,
+        _root,
+    } = bindings;
     let mut claims: HashMap<NodeId, Vec<(usize, usize)>> = HashMap::new();
     for (slot, app) in bound.iter().enumerate() {
         for (location, claim) in app.locations.iter().enumerate() {
@@ -492,13 +585,13 @@ fn query_selected(
             };
             Application {
                 id: app.id,
-                name: app.registration.name,
-                publisher: app.registration.publisher,
-                version: app.registration.version,
+                name: app.metadata.name,
+                publisher: app.metadata.publisher,
+                version: app.metadata.version,
                 root: app.root,
                 profile_scope,
                 sources: app.sources,
-                evidence: if app.registration.source == Source::SuppliedMetadata {
+                evidence: if app.metadata.source == Source::SuppliedMetadata {
                     "supplied_claim"
                 } else if app
                     .breakdown
@@ -511,7 +604,7 @@ fn query_selected(
                 },
                 confidence: if app.breakdown.contains_key(&Category::Unknown) {
                     Confidence::Ambiguous
-                } else if app.registration.source == Source::SuppliedMetadata {
+                } else if app.metadata.source == Source::SuppliedMetadata {
                     Confidence::Supplied
                 } else {
                     Confidence::Contextual
@@ -562,22 +655,23 @@ fn query_selected(
         .take(query.limit)
         .collect();
     Ok(Page {
+        attribution,
         scope: query.scope,
         indexed_at: index
             .observation
             .as_ref()
             .map(|observation| observation.completed_at),
-        registrations_observed_at: catalog.observed_at,
-        registrations_started_at: catalog.started_at,
+        registrations_observed_at: evidence.observed_at,
+        registrations_started_at: evidence.started_at,
         excluded_roots: index.exclusions.len(),
         partial_index: index.entry(query.scope)?.incomplete
             || index
                 .observation
                 .as_ref()
                 .is_none_or(|observation| !observation.complete),
-        coverage: catalog.coverage,
-        unbound_records,
-        duplicate_records,
+        coverage: evidence.coverage,
+        unbound_records: evidence.unbound_records,
+        duplicate_records: evidence.duplicate_records,
         exclusive: exclusive.view(),
         overlapping: overlapping.view(),
         unattributed: unattributed.view(),

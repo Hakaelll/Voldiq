@@ -142,7 +142,7 @@
   let cloudFilter = $state<CloudFilter | null>(null);
   let searchExpression = $state('');
   let advancedOpen = $state(false);
-  let advancedButton: HTMLButtonElement;
+  let advancedButton = $state<HTMLButtonElement>();
   let savedButton: HTMLButtonElement;
   let savedOpen = $state(false),
     paletteOpen = $state(false),
@@ -163,7 +163,7 @@
     theme = $state('light'),
     sizeMode = $state('logical'),
     reduceMotion = $state(false);
-  let search: HTMLInputElement;
+  let search = $state<HTMLInputElement>();
   let refreshToken = 0;
   let interactionToken = 0;
   let scanRequest = 0;
@@ -361,7 +361,7 @@
     details = null;
     void refresh(0);
     await tick();
-    if (owner === interactionToken && expected === indexId) {
+    if (owner === interactionToken && expected === indexId && search) {
       search.focus();
       search.select();
     }
@@ -1334,63 +1334,69 @@
   </aside>
   <div class="workspace">
     <header class="toolbar">
-      <label class="drive-select"
-        ><Icon name="disk" /><select
-          aria-label="Select drive"
-          bind:value={volumePath}
-          disabled={busy}
-          ><option value="" disabled>Select a drive</option>{#each volumes as drive}<option
-              value={drive.path}
-              disabled={!drive.accessible}
-              >{drive.name || 'Local disk'} ({drive.path}) · {drive.filesystem}</option
-            >{/each}</select
-        ></label
-      ><button onclick={choose} disabled={busy || !isTauri()}
-        ><Icon name="folder" />Choose folder</button
-      >
-      {#if recentPaths.length}
-        <select
-          class="recent-select"
-          aria-label="Recently analyzed paths"
-          disabled={busy || !isTauri()}
-          onchange={(event) => {
-            const path = event.currentTarget.value;
-            event.currentTarget.value = '';
-            void start(path);
-          }}
+      <div class="toolbar-location">
+        <label class="drive-select"
+          ><Icon name="disk" /><select
+            aria-label="Select drive"
+            bind:value={volumePath}
+            disabled={busy}
+            ><option value="" disabled>Select a drive</option>{#each volumes as drive}<option
+                value={drive.path}
+                disabled={!drive.accessible}
+                >{drive.name || 'Local disk'} ({drive.path}) · {drive.filesystem}</option
+              >{/each}</select
+          ></label
+        ><button onclick={choose} disabled={busy || !isTauri()}
+          ><Icon name="folder" />Choose folder</button
         >
-          <option value="">Recent</option>
-          {#each recentPaths as path}<option value={path}>{path}</option>{/each}
-        </select>
-      {/if}
-      <div class="search">
-        <Icon name="search" /><input
-          bind:this={search}
-          bind:value={text}
-          placeholder="Search files and folders"
-          aria-label="Search files and folders"
-          disabled={!ready ||
-            view === 'settings' ||
-            view === 'duplicates' ||
-            view === 'cleanup' ||
-            view === 'history' ||
-            view === 'developer'}
-        />
+        {#if recentPaths.length}
+          <select
+            class="recent-select"
+            aria-label="Recently analyzed paths"
+            disabled={busy || !isTauri()}
+            onchange={(event) => {
+              const path = event.currentTarget.value;
+              event.currentTarget.value = '';
+              void start(path);
+            }}
+          >
+            <option value="">Recent</option>
+            {#each recentPaths as path}<option value={path}>{path}</option>{/each}
+          </select>
+        {/if}
       </div>
-      <button
-        class="advanced-toggle"
-        bind:this={advancedButton}
-        disabled={!ready || indexId === null || !['overview', 'explorer', 'large'].includes(view)}
-        aria-expanded={advancedOpen}
-        aria-controls="advanced-query-editor"
-        aria-pressed={Boolean(searchExpression.trim())}
-        onclick={() => {
-          advancedOpen = !advancedOpen;
-          if (advancedOpen) savedOpen = false;
-        }}
-        >Advanced{#if searchExpression.trim()}
-          · On{/if}</button
-      >
+      {#if ['overview', 'explorer', 'large'].includes(view)}<div class="toolbar-search">
+          <div class="search">
+            <Icon name="search" /><input
+              bind:this={search}
+              bind:value={text}
+              placeholder="Search files and folders"
+              aria-label="Search files and folders"
+              disabled={!ready ||
+                view === 'settings' ||
+                view === 'duplicates' ||
+                view === 'cleanup' ||
+                view === 'history' ||
+                view === 'developer'}
+            />
+          </div>
+          <button
+            class="advanced-toggle"
+            bind:this={advancedButton}
+            disabled={!ready ||
+              indexId === null ||
+              !['overview', 'explorer', 'large'].includes(view)}
+            aria-expanded={advancedOpen}
+            aria-controls="advanced-query-editor"
+            aria-pressed={Boolean(searchExpression.trim())}
+            onclick={() => {
+              advancedOpen = !advancedOpen;
+              if (advancedOpen) savedOpen = false;
+            }}
+            >Advanced{#if searchExpression.trim()}
+              · On{/if}</button
+          >
+        </div>{/if}
       <button
         bind:this={savedButton}
         aria-expanded={savedOpen}
@@ -1417,7 +1423,9 @@
           onclose={closeSaved}
         />
       </div>{/if}
-    {#if advancedOpen}<div id="advanced-query-editor">
+    {#if advancedOpen && ['overview', 'explorer', 'large'].includes(view)}<div
+        id="advanced-query-editor"
+      >
         <AdvancedSearch
           value={searchExpression}
           {query}
@@ -1500,7 +1508,7 @@
                 }}
               />{/key}{/if}
           {#if view !== 'settings' && view !== 'history'}<button
-              class="primary"
+              class:primary={!ready}
               onclick={() => start(scanPath || volumePath)}
               disabled={!isTauri() || busy || !(scanPath || volumePath)}
               ><Icon name="scan" />{ready ? 'Rescan' : 'Scan drive'}</button

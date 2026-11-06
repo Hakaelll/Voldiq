@@ -32,13 +32,34 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
             .unwrap(),
         )
         .unwrap();
-    let index = voldiq_core::scanner::scan(
+    let mut index = voldiq_core::scanner::scan(
         source.path(),
         &Default::default(),
         &std::sync::atomic::AtomicBool::new(false),
         |_| {},
     )
     .unwrap();
+    index.captured_applications = Some(
+        voldiq_core::applications::capture(
+            &index,
+            voldiq_core::applications::Catalog {
+                started_at: 1000,
+                observed_at: 1001,
+                coverage: vec![],
+                registrations: vec![voldiq_core::applications::Registration {
+                    source: voldiq_core::applications::Source::SuppliedMetadata,
+                    key: "Recorded CLI fixture".into(),
+                    name: "Recorded CLI fixture".into(),
+                    publisher: None,
+                    version: None,
+                    install_location: Some(source.path().to_owned()),
+                    profile: None,
+                }],
+            },
+            &std::sync::atomic::AtomicBool::new(false),
+        )
+        .unwrap(),
+    );
     let snapshot = voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db"))
         .unwrap()
         .save(&index, &std::sync::atomic::AtomicBool::new(false), &[])
@@ -70,8 +91,13 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
         let result = &response["result"];
         assert_eq!(result["snapshot_id"], snapshot);
         assert_eq!(result["total"], json!({"logical_bytes":"7","files":1}));
-        assert_eq!(result["unattributed"], result["total"]);
-        assert_eq!(result["applications"], json!([]));
+        assert_eq!(result["attribution"], "captured");
+        assert_eq!(
+            result["unattributed"],
+            json!({"logical_bytes":"0","files":0})
+        );
+        assert_eq!(result["exclusive"], result["total"]);
+        assert_eq!(result["applications"][0]["name"], "Recorded CLI fixture");
         assert_eq!(result["next_offset"], Value::Null);
         assert!(result.get("chart").is_none());
         assert!(result.get("unbound_records").is_none());

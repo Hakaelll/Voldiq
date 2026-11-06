@@ -36,6 +36,7 @@ export interface ApplicationCoverage {
   rejected: number;
 }
 export interface ApplicationPage {
+  attribution: 'current' | 'captured';
   scope: number;
   indexed_at: number | null;
   registrations_observed_at: number;
@@ -271,7 +272,9 @@ function coverage(value: unknown): ApplicationCoverage {
 }
 export function readApplicationPage(value: unknown): ApplicationPage {
   const item = record(value);
+  if (item.attribution !== 'current' && item.attribution !== 'captured') return invalid();
   const page: ApplicationPage = {
+    attribution: item.attribution,
     scope: integer(item.scope, 0xffffffff),
     indexed_at: item.indexed_at === null ? null : integer(item.indexed_at, 8640000000000),
     registrations_observed_at: integer(item.registrations_observed_at, 8640000000000),
@@ -331,6 +334,14 @@ export function applicationBytes(value: string): string {
   const tenths = (bytes * 10n + scale / 2n) / scale;
   return `${(tenths / 10n).toLocaleString('en')}${tenths % 10n ? '.' + (tenths % 10n) : ''} ${units[unit]}`;
 }
+export const APPLICATION_CHART = {
+  width: 900,
+  height: 280,
+  left: 90,
+  right: 880,
+  top: 30,
+  bottom: 235,
+};
 export function applicationPlot(apps: ApplicationItem[]) {
   const measured = apps.filter(
     (app) => app.exclusive.files > 0 && BigInt(app.exclusive.logical_bytes) > 0n,
@@ -349,8 +360,15 @@ export function applicationPlot(apps: ApplicationItem[]) {
     omittedZero: apps.length - measured.length,
     points: measured.map((app) => ({
       app,
-      x: 70 + (810 * Math.log1p(app.exclusive.files)) / xScale,
-      y: 235 - (205 * Math.log1p(Number(app.exclusive.logical_bytes))) / yScale,
+      x:
+        APPLICATION_CHART.left +
+        ((APPLICATION_CHART.right - APPLICATION_CHART.left) * Math.log1p(app.exclusive.files)) /
+          xScale,
+      y:
+        APPLICATION_CHART.bottom -
+        ((APPLICATION_CHART.bottom - APPLICATION_CHART.top) *
+          Math.log1p(Number(app.exclusive.logical_bytes))) /
+          yScale,
     })),
   };
 }

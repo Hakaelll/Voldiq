@@ -841,15 +841,31 @@
   data-ordering-ms={orderingMs}
 >
   <div class="storage-map-toolbar">
-    <div class="map-switch" role="group" aria-label="Storage representation">
-      <button aria-pressed={mode === 'treemap'} onclick={() => onmode('treemap')}>Treemap</button>
-      <button aria-pressed={mode === 'city'} onclick={() => onmode('city')}>Skyline</button>
-      <button aria-pressed={mode === 'sunburst'} onclick={() => onmode('sunburst')}>Sunburst</button
+    <label class="map-view-picker"
+      >View
+      <select
+        aria-label="Storage representation"
+        value={mode}
+        onchange={(event) => {
+          const next = event.currentTarget.value;
+          if (
+            next === 'treemap' ||
+            next === 'city' ||
+            next === 'sunburst' ||
+            next === 'circles' ||
+            next === 'voronoi'
+          )
+            onmode(next);
+        }}
       >
-      <button aria-pressed={mode === 'circles'} onclick={() => onmode('circles')}>Circles</button>
-      <button aria-pressed={mode === 'voronoi'} onclick={() => onmode('voronoi')}>Voronoi</button>
-      <button onclick={onlist}>List</button>
-      {#if ongrid}<button onclick={ongrid}>Grid</button>{/if}
+        <option value="treemap">Treemap</option><option value="city">Skyline</option>
+        <option value="sunburst">Sunburst</option><option value="circles">Circles</option><option
+          value="voronoi">Voronoi</option
+        >
+      </select>
+    </label>
+    <div class="map-data-views" role="group" aria-label="File views">
+      <button onclick={onlist}>List</button>{#if ongrid}<button onclick={ongrid}>Grid</button>{/if}
     </div>
     {#if mode === 'treemap'}<div class="map-switch" role="group" aria-label="Treemap tools">
         <button
@@ -878,83 +894,6 @@
           }}>Lens 2×</button
         >
       </div>{/if}
-    <label
-      >Area<select
-        aria-label="Map area metric"
-        value={sizeMode}
-        onchange={(e) => onmetric(e.currentTarget.value)}
-        ><option value="logical">Logical size</option><option value="allocated"
-          >Unique allocation</option
-        ></select
-      ></label
-    >
-    <label
-      title="Maximum depth within loaded branches. Small shapes remain grouped for readability."
-    >
-      Depth<select
-        aria-label="Maximum map depth"
-        value={depth}
-        onchange={(event) => {
-          const next = parseStorageDepth(event.currentTarget.value);
-          if (next !== null) depth = next;
-        }}
-      >
-        {#each STORAGE_DEPTHS as level}<option value={level}>{level}</option>{/each}
-      </select>
-    </label>
-    <CloudFilterSelect value={cloudFilter} onchange={oncloudfilter} />
-    {#if mode === 'city'}<div class="map-metric-group">
-        <span>Height</span>
-        <div class="map-switch" role="group" aria-label="Height metric">
-          <button
-            aria-pressed={heightMode === 'modified'}
-            title="Age since modification. Last access is unavailable."
-            onclick={() => {
-              heightMode = 'modified';
-            }}>Modified</button
-          >
-          <button
-            aria-pressed={heightMode === 'files'}
-            title="Number of indexed descendant files"
-            onclick={() => {
-              heightMode = 'files';
-            }}>Files</button
-          >
-          <button
-            aria-pressed={heightMode === 'depth'}
-            title="Depth relative to this folder"
-            onclick={() => {
-              heightMode = 'depth';
-            }}>Depth</button
-          >
-        </div>
-      </div>{/if}
-    <div class="map-metric-group">
-      <span>Color</span>
-      <div class="map-switch" role="group" aria-label="Color metric">
-        <button
-          aria-pressed={colorMode === 'type'}
-          title="Color by file category"
-          onclick={() => {
-            colorMode = 'type';
-          }}>Type</button
-        >
-        <button
-          aria-pressed={colorMode === 'size'}
-          title="Color by size"
-          onclick={() => {
-            colorMode = 'size';
-          }}>Size</button
-        >
-        <button
-          aria-pressed={colorMode === 'age'}
-          title="Color by age since modification"
-          onclick={() => {
-            colorMode = 'age';
-          }}>Age</button
-        >
-      </div>
-    </div>
     {#if onexport}<button
         disabled={exportDisabled ||
           preparing ||
@@ -970,6 +909,72 @@
         ><Icon name="file" size={14} />Inspector</button
       >{/if}
   </div>
+  <details class="map-view-options">
+    <summary
+      >View options <span
+        >{sizeMode === 'allocated' ? 'Unique allocation' : 'Logical size'} � {colorMode === 'type'
+          ? 'File type'
+          : colorMode === 'age'
+            ? 'Modification age'
+            : 'Size'} colors � Depth {depth}{cloudFilter !== null ? ' � Cloud filter on' : ''}</span
+      ></summary
+    >
+    <div class="map-view-options-body">
+      <label
+        >Area<select
+          aria-label="Map area metric"
+          value={sizeMode}
+          onchange={(e) => onmetric(e.currentTarget.value)}
+          ><option value="logical">Logical size</option><option value="allocated"
+            >Unique allocation</option
+          ></select
+        ></label
+      >
+      <label
+        title="Maximum depth within loaded branches. Small shapes remain grouped for readability."
+      >
+        Depth<select
+          aria-label="Maximum map depth"
+          value={depth}
+          onchange={(event) => {
+            const next = parseStorageDepth(event.currentTarget.value);
+            if (next !== null) depth = next;
+          }}
+        >
+          {#each STORAGE_DEPTHS as level}<option value={level}>{level}</option>{/each}
+        </select>
+      </label>
+      <CloudFilterSelect value={cloudFilter} onchange={oncloudfilter} />
+      {#if mode === 'city'}<label
+          >Height
+          <select
+            aria-label="Skyline height metric"
+            value={heightMode}
+            onchange={(event) => {
+              const next = event.currentTarget.value;
+              if (next === 'modified' || next === 'files' || next === 'depth') heightMode = next;
+            }}
+            ><option value="modified">Modification age</option><option value="files"
+              >File count</option
+            ><option value="depth">Folder depth</option></select
+          >
+        </label>{/if}
+      <label
+        >Color
+        <select
+          aria-label="Map color metric"
+          value={colorMode}
+          onchange={(event) => {
+            const next = event.currentTarget.value;
+            if (next === 'type' || next === 'size' || next === 'age') colorMode = next;
+          }}
+          ><option value="type">File type</option><option value="size">Size</option><option
+            value="age">Modification age</option
+          ></select
+        >
+      </label>
+    </div>
+  </details>
   {#if graphicProblem}<div class="map-tool-status" role="alert">{graphicProblem}</div>{/if}
   {#if searchState === 'loading'}<div class="map-tool-status" role="status">
       Updating search matches…

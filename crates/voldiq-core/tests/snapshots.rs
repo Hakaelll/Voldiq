@@ -283,6 +283,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             let data = local.join("Google/Chrome/User Data");
             let cache = data.join("Default/Cache/Cache_Data");
             std::fs::create_dir_all(&cache).unwrap();
+            std::fs::create_dir(data.with_file_name("sibling")).unwrap();
             std::fs::write(profiles.path().join("browser.exe"), [1; 11]).unwrap();
             std::fs::write(data.join("Local State"), [2; 5]).unwrap();
             std::fs::write(data.join("chrome_debug.log"), [3; 3]).unwrap();
@@ -317,7 +318,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                 registrations: vec![browser.clone()],
                 coverage: vec![],
             };
-            let indexed =
+            let mut indexed =
                 scanner::scan(profiles.path(), &Default::default(), &loading, |_| {}).unwrap();
             let measured = voldiq_core::applications::query(
                 &indexed,
@@ -719,6 +720,193 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                     .logical_bytes,
                 "21"
             );
+            let captured_state = tempfile::tempdir().unwrap();
+            let capture_db = captured_state.path().join("applications.db");
+            let mut history = Store::open(&capture_db).unwrap();
+            let legacy_id = history.save(&indexed, &loading, &[]).unwrap();
+            let legacy = history.load(legacy_id, &loading).unwrap();
+            assert!(
+                voldiq_core::applications::read_desktop(&legacy, &AppQuery::default(), &loading)
+                    .is_err()
+            );
+            indexed.captured_applications = Some(
+                voldiq_core::applications::capture(&indexed, claims.clone(), &loading).unwrap(),
+            );
+            let first_capture = history.save(&indexed, &loading, &[]).unwrap();
+            let profile_id = indexed
+                .entries
+                .iter()
+                .find(|entry| entry.name == "User Data")
+                .unwrap()
+                .id;
+            let sibling_id = indexed
+                .entries
+                .iter()
+                .find(|entry| entry.name == "sibling")
+                .unwrap()
+                .id;
+            let remap = |id| {
+                if id == profile_id {
+                    sibling_id
+                } else if id == sibling_id {
+                    profile_id
+                } else {
+                    id
+                }
+            };
+            for entry in &mut indexed.entries {
+                entry.id = remap(entry.id);
+                entry.parent = entry.parent.map(remap);
+            }
+            indexed.entries.sort_by_key(|entry| entry.id.0);
+            indexed.native_names = indexed
+                .native_names
+                .drain()
+                .map(|(id, name)| (remap(id), name))
+                .collect();
+            indexed.captured_applications = Some(
+                voldiq_core::applications::capture(&indexed, claims.clone(), &loading).unwrap(),
+            );
+            let captured_id = history.save(&indexed, &loading, &[]).unwrap();
+            drop(history);
+            let mut history = Store::open(&capture_db).unwrap();
+            let saved = history.load(captured_id, &loading).unwrap();
+            assert!(saved.entries.iter().all(|entry| entry.file_state.is_none()));
+            let retired = data.with_file_name("retired-profile");
+            assert_eq!(data.parent(), retired.parent());
+            assert!(
+                profiles.path().is_absolute()
+                    && data.starts_with(profiles.path())
+                    && retired.starts_with(profiles.path())
+                    && !retired.exists()
+            );
+            std::fs::rename(&data, &retired).unwrap();
+            assert!(
+                voldiq_core::applications::query(
+                    &saved,
+                    claims.clone(),
+                    &AppQuery::default(),
+                    &loading
+                )
+                .is_err()
+            );
+            let recorded =
+                voldiq_core::applications::read_desktop(&saved, &AppQuery::default(), &loading)
+                    .unwrap();
+            assert!(matches!(
+                recorded.attribution,
+                voldiq_core::applications::Attribution::Captured
+            ));
+            assert_eq!(
+                (&recorded.total.logical_bytes, recorded.total.files),
+                (&"40".to_string(), 6)
+            );
+            assert_eq!(
+                (
+                    recorded.registrations_started_at,
+                    recorded.registrations_observed_at
+                ),
+                (1000, 1001)
+            );
+            let loaded_profile = saved
+                .entries
+                .iter()
+                .find(|entry| entry.name == "User Data")
+                .unwrap()
+                .id;
+            assert_ne!(loaded_profile, remap(profile_id));
+            assert_eq!(recorded.applications[0].profile_scope, Some(loaded_profile));
+            assert_eq!(
+                recorded.applications[0]
+                    .breakdown
+                    .iter()
+                    .map(|part| (part.category, part.exclusive.logical_bytes.as_str()))
+                    .collect::<Vec<_>>(),
+                vec![
+                    (Category::Installation, "11"),
+                    (Category::Data, "18"),
+                    (Category::Cache, "8"),
+                    (Category::Logs, "3")
+                ]
+            );
+            let cache_node = saved
+                .entries
+                .iter()
+                .find(|entry| entry.name == "Cache_Data" && entry.logical == 7)
+                .unwrap()
+                .id;
+            let narrowed = voldiq_core::applications::query_captured(
+                &saved,
+                &AppQuery {
+                    scope: cache_node,
+                    ..Default::default()
+                },
+                &loading,
+                |_| Ok(()),
+            )
+            .unwrap();
+            assert_eq!(narrowed.total.logical_bytes, "7");
+            assert!(
+                voldiq_core::applications::read_desktop(
+                    &saved,
+                    &AppQuery::default(),
+                    &AtomicBool::new(true)
+                )
+                .is_err()
+            );
+            assert!(
+                review::preview(
+                    &saved,
+                    claims.clone(),
+                    &context,
+                    &environment,
+                    &selected,
+                    &loading
+                )
+                .is_err()
+            );
+            if std::env::var("VOLDIQ_KEEP_APPLICATION_FIXTURE").as_deref() == Ok("1") {
+                std::fs::write(
+                    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                        .join("../../target/probes/application-history-fixture.json"),
+                    serde_json::to_vec_pretty(&recorded).unwrap(),
+                )
+                .unwrap();
+            }
+            std::fs::rename(&retired, &data).unwrap();
+            indexed.captured_applications = Some(voldiq_core::applications::Capture::unavailable());
+            let unavailable_id = history.save(&indexed, &loading, &[]).unwrap();
+            assert!(
+                voldiq_core::applications::read_desktop(
+                    &history.load(unavailable_id, &loading).unwrap(),
+                    &AppQuery::default(),
+                    &loading
+                )
+                .is_err()
+            );
+            let retention = history.retention_settings(captured_id).unwrap();
+            history
+                .set_retention(captured_id, &retention.version, Some(1))
+                .unwrap();
+            let preview = history
+                .preview_retention(captured_id, &loading)
+                .unwrap()
+                .unwrap();
+            history
+                .apply_retention(captured_id, &preview.fingerprint, &loading)
+                .unwrap();
+            let database = rusqlite::Connection::open(&capture_db).unwrap();
+            assert_eq!(
+                database
+                    .query_row(
+                        "SELECT COUNT(*) FROM snapshot_applications WHERE snapshot_id IN (?1,?2)",
+                        rusqlite::params![first_capture, captured_id],
+                        |row| row.get::<_, i64>(0)
+                    )
+                    .unwrap(),
+                0
+            );
+            assert_eq!(database.query_row("SELECT COUNT(*) FROM snapshot_application_roots WHERE snapshot_id IN (?1,?2)", rusqlite::params![first_capture, captured_id], |row| row.get::<_, i64>(0)).unwrap(), 0);
             invalid.publisher = Some("Unrecognized publisher".into());
             assert!(
                 voldiq_core::applications::query(
@@ -1703,7 +1891,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     drop(store);
     let connection = rusqlite::Connection::open(&db).unwrap();
     connection
-        .execute_batch("DROP TABLE snapshot_retention; DROP TRIGGER history_snapshot_insert; DROP TRIGGER history_snapshot_update; DROP TRIGGER history_snapshot_delete; DROP TABLE snapshot_history_revision; DROP INDEX snapshots_observed; ALTER TABLE snapshots DROP COLUMN observed_at; ALTER TABLE snapshots DROP COLUMN observed_complete; ALTER TABLE snapshots DROP COLUMN engine_version; ALTER TABLE snapshots DROP COLUMN accounting_version; ALTER TABLE snapshot_versions DROP COLUMN cloud; DROP TABLE duplicate_hashes; PRAGMA user_version=4;")
+        .execute_batch("DROP TABLE snapshot_application_roots; DROP TABLE snapshot_applications; DROP TABLE snapshot_retention; DROP TRIGGER history_snapshot_insert; DROP TRIGGER history_snapshot_update; DROP TRIGGER history_snapshot_delete; DROP TABLE snapshot_history_revision; DROP INDEX snapshots_observed; ALTER TABLE snapshots DROP COLUMN observed_at; ALTER TABLE snapshots DROP COLUMN observed_complete; ALTER TABLE snapshots DROP COLUMN engine_version; ALTER TABLE snapshots DROP COLUMN accounting_version; ALTER TABLE snapshot_versions DROP COLUMN cloud; DROP TABLE duplicate_hashes; PRAGMA user_version=4;")
         .unwrap();
     drop(connection);
     let mut store = Store::open(&db).unwrap();

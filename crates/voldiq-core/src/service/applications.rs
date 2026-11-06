@@ -3,6 +3,7 @@ use crate::applications::{self, Application, Footprint, Source};
 
 #[derive(Serialize)]
 pub struct ApplicationPage {
+    pub attribution: applications::Attribution,
     pub snapshot_id: i64,
     pub scope: crate::NodeId,
     pub indexed_at: Option<u64>,
@@ -42,19 +43,15 @@ impl AgentService {
         let index = self.index(snapshot)?;
         applications::compiled_request(&index, &request)?;
         request.limit = request.limit.min(policy.limits().page_size);
-        let catalog = match applications::installed_programs(cancel) {
-            Ok(catalog) => catalog,
+        let mut result = match applications::query_captured(&index, &request, cancel, |path| {
+            registry
+                .authorize(&self.principal, Capability::Metadata, path)
+                .map(|_| ())
+        }) {
+            Ok(page) => page,
             Err(_) if cancel.load(Ordering::Relaxed) => return Ok(None),
             Err(error) => return Err(error),
         };
-        let mut result =
-            match applications::query_authorized(&index, catalog, &request, cancel, |path| {
-                registry.authorize(&self.principal, Capability::Metadata, path)
-            }) {
-                Ok(page) => page,
-                Err(_) if cancel.load(Ordering::Relaxed) => return Ok(None),
-                Err(error) => return Err(error),
-            };
         let current = self.registry()?;
         let policy = current.policy(&self.principal, Capability::Metadata)?;
         let _root = current.authorize_index(&self.principal, &index)?;
@@ -64,6 +61,7 @@ impl AgentService {
         result.applications.truncate(policy.limits().page_size);
         let next = request.offset + result.applications.len();
         Ok(Some(ApplicationPage {
+            attribution: result.attribution,
             snapshot_id: snapshot,
             scope: result.scope,
             indexed_at: result.indexed_at,
@@ -77,7 +75,7 @@ impl AgentService {
                     complete: source.complete,
                 })
                 .collect(),
-            attribution_scope: "current registrations with individually authorized local installation/profile locations; indexed file paths only; supported default Chrome/Edge profile layouts; category sizes are location claims, not cleanup authority; missing categories unavailable; not a historical or complete inventory",
+            attribution_scope: "captured registration claims with individually authorized locations; indexed file paths only; supported default Chrome/Edge profile layouts; category sizes are location claims, not cleanup authority; missing categories unavailable; not a complete inventory",
             partial_index: result.partial_index,
             excluded_roots: result.excluded_roots,
             exclusive: result.exclusive,

@@ -1,0 +1,123 @@
+{
+  "checkedUtc": "2026-11-06T17:11:22.444739+00:00",
+  "comparisonCommit": "74c27718e0f5e5f45a1a0bacb791bc303ed46198",
+  "scope": "Source inspection and declared-token contrast mathematics only. No native rendered comparison, computed CSS, keyboard interaction, Windows scaling, usability timing or aesthetic score.",
+  "sidebarMarkupUnchanged": false,
+  "sourceInputs": [
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "E5616A4D253D1437B5C768FA3AEDB9C64CF8BE9ACC838840C76DDF45FDFD1037"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "A8F167B8D7D09350A24BB844A55AEB35A26F480C231EA49C9A1413A8671CC2B1"
+    },
+    {
+      "path": "frontend/components/Applications.svelte",
+      "sha256": "49126A928D74D2CE3712D71D7E342F40017C57A1978B9E49A94FC2BDAAD1FDB8"
+    },
+    {
+      "path": "frontend/components/Overview.svelte",
+      "sha256": "B0CAE869A05661A2EFDE27AFBDE14598A45D16F7F69E97E4A28320CA766D7A85"
+    },
+    {
+      "path": "frontend/components/StorageMap.svelte",
+      "sha256": "56BA85DCF893B825F97CE4E76947B39B5CB0CDB6B2F7B68B846EA9CA952A28EB"
+    },
+    {
+      "path": "frontend/components/ScanProfileSelect.svelte",
+      "sha256": "1A6FFF646F578B45B8BCA8685940C7937A0C171AE3843B275063925230F43D3A"
+    },
+    {
+      "path": "frontend/lib/applications.ts",
+      "sha256": "99BF530E9BBE051BD4196595C23D67836BC2D00B0AB5E85D42CAEA22015749BF"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "62B47B3F5ECB4552FAAB4D57C8B039178AA0BA589AC12428D41450298E11394C"
+    }
+  ],
+  "tokenContrast": [
+    {
+      "theme": "light",
+      "role": "text",
+      "foreground": "#242c29",
+      "background": "#f3f4f0",
+      "contrast": 12.955,
+      "minimum": 4.5
+    },
+    {
+      "theme": "light",
+      "role": "secondary",
+      "foreground": "#505c54",
+      "background": "#f3f4f0",
+      "contrast": 6.337,
+      "minimum": 4.5
+    },
+    {
+      "theme": "light",
+      "role": "muted",
+      "foreground": "#59675e",
+      "background": "#f3f4f0",
+      "contrast": 5.39,
+      "minimum": 4.5
+    },
+    {
+      "theme": "light",
+      "role": "primary text",
+      "foreground": "#fff",
+      "background": "#0057d9",
+      "contrast": 6.24,
+      "minimum": 4.5
+    },
+    {
+      "theme": "dark",
+      "role": "text",
+      "foreground": "#ededed",
+      "background": "#090909",
+      "contrast": 17.008,
+      "minimum": 4.5
+    },
+    {
+      "theme": "dark",
+      "role": "secondary",
+      "foreground": "#c2c2c2",
+      "background": "#090909",
+      "contrast": 11.179,
+      "minimum": 4.5
+    },
+    {
+      "theme": "dark",
+      "role": "muted",
+      "foreground": "#ababab",
+      "background": "#090909",
+      "contrast": 8.671,
+      "minimum": 4.5
+    },
+    {
+      "theme": "dark",
+      "role": "primary text",
+      "foreground": "#fff",
+      "background": "#315ba6",
+      "contrast": 6.609,
+      "minimum": 4.5
+    }
+  ],
+  "declaredTokenContrastsMeetMinimum": true,
+  "detector": {
+    "runs": 1,
+    "reportSha256": "D6E0108209DA01A03013AA70345DBB29C97CB965593083DB10BEEFA401315FAE",
+    "warnings": 1,
+    "advisories": 56,
+    "review": "The explored-row stripe warning was reduced from 3px to 1px and retains weight distinction. Remaining palette/type/radius advisories include inherited values and a stale optional sidecar; DESIGN.md remains canonical. Detector was not rerun."
+  },
+  "changes": [
+    "Grouped location and contextual search",
+    "Quiet secondary actions and flat secondary navigation",
+    "Open dashboard sections and responsive separators",
+    "Native map view selector and encoding-options disclosure",
+    "Larger data/caption text and readable scrollable application chart with shared geometry"
+  ],
+  "sidebarInteractionMarkupUnchanged": true,
+  "sidebarMarkupDifference": "Only command-palette tooltip separator encoding differs; action, key hint and accessible name are unchanged."
+}

@@ -6,6 +6,7 @@
   import { applicationQueries } from '../lib/queries';
   import { RANKED_PAINTS } from '../lib/chart-colors';
   import {
+    APPLICATION_CHART,
     applicationBytes,
     applicationFilters,
     applicationPlot,
@@ -166,12 +167,12 @@
     </div>
   </header>
   <p class="application-caption">
-    Registered locations matched to this index. Supported current-user Chrome and Edge profiles add
-    data and HTTP-cache categories; Chrome's documented debug log is separate. Filters match file
+    Registered locations matched to this index. Supported default Chrome and Edge profiles add data
+    and HTTP-cache categories; Chrome's documented debug log is separate. Filters match file
     records, not registration names. Custom paths and unsupported layouts remain unclassified.
   </p>
   {#if model.kind === 'loading'}<p class="application-state" role="status">
-      Reading registration metadata and indexed sizes…
+      Reading application evidence and indexed sizes…
     </p>
   {:else if model.kind === 'paused'}<p class="application-state">
       Available after the current operation.
@@ -203,54 +204,71 @@
         <span>{plot.points.length} points · logarithmic axes</span>
       </div>
       {#if plot.points.length}
-        <svg
-          viewBox="0 0 900 280"
-          aria-labelledby="application-chart-heading application-chart-help"
+        <div
+          class="application-chart-scroll"
+          role="region"
+          aria-label="Application chart, horizontally scrollable"
         >
-          <desc id="application-chart-help"
-            >Each point is one available application claim. Use the arrow keys between points, Enter
-            to explore its indexed location. The list below provides the same measurements.
-            Positions use log of one plus the measured value.</desc
+          <svg
+            viewBox={`0 0 ${APPLICATION_CHART.width} ${APPLICATION_CHART.height}`}
+            aria-labelledby="application-chart-heading application-chart-help"
           >
-          {#each [0, 1, 2, 3, 4] as line}
-            <line x1="70" x2="880" y1={30 + line * 51.25} y2={30 + line * 51.25} />
-          {/each}
-          <text x="70" y="18">Logical bytes</text><text x="62" y="33" text-anchor="end"
-            >{applicationBytes(plot.maxBytes)}</text
-          >
-          <text x="62" y="238" text-anchor="end">0 B</text><text x="70" y="255">0</text>
-          <text x="880" y="255" text-anchor="end">{plot.maxFiles.toLocaleString()}</text><text
-            x="475"
-            y="275"
-            text-anchor="middle">Indexed file paths</text
-          >
-          {#each plot.points as point, index (point.app.id)}
-            <circle
-              data-point
-              cx={point.x}
-              cy={point.y}
-              r={active === point.app.id ? 7 : 5}
-              fill={paints(point.app).fill}
-              role="button"
-              tabindex={focusedPoint === index ? 0 : -1}
-              aria-label={`${point.app.name}: ${point.app.exclusive.files} file paths, ${point.app.exclusive.logical_bytes} logical bytes. Explore indexed location.`}
-              onpointerenter={() => {
-                active = point.app.id;
-              }}
-              onfocus={() => {
-                active = point.app.id;
-                focusedPoint = index;
-              }}
-              onkeydown={(event) => movePoint(event, index)}
-              onclick={() => explore(point.app)}
+            <desc id="application-chart-help"
+              >Each point is one available application claim. Use the arrow keys between points,
+              Enter to explore its indexed location. The list below provides the same measurements.
+              Positions use log of one plus the measured value.</desc
             >
-              <title
-                >{point.app.name} · {applicationBytes(point.app.exclusive.logical_bytes)} · {point.app.exclusive.files.toLocaleString()}
-                paths</title
+            {#each [0, 1, 2, 3, 4] as line}
+              <line
+                x1={APPLICATION_CHART.left}
+                x2={APPLICATION_CHART.right}
+                y1={APPLICATION_CHART.top +
+                  (line * (APPLICATION_CHART.bottom - APPLICATION_CHART.top)) / 4}
+                y2={APPLICATION_CHART.top +
+                  (line * (APPLICATION_CHART.bottom - APPLICATION_CHART.top)) / 4}
+              />
+            {/each}
+            <text x={APPLICATION_CHART.left} y="18">Logical bytes</text><text
+              x={APPLICATION_CHART.left - 8}
+              y="33"
+              text-anchor="end">{applicationBytes(plot.maxBytes)}</text
+            >
+            <text x={APPLICATION_CHART.left - 8} y="238" text-anchor="end">0 B</text><text
+              x={APPLICATION_CHART.left}
+              y="255">0</text
+            >
+            <text x={APPLICATION_CHART.right} y="255" text-anchor="end"
+              >{plot.maxFiles.toLocaleString()}</text
+            ><text x="475" y="275" text-anchor="middle">Indexed file paths</text>
+            {#each plot.points as point, index (point.app.id)}
+              <circle
+                data-point
+                cx={point.x}
+                cy={point.y}
+                r={active === point.app.id ? 7 : 5}
+                fill={paints(point.app).fill}
+                role="button"
+                tabindex={focusedPoint === index ? 0 : -1}
+                aria-label={`${point.app.name}: ${point.app.exclusive.files} file paths, ${point.app.exclusive.logical_bytes} logical bytes. Explore indexed location.`}
+                onpointerenter={() => {
+                  active = point.app.id;
+                }}
+                onfocus={(event) => {
+                  active = point.app.id;
+                  focusedPoint = index;
+                  event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                }}
+                onkeydown={(event) => movePoint(event, index)}
+                onclick={() => explore(point.app)}
               >
-            </circle>
-          {/each}
-        </svg>
+                <title
+                  >{point.app.name} · {applicationBytes(point.app.exclusive.logical_bytes)} · {point.app.exclusive.files.toLocaleString()}
+                  paths</title
+                >
+              </circle>
+            {/each}
+          </svg>
+        </div>
         <div class="application-tooltip" aria-live="polite">
           {#if selected}<strong>{selected.name}</strong><span
               >{selected.exclusive.files.toLocaleString()} paths · {applicationBytes(
@@ -391,9 +409,11 @@
         as the breakdown. No category grants cleanup permission or promises reclaimable space.
       </p>
       <p>
-        Index measurement: {date(page.indexed_at)}. Registration read: {date(
-          page.registrations_started_at,
-        )}–{date(page.registrations_observed_at)}. Registration reads are not an atomic inventory.
+        Index measurement: {date(page.indexed_at)}. {page.attribution === 'captured'
+          ? 'Registration evidence saved with this snapshot'
+          : 'Current registration read'}: {date(page.registrations_started_at)}–{date(
+          page.registrations_observed_at,
+        )}. Registration reads are not an atomic inventory.
       </p>
       <p>
         {page.excluded_roots} recorded exclusion roots · {page.unbound_records} registration records with
@@ -480,7 +500,7 @@
   }
   .application-totals .application-path-count {
     color: var(--muted);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 400;
   }
   .application-state {
@@ -494,20 +514,19 @@
   }
   .application-notice {
     font-size: 12px;
-    padding: 10px 12px;
-    border-left: 3px solid var(--strong);
-    background: var(--surface);
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    background: transparent;
   }
   .application-chart {
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px;
-    margin-block: 18px;
-    background: var(--surface);
+    padding: 0;
+    margin-block: 28px;
+    background: transparent;
   }
   svg {
     display: block;
     width: 100%;
+    min-width: 780px;
     min-height: 190px;
     margin-top: 14px;
     overflow: visible;
@@ -519,8 +538,12 @@
   svg text {
     fill: var(--secondary);
     font:
-      11px 'Segoe UI',
+      14px 'Segoe UI',
       sans-serif;
+  }
+  .application-chart-scroll {
+    overflow-x: auto;
+    padding-bottom: 8px;
   }
   circle {
     cursor: pointer;
@@ -581,7 +604,7 @@
   .application-name > span,
   .application-name small,
   .application-value > span {
-    font-size: 11px;
+    font-size: 12px;
     color: var(--secondary);
     overflow-wrap: anywhere;
   }
@@ -607,7 +630,7 @@
     grid-column: 2 / -1;
     color: var(--secondary);
     min-width: 0;
-    font-size: 11px;
+    font-size: 12px;
   }
   .application-breakdown summary {
     cursor: pointer;
@@ -647,7 +670,7 @@
     font-size: 13px;
   }
   .application-breakdown small {
-    font-size: 11px;
+    font-size: 12px;
     line-height: 1.4;
   }
   .application-pagination {

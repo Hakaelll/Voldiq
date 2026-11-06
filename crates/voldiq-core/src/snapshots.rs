@@ -1,6 +1,7 @@
 mod activity;
 mod clip;
 pub use clip::{ExportClip, ExportClipProgress, ExportClipRequest};
+mod application_evidence;
 mod budget_history;
 mod cache_evidence;
 mod retention;
@@ -251,12 +252,12 @@ impl Store {
         let mut connection = Connection::open(path)?;
         crate::database::configure(&connection)?;
         let version: u32 = connection.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version < 8 {
+        if version < 9 {
             let transaction =
                 connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
             let version: u32 =
                 transaction.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-            if version > 8 {
+            if version > 9 {
                 return Err(Error::Invalid(
                     "Unsupported snapshot database version.".into(),
                 ));
@@ -285,8 +286,11 @@ impl Store {
             if version <= 7 {
                 transaction.execute_batch(retention::SCHEMA)?;
             }
+            if version <= 8 {
+                transaction.execute_batch(application_evidence::SCHEMA)?;
+            }
             transaction.commit()?;
-        } else if version != 8 {
+        } else if version != 9 {
             return Err(Error::Invalid(
                 "Unsupported snapshot database version.".into(),
             ));
@@ -460,6 +464,7 @@ impl Store {
             )?;
         }
         cache_evidence::write(&transaction, snapshot_id, &paths, &cache_evidence)?;
+        application_evidence::write(&transaction, snapshot_id, &paths, index, cancel)?;
         if cancel.load(Ordering::Relaxed) {
             return Err(Error::Invalid("Snapshot capture cancelled.".into()));
         }
@@ -582,6 +587,7 @@ impl Store {
             exclusions: decode_paths(&coverage)?,
             snapshot_id: Some(id),
             captured_caches: Vec::new(),
+            captured_applications: None,
             ntfs_checkpoint: None,
         };
         if !index.root.is_absolute() {
@@ -665,6 +671,7 @@ impl Store {
         }
         index.entry(NodeId(0))?;
         index.captured_caches = self.load_caches(id, &paths, &index)?;
+        index.captured_applications = self.load_applications(id, &paths, &index)?;
         let mut issues = self
             .connection
             .prepare("SELECT path,message FROM snapshot_issues WHERE snapshot_id=?1 LIMIT 1000")?;

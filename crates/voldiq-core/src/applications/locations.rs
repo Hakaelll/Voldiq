@@ -20,7 +20,8 @@ pub struct CategoryMeasurement {
     pub overlapping: Footprint,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum BrowserLayout {
     ChromeStable,
     EdgeStable,
@@ -61,12 +62,15 @@ impl BrowserLayout {
     }
 }
 
+#[derive(Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub(super) struct Location {
     pub root: NodeId,
     pub priority: usize,
     pub(super) profile: Option<BrowserLayout>,
-    prefix: Vec<String>,
-    prefix_depth: usize,
+    pub(super) prefix: Vec<String>,
+    pub(super) prefix_depth: usize,
+    pub(super) parent_hops: usize,
 }
 
 impl Location {
@@ -104,6 +108,7 @@ impl Location {
             profile,
             prefix: names,
             prefix_depth,
+            parent_hops: ancestor.map_or(0, |position| ancestors.len() - 1 - position),
         })
     }
 
