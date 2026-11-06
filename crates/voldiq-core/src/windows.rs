@@ -139,17 +139,31 @@ pub(crate) fn fonts_directory() -> Result<std::path::PathBuf> {
 
 #[cfg(windows)]
 fn known_folder_path(folder: &windows_sys::core::GUID) -> Result<std::path::PathBuf> {
+    known_folder_with_flags(
+        folder,
+        windows_sys::Win32::UI::Shell::KF_FLAG_DEFAULT as u32,
+    )
+}
+
+#[cfg(windows)]
+pub(crate) fn known_folder_location(
+    folder: &windows_sys::core::GUID,
+) -> Result<std::path::PathBuf> {
+    known_folder_with_flags(
+        folder,
+        windows_sys::Win32::UI::Shell::KF_FLAG_DONT_VERIFY as u32,
+    )
+}
+
+#[cfg(windows)]
+fn known_folder_with_flags(
+    folder: &windows_sys::core::GUID,
+    flags: u32,
+) -> Result<std::path::PathBuf> {
     use std::{ffi::OsString, os::windows::ffi::OsStringExt};
     use windows_sys::Win32::{System::Com::CoTaskMemFree, UI::Shell::*};
     let mut raw = std::ptr::null_mut();
-    let status = unsafe {
-        SHGetKnownFolderPath(
-            folder,
-            KF_FLAG_DEFAULT as u32,
-            std::ptr::null_mut(),
-            &mut raw,
-        )
-    };
+    let status = unsafe { SHGetKnownFolderPath(folder, flags, std::ptr::null_mut(), &mut raw) };
     if status < 0 || raw.is_null() {
         if !raw.is_null() {
             unsafe { CoTaskMemFree(raw.cast()) };

@@ -1,0 +1,16 @@
+{
+  "checkedUtc": "2026-11-06T01:07:28.388Z",
+  "scope": "Actual Rust-owned synthetic fixture parsed by production TypeScript, exact totals, duplicate-view binding, overlap exclusion, bounded plot and integers beyond JavaScript safe-number range. This is not native UI, keyboard, scaling or populated live-registry acceptance.",
+  "fixtureSha256": "a8dcdd375f4608f51b4c759e728b104a6a94d4534485f84f95b37c5c5d7b1a57",
+  "observed": {
+    "totalLogicalBytes": "26",
+    "filePaths": 4,
+    "exclusive": "11",
+    "overlapping": "7",
+    "unattributed": "8",
+    "duplicateRecords": 2,
+    "points": 1
+  },
+  "largeIntegerRetained": "9007199254740993",
+  "malformedTotalsAndDuplicateIdsRejected": true
+}

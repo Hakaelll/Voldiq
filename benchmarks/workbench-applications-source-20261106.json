@@ -1,0 +1,157 @@
+{
+  "checkedUtc": "2026-11-06T01:07:28.2668686Z",
+  "startedUtc": "2026-11-06T01:00:59.8225658Z",
+  "checkoutCommit": "ef647c93f27e7f554bae3f63662a1458f85a1eee",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.766
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 7.368
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.758
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 4.852
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 361.962
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 12.713
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/applications.rs",
+      "sha256": "8F1112D8B3276160671B8D16CF5A310D29DB94087AA1075C0324B9631D22EF1D",
+      "lastWriteUtc": "2026-11-06T00:45:23.5256765Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/applications/registry.rs",
+      "sha256": "FE4257DB72AC1BF12B2371335207ED5D95A065BCE152889B562B04CE0237A29D",
+      "lastWriteUtc": "2026-11-06T01:00:53.2220730Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/lib.rs",
+      "sha256": "F4726BBF8F1BC6A7D924063819E50118CC9281F606D88F038C9627251EFE9FDC",
+      "lastWriteUtc": "2026-11-05T23:48:17.7192211Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/windows.rs",
+      "sha256": "2D7EC3823B48C1E0EC519E1709605824D11F41256AB7536B6F7BBB57C5DBD6CC",
+      "lastWriteUtc": "2026-11-06T01:00:58.5564658Z"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "211EB94252055897F8E0C2B0C46599BCFBEE5F3F1C02AD925F8F0CF544E98AA1",
+      "lastWriteUtc": "2026-11-06T00:28:55.9448425Z"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "ECC4E3308C62401BD613DEFD0E92D589E6E4928EC0AB8097AEB437A4D0632C24",
+      "lastWriteUtc": "2026-11-06T00:31:45.3662510Z"
+    },
+    {
+      "path": "frontend/components/Overview.svelte",
+      "sha256": "812D0C429D0C75D3C40AA0388C62F6261BCBEB79E09BEE10798E36F0D939817B",
+      "lastWriteUtc": "2026-11-06T00:31:53.5979289Z"
+    },
+    {
+      "path": "frontend/components/Applications.svelte",
+      "sha256": "FD95AC21BB0EC34F4EF3A80365F2318923748FD1AF98C2C04BD346F97FFE9A56",
+      "lastWriteUtc": "2026-11-06T01:00:53.4351515Z"
+    },
+    {
+      "path": "frontend/lib/applications.ts",
+      "sha256": "B32D9EAE05C779E6DFCCE4F0447E86ED714EDC1A38B97B534F0DF5D1D4F0E924",
+      "lastWriteUtc": "2026-11-06T00:51:15.2888289Z"
+    },
+    {
+      "path": "frontend/lib/queries.ts",
+      "sha256": "5C558AA3EE9841CC9AF393D183240939F8925EDE7040667FA2CCD97539751A87",
+      "lastWriteUtc": "2026-11-06T00:08:55.6561623Z"
+    },
+    {
+      "path": "frontend/lib/query-runner.ts",
+      "sha256": "99EF83A6C94F7E5E2D8E2ED594F1A74103F673C71AF3DB7674975C0A7F31D9B1",
+      "lastWriteUtc": "2026-11-06T00:09:09.8451533Z"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "167DBE6CBEA74F4DFC0AB4C896D1443D43C385DA81C42049A400124DEDE05BC4",
+      "lastWriteUtc": "2026-11-06T00:08:55.1895614Z"
+    },
+    {
+      "path": "src-tauri/src/query_commands.rs",
+      "sha256": "08C279087C924C68B5481F2CAD55B3DDB913DF3FDB84C2B81AD9443DDC3998DC",
+      "lastWriteUtc": "2026-11-06T00:45:28.7493322Z"
+    }
+  ],
+  "sourceInputsPredateVerification": true,
+  "sidebarMarkupUnchanged": true,
+  "behaviorTests": {
+    "frontend": 1,
+    "workspaceRust": 7,
+    "total": 8,
+    "ignored": 0
+  },
+  "productionAssets": [
+    {
+      "Name": "256x256-BkkuVpWj.png",
+      "Length": 69723
+    },
+    {
+      "Name": "city.worker-DLxzT0Wm.js",
+      "Length": 2879
+    },
+    {
+      "Name": "history-export-CIZ9p2Iq.js",
+      "Length": 3986
+    },
+    {
+      "Name": "history-video--G1UftCY.js",
+      "Length": 2865
+    },
+    {
+      "Name": "index-DfBSGxOI.css",
+      "Length": 95669
+    },
+    {
+      "Name": "index-DKPB_e7w.js",
+      "Length": 460133
+    },
+    {
+      "Name": "svg-surface-D3Yw6xZb.js",
+      "Length": 6995
+    },
+    {
+      "Name": "voronoi.worker-DwJ2QmrW.js",
+      "Length": 5606
+    }
+  ],
+  "limits": [
+    "Registered install-location claims only; data/cache/log recipes, app predicates and CLI/MCP attribution remain pending",
+    "Native populated rendering, keyboard/focus/scaling and device performance remain manual; no Computer Use",
+    "Registry observations are bounded read windows, not an atomic or complete installed-app inventory",
+    "Full workbench goal remains active"
+  ]
+}

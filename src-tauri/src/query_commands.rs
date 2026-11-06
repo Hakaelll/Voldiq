@@ -31,6 +31,7 @@ pub(crate) enum QueryFamily {
     SpaceAccount,
     RecoveryCopies,
     HistoryClip,
+    Applications,
 }
 
 #[derive(Default)]
@@ -47,7 +48,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 14],
+    slots: [Slot; 15],
 }
 
 impl QueryFamily {
@@ -67,6 +68,7 @@ impl QueryFamily {
             Self::SpaceAccount => 11,
             Self::RecoveryCopies => 12,
             Self::HistoryClip => 13,
+            Self::Applications => 14,
         }
     }
 }
@@ -610,6 +612,32 @@ pub(crate) async fn query_space_account(
         engine.inner().clone(),
         |index, cancelled| {
             voldiq_core::space::read_desktop(index, cancelled).map_err(|error| error.to_string())
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn query_applications(
+    index_id: IndexId,
+    query: voldiq_core::applications::Query,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<voldiq_core::applications::Page>, String> {
+    run_query(
+        index_id,
+        epoch,
+        QueryFamily::Applications,
+        request_id,
+        engine.inner().clone(),
+        move |index, cancelled| {
+            let result = voldiq_core::applications::read_desktop(index, &query, cancelled);
+            if cancelled.load(Ordering::Relaxed) {
+                Ok(None)
+            } else {
+                result.map(Some).map_err(|error| error.to_string())
+            }
         },
     )
     .await

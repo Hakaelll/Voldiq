@@ -28,6 +28,251 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     std::fs::write(fixture.path().join("UPPER.txt"), [5; 7]).unwrap();
     std::fs::write(fixture.path().join("Résumé.txt"), [6; 7]).unwrap();
     let first = capture(fixture.path());
+    {
+        use voldiq_core::applications::{Catalog, Query as AppQuery, Registration, Source};
+        let owned = tempfile::tempdir().unwrap();
+        let suite = owned.path().join("Suite");
+        let module = suite.join("bin");
+        std::fs::create_dir_all(&module).unwrap();
+        std::fs::create_dir(owned.path().join("Suite-other")).unwrap();
+        std::fs::write(suite.join("app.bin"), [1; 11]).unwrap();
+        std::fs::write(module.join("module.bin"), [2; 7]).unwrap();
+        std::fs::write(owned.path().join("unattributed"), [3; 3]).unwrap();
+        std::fs::write(owned.path().join("Suite-other/file"), [4; 5]).unwrap();
+        let index = capture(owned.path());
+        let suite_record = Registration {
+            source: Source::CurrentUser64,
+            key: "Suite".into(),
+            name: "Suite".into(),
+            publisher: Some("Fixture publisher".into()),
+            version: Some("1".into()),
+            install_location: suite.clone(),
+        };
+        let mut duplicate = suite_record.clone();
+        duplicate.source = Source::CurrentUser32;
+        let mut machine_duplicate = suite_record.clone();
+        machine_duplicate.source = Source::Machine64;
+        machine_duplicate.key = "SUITE".into();
+        let catalog = Catalog {
+            started_at: 1000,
+            observed_at: 1001,
+            coverage: vec![],
+            registrations: vec![
+                suite_record,
+                duplicate,
+                machine_duplicate,
+                Registration {
+                    source: Source::Machine64,
+                    key: "Module".into(),
+                    name: "Module".into(),
+                    publisher: None,
+                    version: None,
+                    install_location: module.clone(),
+                },
+                Registration {
+                    source: Source::SuppliedMetadata,
+                    key: "Missing".into(),
+                    name: "Missing".into(),
+                    publisher: None,
+                    version: None,
+                    install_location: owned.path().join("missing"),
+                },
+            ],
+        };
+        let report = voldiq_core::applications::query(
+            &index,
+            catalog.clone(),
+            &AppQuery::default(),
+            &loading,
+        )
+        .unwrap();
+        assert_eq!(
+            (&report.total.logical_bytes, report.total.files),
+            (&"26".to_string(), 4)
+        );
+        assert_eq!(
+            (&report.exclusive.logical_bytes, report.exclusive.files),
+            (&"11".to_string(), 1)
+        );
+        assert_eq!(
+            (&report.overlapping.logical_bytes, report.overlapping.files),
+            (&"7".to_string(), 1)
+        );
+        assert_eq!(
+            (
+                &report.unattributed.logical_bytes,
+                report.unattributed.files
+            ),
+            (&"8".to_string(), 2)
+        );
+        assert_eq!(
+            (
+                report.application_count,
+                report.duplicate_records,
+                report.unbound_records
+            ),
+            (2, 2, 1)
+        );
+        assert_eq!(report.applications[0].name, "Suite");
+        assert_eq!(report.applications[0].sources.len(), 3);
+        assert_ne!(report.applications[0].id, report.applications[1].id);
+        let bin = index
+            .entries
+            .iter()
+            .find(|entry| entry.name == "bin")
+            .unwrap()
+            .id;
+        let scoped = voldiq_core::applications::query(
+            &index,
+            catalog.clone(),
+            &AppQuery {
+                scope: bin,
+                ..Default::default()
+            },
+            &loading,
+        )
+        .unwrap();
+        assert_eq!(
+            (&scoped.total.logical_bytes, scoped.total.files),
+            (&"7".to_string(), 1)
+        );
+        assert_eq!(scoped.overlapping.logical_bytes, "7");
+        assert_eq!(scoped.exclusive.logical_bytes, "0");
+        let narrow = capture(&module);
+        let narrow_report = voldiq_core::applications::query(
+            &narrow,
+            catalog.clone(),
+            &AppQuery::default(),
+            &loading,
+        )
+        .unwrap();
+        assert_eq!(narrow_report.total.logical_bytes, "7");
+        assert_eq!(narrow_report.overlapping.logical_bytes, "7");
+        assert_eq!(narrow_report.application_count, 2);
+        assert!(
+            narrow_report
+                .applications
+                .iter()
+                .all(|app| app.root == voldiq_core::NodeId(0))
+        );
+        let page = voldiq_core::applications::query(
+            &index,
+            catalog.clone(),
+            &AppQuery {
+                offset: 1,
+                limit: 1,
+                ..Default::default()
+            },
+            &loading,
+        )
+        .unwrap();
+        assert_eq!(
+            (
+                page.application_count,
+                page.applications.len(),
+                page.total.files
+            ),
+            (2, 1, 4)
+        );
+        assert_eq!(page.applications[0].name, "Module");
+        let filtered = voldiq_core::applications::query(
+            &index,
+            catalog.clone(),
+            &AppQuery {
+                filters: Query {
+                    expression: "ext:bin".into(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+            &loading,
+        )
+        .unwrap();
+        assert_eq!(
+            (&filtered.total.logical_bytes, filtered.total.files),
+            (&"18".to_string(), 2)
+        );
+        assert_eq!(filtered.unattributed.logical_bytes, "0");
+        assert!(
+            voldiq_core::applications::query(
+                &index,
+                catalog.clone(),
+                &AppQuery {
+                    filters: Query {
+                        expression: "app:Suite".into(),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                &loading
+            )
+            .is_err()
+        );
+        assert!(
+            voldiq_core::applications::query(
+                &index,
+                catalog.clone(),
+                &AppQuery {
+                    filters: Query {
+                        parent: Some(bin),
+                        ..Default::default()
+                    },
+                    ..Default::default()
+                },
+                &loading
+            )
+            .is_err()
+        );
+        if std::env::var("VOLDIQ_KEEP_APPLICATION_FIXTURE").as_deref() == Ok("1") {
+            let output = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../target/probes/application-fixture.json");
+            std::fs::create_dir_all(output.parent().unwrap()).unwrap();
+            std::fs::write(output, serde_json::to_vec_pretty(&report).unwrap()).unwrap();
+        }
+        assert!(
+            voldiq_core::applications::query(
+                &index,
+                catalog.clone(),
+                &AppQuery::default(),
+                &AtomicBool::new(true)
+            )
+            .is_err()
+        );
+        assert!(
+            voldiq_core::applications::query(
+                &index,
+                catalog.clone(),
+                &AppQuery {
+                    limit: 101,
+                    ..Default::default()
+                },
+                &loading
+            )
+            .is_err()
+        );
+        let moved = tempfile::tempdir().unwrap();
+        std::fs::rename(&suite, moved.path().join("original")).unwrap();
+        std::fs::create_dir(&suite).unwrap();
+        std::fs::write(suite.join("new-unscanned"), [5; 99]).unwrap();
+        let changed =
+            voldiq_core::applications::query(&index, catalog, &AppQuery::default(), &loading)
+                .unwrap();
+        assert_eq!(changed.application_count, 0);
+        assert_eq!(
+            (
+                &changed.unattributed.logical_bytes,
+                changed.unattributed.files
+            ),
+            (&"26".to_string(), 4)
+        );
+        #[cfg(windows)]
+        {
+            let actual = voldiq_core::applications::installed_programs(&loading).unwrap();
+            assert_eq!(actual.coverage.len(), 4);
+            assert!(actual.registrations.len() <= voldiq_core::applications::MAX_REGISTRATIONS);
+            assert!(actual.observed_at > 0);
+        }
+    }
     for (stop, replace, concurrency, expected_entries) in [
         (false, false, 8, 5),
         (true, false, 1, 2),

@@ -1849,6 +1849,8 @@
             >
               {#if view === 'overview'}
                 <Overview
+                  appFilters={query}
+                  scopeId={scope}
                   onexport={isTauri() ? exportMap : undefined}
                   exportDisabled={busy || !ready || indexId === null}
                   {indexId}

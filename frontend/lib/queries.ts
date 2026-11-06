@@ -2,6 +2,7 @@ import type { HistoryClip, HistoryClipRequest } from './history-clip';
 import type { IndexId } from './index-context';
 import type { SpaceReport } from './space-account';
 import type { RecoveryReport } from './recovery';
+import type { ApplicationQuery } from './applications';
 import { invoke } from '@tauri-apps/api/core';
 import { createQueryRunner, type QueryTransport } from './query-runner';
 import type { CloudFilter, FilePage, Overview, NodeId, SelectedDetails, Query } from './types';
@@ -21,6 +22,17 @@ function querySession(): Promise<number> {
   session ??= invoke<number>('open_query_session');
   return session;
 }
+
+export const applicationQueries = createQueryRunner<unknown, { indexId: IndexId; query: ApplicationQuery }, 'applications'>(
+  'applications', {
+    run: async (_family, requestId, input) => invoke<unknown>('query_applications', {
+      ...input, epoch: await querySession(), requestId,
+    }),
+    cancel: async (family, requestId) => invoke<void>('cancel_query', {
+      epoch: await querySession(), family, requestId,
+    }),
+  },
+);
 
 export const recoveryQueries = createQueryRunner<RecoveryReport, { indexId: IndexId }>(
   'recovery_copies',

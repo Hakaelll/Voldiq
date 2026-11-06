@@ -1,0 +1,12 @@
+{
+  "checkedUtc": "2026-11-06T01:10:43.1096917Z",
+  "scope": "Production Windows Uninstall provider read only. No program names, paths, commands or registry values retained; no file tree/content read or registry writes.",
+  "nativeProviderReturnedRecords": true,
+  "fourSourcesObserved": true,
+  "workBoundRespected": true,
+  "librarySha256": "A8235C9EDEBE5CB4F97FC120F0869E38EEEA2E8438952B7E454923B93FE26C80",
+  "probeBuild": "The first standalone link omitted LTO and failed before execution. The successful probe uses thin LTO compatible with the verified release library.",
+  "limitations": "Metadata provider only; not complete inventory, actual per-app ownership, populated GUI or device acceptance.",
+  "removedProbeArtifactBytes": 22969095,
+  "scratchFilesRemaining": []
+}

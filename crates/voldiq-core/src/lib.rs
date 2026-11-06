@@ -1,4 +1,5 @@
 pub mod agents;
+pub mod applications;
 pub mod budgets;
 pub mod cleanup;
 pub mod cloud;

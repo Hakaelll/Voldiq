@@ -1,0 +1,235 @@
+import type { Query } from './types';
+import { detachedQuery } from './workbench.ts';
+
+export type ApplicationSource =
+  'current_user64' | 'current_user32' | 'machine64' | 'machine32' | 'supplied_metadata';
+export interface ApplicationFootprint {
+  logical_bytes: string;
+  files: number;
+}
+export interface ApplicationItem {
+  id: string;
+  name: string;
+  publisher: string | null;
+  version: string | null;
+  root: number;
+  sources: ApplicationSource[];
+  evidence: 'supplied_claim' | 'registered_location_claim';
+  exclusive: ApplicationFootprint;
+  overlapping: ApplicationFootprint;
+}
+export interface ApplicationCoverage {
+  source: ApplicationSource;
+  complete: boolean;
+  problem: string | null;
+  visited: number;
+  missing_location: number;
+  rejected: number;
+}
+export interface ApplicationPage {
+  scope: number;
+  indexed_at: number | null;
+  registrations_observed_at: number;
+  registrations_started_at: number;
+  excluded_roots: number;
+  partial_index: boolean;
+  coverage: ApplicationCoverage[];
+  unbound_records: number;
+  duplicate_records: number;
+  exclusive: ApplicationFootprint;
+  overlapping: ApplicationFootprint;
+  unattributed: ApplicationFootprint;
+  total: ApplicationFootprint;
+  applications: ApplicationItem[];
+  application_count: number;
+  chart: ApplicationItem[];
+  chart_omitted: number;
+}
+export interface ApplicationQuery {
+  scope: number;
+  offset: number;
+  limit: number;
+  sort: 'size' | 'name' | 'files';
+  filters: Query;
+}
+export function applicationFilters(query: Query): Query {
+  return { ...detachedQuery(query), sort: 'size' };
+}
+function invalid(): never {
+  throw Error('Invalid application measurement response.');
+}
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+function record(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : invalid();
+}
+function text(value: unknown): string {
+  return typeof value === 'string' &&
+    value.length > 0 &&
+    value.length <= 1024 &&
+    !/[\x00-\x1f\x7f]/.test(value)
+    ? value
+    : invalid();
+}
+function nullableText(value: unknown): string | null {
+  return value === null ? null : text(value);
+}
+function integer(value: unknown, max = Number.MAX_SAFE_INTEGER): number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= max
+    ? value
+    : invalid();
+}
+function boolean(value: unknown): boolean {
+  return typeof value === 'boolean' ? value : invalid();
+}
+function list<T>(value: unknown, max: number, read: (item: unknown) => T): T[] {
+  return Array.isArray(value) && value.length <= max ? value.map(read) : invalid();
+}
+function source(value: unknown): ApplicationSource {
+  switch (value) {
+    case 'current_user64':
+    case 'current_user32':
+    case 'machine64':
+    case 'machine32':
+    case 'supplied_metadata':
+      return value;
+    default:
+      return invalid();
+  }
+}
+function footprint(value: unknown): ApplicationFootprint {
+  const item = record(value),
+    raw = item.logical_bytes;
+  if (
+    typeof raw !== 'string' ||
+    !/^(0|[1-9][0-9]{0,38})$/.test(raw) ||
+    BigInt(raw) > (1n << 128n) - 1n
+  )
+    return invalid();
+  return { logical_bytes: raw, files: integer(item.files) };
+}
+function application(value: unknown): ApplicationItem {
+  const item = record(value),
+    id = text(item.id),
+    evidence = item.evidence;
+  if (
+    !/^[0-9a-f]{64}$/.test(id) ||
+    (evidence !== 'supplied_claim' && evidence !== 'registered_location_claim')
+  )
+    return invalid();
+  const sources = list(item.sources, 5, source);
+  if (
+    !sources.length ||
+    (evidence === 'registered_location_claim' && sources.includes('supplied_metadata')) ||
+    (evidence === 'supplied_claim') !== sources.every((value) => value === 'supplied_metadata')
+  )
+    return invalid();
+  return {
+    id,
+    evidence,
+    name: text(item.name),
+    publisher: nullableText(item.publisher),
+    version: nullableText(item.version),
+    root: integer(item.root, 0xffffffff),
+    sources,
+    exclusive: footprint(item.exclusive),
+    overlapping: footprint(item.overlapping),
+  };
+}
+function coverage(value: unknown): ApplicationCoverage {
+  const item = record(value);
+  return {
+    source: source(item.source),
+    complete: boolean(item.complete),
+    problem: nullableText(item.problem),
+    visited: integer(item.visited, 4096),
+    missing_location: integer(item.missing_location, 4096),
+    rejected: integer(item.rejected, 4096),
+  };
+}
+export function readApplicationPage(value: unknown): ApplicationPage {
+  const item = record(value);
+  const page: ApplicationPage = {
+    scope: integer(item.scope, 0xffffffff),
+    indexed_at: item.indexed_at === null ? null : integer(item.indexed_at, 8640000000000),
+    registrations_observed_at: integer(item.registrations_observed_at, 8640000000000),
+    registrations_started_at: integer(item.registrations_started_at, 8640000000000),
+    excluded_roots: integer(item.excluded_roots),
+    partial_index: boolean(item.partial_index),
+    coverage: list(item.coverage, 5, coverage),
+    unbound_records: integer(item.unbound_records, 1024),
+    duplicate_records: integer(item.duplicate_records, 1024),
+    exclusive: footprint(item.exclusive),
+    overlapping: footprint(item.overlapping),
+    unattributed: footprint(item.unattributed),
+    total: footprint(item.total),
+    applications: list(item.applications, 100, application),
+    application_count: integer(item.application_count, 1024),
+    chart: list(item.chart, 200, application),
+    chart_omitted: integer(item.chart_omitted, 1024),
+  };
+  const groups = [page.exclusive, page.overlapping, page.unattributed];
+  if (
+    groups.reduce((sum, group) => sum + BigInt(group.logical_bytes), 0n) !==
+      BigInt(page.total.logical_bytes) ||
+    groups.reduce((sum, group) => sum + group.files, 0) !== page.total.files ||
+    page.applications.length > page.application_count ||
+    page.chart.length !== Math.min(200, page.application_count) ||
+    page.chart_omitted !== page.application_count - page.chart.length ||
+    new Set(page.applications.map((app) => app.id)).size !== page.applications.length ||
+    new Set(page.chart.map((app) => app.id)).size !== page.chart.length
+  )
+    return invalid();
+  const rows = new Map(page.applications.map((app) => [app.id, app]));
+  for (const app of [...page.applications, ...page.chart]) {
+    if (
+      BigInt(app.exclusive.logical_bytes) > BigInt(page.exclusive.logical_bytes) ||
+      app.exclusive.files > page.exclusive.files ||
+      BigInt(app.overlapping.logical_bytes) > BigInt(page.overlapping.logical_bytes) ||
+      app.overlapping.files > page.overlapping.files
+    )
+      return invalid();
+  }
+  for (const app of page.chart) {
+    const row = rows.get(app.id);
+    if (row && JSON.stringify(row) !== JSON.stringify(app)) return invalid();
+  }
+  return page;
+}
+export function applicationBytes(value: string): string {
+  const bytes = BigInt(value),
+    units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
+  let unit = 0,
+    scale = 1n;
+  while (bytes >= scale * 1024n && unit < units.length - 1) {
+    unit++;
+    scale *= 1024n;
+  }
+  if (!unit) return `${bytes.toLocaleString('en')} B`;
+  const tenths = (bytes * 10n + scale / 2n) / scale;
+  return `${(tenths / 10n).toLocaleString('en')}${tenths % 10n ? '.' + (tenths % 10n) : ''} ${units[unit]}`;
+}
+export function applicationPlot(apps: ApplicationItem[]) {
+  const measured = apps.filter(
+    (app) => app.exclusive.files > 0 && BigInt(app.exclusive.logical_bytes) > 0n,
+  );
+  const maxFiles = Math.max(0, ...measured.map((app) => app.exclusive.files));
+  const maxBytes = measured.reduce(
+    (max, app) =>
+      BigInt(app.exclusive.logical_bytes) > BigInt(max) ? app.exclusive.logical_bytes : max,
+    '0',
+  );
+  const xScale = Math.log1p(maxFiles) || 1,
+    yScale = Math.log1p(Number(maxBytes)) || 1;
+  return {
+    maxFiles,
+    maxBytes,
+    omittedZero: apps.length - measured.length,
+    points: measured.map((app) => ({
+      app,
+      x: 70 + (810 * Math.log1p(app.exclusive.files)) / xScale,
+      y: 235 - (205 * Math.log1p(Number(app.exclusive.logical_bytes))) / yScale,
+    })),
+  };
+}
