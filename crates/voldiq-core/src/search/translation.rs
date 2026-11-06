@@ -141,6 +141,9 @@ fn phrase(tokens: &[Token<'_>]) -> Result<Option<(usize, String)>, QueryError> {
         ("marcadores de nube", "cloud:placeholder"),
         ("recall required", "cloud:recall_required"),
         ("unknown cloud state", "cloud:unknown"),
+        ("application cache", "app-category:cache"),
+        ("caché de aplicación", "app-category:cache"),
+        ("cache de aplicación", "app-category:cache"),
     ] {
         if let Some(width) = prefix(tokens, source) {
             return Ok(Some((width, expression.into())));
@@ -250,6 +253,9 @@ fn phrase(tokens: &[Token<'_>]) -> Result<Option<(usize, String)>, QueryError> {
         ("con extension", "ext"),
         ("extension", "ext"),
         ("extensión", "ext"),
+        ("application named", "app"),
+        ("aplicación llamada", "app"),
+        ("aplicacion llamada", "app"),
     ] {
         if let Some(width) = prefix(tokens, source) {
             let value = value(tokens, width)?;

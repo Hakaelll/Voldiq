@@ -1,0 +1,188 @@
+{
+  "checkedUtc": "2026-11-06T18:47:13.2537959Z",
+  "startedUtc": "2026-11-06T18:38:53.3997982Z",
+  "checkoutCommit": "c1c47f9f8e3b24b4952347c9802feafff9db31d8",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.814
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 7.83
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.769
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.379
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 467.57
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 17.475
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/applications.rs",
+      "sha256": "BB5F7C23F54CF5D55F4B233393987841D2FDC0EA4C110DFE4918FD0E7973A8E5",
+      "lastWriteUtc": "2026-11-06T18:10:04.3297454Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/applications/capture.rs",
+      "sha256": "299DD052232E11836C1D8B3637BB1051E6FEA2A74A9304CFC74CC9C5FA558AD5",
+      "lastWriteUtc": "2026-11-06T18:36:43.9024849Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/applications/classify.rs",
+      "sha256": "41EA2AC163BDA93BC9C46D2347E5BD9EF1CD91E05E4F0B1AA426E1208B99ECCC",
+      "lastWriteUtc": "2026-11-06T17:58:02.5004715Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/exports/stream.rs",
+      "sha256": "FADC9D6A94A9829EC0005C193EECAFEE22A892D855A2BF6D112FF43A2F20124B",
+      "lastWriteUtc": "2026-11-06T18:10:04.4122555Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/index.rs",
+      "sha256": "E2A8ACD8E4C82DC55EAAA1B4F729E0FD63E246A5E49D3C7283DB98594F756D6B",
+      "lastWriteUtc": "2026-11-06T18:10:04.4372557Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/live/native.rs",
+      "sha256": "F3C18714E01A43CD09687A6BA9F7F6538922442150AB8C13BE8900DA645E6C7A",
+      "lastWriteUtc": "2026-11-06T18:18:38.6245660Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/map.rs",
+      "sha256": "8557474D487513275C678C23EF3869067EB759911EBEA17876C53EE1325243DB",
+      "lastWriteUtc": "2026-11-06T18:10:04.4462563Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/search/mod.rs",
+      "sha256": "E17C0A25A40F692D95650AE2D256143DB5705C5E385B87E3D9F6A707B1EA34AB",
+      "lastWriteUtc": "2026-11-06T18:10:04.5562545Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/search/translation.rs",
+      "sha256": "529C76FD61286DB7242D8941389309872D88D03893EEDE0070B9CFEC6522A32E",
+      "lastWriteUtc": "2026-11-06T18:12:30.5205197Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/service.rs",
+      "sha256": "F9DEA8E8F1650247EE39C6344C4D17A4F726C937F4E9424C67C2FD6A99AF39CE",
+      "lastWriteUtc": "2026-11-06T18:10:04.5692546Z"
+    },
+    {
+      "path": "crates/voldiq-core/src/service/applications.rs",
+      "sha256": "42772B134864363BD37948D768A801A6D5FD097C50084AA2B2C7AB14261CC04E",
+      "lastWriteUtc": "2026-11-06T18:09:52.6849470Z"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "77053DA66E3CB54C512AEBD82EAD3F63AEB3DD0E0FAE4AC940452FF2BDBAB133",
+      "lastWriteUtc": "2026-11-06T18:35:38.1271443Z"
+    },
+    {
+      "path": "crates/voldiq-headless/src/main.rs",
+      "sha256": "AC829BF3B32C4D7025DB830B04F5A0B61C72FC1F6228AF80E91802CA881858D3",
+      "lastWriteUtc": "2026-11-06T18:13:39.1308343Z"
+    },
+    {
+      "path": "crates/voldiq-headless/src/mcp.rs",
+      "sha256": "B20A4E12CBFFDF6216D7910CEE2856CEF30DEE4DC393188F17343778D1542044",
+      "lastWriteUtc": "2026-11-06T18:10:04.7358782Z"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/headless.rs",
+      "sha256": "6052407DB078285C1668FF22FFA9BD56007831AC7F02952119E78FEED8AC2F80",
+      "lastWriteUtc": "2026-11-06T18:20:43.7584164Z"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/mcp.rs",
+      "sha256": "1151E99ECCF286509F7569A50C6D9DD9389A168942BBDB999CA263132B062AB1",
+      "lastWriteUtc": "2026-11-06T18:20:44.0086291Z"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "F037D935D292945EA4515CAED933DBDFE46455ADE6516953A89677043FD6D967",
+      "lastWriteUtc": "2026-11-06T18:18:37.9394078Z"
+    },
+    {
+      "path": "docs/MCP.md",
+      "sha256": "66F5121EB080FB9B437ABF8CA8D5B12B40B731489A22526C1C9C80FE2FD511B5",
+      "lastWriteUtc": "2026-11-06T18:18:37.8913970Z"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "EEEEDF62E3784C7AECB0C0369010DA3A9A1F46B9044D9BFA3119C3BA66A6CE53",
+      "lastWriteUtc": "2026-11-06T18:18:37.9384089Z"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "C52B42ACD2803A63B6F0E321D4121E7E939B839EAFA32E76779D232D418FAD7E",
+      "lastWriteUtc": "2026-11-06T18:29:03.0809504Z"
+    },
+    {
+      "path": "frontend/components/AdvancedSearch.svelte",
+      "sha256": "FDB1EAE260754BC3DA5ED08A0A33A16009D06D9B277C1F1FAD7A45038810E579",
+      "lastWriteUtc": "2026-11-06T18:12:34.2688683Z"
+    },
+    {
+      "path": "frontend/components/Applications.svelte",
+      "sha256": "A95EC54D31E0DEFC38C286ACC9261CEEA0B49A23F1AD5038AA849CB84E188F01",
+      "lastWriteUtc": "2026-11-06T18:12:33.6822175Z"
+    },
+    {
+      "path": "frontend/components/Overview.svelte",
+      "sha256": "D166D6DC418E21B329E5B178E9B7CB6AD7CC2212E1493A40A30382EABF01F579",
+      "lastWriteUtc": "2026-11-06T18:12:29.4930397Z"
+    },
+    {
+      "path": "frontend/lib/applications.ts",
+      "sha256": "D914C09A7C2A1DBDC8F7D8946BE87646BEBE3866070AE3B1B8CFE2FEC59805A8",
+      "lastWriteUtc": "2026-11-06T18:12:33.4355218Z"
+    },
+    {
+      "path": "src-tauri/src/live_commands.rs",
+      "sha256": "2A1F76091B76EAF1CB1E0C281340844192BE22848083068AA65A93813A3BCA5C",
+      "lastWriteUtc": "2026-11-06T18:17:22.3260204Z"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "0CBF026E103DA2721731C32EAF2EE22FC7DA87B805610D382471C6EB7111A822",
+      "lastWriteUtc": "2026-11-06T18:18:39.2461381Z"
+    },
+    {
+      "path": "src-tauri/src/snapshot_commands.rs",
+      "sha256": "47E98088480FCE3E44253B11D9DFB6CE3847061BFEA0BB888054E09236507489",
+      "lastWriteUtc": "2026-11-06T18:08:46.0551350Z"
+    }
+  ],
+  "sourceInputsPredateVerification": true,
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "freshCategoryFixtureContract": true,
+  "contractProbeSha256": "39B9586BAFABAB405D1EFE636E254CD61151F203124E8187629FC69E58B6802E",
+  "limits": "Owned synthetic location claims and native metadata authorization. Current-user supported stable browser defaults only; no registry writes or real browser content. Recorded application file predicates, same-claim matching, map/report agreement and individually authorized application metadata. Existing View files reuses current folder and filters. Wider/custom layouts and broader cleanup recipes, native rendering/keyboard/scaling and device performance remain separate acceptance."
+}

@@ -567,7 +567,7 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     );
     for expression in [
         "size>private-secret",
-        "app:private-secret",
+        "app-id:private-secret",
         "modified=2023-02-29",
     ] {
         let invalid = call(
@@ -748,6 +748,11 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
             json!({"logical_bytes":"11","files":1})
         );
         assert_eq!(recorded_reply["result"]["registrations_observed_at"], 1001);
+        let files = call(&client, "voldiq_query", json!({"snapshot_id":recorded_id,"query":{"expression":"app:\"Recorded SDK fixture\" app-category:installation"}})).await;
+        assert_ne!(files.is_error, Some(true));
+        let files = files.structured_content.unwrap();
+        assert_eq!(files["result"]["total"], 1);
+        assert_eq!(files["result"]["items"][0]["logical"], 11);
     }
     registry.revoke(provisioned.id).unwrap();
     for (name, args) in [

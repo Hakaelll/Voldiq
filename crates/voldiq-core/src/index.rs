@@ -3,6 +3,32 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 mod rank;
 
+pub(crate) struct PreparedQuery<'i, 'q> {
+    index: &'i Index,
+    compiled: &'q CompiledQuery<'q>,
+    applications: Option<crate::applications::capture::ApplicationMatches>,
+}
+
+impl PreparedQuery<'_, '_> {
+    pub(crate) fn matches(
+        &self,
+        id: NodeId,
+        budget: &mut u64,
+        cancelled: &mut impl FnMut() -> bool,
+    ) -> Result<Option<bool>> {
+        let entry = self.index.entry(id)?;
+        if self
+            .applications
+            .as_ref()
+            .is_some_and(|matches| !matches.contains(id))
+        {
+            return Ok(Some(false));
+        }
+        self.index
+            .matches_metadata(self.compiled, entry, budget, cancelled)
+    }
+}
+
 pub struct Index {
     pub observation: Option<Observation>,
     pub root: PathBuf,
@@ -292,7 +318,34 @@ impl Index {
         Ok(())
     }
 
-    pub(crate) fn matches_compiled_cancellable(
+    pub(crate) fn prepare_query<'i, 'q>(
+        &'i self,
+        compiled: &'q CompiledQuery<'q>,
+        capture: Option<&crate::applications::Capture>,
+        cancelled: &mut impl FnMut() -> bool,
+    ) -> Result<Option<PreparedQuery<'i, 'q>>> {
+        self.validate_query_scope(compiled)?;
+        if cancelled() {
+            return Ok(None);
+        }
+        let applications = if let Some(filter) = compiled.search.application_filter() {
+            let capture = capture.or(self.captured_applications.as_ref()).ok_or_else(|| Error::Invalid("Application evidence was not captured for this analysis. Run a new scan to search by application.".into()))?;
+            let result = capture.matching_files(self, &filter, compiled.query.scope, cancelled);
+            if cancelled() {
+                return Ok(None);
+            }
+            Some(result?)
+        } else {
+            None
+        };
+        Ok(Some(PreparedQuery {
+            index: self,
+            compiled,
+            applications,
+        }))
+    }
+
+    fn matches_metadata(
         &self,
         compiled: &CompiledQuery<'_>,
         entry: &Entry,
@@ -336,7 +389,9 @@ impl Index {
             return Ok(None);
         }
         let query = compiled.query;
-        self.validate_query_scope(compiled)?;
+        let Some(prepared) = self.prepare_query(compiled, None, &mut cancelled)? else {
+            return Ok(None);
+        };
         let mut budget = crate::search::GLOB_WORK_LIMIT;
         let mut matches = Vec::new();
         let mut largest = 0;
@@ -344,7 +399,7 @@ impl Index {
             if position % 256 == 0 && cancelled() {
                 return Ok(None);
             }
-            match self.matches_compiled_cancellable(compiled, entry, &mut budget, &mut cancelled)? {
+            match prepared.matches(entry.id, &mut budget, &mut cancelled)? {
                 None => return Ok(None),
                 Some(false) => continue,
                 Some(true) => {}

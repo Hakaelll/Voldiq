@@ -31,6 +31,8 @@ pub struct AgentService {
 struct CachedIndex {
     snapshot: i64,
     index: Arc<Index>,
+    applications: Option<crate::applications::Capture>,
+    application_access: Vec<bool>,
 }
 
 #[derive(Serialize)]
@@ -299,26 +301,74 @@ impl AgentService {
         let registry = self.registry()?;
         registry.policy(&self.principal, Capability::Metadata)?;
         let mut cache = self.cache.lock().map_err(|_| denied())?;
-        let index =
-            if let Some(cached) = cache.as_ref().filter(|cached| cached.snapshot == snapshot) {
-                cached.index.clone()
-            } else {
-                let store = Store::open(&self.directory.directory().join("snapshots.db"))?;
-                let scope = store.scope(snapshot).map_err(|_| denied())?;
-                let _guard = registry.authorize_snapshot(&self.principal, &scope)?;
-                let index = Arc::new(
-                    store
-                        .load_evidence(snapshot, &AtomicBool::new(false))
-                        .map_err(|_| denied())?,
-                );
-                *cache = Some(CachedIndex {
-                    snapshot,
-                    index: index.clone(),
-                });
-                index
-            };
-        registry.authorize_index(&self.principal, &index)?;
+        let reusable = if let Some(cached) =
+            cache.as_ref().filter(|cached| cached.snapshot == snapshot)
+        {
+            registry.authorize_index(&self.principal, &cached.index)?;
+            let access =
+                self.application_access(&registry, &cached.index, cached.applications.as_ref())?;
+            access == cached.application_access
+        } else {
+            false
+        };
+        let index = if reusable {
+            cache.as_ref().ok_or_else(denied)?.index.clone()
+        } else {
+            let store = Store::open(&self.directory.directory().join("snapshots.db"))?;
+            let scope = store.scope(snapshot).map_err(|_| denied())?;
+            let _guard = registry.authorize_snapshot(&self.principal, &scope)?;
+            let mut index = store
+                .load_evidence(snapshot, &AtomicBool::new(false))
+                .map_err(|_| denied())?;
+            registry.authorize_index(&self.principal, &index)?;
+            let applications = index.captured_applications.clone();
+            let application_access =
+                self.application_access(&registry, &index, applications.as_ref())?;
+            index.captured_applications = applications
+                .as_ref()
+                .map(|capture| capture.permitted(&application_access))
+                .transpose()?;
+            let index = Arc::new(index);
+            *cache = Some(CachedIndex {
+                snapshot,
+                index: index.clone(),
+                applications,
+                application_access,
+            });
+            index
+        };
+        self.validate_index(&registry, &index)?;
         Ok(index)
+    }
+
+    fn application_access(
+        &self,
+        registry: &Registry,
+        index: &Index,
+        capture: Option<&crate::applications::Capture>,
+    ) -> Result<Vec<bool>> {
+        capture
+            .map(|capture| {
+                capture.access_mask(index, |path| {
+                    registry
+                        .authorize(&self.principal, Capability::Metadata, path)
+                        .map(|_| ())
+                })
+            })
+            .transpose()
+            .map(Option::unwrap_or_default)
+    }
+
+    fn validate_index(&self, registry: &Registry, index: &Index) -> Result<()> {
+        registry.authorize_index(&self.principal, index)?;
+        if self
+            .application_access(registry, index, index.captured_applications.as_ref())?
+            .iter()
+            .any(|allowed| !allowed)
+        {
+            return Err(denied());
+        }
+        Ok(())
     }
 
     pub fn translate_query(&self, source: &str) -> Result<crate::search::Translation> {
@@ -327,7 +377,7 @@ impl AgentService {
         Ok(crate::search::translate(source)?)
     }
 
-    pub fn query(&self, snapshot: i64, query: &Query) -> Result<Page> {
+    pub fn query(&self, snapshot: i64, query: &Query, cancel: &AtomicBool) -> Result<Option<Page>> {
         let policy = self
             .registry()?
             .policy(&self.principal, Capability::Metadata)?;
@@ -335,13 +385,17 @@ impl AgentService {
             limit: query.limit.min(policy.limits().page_size).max(1),
             ..query.clone()
         };
-        let compiled = query.compile()?;
-        self.index(snapshot)?
-            .query_compiled(&compiled)
-            .map_err(|error| match error {
-                Error::Query(_) => error,
-                _ => denied(),
-            })
+        query.compile()?;
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        let index = self.index(snapshot)?;
+        let result = index.query_cancellable(&query, || cancel.load(Ordering::Relaxed))?;
+        self.validate_index(&self.registry()?, &index)?;
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        Ok(result)
     }
 
     pub fn export_csv(
@@ -370,7 +424,7 @@ impl AgentService {
         let result = crate::exports::csv(&index, &request, cancel)?;
         let current = self.registry()?;
         current.policy(&self.principal, Capability::Export)?;
-        let _check = current.authorize_index(&self.principal, &index)?;
+        self.validate_index(&current, &index)?;
         if cancel.load(Ordering::Relaxed) {
             return Ok(None);
         }

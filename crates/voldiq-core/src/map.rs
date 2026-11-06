@@ -56,6 +56,14 @@ impl Index {
         if let Some(search) = search {
             self.validate_query_scope(search)?;
         }
+        let prepared = if let Some(search) = search {
+            let Some(prepared) = self.prepare_query(search, None, &mut cancelled)? else {
+                return Ok(None);
+            };
+            Some(prepared)
+        } else {
+            None
+        };
         if targets.len() > MAX_MAP_TARGETS {
             return Err(Error::Invalid("Too many map targets.".into()));
         }
@@ -163,13 +171,8 @@ impl Index {
                     metrics[position].include(entry);
                 }
             }
-            if let Some(search) = search {
-                match self.matches_compiled_cancellable(
-                    search,
-                    entry,
-                    &mut budget,
-                    &mut cancelled,
-                )? {
+            if let Some(search) = &prepared {
+                match search.matches(entry.id, &mut budget, &mut cancelled)? {
                     None => return Ok(None),
                     Some(false) => continue,
                     Some(true) => {}

@@ -2,6 +2,15 @@ use super::*;
 
 pub(crate) const MAX_CAPTURE_BYTES: usize = 8 * 1024 * 1024;
 
+pub(crate) struct ApplicationMatches(Vec<u64>);
+impl ApplicationMatches {
+    pub(crate) fn contains(&self, id: NodeId) -> bool {
+        self.0
+            .get(id.0 as usize / 64)
+            .is_some_and(|word| word & (1 << (id.0 % 64)) != 0)
+    }
+}
+
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Capture {
@@ -33,6 +42,18 @@ struct Record {
 
 pub fn capture(index: &Index, catalog: Catalog, cancel: &AtomicBool) -> Result<Capture> {
     capture_authorized(index, catalog, cancel, crate::agents::pin_directory)
+}
+
+pub fn observe(index: &Index, cancel: &AtomicBool) -> Result<Capture> {
+    if index.snapshot_id.is_some() {
+        return Err(Error::Invalid(
+            "Historical application evidence cannot be recaptured.".into(),
+        ));
+    }
+    let result =
+        super::installed_programs(cancel).and_then(|catalog| capture(index, catalog, cancel));
+    check(cancel)?;
+    Ok(result.unwrap_or_else(|_| Capture::unavailable()))
 }
 
 pub fn capture_authorized(
@@ -73,6 +94,152 @@ pub fn capture_authorized(
 }
 
 impl Capture {
+    pub(super) fn from_bound(evidence: &Evidence, bound: &[Bound]) -> Self {
+        Self {
+            schema: 1,
+            state: State::Recorded {
+                evidence: evidence.clone(),
+                records: bound
+                    .iter()
+                    .map(|app| Record {
+                        id: app.id.clone(),
+                        metadata: app.metadata.clone(),
+                        root: app.root,
+                        sources: app.sources.clone(),
+                        locations: app.locations.clone(),
+                    })
+                    .collect(),
+            },
+        }
+    }
+
+    pub(crate) fn access_mask(
+        &self,
+        index: &Index,
+        mut authorize: impl FnMut(&std::path::Path) -> Result<()>,
+    ) -> Result<Vec<bool>> {
+        self.validate(index)?;
+        let State::Recorded { records, .. } = &self.state else {
+            return Ok(Vec::new());
+        };
+        let mut ancestors = HashMap::new();
+        let mut mask = Vec::new();
+        for record in records {
+            for location in &record.locations {
+                let allowed = if location.parent_hops == 0 {
+                    true
+                } else if let Some(&allowed) = ancestors.get(&location.parent_hops) {
+                    allowed
+                } else {
+                    let mut path = index.path(location.root)?;
+                    for _ in 0..location.parent_hops {
+                        if !path.pop() {
+                            return Err(Error::Invalid(
+                                "Invalid captured application ancestry.".into(),
+                            ));
+                        }
+                    }
+                    let allowed = authorize(&crate::agents::ordinary_path(&path)?).is_ok();
+                    ancestors.insert(location.parent_hops, allowed);
+                    allowed
+                };
+                mask.push(allowed);
+            }
+        }
+        Ok(mask)
+    }
+
+    pub(crate) fn permitted(&self, mask: &[bool]) -> Result<Self> {
+        let mut filtered = self.clone();
+        let State::Recorded { records, evidence } = &mut filtered.state else {
+            return if mask.is_empty() {
+                Ok(filtered)
+            } else {
+                Err(Error::Invalid(
+                    "Invalid application permission projection.".into(),
+                ))
+            };
+        };
+        if records
+            .iter()
+            .map(|record| record.locations.len())
+            .sum::<usize>()
+            != mask.len()
+        {
+            return Err(Error::Invalid(
+                "Invalid application permission projection.".into(),
+            ));
+        }
+        let mut at = 0;
+        for record in records.iter_mut() {
+            record.locations.retain(|_| {
+                let allowed = mask[at];
+                at += 1;
+                allowed
+            });
+            if let Some(location) = record.locations.first() {
+                record.root = location.root;
+            }
+        }
+        records.retain(|record| {
+            if record.locations.is_empty() {
+                evidence.unbound_records += 1;
+                false
+            } else {
+                true
+            }
+        });
+        Ok(filtered)
+    }
+
+    pub(crate) fn matching_files(
+        &self,
+        index: &Index,
+        filter: &crate::search::ApplicationFilter,
+        scope: Option<NodeId>,
+        cancelled: &mut impl FnMut() -> bool,
+    ) -> Result<ApplicationMatches> {
+        self.validate(index)?;
+        let (_, records) = self.recorded()?;
+        let mut selected = Vec::with_capacity(records.len());
+        for record in records {
+            if cancelled() {
+                return Err(Error::Invalid("Application query cancelled.".into()));
+            }
+            let name = record.metadata.name.to_lowercase();
+            selected.push(
+                filter.names.iter().all(|part| name.contains(part))
+                    && filter.ids.iter().all(|id| *id == record.id),
+            );
+        }
+        let count = index.entries.len() / 64 + 1;
+        let mut words = Vec::new();
+        words
+            .try_reserve_exact(count)
+            .map_err(|_| Error::Invalid("Insufficient memory for application filtering.".into()))?;
+        words.resize(count, 0);
+        if selected.iter().any(|selected| *selected) {
+            classify::visit(
+                index,
+                records.iter().map(|record| record.locations.as_slice()),
+                scope,
+                cancelled,
+                |entry, owners| {
+                    if entry.is_metadata_file()
+                        && owners.iter().any(|(&slot, &(_, _, category))| {
+                            selected[slot]
+                                && filter.categories.iter().all(|wanted| *wanted == category)
+                        })
+                    {
+                        words[entry.id.0 as usize / 64] |= 1 << (entry.id.0 % 64);
+                    }
+                    Ok(())
+                },
+            )?;
+        }
+        Ok(ApplicationMatches(words))
+    }
+
     fn recorded(&self) -> Result<(&Evidence, &[Record])> {
         match &self.state {
             State::Recorded { evidence, records } => Ok((evidence, records)),
@@ -84,7 +251,8 @@ impl Capture {
         Self {
             schema: 1,
             state: State::Unavailable {
-                reason: "Application evidence was unavailable when this snapshot was saved.".into(),
+                reason: "Application evidence was unavailable when this analysis was recorded."
+                    .into(),
             },
         }
     }
@@ -213,42 +381,23 @@ pub fn query_captured(
     index: &Index,
     request: &Query,
     cancel: &AtomicBool,
-    mut authorize: impl FnMut(&std::path::Path) -> Result<()>,
+    authorize: impl FnMut(&std::path::Path) -> Result<()>,
 ) -> Result<Page> {
     compiled_request(index, request)?;
     check(cancel)?;
     let capture = index.captured_applications.as_ref().ok_or_else(|| Error::Invalid(
         "Application evidence was not captured for this snapshot. It cannot be reconstructed from current registrations.".into()))?;
-    capture.validate(index)?;
+    let capture = capture.permitted(&capture.access_mask(index, authorize)?)?;
     let (evidence, records) = capture.recorded()?;
-    let mut evidence = evidence.clone();
     let mut bound = Vec::new();
     for record in records {
         check(cancel)?;
-        let mut allowed = Vec::new();
-        for location in &record.locations {
-            let mut path = index.path(location.root)?;
-            for _ in 0..location.parent_hops {
-                if !path.pop() {
-                    return Err(Error::Invalid(
-                        "Invalid captured application ancestry.".into(),
-                    ));
-                }
-            }
-            if location.parent_hops == 0 || authorize(&path).is_ok() {
-                allowed.push(location.clone());
-            }
-        }
-        let Some(root) = allowed.first().map(|location| location.root) else {
-            evidence.unbound_records += 1;
-            continue;
-        };
         bound.push(Bound {
             id: record.id.clone(),
             metadata: record.metadata.clone(),
-            root,
+            root: record.root,
             sources: record.sources.clone(),
-            locations: allowed,
+            locations: record.locations.clone(),
             exclusive: Count::default(),
             overlapping: Count::default(),
             breakdown: BTreeMap::new(),
@@ -257,13 +406,17 @@ pub fn query_captured(
     aggregate(
         index,
         Bindings {
-            evidence,
+            evidence: evidence.clone(),
             bound,
             _root: None,
         },
         request,
         cancel,
         None,
-        Attribution::Captured,
+        if index.snapshot_id.is_some() {
+            Attribution::Captured
+        } else {
+            Attribution::Indexed
+        },
     )
 }

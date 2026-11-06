@@ -150,11 +150,16 @@ impl Engine {
             .as_ref()
             .is_some_and(|loaded| loaded.id == expected && Arc::ptr_eq(&loaded.index, index)))
     }
-    fn publish(&self, index: SharedIndex, analyzed_at: Option<u64>) -> Result<IndexId, String> {
+    fn publish(
+        &self,
+        index: SharedIndex,
+        analyzed_at: Option<u64>,
+        fresh: bool,
+    ) -> Result<IndexId, String> {
         let mut slot = self.index.lock().map_err(|error| error.to_string())?;
         let id = match slot
             .as_ref()
-            .filter(|loaded| Arc::ptr_eq(&loaded.index, &index))
+            .filter(|loaded| !fresh && Arc::ptr_eq(&loaded.index, &index))
         {
             Some(loaded) => loaded.id,
             None => IndexId(self.sequence.fetch_add(1, Ordering::Relaxed) + 1),
@@ -282,7 +287,7 @@ fn launch_scan(
                     }
                 },
                 |index| {
-                    let _ = engine.publish(index, None);
+                    let _ = engine.publish(index, None, false);
                 },
                 previous.as_ref().map(|loaded| &loaded.index),
             )
@@ -291,6 +296,19 @@ fn launch_scan(
         let mut failure = None;
         match result {
             Ok(Some(index)) => {
+                let captured =
+                    index
+                        .write()
+                        .map_err(|error| error.to_string())
+                        .and_then(|mut index| {
+                            let evidence = voldiq_core::applications::observe(&index, &cancel);
+                            index.captured_applications = if cancel.load(Ordering::Relaxed) {
+                                None
+                            } else {
+                                Some(evidence.map_err(|error| error.to_string())?)
+                            };
+                            Ok(())
+                        });
                 let date = final_progress.as_ref().and_then(|update| {
                     analysis_status::analyzed_at(
                         update,
@@ -298,7 +316,7 @@ fn launch_scan(
                         std::time::SystemTime::now(),
                     )
                 });
-                if let Err(error) = engine.publish(index, date) {
+                if let Err(error) = captured.and_then(|_| engine.publish(index, date, true)) {
                     failure = Some(error);
                 }
             }

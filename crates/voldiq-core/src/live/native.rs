@@ -133,7 +133,7 @@ impl Session {
             reason
         };
         self.validate_root()?;
-        let index = scanner::scan(
+        let mut index = scanner::scan(
             self.root.path(),
             &self.options,
             &self.control.0.cancelled,
@@ -142,6 +142,11 @@ impl Session {
         if self.control.is_stopped() {
             return Ok(None);
         }
+        let captured = crate::applications::observe(&index, &self.control.0.cancelled);
+        if self.control.is_stopped() {
+            return Ok(None);
+        }
+        index.captured_applications = Some(captured?);
         self.validate_root()?;
         if index.root_identity != Some(self.root.identity()) {
             return Err(Error::Invalid(

@@ -136,7 +136,8 @@
     </div>
     <div class="advanced-search-meta">
       <span id="advanced-search-help"
-        >Other current filters also apply. Quotes keep phrases together.</span
+        >Other filters also apply. Quotes keep phrases together. Application example: app:"Google
+        Chrome" app-category:cache</span
       >
       <span
         id="advanced-search-status"

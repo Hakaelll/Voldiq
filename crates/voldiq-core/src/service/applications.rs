@@ -54,7 +54,7 @@ impl AgentService {
         };
         let current = self.registry()?;
         let policy = current.policy(&self.principal, Capability::Metadata)?;
-        let _root = current.authorize_index(&self.principal, &index)?;
+        self.validate_index(&current, &index)?;
         if cancel.load(Ordering::Relaxed) {
             return Ok(None);
         }

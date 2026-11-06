@@ -178,7 +178,7 @@ fn run_session(
                 return Ok(());
             }
             let before = engine.index_for(expected)?;
-            let next_id = engine.publish(next.clone(), measured_at)?;
+            let next_id = engine.publish(next.clone(), measured_at, false)?;
             run.pending = Some(Publication {
                 before_id: expected,
                 before,

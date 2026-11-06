@@ -114,6 +114,16 @@ enum Predicate {
     Modified(Compare, DateValue),
     Kind(Kind),
     Cloud(CloudFilter),
+    Application(String),
+    ApplicationId(String),
+    ApplicationCategory(crate::applications::Category),
+}
+
+#[derive(Default)]
+pub(crate) struct ApplicationFilter {
+    pub names: Vec<String>,
+    pub ids: Vec<String>,
+    pub categories: Vec<crate::applications::Category>,
 }
 
 pub(crate) struct Search {
@@ -277,6 +287,40 @@ fn parse(token: lexer::Token) -> Result<Predicate, QueryError> {
         ));
     }
     Ok(match property.as_str() {
+        "app"
+            if value.len() <= 1024
+                && !value.trim().is_empty()
+                && !value.chars().any(char::is_control) =>
+        {
+            Predicate::Application(value.to_lowercase())
+        }
+        "app" => {
+            return Err(error(
+                "An application name must contain 1 to 1024 bytes without control characters.",
+            ));
+        }
+        "app-id" if value.len() == 64 && value.bytes().all(|byte| byte.is_ascii_hexdigit()) => {
+            Predicate::ApplicationId(value.to_ascii_lowercase())
+        }
+        "app-id" => {
+            return Err(error(
+                "An application ID requires exactly 64 hexadecimal digits.",
+            ));
+        }
+        "app-category" => {
+            Predicate::ApplicationCategory(match value.to_ascii_lowercase().as_str() {
+                "installation" => crate::applications::Category::Installation,
+                "data" => crate::applications::Category::Data,
+                "cache" => crate::applications::Category::Cache,
+                "logs" => crate::applications::Category::Logs,
+                "unknown" => crate::applications::Category::Unknown,
+                _ => {
+                    return Err(error(
+                        "Use app-category:installation, data, cache, logs or unknown.",
+                    ));
+                }
+            })
+        }
         "name" => Predicate::Name(value.to_lowercase()),
         "glob" => Predicate::NameGlob(Glob::new(value, token.offset)?),
         "path" => Predicate::Path(value.to_lowercase()),
@@ -316,13 +360,26 @@ fn parse(token: lexer::Token) -> Result<Predicate, QueryError> {
         }),
         _ => {
             return Err(error(
-                "Unsupported property. Use name, glob, path, pathglob, ext, category, size, modified, type or cloud. App attribution is not yet available.",
+                "Unsupported property. Use name, glob, path, pathglob, ext, category, size, modified, type, cloud, app, app-id or app-category.",
             ));
         }
     })
 }
 
 impl Search {
+    pub(crate) fn application_filter(&self) -> Option<ApplicationFilter> {
+        let mut filter = ApplicationFilter::default();
+        for term in &self.terms {
+            match term {
+                Predicate::Application(value) => filter.names.push(value.clone()),
+                Predicate::ApplicationId(value) => filter.ids.push(value.clone()),
+                Predicate::ApplicationCategory(value) => filter.categories.push(*value),
+                _ => {}
+            }
+        }
+        (!filter.names.is_empty() || !filter.ids.is_empty() || !filter.categories.is_empty())
+            .then_some(filter)
+    }
     pub fn needs_path(&self) -> bool {
         self.needs_path
     }
@@ -391,7 +448,11 @@ impl Search {
                     Kind::Link => entry.kind == Kind::Link,
                 },
                 Predicate::Cloud(filter) => filter.matches(entry.cloud),
-                Predicate::Path(_) | Predicate::PathGlob(_) => continue,
+                Predicate::Path(_)
+                | Predicate::PathGlob(_)
+                | Predicate::Application(_)
+                | Predicate::ApplicationId(_)
+                | Predicate::ApplicationCategory(_) => continue,
             };
             if !matched {
                 return Ok(Some(false));

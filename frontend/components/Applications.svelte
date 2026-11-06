@@ -33,7 +33,7 @@
     scopeName: string;
     filters: Query;
     paused: boolean;
-    onopen: (id: number) => void;
+    onopen: (id: string) => void;
     manageable: boolean;
     onreviewcache: (context: ApplicationCleanupContext) => void;
   } = $props();
@@ -120,7 +120,7 @@
     };
   });
   function explore(app: ApplicationItem) {
-    if (model.kind === 'ready' && model.identity === identity && !paused) onopen(app.root);
+    if (model.kind === 'ready' && model.identity === identity && !paused) onopen(app.id);
   }
   function movePoint(event: KeyboardEvent, index: number) {
     let next = index;
@@ -169,7 +169,8 @@
   <p class="application-caption">
     Registered locations matched to this index. Supported default Chrome and Edge profiles add data
     and HTTP-cache categories; Chrome's documented debug log is separate. Filters match file
-    records, not registration names. Custom paths and unsupported layouts remain unclassified.
+    records. Use View files to explore an application's matching paths in this folder. Custom paths
+    and unsupported layouts remain unclassified.
   </p>
   {#if model.kind === 'loading'}<p class="application-state" role="status">
       Reading application evidence and indexed sizes…
@@ -249,7 +250,7 @@
                 fill={paints(point.app).fill}
                 role="button"
                 tabindex={focusedPoint === index ? 0 : -1}
-                aria-label={`${point.app.name}: ${point.app.exclusive.files} file paths, ${point.app.exclusive.logical_bytes} logical bytes. Explore indexed location.`}
+                aria-label={`${point.app.name}: ${point.app.exclusive.files} file paths, ${point.app.exclusive.logical_bytes} logical bytes. View matching files.`}
                 onpointerenter={() => {
                   active = point.app.id;
                 }}
@@ -324,7 +325,7 @@
           <button
             onclick={() => explore(app)}
             disabled={paused}
-            title="Explore one indexed location associated with this application">Explore</button
+            title="Show this application's matching files in the current folder">View files</button
           >
           <details class="application-breakdown">
             <summary
@@ -411,7 +412,9 @@
       <p>
         Index measurement: {date(page.indexed_at)}. {page.attribution === 'captured'
           ? 'Registration evidence saved with this snapshot'
-          : 'Current registration read'}: {date(page.registrations_started_at)}–{date(
+          : page.attribution === 'indexed'
+            ? 'Registration evidence recorded with this analysis'
+            : 'Current registration read'}: {date(page.registrations_started_at)}–{date(
           page.registrations_observed_at,
         )}. Registration reads are not an atomic inventory.
       </p>

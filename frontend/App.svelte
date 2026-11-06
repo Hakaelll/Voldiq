@@ -787,6 +787,30 @@
         fileWorkspace?.focus({ preventScroll: true });
     });
   }
+  async function exploreApplication(id: string): Promise<void> {
+    if (indexId === null || busy || !ready) return;
+    const owner = interactionToken,
+      analysis = indexId,
+      filters = query;
+    const expression = `${searchExpression.trim()} app-id:${id}`.trim();
+    try {
+      const inspection = await invoke<import('./lib/types').SearchInspection>('inspect_search', {
+        query: { ...filters, expression },
+      });
+      if (owner !== interactionToken || analysis !== indexId || filters !== query || busy || !ready)
+        return;
+      if (inspection.kind !== 'valid') {
+        report(inspection.message);
+        return;
+      }
+      invalidateRefresh();
+      searchExpression = expression;
+      advancedOpen = false;
+      await showFileList();
+    } catch (problem) {
+      if (owner === interactionToken && analysis === indexId && filters === query) report(problem);
+    }
+  }
   function changeCloudFilter(next: CloudFilter | null): void {
     if (next === cloudFilter) return;
     cloudFilter = next;
@@ -1878,6 +1902,9 @@
                     );
                   }}
                   appFilters={query}
+                  onapplication={(id) => {
+                    void exploreApplication(id);
+                  }}
                   scopeId={scope}
                   onexport={isTauri() ? exportMap : undefined}
                   exportDisabled={busy || !ready || indexId === null}

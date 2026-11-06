@@ -8,8 +8,9 @@ use std::{
 };
 
 pub(crate) mod capture;
+mod classify;
 mod locations;
-pub use capture::{Capture, capture, capture_authorized, query_captured};
+pub use capture::{Capture, capture, capture_authorized, observe, query_captured};
 #[cfg(windows)]
 mod registry;
 pub mod review;
@@ -121,6 +122,7 @@ pub struct Application {
 #[serde(rename_all = "snake_case")]
 pub enum Attribution {
     Current,
+    Indexed,
     Captured,
 }
 
@@ -227,11 +229,7 @@ pub fn installed_programs(cancel: &AtomicBool) -> Result<Catalog> {
 
 pub fn read_desktop(index: &Index, request: &Query, cancel: &AtomicBool) -> Result<Page> {
     compiled_request(index, request)?;
-    if index.snapshot_id.is_some() {
-        query_captured(index, request, cancel, |_| Ok(()))
-    } else {
-        query(index, installed_programs(cancel)?, request, cancel)
-    }
+    query_captured(index, request, cancel, |_| Ok(()))
 }
 
 pub(crate) fn compiled_request<'a>(
@@ -474,94 +472,59 @@ fn aggregate(
         evidence,
         _root,
     } = bindings;
-    let mut claims: HashMap<NodeId, Vec<(usize, usize)>> = HashMap::new();
-    for (slot, app) in bound.iter().enumerate() {
-        for (location, claim) in app.locations.iter().enumerate() {
-            claims.entry(claim.root).or_default().push((slot, location));
-        }
-    }
+    let locations: Vec<_> = bound.iter().map(|app| app.locations.clone()).collect();
     let (mut exclusive, mut overlapping, mut unattributed, mut total) = (
         Count::default(),
         Count::default(),
         Count::default(),
         Count::default(),
     );
-    let mut owners = HashMap::new();
     let mut work = crate::search::GLOB_WORK_LIMIT;
     let mut cancelled = || cancel.load(Ordering::Relaxed);
-    for entry in &index.entries {
-        if entry.id.0 % 256 == 0 {
-            check(cancel)?;
-        }
-        if !entry.is_metadata_file() && entry.kind != Kind::Directory {
-            continue;
-        }
-        owners.clear();
-        let mut within_scope = false;
-        let mut parent = Some(entry.id);
-        let mut depth = 0;
-        let mut trail = [None; 3];
-        while let Some(id) = parent {
-            if depth % 256 == 0 {
-                check(cancel)?;
+    let capture = compiled
+        .search
+        .application_filter()
+        .map(|_| Capture::from_bound(&evidence, &bound));
+    let prepared = index
+        .prepare_query(&compiled, capture.as_ref(), &mut cancelled)?
+        .ok_or_else(|| Error::Invalid("Application query cancelled.".into()))?;
+    classify::visit(
+        index,
+        locations.iter().map(Vec::as_slice),
+        Some(query.scope),
+        &mut || cancel.load(Ordering::Relaxed),
+        |entry, owners| {
+            for (&slot, &(_, _, category)) in owners {
+                bound[slot].breakdown.entry(category).or_default();
             }
-            if depth > index.entries.len() {
-                return Err(Error::Invalid("Invalid index ancestry.".into()));
+            if !entry.is_metadata_file() {
+                return Ok(());
             }
-            within_scope |= id == query.scope;
-            if let Some(apps) = claims.get(&id) {
-                for &(slot, location) in apps {
-                    let location = &bound[slot].locations[location];
-                    let category = location.category(&trail, depth, entry.is_metadata_file());
-                    let observed =
-                        owners
-                            .entry(slot)
-                            .or_insert((depth, location.priority, category));
-                    if depth == observed.0 {
-                        if location.priority > observed.1 {
-                            *observed = (depth, location.priority, category)
-                        } else if location.priority == observed.1 && category != observed.2 {
-                            observed.2 = Category::Unknown
-                        }
-                    }
+            match prepared.matches(entry.id, &mut work, &mut cancelled)? {
+                Some(true) => {}
+                Some(false) => return Ok(()),
+                None => return Err(Error::Invalid("Application query cancelled.".into())),
+            }
+            total.add(entry.logical);
+            match owners.len() {
+                0 => unattributed.add(entry.logical),
+                1 => exclusive.add(entry.logical),
+                _ => overlapping.add(entry.logical),
+            }
+            for (&slot, &(_, _, category)) in owners {
+                let app = &mut bound[slot];
+                let counts = app.breakdown.entry(category).or_default();
+                if owners.len() == 1 {
+                    counts.0.add(entry.logical);
+                    app.exclusive.add(entry.logical);
+                } else {
+                    counts.1.add(entry.logical);
+                    app.overlapping.add(entry.logical);
                 }
             }
-            trail = [Some(index.entry(id)?.name.as_str()), trail[0], trail[1]];
-            parent = index.entry(id)?.parent;
-            depth += 1;
-        }
-        if !within_scope {
-            continue;
-        }
-        for (&slot, &(_, _, category)) in &owners {
-            bound[slot].breakdown.entry(category).or_default();
-        }
-        if !entry.is_metadata_file() {
-            continue;
-        }
-        match index.matches_compiled_cancellable(&compiled, entry, &mut work, &mut cancelled)? {
-            Some(true) => {}
-            Some(false) => continue,
-            None => return Err(Error::Invalid("Application query cancelled.".into())),
-        }
-        total.add(entry.logical);
-        match owners.len() {
-            0 => unattributed.add(entry.logical),
-            1 => exclusive.add(entry.logical),
-            _ => overlapping.add(entry.logical),
-        }
-        for (&slot, &(_, _, category)) in &owners {
-            let app = &mut bound[slot];
-            let counts = app.breakdown.entry(category).or_default();
-            if owners.len() == 1 {
-                counts.0.add(entry.logical);
-                app.exclusive.add(entry.logical);
-            } else {
-                counts.1.add(entry.logical);
-                app.overlapping.add(entry.logical);
-            }
-        }
-    }
+            Ok(())
+        },
+    )?;
     check(cancel)?;
     let mut applications: Vec<_> = bound
         .into_iter()

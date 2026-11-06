@@ -132,7 +132,11 @@ pub(super) fn walk(
         ..Default::default()
     };
     let compiled = query.compile()?;
-    index.validate_query_scope(&compiled)?;
+    let Some(prepared) =
+        index.prepare_query(&compiled, None, &mut || cancelled.load(Ordering::Relaxed))?
+    else {
+        return Ok(StreamOutcome::Cancelled(state));
+    };
     let root = index.entry(NodeId(0))?;
     progress(state);
     if cancelled.load(Ordering::Relaxed) {
@@ -157,10 +161,9 @@ pub(super) fn walk(
             return Ok(StreamOutcome::Cancelled(state));
         }
         state.inspected = position + 1;
-        let Some(matches) =
-            index.matches_compiled_cancellable(&compiled, entry, &mut budget, &mut || {
-                cancelled.load(Ordering::Relaxed)
-            })?
+        let Some(matches) = prepared.matches(entry.id, &mut budget, &mut || {
+            cancelled.load(Ordering::Relaxed)
+        })?
         else {
             return Ok(StreamOutcome::Cancelled(state));
         };

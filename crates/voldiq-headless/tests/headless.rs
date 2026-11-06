@@ -98,6 +98,19 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
         );
         assert_eq!(result["exclusive"], result["total"]);
         assert_eq!(result["applications"][0]["name"], "Recorded CLI fixture");
+        let app_files = run(&[
+            "query",
+            &snapshot.to_string(),
+            r#"{"expression":"app:\"Recorded CLI fixture\" app-category:installation"}"#,
+        ]);
+        assert!(
+            app_files.status.success(),
+            "{}",
+            String::from_utf8_lossy(&app_files.stdout)
+        );
+        let app_files: Value = serde_json::from_slice(&app_files.stdout).unwrap();
+        assert_eq!(app_files["result"]["total"], 1);
+        assert_eq!(app_files["result"]["items"][0]["logical"], 7);
         assert_eq!(result["next_offset"], Value::Null);
         assert!(result.get("chart").is_none());
         assert!(result.get("unbound_records").is_none());
@@ -414,7 +427,7 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     assert_eq!(expression["result"]["items"][0]["id"], node);
     for query in [
         r#"{"expression":"size>private-secret"}"#,
-        r#"{"expression":"app:private-secret"}"#,
+        r#"{"expression":"app-id:private-secret"}"#,
     ] {
         let invalid = run(&["query", &snapshot.to_string(), query]);
         assert_eq!(invalid.status.code(), Some(2));

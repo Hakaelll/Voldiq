@@ -65,6 +65,7 @@
     scopeId,
     manageable,
     onreviewcache,
+    onapplication,
   }: {
     indexId: IndexId | null;
     paused: boolean;
@@ -106,6 +107,7 @@
     scopeId: number;
     manageable: boolean;
     onreviewcache: (context: ApplicationCleanupContext) => void;
+    onapplication: (id: string) => void;
   } = $props();
   let section = $state<'summary' | 'applications'>('summary');
   const distribution = $derived(visibleFileTypes(types));
@@ -162,10 +164,7 @@
       scopeName={directory.path}
       filters={appFilters}
       paused={paused || queryState === 'loading' || searchState === 'loading'}
-      onopen={(id) => {
-        onopen(id);
-        onlist();
-      }}
+      onopen={onapplication}
     />
   {:else}
     <p role="status">Waiting for the selected folder context.</p>

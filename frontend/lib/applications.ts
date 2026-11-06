@@ -36,7 +36,7 @@ export interface ApplicationCoverage {
   rejected: number;
 }
 export interface ApplicationPage {
-  attribution: 'current' | 'captured';
+  attribution: 'current' | 'indexed' | 'captured';
   scope: number;
   indexed_at: number | null;
   registrations_observed_at: number;
@@ -272,7 +272,12 @@ function coverage(value: unknown): ApplicationCoverage {
 }
 export function readApplicationPage(value: unknown): ApplicationPage {
   const item = record(value);
-  if (item.attribution !== 'current' && item.attribution !== 'captured') return invalid();
+  if (
+    item.attribution !== 'current' &&
+    item.attribution !== 'indexed' &&
+    item.attribution !== 'captured'
+  )
+    return invalid();
   const page: ApplicationPage = {
     attribution: item.attribution,
     scope: integer(item.scope, 0xffffffff),

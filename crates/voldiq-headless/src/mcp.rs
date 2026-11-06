@@ -370,8 +370,14 @@ fn invoke(
             let args: QueryArgs = parse(args)?;
             serde_json::to_value(
                 service
-                    .query(args.snapshot_id, &args.query)
-                    .map_err(query_unavailable)?,
+                    .query(args.snapshot_id, &args.query, cancel)
+                    .map_err(query_unavailable)?
+                    .ok_or_else(|| {
+                        super::failure(
+                            "query_cancelled",
+                            "Query cancelled; no partial page returned.",
+                        )
+                    })?,
             )
             .map_err(unavailable)
         }

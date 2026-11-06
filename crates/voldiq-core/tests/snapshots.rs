@@ -196,20 +196,25 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             (&"18".to_string(), 2)
         );
         assert_eq!(filtered.unattributed.logical_bytes, "0");
-        assert!(
-            voldiq_core::applications::query(
-                &index,
-                catalog.clone(),
-                &AppQuery {
-                    filters: Query {
-                        expression: "app:Suite".into(),
-                        ..Default::default()
-                    },
+        let application_filtered = voldiq_core::applications::query(
+            &index,
+            catalog.clone(),
+            &AppQuery {
+                filters: Query {
+                    expression: "app:Suite".into(),
                     ..Default::default()
                 },
-                &loading
-            )
-            .is_err()
+                ..Default::default()
+            },
+            &loading,
+        )
+        .unwrap();
+        assert_eq!(
+            (
+                application_filtered.total.logical_bytes.as_str(),
+                application_filtered.total.files
+            ),
+            ("18", 2)
         );
         assert!(
             voldiq_core::applications::query(
@@ -488,6 +493,25 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                 )
                 .is_err()
             );
+            for (expression, files) in [
+                ("app:\"Cache consumer\" app-category:cache", 0),
+                ("app:\"Cache consumer\" app-category:installation", 1),
+            ] {
+                let result = voldiq_core::applications::query(
+                    &indexed,
+                    shared.clone(),
+                    &AppQuery {
+                        filters: Query {
+                            expression: expression.into(),
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    &loading,
+                )
+                .unwrap();
+                assert_eq!(result.total.files, files, "{expression}");
+            }
             let shared =
                 voldiq_core::applications::query(&indexed, shared, &AppQuery::default(), &loading)
                     .unwrap();
@@ -726,12 +750,188 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             let legacy_id = history.save(&indexed, &loading, &[]).unwrap();
             let legacy = history.load(legacy_id, &loading).unwrap();
             assert!(
+                legacy
+                    .query(&Query {
+                        expression: "app-category:cache".into(),
+                        ..Default::default()
+                    })
+                    .is_err()
+            );
+            assert!(
                 voldiq_core::applications::read_desktop(&legacy, &AppQuery::default(), &loading)
                     .is_err()
             );
             indexed.captured_applications = Some(
                 voldiq_core::applications::capture(&indexed, claims.clone(), &loading).unwrap(),
             );
+            let indexed_apps =
+                voldiq_core::applications::read_desktop(&indexed, &AppQuery::default(), &loading)
+                    .unwrap();
+            assert!(matches!(
+                indexed_apps.attribution,
+                voldiq_core::applications::Attribution::Indexed
+            ));
+            if std::env::var("VOLDIQ_KEEP_APPLICATION_FIXTURE").as_deref() == Ok("1") {
+                std::fs::write(
+                    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                        .join("../../target/probes/application-search-indexed-fixture.json"),
+                    serde_json::to_vec_pretty(&indexed_apps).unwrap(),
+                )
+                .unwrap();
+            }
+            for (expression, bytes, files) in [
+                ("app:\"google chrome\" app-category:cache".to_string(), 8, 2),
+                ("app-category:cache size>1B".into(), 7, 1),
+                ("app-category:data".into(), 18, 2),
+                ("app-category:logs".into(), 3, 1),
+                ("app-category:unknown".into(), 0, 0),
+                ("app-category:cache app-category:data".into(), 0, 0),
+                ("app:unregistered".into(), 0, 0),
+                (format!("app-id:{}", measured.applications[0].id), 40, 6),
+            ] {
+                let page = indexed
+                    .query(&Query {
+                        expression,
+                        ..Default::default()
+                    })
+                    .unwrap();
+                assert_eq!(
+                    (
+                        page.items.iter().map(|entry| entry.logical).sum::<u64>(),
+                        page.total
+                    ),
+                    (bytes, files)
+                );
+                assert!(
+                    page.items
+                        .iter()
+                        .all(|entry| entry.kind == voldiq_core::Kind::File)
+                );
+            }
+            for expression in ["app:", "app-id:abc", "app-category:temporary"] {
+                assert!(
+                    Query {
+                        expression: expression.into(),
+                        ..Default::default()
+                    }
+                    .compile()
+                    .is_err()
+                );
+            }
+            let translated = voldiq_core::search::translate(
+                "application cache and application named \"Google Chrome\"",
+            )
+            .unwrap();
+            assert!(translated.unparsed.is_empty());
+            assert_eq!(
+                indexed
+                    .query(&Query {
+                        expression: translated.expression,
+                        ..Default::default()
+                    })
+                    .unwrap()
+                    .total,
+                2
+            );
+            let mut calls = 0;
+            assert!(
+                indexed
+                    .query_cancellable(
+                        &Query {
+                            expression: "app-category:cache".into(),
+                            ..Default::default()
+                        },
+                        || {
+                            calls += 1;
+                            calls > 3
+                        }
+                    )
+                    .unwrap()
+                    .is_none()
+            );
+            #[cfg(windows)]
+            {
+                use voldiq_core::agents::{Capability, Limits, Policy, Registry};
+                let agent_state = tempfile::tempdir().unwrap();
+                let mut child = capture(&data);
+                let ancestor_claim = Catalog {
+                    registrations: vec![Registration {
+                        profile: None,
+                        name: "Outside application claim".into(),
+                        ..claims.registrations[0].clone()
+                    }],
+                    ..claims.clone()
+                };
+                child.captured_applications = Some(
+                    voldiq_core::applications::capture(&child, ancestor_claim, &loading).unwrap(),
+                );
+                assert_eq!(
+                    child
+                        .query(&Query {
+                            expression: "app:\"Outside application claim\"".into(),
+                            ..Default::default()
+                        })
+                        .unwrap()
+                        .total,
+                    5,
+                    "{}",
+                    serde_json::to_string(&child.captured_applications).unwrap()
+                );
+                let child_id = Store::open(&agent_state.path().join("snapshots.db"))
+                    .unwrap()
+                    .save(&child, &loading, &[])
+                    .unwrap();
+                let mut registry = Registry::open(&agent_state.path().join("agents.db")).unwrap();
+                for (root, files) in [(&data, 0), (&profiles.path().to_owned(), 5)] {
+                    let reader = registry
+                        .provision(
+                            "Application scope",
+                            Policy::new(
+                                vec![root.clone()],
+                                vec![],
+                                vec![Capability::Metadata],
+                                Limits::default(),
+                            )
+                            .unwrap(),
+                        )
+                        .unwrap();
+                    let service = voldiq_core::service::AgentService::new(
+                        agent_state.path().to_owned(),
+                        registry.authenticate(reader.credential.expose()).unwrap(),
+                    )
+                    .unwrap();
+                    for _ in 0..2 {
+                        let page = service
+                            .query(
+                                child_id,
+                                &Query {
+                                    expression: "app:\"Outside application claim\"".into(),
+                                    ..Default::default()
+                                },
+                                &loading,
+                            )
+                            .unwrap()
+                            .unwrap();
+                        assert_eq!(
+                            page.total,
+                            files,
+                            "{}",
+                            serde_json::to_string(
+                                &service
+                                    .applications(child_id, Default::default(), &loading)
+                                    .unwrap()
+                            )
+                            .unwrap()
+                        );
+                    }
+                    registry.revoke(reader.id).unwrap();
+                    assert!(
+                        service
+                            .query(child_id, &Query::default(), &loading)
+                            .is_err()
+                    );
+                }
+            }
             let first_capture = history.save(&indexed, &loading, &[]).unwrap();
             let profile_id = indexed
                 .entries
@@ -815,6 +1015,42 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                 .unwrap()
                 .id;
             assert_ne!(loaded_profile, remap(profile_id));
+            let search = Query {
+                expression: "app:\"Google Chrome\" app-category:cache".into(),
+                ..Default::default()
+            };
+            assert_eq!(saved.query(&search).unwrap().total, 2);
+            let metrics = saved
+                .map_metrics_cancellable(
+                    voldiq_core::NodeId(0),
+                    &[loaded_profile],
+                    None,
+                    Some(&search.compile().unwrap()),
+                    || false,
+                )
+                .unwrap()
+                .unwrap();
+            assert_eq!(metrics[0].matches.as_ref().unwrap().descendants, 2);
+            let mut csv = Vec::new();
+            let report = voldiq_core::exports::stream_csv(
+                &saved,
+                &voldiq_core::exports::ReportSelection {
+                    items: voldiq_core::exports::ReportItems::Files,
+                    filter: voldiq_core::exports::ReportFilter {
+                        expression: search.expression.clone(),
+                        ..Default::default()
+                    },
+                    include_paths: false,
+                },
+                &mut csv,
+                &loading,
+                |_| {},
+            )
+            .unwrap();
+            assert!(
+                matches!(report, voldiq_core::exports::StreamOutcome::Complete(progress) if progress.rows == 2)
+            );
+            assert!(!String::from_utf8(csv).unwrap().contains("browser.exe"));
             assert_eq!(recorded.applications[0].profile_scope, Some(loaded_profile));
             assert_eq!(
                 recorded.applications[0]
@@ -875,6 +1111,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             }
             std::fs::rename(&retired, &data).unwrap();
             indexed.captured_applications = Some(voldiq_core::applications::Capture::unavailable());
+            assert!(indexed.query(&search).is_err());
             let unavailable_id = history.save(&indexed, &loading, &[]).unwrap();
             assert!(
                 voldiq_core::applications::read_desktop(

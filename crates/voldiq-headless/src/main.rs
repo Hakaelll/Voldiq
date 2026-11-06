@@ -2,6 +2,7 @@ mod mcp;
 
 use serde_json::{Value, json};
 use std::path::PathBuf;
+use std::sync::atomic::AtomicBool;
 use voldiq_core::{agents::Registry, service::AgentService};
 
 fn success(result: Value) -> Value {
@@ -111,8 +112,9 @@ async fn run(args: &mut Vec<String>) -> Result<Option<Value>, CliError> {
             };
             serde_json::to_value(
                 service
-                    .query(number(&args[1])?, &query)
-                    .map_err(query_operation)?,
+                    .query(number(&args[1])?, &query, &AtomicBool::new(false))
+                    .map_err(query_operation)?
+                    .ok_or_else(operation)?,
             )
             .map_err(|_| operation())?
         }
