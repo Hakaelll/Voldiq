@@ -183,6 +183,11 @@
   let fileRepresentation = $state<'table' | 'grid'>('table');
   let mapMetrics = $state<OverviewData['map_metrics']>([]);
   let showMapList = $state(false);
+  let chartExpanded = $state(false);
+  const chartFocused = $derived(view === 'explorer' && explorerMap && chartExpanded);
+  $effect(() => {
+    if (view !== 'explorer' || !explorerMap) chartExpanded = false;
+  });
   const navigationRefresh = createNavigationRefresh();
   let analysisBusy = $state(false);
   let liveBusy = $state(false);
@@ -1334,6 +1339,11 @@
           closeSaved();
           return;
         }
+        if (chartFocused) {
+          event.preventDefault();
+          chartExpanded = false;
+          return;
+        }
         invalidateInteraction();
         showIssues = false;
         details = null;
@@ -1438,18 +1448,6 @@
           >{/if}</button
       >
       <button
-        title={theme === 'light' ? 'Use dark theme' : 'Use light theme'}
-        aria-label={theme === 'light' ? 'Use dark theme' : 'Use light theme'}
-        aria-pressed={theme === 'dark'}
-        onclick={() => {
-          theme = theme === 'light' ? 'dark' : 'light';
-          savePreferences();
-        }}
-        ><Icon name={theme === 'dark' ? 'sun' : 'moon'} />{#if expanded}<span
-            >{theme === 'dark' ? 'Light theme' : 'Dark theme'}</span
-          >{/if}</button
-      >
-      <button
         class:active={view === 'settings'}
         title="Settings"
         disabled={analysisBusy}
@@ -1461,7 +1459,7 @@
       >
     </div>
   </aside>
-  <div class="workspace">
+  <div class="workspace" class:chart-expanded={chartFocused}>
     <header class="toolbar">
       {#if indexedView || (view === 'cleanup' && cleanupSection === 'windows')}<div
           class="toolbar-location"
@@ -1477,7 +1475,7 @@
                   >{drive.name || 'Local disk'} ({drive.path}) · {drive.filesystem}</option
                 >{/each}</select
             ></label
-          >{#if indexedView && (ready || view !== 'overview')}<button
+          >{#if !chartFocused && operation?.phase !== 'scanning' && indexedView && (ready || view !== 'overview')}<button
               onclick={choose}
               disabled={busy || !isTauri()}><Icon name="folder" />Choose folder</button
             >
@@ -1606,7 +1604,7 @@
     >
       <div class="page-heading">
         <div>
-          <h1>
+          <h1 class:sr-only={chartFocused}>
             {view === 'overview'
               ? 'Storage overview'
               : view === 'explorer'
@@ -1623,18 +1621,64 @@
                           ? 'History'
                           : 'Settings'}
           </h1>
-          {#if view !== 'settings' && view !== 'history' && scanPath}<p>
-              {scanPath}{#if historical}
-                · Snapshot · {date(historical.captured)}{/if}
-            </p>{/if}
+          {#if view !== 'settings' && view !== 'history' && scanPath}
+            <div class="page-context">
+              {#if indexedView && ready && directory && scope !== 0}
+                <nav class="breadcrumbs" aria-label="Current folder">
+                  <button title="Scan root" onclick={(event) => open(0, event.detail > 0)}
+                    >{scanPath}</button
+                  >
+                  {#each directory.ancestors.filter((entry) => entry.id !== 0) as ancestor (ancestor.id)}
+                    <Icon name="expand" size={12} />
+                    <button onclick={(event) => open(ancestor.id, event.detail > 0)}
+                      >{ancestor.name}</button
+                    >
+                  {/each}
+                  <Icon name="expand" size={12} /><span>{directory.entry.name}</span>
+                </nav>
+              {:else}
+                <span class="page-path">{scanPath}</span>
+              {/if}
+              {#if historical}<span>Snapshot · {date(historical.captured)}</span>{/if}
+              {#if indexedView && directory?.entry.incomplete}
+                <span class="coverage-state" title="Some entries are outside the indexed coverage.">
+                  {operation?.phase === 'scanning' ? 'Partial results' : 'Incomplete coverage'}
+                </span>
+              {/if}
+            </div>
+          {/if}
         </div>
         <div class="page-actions">
-          {#if indexedView}<ScanProfileSelect
-              bind:profile={scanProfile}
+          {#if ready && historical === null && indexId !== null}
+            <LiveControl
+              {indexId}
+              path={scanPath}
               disabled={busy}
-              compact
-              onchange={savePreferences}
-            />{/if}
+              hideIdle={operation?.phase === 'scanning' || chartFocused}
+              concurrency={scanConcurrency}
+              profile={scanProfile}
+              onbusy={(value) => {
+                liveBusy = value;
+              }}
+              onobserved={observeLive}
+            />
+          {/if}
+          {#if !chartFocused && indexedView && operation?.phase !== 'scanning'}
+            {#if ready && indexId !== null && directory}
+              <FolderBudget
+                {indexId}
+                id={details?.entry.kind === 'directory' ? details.entry.id : scope}
+                path={details?.entry.kind === 'directory' ? details.path : directory.path}
+                sourceKey={`${operation?.phase ?? 'saved'}:${operation?.analyzed_at ?? liveObservation?.measured_at ?? historical?.captured ?? 'undated'}`}
+                disabled={busy || historical !== null}
+              />
+            {:else}<ScanProfileSelect
+                bind:profile={scanProfile}
+                disabled={busy}
+                compact
+                onchange={savePreferences}
+              />{/if}
+          {/if}
           {#if graphicExport}<GraphicExport
               indexId={graphicExport.indexId}
               context={graphicExport.context}
@@ -1646,7 +1690,7 @@
                 exportBusy = value;
               }}
             />{/if}
-          {#if indexedView && ready && indexId !== null}{#key indexId}<ReportExport
+          {#if !chartFocused && operation?.phase !== 'scanning' && indexedView && ready && indexId !== null}{#key indexId}<ReportExport
                 {indexId}
                 {scope}
                 root={scanPath}
@@ -1661,7 +1705,7 @@
                   exportBusy = value;
                 }}
               />{/key}{/if}
-          {#if indexedView && (ready || view !== 'overview')}<button
+          {#if !chartFocused && operation?.phase !== 'scanning' && indexedView && (ready || view !== 'overview')}<button
               class:primary={!ready}
               onclick={() => start(scanPath || volumePath)}
               disabled={!isTauri() || busy || !(scanPath || volumePath)}
@@ -1694,19 +1738,6 @@
               }}>Dismiss</button
             >{/if}
         </div>{/if}
-      {#if ready && historical === null && indexId !== null}
-        <LiveControl
-          {indexId}
-          path={scanPath}
-          disabled={busy}
-          concurrency={scanConcurrency}
-          profile={scanProfile}
-          onbusy={(value) => {
-            liveBusy = value;
-          }}
-          onobserved={observeLive}
-        />
-      {/if}
       {#if operation && !liveBusy && !liveObservation && (operation.phase === 'scanning' || (view !== 'settings' && view !== 'duplicates' && view !== 'history'))}<div
           class="scan-status"
           aria-live="polite"
@@ -1747,29 +1778,22 @@
             ).toFixed(1)} s</span
           >{#if operation.phase === 'scanning' && pauseStatus.observed === 'paused' && pauseStatus.activity !== 'resume'}<span
               >Last reported progress</span
-            >{/if}{#if operation.errors > 0}<button onclick={inspectIssues}
+            >{/if}{#if operation.errors > 0}<button class="quiet-action" onclick={inspectIssues}
               >{operation.errors} access issues</button
-            >{/if}{#if operation.phase === 'scanning'}<ScanPauseControl
-              id={scanId}
-              supported={pauseEligible}
-              onstate={(state) => {
-                pauseStatus = state;
-              }}
-            /><button onclick={cancel} disabled={scanId === null}>Cancel scan</button
+            >{/if}{#if operation.phase === 'scanning'}{#if pauseEligible}<ScanPauseControl
+                id={scanId}
+                supported={pauseEligible}
+                onstate={(state) => {
+                  pauseStatus = state;
+                }}
+              />{/if}<button class="quiet-action" onclick={cancel} disabled={scanId === null}
+              >Cancel scan</button
             >{/if}{#if operation.analyzed_at !== null}<time
               datetime={new Date(operation.analyzed_at * 1000).toISOString()}
               title="Analysis date">{date(operation.analyzed_at)}</time
             >{/if}
         </div>{/if}
-      {#if indexedView && ready && indexId !== null && directory}
-        <FolderBudget
-          {indexId}
-          id={details?.entry.kind === 'directory' ? details.entry.id : scope}
-          path={details?.entry.kind === 'directory' ? details.path : directory.path}
-          sourceKey={`${operation?.phase ?? 'saved'}:${operation?.analyzed_at ?? liveObservation?.measured_at ?? historical?.captured ?? 'undated'}`}
-          disabled={busy || historical !== null}
-        />
-      {/if}
+
       {#if view === 'settings'}
         <section class="settings-panel">
           <ProtectedFolders />
@@ -1982,24 +2006,7 @@
               }}
             />
           {:else}
-            {#if ready}<div class="breadcrumbs">
-                <button title="Scan root" onclick={(event) => open(0, event.detail > 0)}
-                  ><Icon name="disk" />Scan root</button
-                >{#each directory?.ancestors.filter((entry) => entry.id !== 0) ?? [] as ancestor}<Icon
-                    name="expand"
-                    size={12}
-                  /><button onclick={(event) => open(ancestor.id, event.detail > 0)}
-                    >{ancestor.name}</button
-                  >{/each}{#if directory && scope !== 0}<Icon name="expand" size={12} /><span
-                    >{directory.entry.name}</span
-                  >{/if}{#if directory?.entry.parent !== null && directory?.entry.parent !== undefined}<button
-                    class="back-button"
-                    onclick={(event) => open(directory?.entry.parent ?? 0, event.detail > 0)}
-                    ><Icon name="back" />Parent folder</button
-                  >{/if}
-              </div>{/if}
-            {#if directory?.entry.incomplete}<div class="notice">Incomplete coverage</div>{/if}
-            {#if indexedView}
+            {#if indexedView && (explored.size || details)}
               <div class="exploration-bar" role="group" aria-label="Inspection selection">
                 <span role="status" class:sr-only={!explored.size}>
                   {explored.size} selected for inspection
@@ -2195,74 +2202,75 @@
                         if (details) details = null;
                         else if (directory?.entry.parent != null) void open(directory.entry.parent);
                       }}
+                      expanded={chartFocused}
+                      onexpand={() => {
+                        chartExpanded = !chartExpanded;
+                      }}
+                      itemsOpen={showMapList}
+                      onitems={() => {
+                        showMapList = !showMapList;
+                      }}
                       oninspect={() => {
                         if (details) details = null;
                         else if (nodes.find((n) => n.id >= 0))
                           void select(nodes.find((n) => n.id >= 0)?.id ?? 0);
                       }}
                     />
-                    <button
-                      class="map-list-toggle"
-                      aria-expanded={showMapList}
-                      onclick={() => {
-                        showMapList = !showMapList;
-                      }}
-                      >Items · keyboard accessible list<Icon
-                        name={showMapList ? 'chevron-up' : 'chevron-down'}
-                        size={14}
-                      /></button
-                    >
                   {/if}
                   <div
                     class:map-list-hidden={view === 'explorer' && explorerMap && !showMapList}
                     class:map-list-visible={view === 'explorer' && explorerMap && showMapList}
                   >
-                    <div class="filter-bar">
-                      <CloudFilterSelect value={cloudFilter} onchange={changeCloudFilter} />
-                      {#if view === 'explorer'}<label
-                          >Size<select bind:value={sizeMode} onchange={savePreferences}>
-                            <option value="logical">Logical bytes</option><option value="allocated"
-                              >Unique allocation</option
-                            >
-                          </select></label
-                        >{/if}
-                      <label
-                        >Extension<input
-                          bind:value={extension}
-                          placeholder="All extensions"
-                          disabled={withoutExtension}
-                        /></label
-                      >
-                      <label class="extensionless-filter"
-                        ><input type="checkbox" bind:checked={withoutExtension} />No extension</label
-                      >{#if view === 'large'}<label
-                          >Items<select bind:value={largeKind}
-                            ><option value="file">Files</option><option value="directory"
-                              >Folders</option
-                            ></select
+                    <details class="file-filters">
+                      <summary>Filters</summary>
+                      <div class="filter-bar">
+                        <CloudFilterSelect value={cloudFilter} onchange={changeCloudFilter} />
+                        {#if view === 'explorer'}<label
+                            >Size<select bind:value={sizeMode} onchange={savePreferences}>
+                              <option value="logical">Logical bytes</option><option
+                                value="allocated">Unique allocation</option
+                              >
+                            </select></label
+                          >{/if}
+                        <label
+                          >Extension<input
+                            bind:value={extension}
+                            placeholder="All extensions"
+                            disabled={withoutExtension}
+                          /></label
+                        >
+                        <label class="extensionless-filter"
+                          ><input type="checkbox" bind:checked={withoutExtension} />No extension</label
+                        >{#if view === 'large'}<label
+                            >Items<select bind:value={largeKind}
+                              ><option value="file">Files</option><option value="directory"
+                                >Folders</option
+                              ></select
+                            ></label
+                          ><label
+                            >Minimum MiB<input type="number" min="0" bind:value={minSize} /></label
+                          ><label>Modified before<input type="date" bind:value={before} /></label
+                          >{/if}<label
+                          >Sort<select bind:value={sort}
+                            ><option value="size">Largest first</option><option value="name"
+                              >Name</option
+                            ><option value="modified">Newest first</option></select
                           ></label
-                        ><label
-                          >Minimum MiB<input type="number" min="0" bind:value={minSize} /></label
-                        ><label>Modified before<input type="date" bind:value={before} /></label
-                        >{/if}<label
-                        >Sort<select bind:value={sort}
-                          ><option value="size">Largest first</option><option value="name"
-                            >Name</option
-                          ><option value="modified">Newest first</option></select
-                        ></label
-                      ><button
-                        onclick={() => {
-                          text = '';
-                          extension = '';
-                          withoutExtension = false;
-                          before = '';
-                          minSize = 100;
-                          largeKind = 'file';
-                          searchExpression = '';
-                          changeCloudFilter(null);
-                        }}>Reset filters</button
-                      >
-                    </div>
+                        ><button
+                          class="quiet-action"
+                          onclick={() => {
+                            text = '';
+                            extension = '';
+                            withoutExtension = false;
+                            before = '';
+                            minSize = 100;
+                            largeKind = 'file';
+                            searchExpression = '';
+                            changeCloudFilter(null);
+                          }}>Reset filters</button
+                        >
+                      </div>
+                    </details>
                     <FileTable
                       representation={view === 'explorer' && !explorerMap
                         ? fileRepresentation

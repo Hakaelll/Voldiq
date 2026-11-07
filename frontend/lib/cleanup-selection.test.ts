@@ -20,7 +20,14 @@ import { getIndexContext, setIndexContext, invokeIndexed } from './index-context
 import { SvgSurface } from './svg-surface.ts';
 import type { PaintOptions } from './map-painter.ts';
 import { mapSvg, mapPng, pngDimensions } from './graphic-export.ts';
-import { createStorageLayout } from './storage-map.ts';
+import {
+  STORAGE_HEIGHT,
+  STORAGE_INSET,
+  createStorageLayout,
+  storagePlotWidth,
+} from './storage-map.ts';
+import { fitCamera, worldToScreen } from './disk-city.ts';
+import { RADIAL_BOUNDS, radialHit, radialLayout } from './radial-map.ts';
 import {
   createReportExport,
   reportSelection,
@@ -578,6 +585,56 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   await cancellingCsv;
   assert.deepEqual(reportFormats, ['xlsx', 'pdf']);
   assert.equal(csvStates.length, disposedStates);
+  const viewport = { width: 1300, height: 320 };
+  const plotWidth = storagePlotWidth('treemap', viewport.width, viewport.height);
+  const fit = fitCamera(
+    { x: 0, y: 0, width: plotWidth, height: STORAGE_HEIGHT },
+    viewport.width,
+    viewport.height,
+    STORAGE_INSET,
+  );
+  const wide = createStorageLayout(
+    [
+      { id: 1, name: 'Large', value: 60, directory: false },
+      { id: 2, name: 'Small', value: 40, directory: false },
+    ],
+    6,
+    plotWidth,
+  );
+  const farRight = Math.max(...wide.rects.map((item) => item.x + item.width));
+  assert.ok(worldToScreen({ x: farRight, y: 0 }, fit).x > 1275);
+  assert.ok(
+    Math.abs((wide.rects[0].width * wide.rects[0].height) / (plotWidth * STORAGE_HEIGHT) - 0.6) <
+      1e-9,
+  );
+  const sunburst = radialLayout(
+    createStorageLayout([
+      { id: 1, name: 'Root file', value: 60, directory: false },
+      {
+        id: 2,
+        name: 'Folder',
+        value: 40,
+        directory: true,
+        children: [{ id: 3, name: 'Nested file', value: 40, directory: false }],
+      },
+    ]),
+    'sunburst',
+  );
+  const leaves = sunburst.shapes
+    .filter((shape) => shape.kind === 'sector')
+    .filter((shape) => !shape.structural);
+  assert.equal(leaves.length, 2);
+  for (const leaf of leaves) {
+    assert.equal(leaf.outer, RADIAL_BOUNDS.width / 2);
+    const angle = (leaf.start + leaf.end) / 2;
+    assert.equal(
+      radialHit(sunburst, {
+        x: leaf.x + (leaf.outer - 1) * Math.cos(angle),
+        y: leaf.y + (leaf.outer - 1) * Math.sin(angle),
+      })?.id,
+      leaf.node.id,
+    );
+  }
   const map = createStorageLayout([
     { id: 1, name: '<script>A & B</script>', value: 60, directory: false },
     { id: 2, name: 'Other', value: 40, directory: false },

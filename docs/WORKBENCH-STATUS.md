@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Expanded charts and compact analysis workspace
+
+Explorer puts scope and incomplete coverage next to the title. The scan progress row stays available without the idle Live strip, a full-width budget box or an empty selection line. Budget, filters and chart explanations expand on request. Theme switching lives in Settings. The two themes share more closely matched surfaces while keeping explicit text, focus and selection.
+
+Expand chart increases the area of the current Explorer visualization and exits with Escape. Treemap uses the viewport aspect ratio, with labels drawn directly on sufficiently large tiles. Sunburst sectors keep measured byte angles and extend terminal items to the outer edge. The overview donut assigns distinct colors to the leading extensions and uses those colors in its legend.
+
+The six source checks passed with eight behavior tests and zero Svelte diagnostics. The retained chart case covers wide viewport fit, proportional treemap areas and picking shallow and deep Sunburst items at the outer edge. The encoding audit found zero invalid UTF-8 files or known mojibake signatures across 276 runtime source files after correcting View options. Measured text contrast was at least 5.58:1 for the checked workspace pairs and 4.70:1 for the tile pairs. Populated visual, keyboard and Windows scaling checks remain manual. [Source verification](../benchmarks/workbench-chart-workspace-source-20261107.json)
+
 ## Safe file inspection and download provenance
 
 Inspect file opens from the live file details. Explicit reads reuse the indexed file identity and a pinned parent, check the current local file before and after reading, and refuse sensitive paths, incomplete entries and cloud placeholders. Text preview reads at most 64 KiB of UTF-8 or BOM-marked UTF-16 and uses plain text. Static PNG input is bounded by file size and resolution and is re-encoded as a thumbnail. Other formats retain their indexed metadata.

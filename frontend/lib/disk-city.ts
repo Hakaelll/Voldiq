@@ -288,10 +288,10 @@ export function pickFace(faces: Face[], point: Point): Face | null {
   return null;
 }
 
-export function fitCamera(bounds: Bounds, width: number, height: number): Camera {
+export function fitCamera(bounds: Bounds, width: number, height: number, padding = 24): Camera {
   const scale = Math.min(
-    Math.max(1, width - 48) / Math.max(1, bounds.width),
-    Math.max(1, height - 48) / Math.max(1, bounds.height),
+    Math.max(1, width - 2 * padding) / Math.max(1, bounds.width),
+    Math.max(1, height - 2 * padding) / Math.max(1, bounds.height),
   );
   return {
     x: width / 2 - (bounds.x + bounds.width / 2) * scale,

@@ -143,25 +143,30 @@
 </script>
 
 <details class="folder-budget" bind:open={expanded}>
-  <summary>
+  <summary title={path}>
     <span class="budget-heading"
-      ><Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={14} /><strong>Folder budget</strong><span title={path}>{path}</span></span
+      ><Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={14} /><strong
+        >Folder budget</strong
+      >{#if expanded}<span title={path}>{path}</span>{/if}</span
     >
-    <span class="budget-summary" class:over={report?.status === 'exceeded'}>
-      {#if report}<span
-          >{report.coverage === 'complete' ? '' : 'At least '}{bytes(
-            Number(report.logical_bytes),
-          )}{#if report.budget}
-            / {bytes(Number(report.budget.limit_bytes))}{/if}</span
-        >
-        {#if report.observed_percent !== null}<progress
-            aria-label="Observed logical bytes relative to budget"
-            value={Math.min(100, report.observed_percent)}
-            max="100"
-            aria-valuetext={`${report.observed_percent.toFixed(1)}% observed`}
-          ></progress>{/if}<strong>{status}</strong>
-      {:else if current?.kind === 'failed'}Unavailable{:else}Loading…{/if}
-    </span>
+    {#if expanded || report?.status === 'exceeded' || report?.status === 'at_limit'}<span
+        class="budget-summary"
+        class:over={report?.status === 'exceeded'}
+      >
+        {#if report}<span
+            >{report.coverage === 'complete' ? '' : 'At least '}{bytes(
+              Number(report.logical_bytes),
+            )}{#if report.budget}
+              / {bytes(Number(report.budget.limit_bytes))}{/if}</span
+          >
+          {#if report.observed_percent !== null}<progress
+              aria-label="Observed logical bytes relative to budget"
+              value={Math.min(100, report.observed_percent)}
+              max="100"
+              aria-valuetext={`${report.observed_percent.toFixed(1)}% observed`}
+            ></progress>{/if}<strong>{status}</strong>
+        {:else if current?.kind === 'failed'}Unavailable{:else}Loading…{/if}
+      </span>{/if}
   </summary>
   {#if expanded}<div class="budget-body">
       <span class="budget-basis"

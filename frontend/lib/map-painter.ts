@@ -144,9 +144,12 @@ function label(
   box: Box,
   options: PaintOptions,
   occupied: Box[],
+  flat = false,
 ): void {
-  const { camera, width, height, selected, hovered } = options;
+  const { width, height, selected, hovered, matches } = options;
   const active = rect.id === selected || rect.id === hovered;
+  const dimmed = matches !== null && !matches.has(rect.id);
+  if (!active && dimmed) return;
   const text = `${rect.name}${rect.id < 0 ? ' · group' : ''}`;
   ctx.font = '600 12px "Segoe UI", sans-serif';
   const textWidth = ctx.measureText(text).width;
@@ -162,21 +165,31 @@ function label(
   const area = { x, y, width: Math.min(textWidth + 20, 240), height: 38 };
   if (!active && occupied.some((other) => intersects(area, other))) return;
   occupied.push(area);
-  ctx.fillStyle = options.style.surface;
-  ctx.fillRect(x, y, area.width, area.height);
-  ctx.strokeStyle = active ? options.style.text : options.style.border;
-  ctx.lineWidth = active ? 2 : 1;
-  ctx.strokeRect(x + 0.5, y + 0.5, area.width - 1, area.height - 1);
+  const onTile =
+    flat &&
+    !dimmed &&
+    x >= box.x &&
+    y >= box.y &&
+    x + area.width <= box.x + box.width &&
+    y + area.height <= box.y + box.height;
+  if (!onTile) {
+    ctx.fillStyle = options.style.surface;
+    ctx.fillRect(x, y, area.width, area.height);
+    ctx.strokeStyle = active ? options.style.text : options.style.border;
+    ctx.lineWidth = active ? 2 : 1;
+    ctx.strokeRect(x + 0.5, y + 0.5, area.width - 1, area.height - 1);
+  }
   ctx.save();
   ctx.beginPath();
   ctx.rect(x + 8, y, area.width - 16, 38);
   ctx.clip();
-  ctx.fillStyle = options.style.text;
+  ctx.fillStyle = onTile
+    ? visualPaint(rect, options.color, options.maximum, options.now).ink
+    : options.style.text;
   ctx.fillText(text, x + 8, y + 15);
   ctx.font = '11px "Segoe UI", sans-serif';
   ctx.fillText(bytes(rect.value), x + 8, y + 30);
   ctx.restore();
-  void camera;
 }
 
 export function paintFlat(ctx: PaintSurface, options: PaintOptions): number {
@@ -194,7 +207,7 @@ export function paintFlat(ctx: PaintSurface, options: PaintOptions): number {
     ctx.globalAlpha = options.matches && !options.matches.has(rect.id) ? 0.28 : 1;
     ctx.fillStyle = paint.fill;
     ctx.fillRect(box.x, box.y, box.width, box.height);
-    ctx.strokeStyle = options.style.surface;
+    ctx.strokeStyle = options.style.border;
     ctx.lineWidth = 1;
     ctx.strokeRect(box.x, box.y, box.width, box.height);
     if (
@@ -214,7 +227,7 @@ export function paintFlat(ctx: PaintSurface, options: PaintOptions): number {
       Number(b.rect.id === options.selected || b.rect.id === options.hovered) -
       Number(a.rect.id === options.selected || a.rect.id === options.hovered),
   ))
-    label(ctx, rect, box, options, occupied);
+    label(ctx, rect, box, options, occupied, true);
   return visible.length;
 }
 

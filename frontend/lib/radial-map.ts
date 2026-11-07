@@ -26,6 +26,12 @@ type Packed = { radius: number; shapes: RadialShape[]; id: number };
 const TAU = Math.PI * 2;
 const RADIUS = 330;
 const CENTER = { x: 500, y: 350 };
+export const RADIAL_BOUNDS = {
+  x: CENTER.x - RADIUS,
+  y: CENTER.y - RADIUS,
+  width: 2 * RADIUS,
+  height: 2 * RADIUS,
+};
 const MAX_SHAPES = 2100;
 
 function hierarchy(source: Source): { roots: Branch[]; depth: number } {
@@ -198,7 +204,7 @@ export function radialLayout(source: Source, mode: RadialView): RadialLayout {
           node: branch.node,
           structural: branch.structural,
           inner: Math.sqrt(hole ** 2 + (branch.node.depth - 1) * band),
-          outer: Math.sqrt(hole ** 2 + branch.node.depth * band),
+          outer: branch.structural ? Math.sqrt(hole ** 2 + branch.node.depth * band) : RADIUS,
           start: cursor,
           end: next,
         });

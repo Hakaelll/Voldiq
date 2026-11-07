@@ -19,6 +19,7 @@
   } from '../lib/types';
   import type { WeightedNode } from '../lib/treemap';
   import { categoryPaint, type ColorMode, type StorageDepth } from '../lib/storage-map';
+  import { RANKED_PAINTS } from '../lib/chart-colors';
   import { visibleFileTypes } from '../lib/file-types';
   import { fileSizeLabel } from '../lib/file-size';
   import { selectionOperation, type SelectionOperation, type SelectMany } from '../lib/exploration';
@@ -111,6 +112,9 @@
   } = $props();
   let section = $state<'summary' | 'applications'>('summary');
   const distribution = $derived(visibleFileTypes(types));
+  const typeColors = $derived(
+    distribution.items.map((_, index) => RANKED_PAINTS[index % RANKED_PAINTS.length].fill),
+  );
   const space = $derived(volumeMeasurement(volume));
   const callerSpace = $derived(volumeCaller(volume));
   const usedPercent = $derived(
@@ -119,19 +123,12 @@
   const typePaint = $derived.by(() => {
     if (types.total_bytes <= 0) return 'var(--paper)';
     let end = 0;
-    const stops = distribution.items
-      .filter((item) => item.bytes > 0)
-      .map((item) => {
-        const start = end;
-        end += (item.bytes / types.total_bytes) * 100;
-        const paint = categoryPaint({
-          id: 0,
-          name: `file.${item.extension ?? ''}`,
-          value: item.bytes,
-          directory: false,
-        });
-        return `${paint.fill} ${start}% ${end}%`;
-      });
+    const stops = distribution.items.flatMap((item, index) => {
+      if (item.bytes <= 0) return [];
+      const start = end;
+      end += (item.bytes / types.total_bytes) * 100;
+      return [`${typeColors[index]} ${start}% ${end}%`];
+    });
     if (distribution.otherBytes > 0) stops.push(`var(--strong) ${end}% 100%`);
     return stops.length ? `conic-gradient(${stops.join(', ')})` : 'var(--paper)';
   });
@@ -272,16 +269,10 @@
           </div>
         </div>
         <div class="type-legend">
-          {#each distribution.items as item}<button onclick={() => ontype(item)}>
-              <span
-                class="item-swatch"
-                style:background={categoryPaint({
-                  id: 0,
-                  name: `file.${item.extension ?? ''}`,
-                  value: item.bytes,
-                  directory: false,
-                }).fill}
-              ></span>
+          {#each distribution.items as item, index (item.extension)}<button
+              onclick={() => ontype(item)}
+            >
+              <span class="item-swatch" style:background={typeColors[index]}></span>
               <strong title={item.extension === null ? 'No extension' : `.${item.extension}`}
                 >{item.extension === null ? 'No extension' : `.${item.extension}`}</strong
               >

@@ -2,30 +2,32 @@
 name: Voldiq
 description: Compact Windows storage analysis with measured data and a white workspace.
 colors:
-  accent: "#0057d9"
-  accent-fill: "#0057d9"
+  accent: "#2963a6"
+  accent-fill: "#2963a6"
   accent-hover: "#173784"
-  selected: "#e9edf2"
-  canvas: "#fcfcf9"
-  surface: "#f3f4f0"
-  paper: "#e9ece7"
-  border: "#dce1d9"
-  strong: "#a7b2a8"
-  text: "#242c29"
-  secondary: "#505c54"
-  muted: "#59675e"
+  selected: "#e6edf5"
+  canvas: "#f7f8f9"
+  surface: "#f2f4f6"
+  paper: "#eaedf0"
+  border: "#dfe3e8"
+  strong: "#7b8692"
+  text: "#262d36"
+  secondary: "#525e6b"
+  muted: "#586575"
+  map-surface: "#eff2f5"
+  dark-map-surface: "#111419"
   error: "#a32424"
-  dark-canvas: "#090909"
-  dark-surface: "#111111"
-  dark-paper: "#1b1b1b"
-  dark-border: "#303030"
+  dark-canvas: "#0c0e11"
+  dark-surface: "#111318"
+  dark-paper: "#191c22"
+  dark-border: "#2a2e35"
   dark-strong: "#707070"
   dark-text: "#ededed"
   dark-secondary: "#c2c2c2"
   dark-muted: "#ababab"
-  dark-accent: "#83aeff"
-  dark-accent-fill: "#315ba6"
-  dark-selected: "#263c60"
+  dark-accent: "#8caff0"
+  dark-accent-fill: "#345787"
+  dark-selected: "#253347"
   dark-error: "#f29797"
   map-blue: "#3272d1"
   map-violet: "#7a63c6"
@@ -147,11 +149,13 @@ Overview, Cleanup, History and the Explorer list share text section controls wit
 
 Cleanup ranks files under a single category picker. The table leads with each file's name, path and modification date, followed by aligned sizes and review priority. A priority opens its evidence beneath the file row. Weight controls stay inside a disclosure and reordering preserves explicit selections.
 
+Explorer places the path and coverage status next to the page title. The scan uses one compact status row. Idle Live, Folder budget and list filters use compact controls. Expand chart uses the same map surface with more vertical room and exits with Escape. The Treemap fits the available aspect ratio. Labels that fit within a tile use its own foreground color. Theme selection lives in Settings.
+
 The live file inspector groups previews and download provenance under Inspect file. Reading starts with an explicit action. Text stays plain, thumbnails are static, and metadata remains visible when content is unsupported. Download provenance shows the recorded domain first. A separate button reveals the full URL as selectable text and closing the disclosure clears it.
 
 Populated maps show each sufficiently wide root region's percentage of the rendered measured weights, using the selected size metric. Nested children are excluded from this denominator to avoid counting the same bytes twice. The selection caption pairs its path and selected size with its indexed file count. File-type legends use responsive columns with aligned swatches and measured size/count labels.
 
-The populated Overview follows the supplied storage-dashboard references through composition and data density. A 12-column layout pairs the system/indexed summary (four columns) with file types (eight), followed by the dominant storage map (eight) and ten largest items (four). Panels use 20px insets and gaps, existing 8px corners and semantic light/dark surfaces. The 112px measured volume ring stays separate from indexed logical size. File types use a 176px donut and keyboard-accessible extension filters with bytes, file counts and percentages; Other retains the actual remainder. The donut uses the same existing category colors as its legend. Total bytes and file counts also appear as ordinary accessible text. Space accounting and recovery copies remain available in a full-width disclosure below the primary analysis. At 1180px the summary/type panels become full-width; at 1000px the map/ranking stack; at 840px the summary and type legend stack. No ranking is hidden. Allocation captions retain Unknown/known-partial formatting. Native rendering, keyboard and scaling acceptance remain manual because Computer Use is excluded.
+The populated Overview follows the supplied storage-dashboard references through composition and data density. A 12-column layout pairs the system/indexed summary (four columns) with file types (eight), followed by the dominant storage map (eight) and ten largest items (four). Sections use a common workspace surface and separators. The 112px measured volume ring stays separate from indexed logical size. File types use a 176px donut and keyboard-accessible extension filters with bytes, file counts and percentages; Other retains the actual remainder. Each leading extension uses a distinct rank color shared with its legend. Total bytes and file counts also appear as ordinary accessible text. Space accounting and recovery copies remain available in a full-width disclosure below the primary analysis. At 1180px the summary/type panels become full-width; at 1000px the map/ranking stack; at 840px the summary and type legend stack. No ranking is hidden. Allocation captions retain Unknown/known-partial formatting. Native rendering, keyboard and scaling acceptance remain manual because Computer Use is excluded.
 
 Explorer rows now pair their logical sizes with compact bars scaled to the largest item in the complete filtered result, retaining the virtual row geometry. Folder details show a 48px composition strip for the five measured direct children and the parent remainder. Child colors match the actionable list below. The strip is omitted when child totals exceed the indexed parent size; it never fills missing measurements with sample values.
 
@@ -385,7 +389,7 @@ Opening the panel requests its detailed analysis. Forecasts use distinct, compat
 
 ## Radial storage views
 
-Sunburst and Circles share the same bounded frontier, file-category palette, area metric, scope, selection, details, note previews and camera controls as Treemap. Sunburst assigns equal-area depth rings, with neutral parent bands and colored frontier sectors. Circles uses one square-root byte scale across all depths; ancestor outlines enclose descendants without counting their bytes again. Its legend discloses the measured packing fraction and distinguishes gaps from free disk space. Structural shapes remain selectable for folder navigation. Empty or unavailable geometry reports no invented packing percentage. Representation controls wrap within narrow panels, and List remains the keyboard-accessible equivalent. Geometry fixtures prove conservation, proportional area, containment, nonoverlap and picking; populated rendering, interaction and Windows scaling acceptance remain manual.
+Sunburst and Circles share the bounded hierarchy, byte metric, scope, selection, details, note previews and camera controls with Treemap. Sunburst uses sector angle for bytes, neutral bands for parents and colored terminal sectors that reach the outer edge. Circles uses one square-root byte scale across all depths; ancestor outlines enclose descendants without counting their bytes again. Its legend discloses the measured packing fraction and distinguishes gaps from free disk space. Structural shapes remain selectable for folder navigation. Empty or unavailable geometry reports no invented packing percentage. Representation controls wrap within narrow panels, and List remains the keyboard-accessible equivalent. Geometry fixtures prove conservation, proportional area, containment, nonoverlap and picking; populated rendering, interaction and Windows scaling acceptance remain manual.
 
 Depth uses one application-owned value from one through six across Overview, Explorer and all map modes. The selector limits the loaded hierarchy and preserves the same byte total; readability limits may keep small groups collapsed earlier. Selection and details remain available when a selected descendant no longer has a drawn shape, with an explicit status message. Changing depth does not request a scan or replace the loaded tree.
 

@@ -1,0 +1,110 @@
+{
+  "checkedUtc": "2026-11-07T20:06:07.9049654Z",
+  "startedUtc": "2026-11-07T20:03:22.2952314Z",
+  "checkoutCommit": "e5460de81080d7210385e5afe6ec654111d00b52",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.881
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 6.705
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.795
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.71
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 147.195
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 4.305
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "5A2687DBE7C4B3026FB7B74E1B8C31A7947E0D167CA87175E60D536FC15CA215"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "74CB768DA10EFE2005E10913423D2B0D864442F84804661C3648ACCA50C36BC9"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "ACC727303253EE2C9E53FF3818516DB86B18F6478724E63D2C8EA188E9458FDF"
+    },
+    {
+      "path": "frontend/components/FolderBudget.svelte",
+      "sha256": "5520ADC2F639456A22517381CC4205499A6963D2604C4F7851121FA2C7D66D4E"
+    },
+    {
+      "path": "frontend/components/LiveControl.svelte",
+      "sha256": "B9A6854206908FA555D5DCF8F67CAE6238B45FB1C6B9C033A590F2BA3AA408B4"
+    },
+    {
+      "path": "frontend/components/Overview.svelte",
+      "sha256": "1D32C4350676413519434D855A0EBB4139FD720F79E92B5743D337D62186AFEB"
+    },
+    {
+      "path": "frontend/components/StorageMap.svelte",
+      "sha256": "ECA25DB6501C90EF6CE123869AD22F1D6F7C0FB9E8E1990D9F74559C3902D1EA"
+    },
+    {
+      "path": "frontend/lib/cleanup-selection.test.ts",
+      "sha256": "E210F6FA55878CFB0B7C984ABBA37A04EF8D53CF3C155892D72F8E0AD4A96198"
+    },
+    {
+      "path": "frontend/lib/disk-city.ts",
+      "sha256": "794332E171389603BAFEFCB24A5D81827FB5C96FEC08FBF95FDA19D7A3305FDB"
+    },
+    {
+      "path": "frontend/lib/map-painter.ts",
+      "sha256": "B053303EB5E64EFBB6019670F02418B62D34E462051AA73AC8E7766D342BCA1F"
+    },
+    {
+      "path": "frontend/lib/radial-map.ts",
+      "sha256": "189D610A8D23A76A1CCFACE5F52884A9423BE50501A2C2714CB019FDA324BD1B"
+    },
+    {
+      "path": "frontend/lib/storage-map.ts",
+      "sha256": "F70D12A12A430AC1D7F57B083039D3B752F7840B251A5A30904B17A5C4CAA720"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "7915B77D2D360C686BECEE6E632094283865D314EB97BC42446E38AA6FEBF098"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "limits": "Owned fixtures exercise wide chart fit, proportionate treemap area, shallow/deep Sunburst sectors and outer-edge picking. Native visual, focus/keyboard, scaling and clean-machine install acceptance remain manual.",
+  "encoding": {
+    "files": 276,
+    "problems": []
+  },
+  "minimumContrast": {
+    "workspace": 5.5896158461987175,
+    "tile": 4.705104949419427
+  }
+}

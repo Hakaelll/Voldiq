@@ -21,7 +21,15 @@ export interface Rect extends TreemapRect {
 
 export const STORAGE_WIDTH = 1000;
 export const STORAGE_HEIGHT = 700;
+export const STORAGE_INSET = 16;
 const MAX_RECTS = 350;
+
+export function storagePlotWidth(mode: StorageView, width: number, height: number): number {
+  const inset = 2 * STORAGE_INSET;
+  if (mode !== 'treemap' || width <= inset || height <= inset) return STORAGE_WIDTH;
+  const ratio = (width - inset) / (height - inset);
+  return Math.min(4900, Math.max(240, Math.round((STORAGE_HEIGHT * ratio) / 16) * 16));
+}
 
 function count(node: WeightedNode): number {
   return node.files ?? node.represented ?? (node.directory ? 0 : 1);
@@ -53,6 +61,7 @@ function toRect(node: TreemapRect, depth: number, total: number): Rect {
 export function createStorageLayout(
   nodes: WeightedNode[],
   maxDepth: StorageDepth = 6,
+  plotWidth = STORAGE_WIDTH,
 ): {
   rects: Rect[];
   boundaries: Rect[];
@@ -129,7 +138,7 @@ export function createStorageLayout(
       visit({ ...child, x: child.x + placed.x, y: child.y + placed.y }, depth + 1, placed.id);
     }
   };
-  for (const root of layout(roots, STORAGE_WIDTH, STORAGE_HEIGHT)) visit(root, 1, null);
+  for (const root of layout(roots, plotWidth, STORAGE_HEIGHT)) visit(root, 1, null);
   const revision = JSON.stringify(
     rects.map((rect) => [
       rect.id,

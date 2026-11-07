@@ -23,7 +23,10 @@
     type StorageView,
     type StorageDepth,
     STORAGE_DEPTHS,
+    STORAGE_HEIGHT,
+    STORAGE_INSET,
     parseStorageDepth,
+    storagePlotWidth,
   } from '../lib/storage-map';
   import {
     buildCity,
@@ -44,7 +47,7 @@
     type MapStyle,
   } from '../lib/map-painter';
   import { appendLassoPoint, selectLasso } from '../lib/treemap-tools';
-  import { radialLayout, radialHit, shapeAnchor } from '../lib/radial-map';
+  import { RADIAL_BOUNDS, radialLayout, radialHit, shapeAnchor } from '../lib/radial-map';
   import { paintRadial } from '../lib/radial-painter';
   import { voronoiHit, VORONOI_GROUP_ID, type VoronoiLayout } from '../lib/voronoi';
   import { paintVoronoi } from '../lib/voronoi-painter';
@@ -96,6 +99,10 @@
     ongrid,
     onback,
     oninspect,
+    onexpand,
+    expanded = false,
+    onitems,
+    itemsOpen = false,
     cloudFilter,
     oncloudfilter,
     queryState = 'ready',
@@ -125,6 +132,10 @@
     onlist: () => void;
     ongrid?: () => void;
     onback: () => void;
+    onexpand?: () => void;
+    expanded?: boolean;
+    onitems?: () => void;
+    itemsOpen?: boolean;
     oninspect?: () => void;
     cloudFilter: CloudFilter | null;
     oncloudfilter: (value: CloudFilter | null) => void;
@@ -151,9 +162,10 @@
   let drawn = $state(0),
     drawTime = $state(0);
   const now = Date.now() / 1000;
+  const plotWidth = $derived(storagePlotWidth(mode, width, height));
   const layout = $derived.by(() => {
     const start = performance.now();
-    return { ...createStorageLayout(nodes, depth), elapsed: performance.now() - start };
+    return { ...createStorageLayout(nodes, depth, plotWidth), elapsed: performance.now() - start };
   });
   type RadialState =
     | { kind: 'none' }
@@ -283,9 +295,14 @@
     closeMenu();
     cancelDrag();
     camera = fitCamera(
-      mode === 'city' && scene ? scene.bounds : { x: 0, y: 0, width: 1000, height: 700 },
+      mode === 'city' && scene
+        ? scene.bounds
+        : mode === 'sunburst' || mode === 'circles'
+          ? RADIAL_BOUNDS
+          : { x: 0, y: 0, width: plotWidth, height: STORAGE_HEIGHT },
       width,
       height,
+      mode === 'city' ? 24 : STORAGE_INSET,
     );
     fitted = camera.scale;
     if (mode !== 'city' || (scene && sceneIdentity === identity)) saveCamera();
@@ -840,141 +857,145 @@
   data-projection-ms={projectionMs}
   data-ordering-ms={orderingMs}
 >
-  <div class="storage-map-toolbar">
-    <label class="map-view-picker"
-      >View
-      <select
-        aria-label="Storage representation"
-        value={mode}
-        onchange={(event) => {
-          const next = event.currentTarget.value;
-          if (
-            next === 'treemap' ||
-            next === 'city' ||
-            next === 'sunburst' ||
-            next === 'circles' ||
-            next === 'voronoi'
-          )
-            onmode(next);
-        }}
-      >
-        <option value="treemap">Treemap</option><option value="city">Skyline</option>
-        <option value="sunburst">Sunburst</option><option value="circles">Circles</option><option
-          value="voronoi">Voronoi</option
-        >
-      </select>
-    </label>
-    <div class="map-data-views" role="group" aria-label="File views">
-      <button onclick={onlist}>List</button>{#if ongrid}<button onclick={ongrid}>Grid</button>{/if}
-    </div>
-    {#if mode === 'treemap'}<div class="map-switch" role="group" aria-label="Treemap tools">
-        <button
-          aria-pressed={tool === 'pan'}
-          onclick={() => {
-            cancelDrag();
-            tool = 'pan';
-          }}>Pan</button
-        >
-        <button
-          aria-pressed={tool === 'lasso'}
-          title="Draw a freehand loop to select visible items for inspection"
-          onclick={() => {
-            cancelDrag();
-            tool = 'lasso';
-          }}>Lasso</button
-        >
-        <button
-          aria-pressed={lens}
-          title="Redraw Treemap geometry at twice the scale around the pointer"
-          onclick={() => {
-            lens = !lens;
-            lensAnchor = lens ? { x: width / 2, y: height / 2 } : null;
-            hovered = null;
-            schedule();
-          }}>Lens 2×</button
-        >
-      </div>{/if}
-    {#if onexport}<button
-        disabled={exportDisabled ||
-          preparing ||
-          queryState !== 'ready' ||
-          searchState === 'loading' ||
-          searchState === 'failed' ||
-          !!failure}
-        onclick={() => {
-          captureGraphic();
-        }}>Export map</button
-      >{/if}
-    {#if oninspect}<button class="map-inspect" onclick={oninspect}
-        ><Icon name="file" size={14} />Inspector</button
-      >{/if}
-  </div>
-  <details class="map-view-options">
-    <summary
-      >View options <span
-        >{sizeMode === 'allocated' ? 'Unique allocation' : 'Logical size'} � {colorMode === 'type'
-          ? 'File type'
-          : colorMode === 'age'
-            ? 'Modification age'
-            : 'Size'} colors � Depth {depth}{cloudFilter !== null ? ' � Cloud filter on' : ''}</span
-      ></summary
-    >
-    <div class="map-view-options-body">
-      <label
-        >Area<select
-          aria-label="Map area metric"
-          value={sizeMode}
-          onchange={(e) => onmetric(e.currentTarget.value)}
-          ><option value="logical">Logical size</option><option value="allocated"
-            >Unique allocation</option
-          ></select
-        ></label
-      >
-      <label
-        title="Maximum depth within loaded branches. Small shapes remain grouped for readability."
-      >
-        Depth<select
-          aria-label="Maximum map depth"
-          value={depth}
-          onchange={(event) => {
-            const next = parseStorageDepth(event.currentTarget.value);
-            if (next !== null) depth = next;
-          }}
-        >
-          {#each STORAGE_DEPTHS as level}<option value={level}>{level}</option>{/each}
-        </select>
-      </label>
-      <CloudFilterSelect value={cloudFilter} onchange={oncloudfilter} />
-      {#if mode === 'city'}<label
-          >Height
-          <select
-            aria-label="Skyline height metric"
-            value={heightMode}
-            onchange={(event) => {
-              const next = event.currentTarget.value;
-              if (next === 'modified' || next === 'files' || next === 'depth') heightMode = next;
-            }}
-            ><option value="modified">Modification age</option><option value="files"
-              >File count</option
-            ><option value="depth">Folder depth</option></select
-          >
-        </label>{/if}
-      <label
-        >Color
+  <div class="storage-map-controls">
+    <div class="storage-map-toolbar">
+      <label class="map-view-picker"
+        >View
         <select
-          aria-label="Map color metric"
-          value={colorMode}
+          aria-label="Storage representation"
+          value={mode}
           onchange={(event) => {
             const next = event.currentTarget.value;
-            if (next === 'type' || next === 'size' || next === 'age') colorMode = next;
+            if (
+              next === 'treemap' ||
+              next === 'city' ||
+              next === 'sunburst' ||
+              next === 'circles' ||
+              next === 'voronoi'
+            )
+              onmode(next);
           }}
-          ><option value="type">File type</option><option value="size">Size</option><option
-            value="age">Modification age</option
-          ></select
         >
+          <option value="treemap">Treemap</option><option value="city">Skyline</option>
+          <option value="sunburst">Sunburst</option><option value="circles">Circles</option><option
+            value="voronoi">Voronoi</option
+          >
+        </select>
       </label>
+      <div class="map-data-views" role="group" aria-label="File views">
+        <button onclick={onlist}>List</button>{#if ongrid}<button onclick={ongrid}>Grid</button
+          >{/if}
+      </div>
+      {#if mode === 'treemap'}<div class="map-switch" role="group" aria-label="Treemap tools">
+          <button
+            aria-pressed={tool === 'pan'}
+            onclick={() => {
+              cancelDrag();
+              tool = 'pan';
+            }}>Pan</button
+          >
+          <button
+            aria-pressed={tool === 'lasso'}
+            title="Draw a freehand loop to select visible items for inspection"
+            onclick={() => {
+              cancelDrag();
+              tool = 'lasso';
+            }}>Lasso</button
+          >
+          <button
+            aria-pressed={lens}
+            title="Redraw Treemap geometry at twice the scale around the pointer"
+            onclick={() => {
+              lens = !lens;
+              lensAnchor = lens ? { x: width / 2, y: height / 2 } : null;
+              hovered = null;
+              schedule();
+            }}>Lens 2×</button
+          >
+        </div>{/if}
+      {#if onexport}<button
+          disabled={exportDisabled ||
+            preparing ||
+            queryState !== 'ready' ||
+            searchState === 'loading' ||
+            searchState === 'failed' ||
+            !!failure}
+          onclick={() => {
+            captureGraphic();
+          }}>Export map</button
+        >{/if}
+      {#if oninspect}<button class="map-inspect" onclick={oninspect}
+          ><Icon name="file" size={14} />Inspector</button
+        >{/if}
+      {#if onitems}<button aria-expanded={itemsOpen} onclick={onitems}>Items on map</button>{/if}
+      {#if onexpand}<button
+          class="expand-chart"
+          aria-expanded={expanded}
+          onclick={onexpand}
+          title={expanded ? 'Exit expanded chart (Esc)' : 'Expand the chart'}
+        >
+          {expanded ? 'Exit expanded view' : 'Expand chart'}
+        </button>{/if}
     </div>
-  </details>
+    <details class="map-view-options">
+      <summary>View options</summary>
+      <div class="map-view-options-body">
+        <label
+          >Metric<select
+            aria-label="Map byte metric"
+            value={sizeMode}
+            onchange={(e) => onmetric(e.currentTarget.value)}
+            ><option value="logical">Logical size</option><option value="allocated"
+              >Unique allocation</option
+            ></select
+          ></label
+        >
+        <label
+          title="Maximum depth within loaded branches. Small shapes remain grouped for readability."
+        >
+          Depth<select
+            aria-label="Maximum map depth"
+            value={depth}
+            onchange={(event) => {
+              const next = parseStorageDepth(event.currentTarget.value);
+              if (next !== null) depth = next;
+            }}
+          >
+            {#each STORAGE_DEPTHS as level}<option value={level}>{level}</option>{/each}
+          </select>
+        </label>
+        <CloudFilterSelect value={cloudFilter} onchange={oncloudfilter} />
+        {#if mode === 'city'}<label
+            >Height
+            <select
+              aria-label="Skyline height metric"
+              value={heightMode}
+              onchange={(event) => {
+                const next = event.currentTarget.value;
+                if (next === 'modified' || next === 'files' || next === 'depth') heightMode = next;
+              }}
+              ><option value="modified">Modification age</option><option value="files"
+                >File count</option
+              ><option value="depth">Folder depth</option></select
+            >
+          </label>{/if}
+        <label
+          >Color
+          <select
+            aria-label="Map color metric"
+            value={colorMode}
+            onchange={(event) => {
+              const next = event.currentTarget.value;
+              if (next === 'type' || next === 'size' || next === 'age') colorMode = next;
+            }}
+            ><option value="type">File type</option><option value="size">Size</option><option
+              value="age">Modification age</option
+            ></select
+          >
+        </label>
+      </div>
+    </details>
+  </div>
   {#if graphicProblem}<div class="map-tool-status" role="alert">{graphicProblem}</div>{/if}
   {#if searchState === 'loading'}<div class="map-tool-status" role="status">
       Updating search matches…
@@ -1117,73 +1138,76 @@
         {/if}
       </div>{/if}
   </div>
-  <div class="map-encoding">
-    {#if mode === 'treemap' && lens}<span
-        >Lens 2× magnifies a local area. The base map keeps its byte scale.</span
-      >{/if}
-    {#if mode === 'voronoi' && voronoi?.cells.length && voronoi.totalError !== null && voronoi.maximumError !== null}<span
-      >
-        Approximate weighted Voronoi · <span
-          title="Half the sum of absolute differences between cell area share and byte share."
-          >area discrepancy {(100 * voronoi.totalError).toFixed(3)}%</span
+  <details class="map-explanation">
+    <summary>Reading the chart</summary>
+    <div class="map-encoding">
+      {#if mode === 'treemap' && lens}<span
+          >Lens 2× magnifies a local area. The base map keeps its byte scale.</span
+        >{/if}
+      {#if mode === 'voronoi' && voronoi?.cells.length && voronoi.totalError !== null && voronoi.maximumError !== null}<span
         >
-        · worst cell {(100 * voronoi.maximumError).toFixed(2)}% · {voronoi.groupedEntries} frontier entries
-        grouped · {voronoi.stop === 'converged'
-          ? 'precision target reached'
-          : 'calculation stopped within display tolerance'}.
-        {#if voronoi.groupedEntries}<button onclick={onlist}>Inspect complete item list</button
-          >{/if}
-      </span>{/if}
-    <span
-      >Up to {depth}
-      {depth === 1 ? 'level' : 'levels'} within loaded branches; small groups may remain collapsed.</span
-    >
-    {#if selectionOutside}<span role="status"
-        >The selected item is outside the drawn frontier. Its details remain available.</span
-      >{/if}
-    {#if mode === 'sunburst'}<span
-        >Equal-area depth rings. Colored sectors encode the current frontier; neutral parent bands
-        group the hierarchy. Gaps are not free disk space.</span
-      >{/if}
-    {#if mode === 'circles'}<span
-        >Filled circle area encodes the same frontier bytes at every depth. Parent outlines group
-        folders. {#if radial.kind === 'ready' && layout.total > 0}{(
-            100 *
-            (1 - radial.value.dataFraction)
-          ).toFixed(1)}% of the enclosing circle is packing space, not free disk space.{:else}Packing
-          coverage is unavailable without a positive, drawable total.{/if}</span
-      >{/if}
-    {#if searchState !== 'inactive'}<span
-        >Search highlights matching items and folder groups. Area uses the selected byte metric.</span
-      >{/if}
-    <span
-      >Area = {sizeMode === 'allocated'
-        ? 'unique allocation, not recoverable space'
-        : 'logical bytes'}.</span
-    >
-    {#if cloudFilter}<span
-        >Filtered file bytes · folders group matching descendants. Details and summary totals remain
-        unfiltered.</span
-      >{/if}
-    {#if mode === 'city'}<span
-        >Height = {heightMode === 'modified'
-          ? 'modification age, log scale capped at 10 years'
-          : heightMode === 'files'
-            ? 'descendant files, log scale normalized to this folder'
-            : 'depth relative to this folder'}; relief is visual. Volume ≠ bytes.</span
-      >{/if}
-    <span
-      >Color = {colorMode === 'type'
-        ? 'file category'
-        : colorMode === 'size'
-          ? 'size, local log scale'
-          : 'age bands: 30 / 180 / 365 days / 10 years'}. Unknown ages use neutral color.{#if mode === 'city'}
-        Unknown height metrics keep a low block.{/if}</span
-    >
-    {#if sizeMode === 'allocated' && nodes.some((r) => !r.allocationKnown)}<span
-        >Partial allocation coverage. Unknown bytes are not zero.</span
-      >{/if}
-  </div>
+          Approximate weighted Voronoi · <span
+            title="Half the sum of absolute differences between cell area share and byte share."
+            >area discrepancy {(100 * voronoi.totalError).toFixed(3)}%</span
+          >
+          · worst cell {(100 * voronoi.maximumError).toFixed(2)}% · {voronoi.groupedEntries} frontier
+          entries grouped · {voronoi.stop === 'converged'
+            ? 'precision target reached'
+            : 'calculation stopped within display tolerance'}.
+          {#if voronoi.groupedEntries}<button onclick={onlist}>Inspect complete item list</button
+            >{/if}
+        </span>{/if}
+      <span
+        >Up to {depth}
+        {depth === 1 ? 'level' : 'levels'} within loaded branches; small groups may remain collapsed.</span
+      >
+      {#if selectionOutside}<span role="status"
+          >The selected item is outside the drawn frontier. Its details remain available.</span
+        >{/if}
+      {#if mode === 'sunburst'}<span
+          >Sector angle represents bytes. Terminal items reach the outer edge and neutral bands show
+          parent folders.</span
+        >{/if}
+      {#if mode === 'circles'}<span
+          >Filled circle area encodes the same frontier bytes at every depth. Parent outlines group
+          folders. {#if radial.kind === 'ready' && layout.total > 0}{(
+              100 *
+              (1 - radial.value.dataFraction)
+            ).toFixed(1)}% of the enclosing circle is packing space, not free disk space.{:else}Packing
+            coverage is unavailable without a positive, drawable total.{/if}</span
+        >{/if}
+      {#if searchState !== 'inactive'}<span
+          >Search highlights matching items and folder groups.</span
+        >{/if}
+      <span
+        >Byte metric: {sizeMode === 'allocated'
+          ? 'unique allocation, not recoverable space'
+          : 'logical bytes'}.</span
+      >
+      {#if cloudFilter}<span
+          >Filtered file bytes · folders group matching descendants. Details and summary totals
+          remain unfiltered.</span
+        >{/if}
+      {#if mode === 'city'}<span
+          >Height = {heightMode === 'modified'
+            ? 'modification age, log scale capped at 10 years'
+            : heightMode === 'files'
+              ? 'descendant files, log scale normalized to this folder'
+              : 'depth relative to this folder'}; relief is visual. Volume ≠ bytes.</span
+        >{/if}
+      <span
+        >Color = {colorMode === 'type'
+          ? 'file category'
+          : colorMode === 'size'
+            ? 'size, local log scale'
+            : 'age bands: 30 / 180 / 365 days / 10 years'}. Unknown ages use neutral color.{#if mode === 'city'}
+          Unknown height metrics keep a low block.{/if}</span
+      >
+      {#if sizeMode === 'allocated' && nodes.some((r) => !r.allocationKnown)}<span
+          >Partial allocation coverage. Unknown bytes are not zero.</span
+        >{/if}
+    </div>
+  </details>
   <div class="map-category-legend" aria-label="Map color legend">
     {#if colorMode === 'type'}
       {#each [...new Map(layout.rects.map( (r) => [categoryLabel(r), { paint: visualPaint(r, colorMode, colorMaximum, now), label: categoryLabel(r) }] )).values()] as item}<span
@@ -1202,12 +1226,13 @@
     <span
       class="map-render-status"
       title={`Last draw ${drawTime.toFixed(1)} ms. Geometry is cached; idle has no animation loop.`}
-      >{layout.represented.toLocaleString()} files represented · {layout.rects.length} frontier items
+      >{layout.represented.toLocaleString()} files represented
       {#if mode === 'voronoi'}· {voronoi
           ? `${voronoi.cells.length} cells · ${Math.max(0, voronoi.cells.length - drawn)} outside draw bounds`
           : failure
             ? 'layout unavailable'
-            : 'layout pending'}{:else}· {Math.max(0, layout.rects.length - drawn)} outside draw bounds{/if}{#if matches}
+            : 'layout pending'}{:else if layout.rects.length > drawn}· {layout.rects.length - drawn} outside
+        the chart{/if}{#if matches}
         · {searchTotal === null
           ? 'Match count unavailable'
           : `${searchTotal.toLocaleString()} indexed matches`} · {matches.size} highlighted regions{/if}</span
