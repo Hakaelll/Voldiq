@@ -1,0 +1,70 @@
+{
+  "checkedUtc": "2026-11-07T20:39:03.8824736Z",
+  "startedUtc": "2026-11-07T20:36:12.781314Z",
+  "checkoutCommit": "069091180b4452d02750c024d143ccdf708fac3c",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.919
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 6.658
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.8
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.41
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 152.084
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 5.199
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "E2459DF286DA2A0A647E90BB0496042EB08B4E290785E6CA594641BDD4B1DEA2"
+    },
+    {
+      "path": "frontend/components/StorageMap.svelte",
+      "sha256": "A05B639A1EFA4307FF8BF2CC4AC49E1B19933E6EFF673B0A605969498B44B70A"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "7B65C2CD558C9F0EF0B5471DE849050F2CD2540E5E64DEF3EC0F26D7752B16EA"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "limits": "Owned fixtures exercise existing map geometry, inspection and approval behavior with the new display controls. Native visual, focus/keyboard, scaling and clean-machine install acceptance remain manual.",
+  "encoding": {
+    "files": 280,
+    "problems": []
+  },
+  "minimumContrast": {
+    "workspace": 5.189091079313751,
+    "tile": 4.705104949419427
+  }
+}

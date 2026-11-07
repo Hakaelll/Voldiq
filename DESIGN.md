@@ -151,6 +151,8 @@ Cleanup ranks files under a single category picker. The table leads with each fi
 
 Explorer places the path and coverage status next to the page title. The scan uses one compact status row. Idle Live, Folder budget and list filters use compact controls. Expand chart uses the same map surface with more vertical room and exits with Escape. The Treemap fits the available aspect ratio. Labels that fit within a tile use its own foreground color. Theme selection lives in Settings.
 
+Chart types share a visible segmented radio group with a checked surface and visible keyboard focus. Export and Expand chart sit together at the far end. The lower row separates chart gestures from Map settings and Files. The Files disclosure contains List view, Grid view, map items and Inspector where available. Choosing an action collapses that disclosure. The arrangement follows the visual hierarchy of the [TreeMap map toolbar](https://github.com/Prithvi-Web/TreeMap-Disk-Visualizer/blob/main/src/ui/markup/015-view-treemap.html).
+
 The live file inspector groups previews and download provenance under Inspect file. Reading starts with an explicit action. Text stays plain, thumbnails are static, and metadata remains visible when content is unsupported. Download provenance shows the recorded domain first. A separate button reveals the full URL as selectable text and closing the disclosure clears it.
 
 Archive previews use a paged list of read-only names, entry kinds and declared file sizes. The inspector names any coverage limit and counts skipped records. Archive entries have no file actions or links.

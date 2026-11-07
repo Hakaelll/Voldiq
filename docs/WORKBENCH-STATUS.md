@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Segmented map toolbar
+
+Treemap, Sunburst, Circles, Voronoi and Skyline are visible in one native radio group. Export and expanded view have a separate action group. Pan, Lasso and Lens occupy the secondary rail. Map settings and Files use disclosures that keep their controls together, including the existing list, grid, inline items and inspector actions. The checked segment uses the same semantic colors as the rest of Voldiq. [TreeMap toolbar reference](https://github.com/Prithvi-Web/TreeMap-Disk-Visualizer/blob/main/src/ui/markup/015-view-treemap.html)
+
+The six integration checks passed with eight tests and zero Svelte diagnostics. The active label measured 5.19:1 contrast in light mode and 5.78:1 in dark mode. The UTF-8 audit found no known mojibake signatures in runtime sources. Populated visual checks, keyboard interaction and Windows scaling remain manual. [Source verification](../benchmarks/workbench-map-selector-source-20261107.json)
+
 ## Read-only archive inspection
 
 Read preview now lists virtual ZIP, JAR, TAR, TGZ and ISO 9660 or Joliet entries. The archive must be a verified live file. Names, kinds and declared file bytes are the only member details. The inspector pages the list and reports limits and omissions. ZIP uses the central directory, TAR seeks past payloads and TGZ caps compressed and inflated reads. ISO traverses bounded directory records with repeated extents rejected for descent. The reader handles single-volume ZIP and ISO. Rock Ridge continuation data, UDF-only images, multi-extent ISO entries and unrecognized special records have no supported listing. [ZIP format](https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT) · [GNU TAR format](https://www.gnu.org/software/tar/manual/html_chapter/Tar-Internals.html) · [ECMA-119](https://ecma-international.org/publications-and-standards/standards/ecma-119/)

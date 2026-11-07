@@ -144,6 +144,16 @@
     onexport?: (capture: GraphicCapture) => boolean;
     exportDisabled?: boolean;
   } = $props();
+  const rendererGroup = $props.id();
+  const renderers = [
+    { id: 'treemap', label: 'Treemap' },
+    { id: 'sunburst', label: 'Sunburst' },
+    { id: 'circles', label: 'Circles' },
+    { id: 'voronoi', label: 'Voronoi' },
+    { id: 'city', label: 'Skyline' },
+  ] as const satisfies ReadonlyArray<{ id: StorageView; label: string }>;
+  let fileOptionsOpen = $state(false);
+  let filesSummary = $state<HTMLElement>();
   let canvas: HTMLCanvasElement;
   let container: HTMLDivElement;
   let width = $state(0),
@@ -314,6 +324,11 @@
         frame = 0;
         draw();
       });
+  }
+  function useFileAction(action: (() => void) | undefined): void {
+    fileOptionsOpen = false;
+    filesSummary?.focus({ preventScroll: true });
+    action?.();
   }
   function draw(): void {
     if (!canvas || width <= 0 || height <= 0) return;
@@ -859,34 +874,49 @@
 >
   <div class="storage-map-controls">
     <div class="storage-map-toolbar">
-      <label class="map-view-picker"
-        >View
-        <select
-          aria-label="Storage representation"
-          value={mode}
-          onchange={(event) => {
-            const next = event.currentTarget.value;
-            if (
-              next === 'treemap' ||
-              next === 'city' ||
-              next === 'sunburst' ||
-              next === 'circles' ||
-              next === 'voronoi'
-            )
-              onmode(next);
-          }}
-        >
-          <option value="treemap">Treemap</option><option value="city">Skyline</option>
-          <option value="sunburst">Sunburst</option><option value="circles">Circles</option><option
-            value="voronoi">Voronoi</option
-          >
-        </select>
-      </label>
-      <div class="map-data-views" role="group" aria-label="File views">
-        <button onclick={onlist}>List</button>{#if ongrid}<button onclick={ongrid}>Grid</button
+      <div class="map-renderer-switch" role="radiogroup" aria-label="Chart type">
+        {#each renderers as renderer (renderer.id)}
+          <label class="map-renderer-option">
+            <input
+              type="radio"
+              class="sr-only"
+              name={rendererGroup}
+              value={renderer.id}
+              checked={mode === renderer.id}
+              onchange={() => onmode(renderer.id)}
+            />
+            <span>{renderer.label}</span>
+          </label>
+        {/each}
+      </div>
+      <div class="map-chart-actions" role="group" aria-label="Chart actions">
+        {#if onexport}<button
+            class="quiet-action"
+            disabled={exportDisabled ||
+              preparing ||
+              queryState !== 'ready' ||
+              searchState === 'loading' ||
+              searchState === 'failed' ||
+              !!failure}
+            onclick={() => {
+              captureGraphic();
+            }}><Icon name="external" size={15} />Export</button
+          >{/if}
+        {#if onexpand}<button
+            class="quiet-action expand-chart"
+            aria-expanded={expanded}
+            onclick={onexpand}
+            title={expanded ? 'Exit expanded chart (Esc)' : 'Expand the chart'}
+            >{expanded ? 'Exit expanded view' : 'Expand chart'}</button
           >{/if}
       </div>
-      {#if mode === 'treemap'}<div class="map-switch" role="group" aria-label="Treemap tools">
+    </div>
+    <div class="storage-map-options">
+      {#if mode === 'treemap'}<div
+          class="map-switch map-gestures"
+          role="group"
+          aria-label="Treemap tools"
+        >
           <button
             aria-pressed={tool === 'pan'}
             onclick={() => {
@@ -913,88 +943,87 @@
             }}>Lens 2×</button
           >
         </div>{/if}
-      {#if onexport}<button
-          disabled={exportDisabled ||
-            preparing ||
-            queryState !== 'ready' ||
-            searchState === 'loading' ||
-            searchState === 'failed' ||
-            !!failure}
-          onclick={() => {
-            captureGraphic();
-          }}>Export map</button
-        >{/if}
-      {#if oninspect}<button class="map-inspect" onclick={oninspect}
-          ><Icon name="file" size={14} />Inspector</button
-        >{/if}
-      {#if onitems}<button aria-expanded={itemsOpen} onclick={onitems}>Items on map</button>{/if}
-      {#if onexpand}<button
-          class="expand-chart"
-          aria-expanded={expanded}
-          onclick={onexpand}
-          title={expanded ? 'Exit expanded chart (Esc)' : 'Expand the chart'}
-        >
-          {expanded ? 'Exit expanded view' : 'Expand chart'}
-        </button>{/if}
-    </div>
-    <details class="map-view-options">
-      <summary>View options</summary>
-      <div class="map-view-options-body">
-        <label
-          >Metric<select
-            aria-label="Map byte metric"
-            value={sizeMode}
-            onchange={(e) => onmetric(e.currentTarget.value)}
-            ><option value="logical">Logical size</option><option value="allocated"
-              >Unique allocation</option
-            ></select
-          ></label
-        >
-        <label
-          title="Maximum depth within loaded branches. Small shapes remain grouped for readability."
-        >
-          Depth<select
-            aria-label="Maximum map depth"
-            value={depth}
-            onchange={(event) => {
-              const next = parseStorageDepth(event.currentTarget.value);
-              if (next !== null) depth = next;
-            }}
+      <details class="map-view-options" name={`${rendererGroup}-tools`}>
+        <summary>Map settings</summary>
+        <div class="map-view-options-body">
+          <label
+            >Metric<select
+              aria-label="Map byte metric"
+              value={sizeMode}
+              onchange={(e) => onmetric(e.currentTarget.value)}
+              ><option value="logical">Logical size</option><option value="allocated"
+                >Unique allocation</option
+              ></select
+            ></label
           >
-            {#each STORAGE_DEPTHS as level}<option value={level}>{level}</option>{/each}
-          </select>
-        </label>
-        <CloudFilterSelect value={cloudFilter} onchange={oncloudfilter} />
-        {#if mode === 'city'}<label
-            >Height
+          <label
+            title="Maximum depth within loaded branches. Small shapes remain grouped for readability."
+          >
+            Depth<select
+              aria-label="Maximum map depth"
+              value={depth}
+              onchange={(event) => {
+                const next = parseStorageDepth(event.currentTarget.value);
+                if (next !== null) depth = next;
+              }}
+            >
+              {#each STORAGE_DEPTHS as level}<option value={level}>{level}</option>{/each}
+            </select>
+          </label>
+          <CloudFilterSelect value={cloudFilter} onchange={oncloudfilter} />
+          {#if mode === 'city'}<label
+              >Height
+              <select
+                aria-label="Skyline height metric"
+                value={heightMode}
+                onchange={(event) => {
+                  const next = event.currentTarget.value;
+                  if (next === 'modified' || next === 'files' || next === 'depth')
+                    heightMode = next;
+                }}
+                ><option value="modified">Modification age</option><option value="files"
+                  >File count</option
+                ><option value="depth">Folder depth</option></select
+              >
+            </label>{/if}
+          <label
+            >Color
             <select
-              aria-label="Skyline height metric"
-              value={heightMode}
+              aria-label="Map color metric"
+              value={colorMode}
               onchange={(event) => {
                 const next = event.currentTarget.value;
-                if (next === 'modified' || next === 'files' || next === 'depth') heightMode = next;
+                if (next === 'type' || next === 'size' || next === 'age') colorMode = next;
               }}
-              ><option value="modified">Modification age</option><option value="files"
-                >File count</option
-              ><option value="depth">Folder depth</option></select
+              ><option value="type">File type</option><option value="size">Size</option><option
+                value="age">Modification age</option
+              ></select
             >
-          </label>{/if}
-        <label
-          >Color
-          <select
-            aria-label="Map color metric"
-            value={colorMode}
-            onchange={(event) => {
-              const next = event.currentTarget.value;
-              if (next === 'type' || next === 'size' || next === 'age') colorMode = next;
-            }}
-            ><option value="type">File type</option><option value="size">Size</option><option
-              value="age">Modification age</option
-            ></select
+          </label>
+        </div>
+      </details>
+      <details class="map-file-options" name={`${rendererGroup}-tools`} bind:open={fileOptionsOpen}>
+        <summary bind:this={filesSummary}>Files</summary>
+        <div class="map-file-actions">
+          <button class="quiet-action" onclick={() => useFileAction(onlist)}
+            ><Icon name="list" size={14} />List view</button
           >
-        </label>
-      </div>
-    </details>
+          {#if ongrid}<button class="quiet-action" onclick={() => useFileAction(ongrid)}
+              >Grid view</button
+            >{/if}
+          {#if onitems}<button
+              class="quiet-action"
+              aria-expanded={itemsOpen}
+              onclick={() => useFileAction(onitems)}
+            >
+              {itemsOpen ? 'Hide items on map' : 'Show items on map'}
+            </button>{/if}
+          {#if oninspect}<button class="quiet-action" onclick={() => useFileAction(oninspect)}>
+              <Icon name="file" size={14} />Inspector
+            </button>{/if}
+        </div>
+      </details>
+    </div>
   </div>
   {#if graphicProblem}<div class="map-tool-status" role="alert">{graphicProblem}</div>{/if}
   {#if searchState === 'loading'}<div class="map-tool-status" role="status">
