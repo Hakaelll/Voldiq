@@ -1,11 +1,12 @@
 <script lang="ts">
-  import { invokeIndexed, getIndexContext } from '../lib/index-context';
+  import { invokeIndexed, getIndexContext, type IndexId } from '../lib/index-context';
   import { applicationCacheQueries } from '../lib/queries';
   import { readApplicationCachePage, type ApplicationCleanupContext } from '../lib/applications';
   import { onDestroy, untrack, tick } from 'svelte';
-  import { invoke, isTauri } from '@tauri-apps/api/core';
-  import { bytes, date, type CleanupRulePage, type CleanupPreview } from '../lib/types';
+  import { isTauri } from '@tauri-apps/api/core';
+  import { bytes, date, type CleanupRulePage } from '../lib/types';
   import Icon from './Icon.svelte';
+  import type { TraySource } from '../lib/cleanup-tray';
   import { updateCleanupSelection } from '../lib/cleanup-selection';
   let {
     revision,
@@ -13,8 +14,7 @@
     busy,
     scanning,
     onscan,
-    onbusy,
-    onpreview,
+    onadd,
     onerror,
     application = null,
     onclearapplication,
@@ -24,8 +24,7 @@
     busy: boolean;
     scanning: boolean;
     onscan: (path: string) => Promise<void>;
-    onbusy: (value: boolean) => void;
-    onpreview: (plan: CleanupPreview) => void;
+    onadd: (source: TraySource, ids: readonly number[], owner: IndexId | null) => boolean;
     onerror: (problem: unknown) => void;
     application?: ApplicationCleanupContext | null;
     onclearapplication: () => void;
@@ -38,16 +37,14 @@
   let page = $state<CleanupRulePage | null>(null),
     offset = $state(0);
   let loadState = $state<'loading' | 'ready' | 'unavailable'>('loading');
-  let selected = $state(new Map<number, CleanupRulePage['items'][number]>()),
-    reviewing = $state(false);
+  let selected = $state(new Map<number, CleanupRulePage['items'][number]>());
+  let pageOwner = $state<IndexId | null>(null);
   const rules = [
     { id: 'user_temp', name: 'User temporary files', icon: 'folder' },
     { id: 'old_files', name: 'Old files', icon: 'history' },
     { id: 'project_temp', name: 'Project temporary files', icon: 'code' },
     { id: 'browser_cache', name: 'Browser HTTP cache', icon: 'browser' },
   ] as const;
-  let selection = $derived([...selected.values()]);
-  let selectionLogical = $derived(selection.reduce((sum, item) => sum + item.logical, 0));
   let pageSelected = $derived(page?.items.filter((item) => selected.has(item.id)).length ?? 0);
   let allPageSelected = $derived(
     Boolean(page?.items.length) && pageSelected === page?.items.length,
@@ -55,15 +52,14 @@
   function filename(path: string): string {
     return path.slice(Math.max(path.lastIndexOf('\\'), path.lastIndexOf('/')) + 1);
   }
-  let generation = 0,
-    alive = true;
+  let generation = 0;
   let region: HTMLDivElement;
-  let selectionRegion: HTMLElement;
   async function load(next: number): Promise<void> {
     const token = ++generation;
+    const owner = getIndexContext();
     cancelRead();
     const focusTarget = document.activeElement;
-    const restoreFocus = region?.contains(focusTarget) && !selectionRegion?.contains(focusTarget);
+    const restoreFocus = region?.contains(focusTarget);
     loadState = 'loading';
     page = null;
     try {
@@ -94,8 +90,9 @@
           limit,
         });
       }
-      if (token !== generation) return;
+      if (token !== generation || owner !== getIndexContext()) return;
       page = result;
+      pageOwner = owner;
       offset = next;
       loadState = 'ready';
     } catch (problem) {
@@ -112,30 +109,21 @@
       }
     }
   }
-  function checkItems(items: CleanupRulePage['items'], value: boolean): void {
+  function checkItems(items: CleanupRulePage['items'], value: boolean): boolean {
     const next = updateCleanupSelection(selected, items, value);
-    if (next) selected = next;
-    else onerror('Select up to 500 files.');
-  }
-  async function review(): Promise<void> {
-    if (!manageable || busy || reviewing || selected.size === 0) return;
-    reviewing = true;
-    onbusy(true);
-    const owner = generation;
-    try {
-      const plan = await invokeIndexed<CleanupPreview>('preview_cleanup_rule', {
-        rule: activeRule,
-        application,
-        selection: [...selected.keys()],
-      });
-      if (alive && owner === generation) onpreview(plan);
-      else await invoke('discard_cleanup', { id: plan.id });
-    } catch (problem) {
-      if (alive) onerror(problem);
-    } finally {
-      reviewing = false;
-      onbusy(false);
+    if (!next) {
+      onerror('Select up to 500 files.');
+      return false;
     }
+    selected = next;
+    return true;
+  }
+  function addSelection(): void {
+    if (!manageable || busy || !page?.indexed || loadState !== 'ready' || selected.size === 0)
+      return;
+    const source: TraySource =
+      activeRule === 'browser_cache' ? { kind: activeRule, application } : { kind: activeRule };
+    if (onadd(source, [...selected.keys()], pageOwner)) selected = new Map();
   }
   $effect(() => {
     revision;
@@ -149,7 +137,6 @@
     });
   });
   onDestroy(() => {
-    alive = false;
     generation += 1;
     cancelRead();
   });
@@ -167,13 +154,13 @@
         <strong>{applicationName ?? 'Application cache review'}</strong>
         <small>Browser HTTP cache · explicit file selection</small>
       </div>
-      <button onclick={onclearapplication} disabled={busy || reviewing}>All cleanup rules</button>
+      <button onclick={onclearapplication} disabled={busy}>All cleanup rules</button>
     {:else}
       <div class="rule-choices" role="group" aria-label="Cleanup rule">
         {#each rules as choice}<button
             class:active={rule === choice.id}
             aria-pressed={rule === choice.id}
-            disabled={busy || reviewing || loadState === 'loading'}
+            disabled={busy || loadState === 'loading'}
             onclick={() => {
               rule = choice.id;
             }}><Icon name={choice.icon} size={17} />{choice.name}</button
@@ -236,7 +223,9 @@
                       indeterminate={pageSelected > 0 && !allPageSelected}
                       disabled={!manageable || busy || loadState !== 'ready'}
                       onchange={(event) => {
-                        if (page) checkItems(page.items, event.currentTarget.checked);
+                        if (!page || !checkItems(page.items, event.currentTarget.checked)) {
+                          event.currentTarget.checked = allPageSelected;
+                        }
                         event.currentTarget.checked = allPageSelected;
                         event.currentTarget.indeterminate = pageSelected > 0 && !allPageSelected;
                       }}
@@ -255,7 +244,9 @@
                         checked={selected.has(item.id)}
                         disabled={!manageable || busy}
                         onchange={(event) => {
-                          checkItems([item], event.currentTarget.checked);
+                          if (!checkItems([item], event.currentTarget.checked)) {
+                            event.currentTarget.checked = selected.has(item.id);
+                          }
                           event.currentTarget.checked = selected.has(item.id);
                         }}
                       /></td
@@ -289,43 +280,22 @@
           >
         </div>{/if}
     </div>
-    <aside aria-label="Cleanup selection" bind:this={selectionRegion}>
-      <header>
-        <h2>Selection</h2>
-        <span>{selected.size.toLocaleString()} files</span>
-      </header>
-      {#if selection.length}<ul>
-          {#each selection as item (item.id)}<li>
-              <div class="file-name">
-                <Icon name="file" />
-                <div><strong>{filename(item.path)}</strong><small>{item.path}</small></div>
-              </div>
-              <span>{bytes(item.logical)}</span>
-              <span class="selection-size-track" aria-hidden="true"
-                ><span
-                  style:width={`${selectionLogical > 0 ? (item.logical / selectionLogical) * 100 : 0}%`}
-                ></span></span
-              >
-            </li>{/each}
-        </ul>
-      {:else}<div class="selection-empty">No files selected</div>{/if}
-      <div class="selection-total">
-        <span>Logical size</span><strong>{bytes(selectionLogical)}</strong>
+    {#if page?.indexed && selected.size}
+      <div class="selection-bar rule-review-actions">
+        <span>{selected.size.toLocaleString()} selected</span>
+        <button
+          disabled={busy}
+          onclick={() => {
+            selected = new Map();
+          }}>Clear</button
+        >
+        <button
+          class="primary"
+          disabled={!manageable || busy || loadState !== 'ready'}
+          onclick={addSelection}>Add to review tray</button
+        >
       </div>
-      <button
-        class="primary review"
-        onclick={review}
-        disabled={!manageable || busy || reviewing || loadState !== 'ready' || selected.size === 0}
-        >Review selection</button
-      >
-      <button
-        class="clear"
-        onclick={() => {
-          selected = new Map();
-        }}
-        disabled={busy || selected.size === 0}>Clear</button
-      >
-    </aside>
+    {/if}
   </div>
 </div>
 
@@ -392,8 +362,7 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 24px;
   }
-  .rule-list,
-  aside {
+  .rule-list {
     min-width: 0;
   }
   .rule-scroll {
@@ -474,82 +443,7 @@
   .rule-actions > span {
     margin-right: auto;
   }
-  aside {
-    align-self: start;
-    background: var(--surface);
-    padding: 20px;
-  }
-  header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-  }
-  h2 {
-    font-size: 17px;
-    margin: 0;
-  }
-  header > span {
-    color: var(--secondary);
-    font-size: 12px;
-  }
-  ul {
-    list-style: none;
-    margin: 16px 0;
-    padding: 0;
-    max-height: 360px;
-    overflow: auto;
-    overscroll-behavior: contain;
-  }
-  li {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    align-items: start;
-    gap: 8px 12px;
-    padding: 12px 0;
-  }
-  li > span {
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
-  }
-  .selection-size-track {
-    grid-column: 1 / -1;
-    height: 4px;
-    background: var(--paper);
-    overflow: hidden;
-  }
-  .selection-size-track > span {
-    display: block;
-    height: 100%;
-    background: var(--accent-fill);
-  }
-  .selection-empty {
-    padding: 40px 0;
-    color: var(--secondary);
-  }
-  .selection-total {
-    display: flex;
-    justify-content: space-between;
-    padding: 20px 0;
-    gap: 12px;
-  }
-  .selection-total strong {
-    font-size: 20px;
-    font-variant-numeric: tabular-nums;
-  }
-  .review,
-  .clear {
-    width: 100%;
-    justify-content: center;
-  }
-  .clear {
-    margin-top: 8px;
-    border-color: transparent;
-    color: var(--accent);
-  }
-  @media (min-width: 1200px) {
-    .rule-layout {
-      grid-template-columns: minmax(0, 1fr) 340px;
-    }
+  .rule-review-actions {
+    margin-top: 12px;
   }
 </style>

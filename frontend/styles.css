@@ -320,6 +320,18 @@ progress::-webkit-progress-value {
   flex: 1 1 280px;
   margin-left: auto;
 }
+.toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-inline-start: auto;
+}
+.toolbar .tray-count {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
 .toolbar button:not(.primary):not(.danger),
 .page-actions button:not(.primary):not(.danger) {
   border-color: transparent;

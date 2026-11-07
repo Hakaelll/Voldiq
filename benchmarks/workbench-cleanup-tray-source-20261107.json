@@ -1,0 +1,146 @@
+{
+  "checkedUtc": "2026-11-07T18:33:57.7403406Z",
+  "startedUtc": "2026-11-07T18:26:00.0817892Z",
+  "checkoutCommit": "460a9f6f6458f7962a403f39ba60c94d647c14dd",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 2.241
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 33.59
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 4.591
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 22.602
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 401.505
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 13.017
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/applications/review.rs",
+      "sha256": "35ABD9581C6C5D4C4C28AE0D72EA678CAA71BEC01C91529864640092A7806E44"
+    },
+    {
+      "path": "crates/voldiq-core/src/cleanup.rs",
+      "sha256": "621ED6C30922FF6B93ED1F02BFD17D3AD868AF4F5507222EC32BCC530A0A9028"
+    },
+    {
+      "path": "crates/voldiq-core/src/cleanup/execute/tests.rs",
+      "sha256": "E15C36337DEB610E8E646E4AF1AD99701822738DFE41596A15DA1379DE19AFDF"
+    },
+    {
+      "path": "crates/voldiq-core/src/cleanup/tray.rs",
+      "sha256": "2961C5C2C0AA7A340A611254DD232C04C1A4890B74CB7A5877DC449716EEB344"
+    },
+    {
+      "path": "crates/voldiq-core/src/cleanup/tray/prepare.rs",
+      "sha256": "DEAFEA6DB21151D458E7E585ABFB43275D6E15FBB20EC68D8633EDFFE3423764"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "F4FCC6CD7152492DC52B1002F210FBC91E0597FA4191D263840690C0A29380B3"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "A3B606B3F370EB8F7B1309EF5EE06C8EBFEB5DC0D29BD961FF4AD05870D0F4E7"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "8AC61F82805F6E411A0AB4FB899F70DF6193DFD34AA66F275DDD4A0A2C9751E6"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "97BA2FE54A09D81F31C404E02B3D899A057C0F6DD5A0B68DC7DDEF8C4A154BE4"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "F7DB772BE55329DD2EA434E6D46529E7E712C8520791F74C278DCD0C1F594628"
+    },
+    {
+      "path": "frontend/components/CleanupPreview.svelte",
+      "sha256": "050E0AAE7608A80CBDE97BB58CC6A963238DE88F07FF5D2AA5206C64C81FDA0E"
+    },
+    {
+      "path": "frontend/components/CleanupRules.svelte",
+      "sha256": "6121729CB9071956BE2A8385F8EA8D5D3C6F6B66073DE0662EFAC02C2632EE1B"
+    },
+    {
+      "path": "frontend/components/CleanupTray.svelte",
+      "sha256": "C93756FFA503230BF1F2383E0ECEFFA0C933BDDBDE345F9E4471C7CE65A9FBF0"
+    },
+    {
+      "path": "frontend/components/Duplicates.svelte",
+      "sha256": "02F6D3BFB8776C7CD714733B4187100E222C84EA9AC0E4BF7F2C267682CB66FF"
+    },
+    {
+      "path": "frontend/components/FileTable.svelte",
+      "sha256": "3B24CD7C925B938289A77FC6A6D6031B33A0A78D19AD090A44101AF2E634FA6E"
+    },
+    {
+      "path": "frontend/lib/cleanup-selection.test.ts",
+      "sha256": "B65D59E1558DC3F81D167641F3FFA42BDFE2AFE8F94A8C3DBFC973B29473F1B7"
+    },
+    {
+      "path": "frontend/lib/cleanup-tray.ts",
+      "sha256": "66A092D02242BD96308B108A07AE1041E804AE2D5C69A86BE4B61D2261A98550"
+    },
+    {
+      "path": "frontend/lib/queries.ts",
+      "sha256": "AECBDFC321267F1A62BBA17CD321E8F01B3F55D9D2B63343D1C5AF73CE1B89B9"
+    },
+    {
+      "path": "frontend/lib/query-runner.ts",
+      "sha256": "B56DD586E566909DE094841C808C799EB6F812EADB93C86CCF48ABDF1354DFCB"
+    },
+    {
+      "path": "frontend/lib/types.ts",
+      "sha256": "8775885E6803AB1573DFAC38D0E316D33B3BC60BE9BCA84B803E3477E603FDFA"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "1FDF0A5F696FB9FA88EC6BAA73FA3DB63275E819DD78E4A53861FF5D3712F89F"
+    },
+    {
+      "path": "src-tauri/src/cleanup_commands.rs",
+      "sha256": "97DC189301F9B14590C95DC17ED5F22989EE513B85A72D72AB948ACDFC955F12"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "FC49F0914468F7B0E653CCD7FDC10DA2889AEA7B3596B1D71F72870D838B2993"
+    },
+    {
+      "path": "src-tauri/src/query_commands.rs",
+      "sha256": "B8E7DAE8D2C60BA12B6ED8786E4C026510EDB69E58A143418EBC37DDE75F08CE"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "limits": "Owned fixtures exercise source groups, keeper conflicts, fixed logical scale, exact allocation accounting and cancellation. Native visual, focus/keyboard, scaling and clean-machine install acceptance remain manual."
+}

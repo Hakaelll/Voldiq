@@ -1,5 +1,15 @@
 # Storage workbench status
 
+## Common cleanup review tray
+
+Review tray opens from the workspace toolbar and keeps its selection across views in the current analysis. Explorer, the inspector, cleanup rules and exact duplicates add files with their original source. The tray groups files by source and folder. Users can remove individual files, clear the tray and prepare one plan for up to 500 files in 16 source groups. The confirmation dialog lists review sources and retained copies.
+
+The simulation compares indexed logical sizes on a fixed scale. The optional review target measures chosen logical size or known indexed allocation. Shared native file identities contribute allocation once, and incomplete allocation stays explicit. Preparation rechecks source conditions, protections and duplicate evidence. A retained copy selected through another group blocks the plan. Changing the analysis invalidates its file IDs.
+
+Integration passed six stages with eight behavior tests, zero Svelte diagnostics and strict Clippy. The retained owned fixtures exercise a four-file mixed plan with two keepers, a cross-source keeper conflict, cancellation after the first file, fixed-scale logical totals and invalid targets. The first allocation run exposed the scanner's single-path charge for a shared identity. The final fixture verifies the full allocation when both aliases or only the uncharged alias are selected, and verifies unknown allocation when evidence is missing. The frontend flow checks source preservation and selection bounds. Populated visual, keyboard and Windows scaling checks remain manual. [Integration receipt](../benchmarks/workbench-cleanup-tray-source-20261107.json)
+
+The remaining workbench requirements are tracked in the coverage matrix.
+
 ## Application file search and contextual exploration
 
 Applications now uses View files to open the existing Explorer table in the current folder with current filters and an exact application ID. The chart uses the same action. The shared compiler checks the combined expression before adoption; changed folder/query/analysis contexts reject late responses. The advanced editor adds a concise example without another control group. Existing sidebar behavior, black tokens and chart palette remain unchanged. Native rendering, keyboard/focus and Windows scaling remain manual.

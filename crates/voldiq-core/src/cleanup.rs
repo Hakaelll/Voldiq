@@ -9,6 +9,7 @@ pub(crate) mod record;
 #[cfg(windows)]
 pub mod recycle;
 pub mod rules;
+pub mod tray;
 use std::{
     collections::HashSet,
     path::{Path, PathBuf},
@@ -16,6 +17,7 @@ use std::{
 };
 
 pub(crate) const STAGE_DIRECTORY_PREFIX: &str = "voldiq-stage-";
+const MIXED_REVIEW_RULE: &str = "mixed-review-files";
 
 #[derive(Clone, Serialize)]
 pub struct PreviewItem {
@@ -121,11 +123,21 @@ impl Plan {
     }
 
     fn validate_retained(&self) -> Result<()> {
+        let required: HashSet<_> = self
+            .files
+            .iter()
+            .filter_map(|file| file.digest.as_deref())
+            .collect();
+        let provided: HashSet<_> = self
+            .retained
+            .iter()
+            .map(|(_, digest)| digest.as_str())
+            .collect();
         if self.preview.retained.len() != self.retained.len()
-            || self.files.iter().any(|file| match &file.digest {
-                Some(digest) => !self.retained.iter().any(|(_, keep)| keep == digest),
-                None => !self.retained.is_empty(),
-            })
+            || required != provided
+            || (self.preview.rule != MIXED_REVIEW_RULE
+                && !provided.is_empty()
+                && self.files.iter().any(|file| file.digest.is_none()))
         {
             return Err(Error::Invalid(
                 "Duplicate execution requires retained-copy authority.".into(),

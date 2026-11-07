@@ -32,6 +32,7 @@ pub(crate) enum QueryFamily {
     RecoveryCopies,
     HistoryClip,
     Applications,
+    CleanupTray,
 }
 
 #[derive(Default)]
@@ -48,7 +49,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 15],
+    slots: [Slot; 16],
 }
 
 impl QueryFamily {
@@ -69,6 +70,7 @@ impl QueryFamily {
             Self::RecoveryCopies => 12,
             Self::HistoryClip => 13,
             Self::Applications => 14,
+            Self::CleanupTray => 15,
         }
     }
 }
@@ -646,6 +648,34 @@ pub(crate) async fn query_applications(
 #[tauri::command]
 pub(crate) fn translate_search(source: String) -> Result<voldiq_core::search::Translation, String> {
     voldiq_core::search::translate(&source).map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub(crate) async fn query_cleanup_tray(
+    index_id: IndexId,
+    groups: Vec<voldiq_core::cleanup::tray::Group>,
+    target: Option<voldiq_core::cleanup::tray::Target>,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<voldiq_core::cleanup::tray::Summary>, String> {
+    run_query(
+        index_id,
+        epoch,
+        QueryFamily::CleanupTray,
+        request_id,
+        engine.inner().clone(),
+        move |index, cancelled| {
+            let result =
+                voldiq_core::cleanup::tray::summarize(index, &groups, target.as_ref(), cancelled);
+            if cancelled.load(Ordering::Relaxed) {
+                Ok(None)
+            } else {
+                result.map(Some).map_err(|error| error.to_string())
+            }
+        },
+    )
+    .await
 }
 
 #[tauri::command]

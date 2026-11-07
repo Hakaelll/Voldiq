@@ -47,7 +47,7 @@
     onsort: (sort: Exclude<NonNullable<Query['sort']>, 'allocated'>) => void;
     checked?: ReadonlySet<number>;
     manageable?: boolean;
-    oncheck?: (id: number, checked: boolean) => void;
+    oncheck?: (id: number, checked: boolean, owner: typeof indexId) => boolean;
     ranked?: boolean;
     paint?: (entry: Entry) => { fill: string; ink: string };
     representation?: 'table' | 'grid';
@@ -335,7 +335,11 @@
                   type="checkbox"
                   aria-label={`Add ${entry.name} to cleanup review`}
                   checked={checked.has(entry.id)}
-                  onchange={(event) => oncheck?.(entry.id, event.currentTarget.checked)}
+                  onchange={(event) => {
+                    if (!oncheck?.(entry.id, event.currentTarget.checked, indexId)) {
+                      event.currentTarget.checked = checked.has(entry.id);
+                    }
+                  }}
                 />
               {:else}<span class="selection-spacer"></span>{/if}
             {/if}

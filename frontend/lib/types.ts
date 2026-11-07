@@ -1,3 +1,4 @@
+import type { TrayOrigin } from './cleanup-tray';
 export interface RestorationPreview {
   id: number;
   path: string;
@@ -32,6 +33,7 @@ export interface RecyclingReport {
 }
 export interface CleanupPreview {
   id: number;
+  origins: TrayOrigin[];
   preview: {
     rule: string;
     risk: string;

@@ -13,6 +13,7 @@ import {
   type TransferRecord,
 } from './transfer-catalogue.ts';
 import { updateCleanupSelection } from './cleanup-selection.ts';
+import { addToTray, trayPercent } from './cleanup-tray.ts';
 import { createNavigationRefresh } from './navigation-refresh.ts';
 import { resolveZoom, zoomBox, createTreemapAnimator } from './treemap-motion.ts';
 import { getIndexContext, setIndexContext, invokeIndexed } from './index-context.ts';
@@ -227,6 +228,25 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   assert.equal(exact.size, 500);
   assert.deepEqual([...exact.keys()].slice(-2), [498, 499]);
   assert.equal(updateCleanupSelection(exact, [item(500)], true), null);
+  const manualTray = addToTray([], { kind: 'manual' }, [20, 21]);
+  assert.ok('groups' in manualTray);
+  const mixedTray = addToTray(manualTray.groups, { kind: 'duplicates' }, [22]);
+  assert.ok('groups' in mixedTray);
+  assert.deepEqual(mixedTray.groups, [
+    { source: { kind: 'manual' }, selection: [20, 21] },
+    { source: { kind: 'duplicates' }, selection: [22] },
+  ]);
+  assert.ok('problem' in addToTray(mixedTray.groups, { kind: 'old_files' }, [21, 23]));
+  assert.ok(
+    'problem' in
+      addToTray(
+        mixedTray.groups,
+        { kind: 'manual' },
+        Array.from({ length: 498 }, (_, id) => id + 100),
+      ),
+  );
+  assert.equal(trayPercent('100', '100'), 100);
+  assert.equal(trayPercent('77', '100'), 77);
   const refresh = createNavigationRefresh();
   assert.equal(refresh.request(), true);
   refresh.begin(1);

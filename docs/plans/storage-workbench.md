@@ -104,6 +104,8 @@ Search first adds one bounded core parser/compiler to the existing query engine.
 - [x] Add notes/protections, budgets and favorites to shared persistence. User-only protection removal.
   Folder notes, descendant protection, exact-version human removal, native/agent plan enforcement, rule/duplicate filtering, scoped content-gated note reads and tooltip previews are implemented. Native-identity favorites and folder budgets use bounded shared persistence, revision checks and operation exclusion. Budget reads share coverage, actual image samples and compatible measured-day forecasts across GUI/CLI/MCP. Native UI acceptance remains manual.
 - [ ] Add evidence-based app/game/media attribution, shared/unattributed buckets, review scoring and common cleanup tray. Preserve existing verified developer rules.
+
+The common tray binds up to 500 file IDs in 16 source groups to the current analysis. Manual files, existing recipe candidates and exact duplicates enter through the same UI state. Indexed logical sizes and known allocation remain separate, with hard-link identities counted once for allocation. A target only tracks the chosen measure. Shared preparation rechecks each source, rejects selected retained copies across groups and carries all keeper evidence into the existing executor. The remaining app, library, scoring and rule work stays in this stage.
 - [ ] Extend duplicate review with perceptual image comparison, explicit similarity and manual selection; do not weaken exact duplicate retention.
 - [ ] Verify parser failures, protection precedence, accounting and unsafe suggestions. Commit and push.
 

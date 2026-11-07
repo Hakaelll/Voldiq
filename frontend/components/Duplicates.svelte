@@ -1,8 +1,9 @@
 <script lang="ts">
-  import { invokeIndexed } from '../lib/index-context';
+  import { getIndexContext, invokeIndexed, type IndexId } from '../lib/index-context';
   import { onMount, onDestroy } from 'svelte';
   import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
   import Icon from './Icon.svelte';
+  import type { TraySource } from '../lib/cleanup-tray';
   import {
     bytes,
     date,
@@ -10,7 +11,6 @@
     type DuplicateItem,
     type DuplicateProgress,
     type Issue,
-    type CleanupPreview,
   } from '../lib/types';
   let {
     scope,
@@ -19,7 +19,7 @@
     onselect,
     onissues,
     onerror,
-    onpreview,
+    onadd,
   }: {
     scope: number;
     enabled: boolean;
@@ -27,7 +27,7 @@
     onselect: (id: number) => void;
     onissues: (items: Issue[]) => void;
     onerror: (problem: unknown) => void;
-    onpreview: (plan: CleanupPreview) => void;
+    onadd: (source: TraySource, ids: readonly number[], owner: IndexId | null) => boolean;
   } = $props();
   const groupLimit = 20,
     memberLimit = 50;
@@ -52,57 +52,27 @@
   const groupSelected = $derived(
     activeGroup ? [...checked.values()].filter((key) => key === activeGroup.key).length : 0,
   );
-  let reviewing = $state(false),
-    reviewId = $state<number | null>(null);
-  let alive = true;
-  function check(id: number, group: number, copies: number, value: boolean): void {
+  const indexOwner = getIndexContext();
+  function check(id: number, group: number, copies: number, value: boolean): boolean {
     const next = new Map(checked);
     if (value) {
       if (next.size >= 500) {
         onerror('Select up to 500 files.');
-        return;
+        return false;
       }
       const chosen = [...next.values()].filter((key) => key === group).length;
       if (chosen >= copies - 1) {
         onerror('Keep at least one copy in each group.');
-        return;
+        return false;
       }
       next.set(id, group);
     } else next.delete(id);
     checked = next;
+    return true;
   }
-  async function review(): Promise<void> {
-    if (!enabled || reviewing || checked.size === 0) return;
-    reviewing = true;
-    onbusy(true);
-    const progress = new Channel<number>();
-    progress.onmessage = (id) => {
-      reviewId = id;
-      if (!alive) void cancelReview();
-    };
-    try {
-      const plan = await invokeIndexed<CleanupPreview>('preview_duplicate_cleanup', {
-        selection: [...checked.keys()],
-        progress,
-      });
-      if (alive) onpreview(plan);
-      else await invoke('discard_cleanup', { id: plan.id });
-    } catch (problem) {
-      if (alive) onerror(problem);
-    } finally {
-      reviewing = false;
-      reviewId = null;
-      onbusy(false);
-    }
-  }
-  async function cancelReview(): Promise<void> {
-    if (reviewId !== null) {
-      try {
-        await invoke('cancel_operation', { id: reviewId });
-      } catch (problem) {
-        onerror(problem);
-      }
-    }
+  function addSelection(): void {
+    if (!enabled || checked.size === 0) return;
+    if (onadd({ kind: 'duplicates' }, [...checked.keys()], indexOwner)) checked = new Map();
   }
   async function load(next = offset): Promise<void> {
     const token = ++request;
@@ -222,8 +192,6 @@
     if (isTauri()) void load(0);
   });
   onDestroy(() => {
-    alive = false;
-    if (reviewing) void cancelReview();
     request += 1;
     memberRequest += 1;
   });
@@ -269,7 +237,7 @@
             class="duplicate-group-heading"
             class:selected={openGroup === group.key}
             aria-pressed={openGroup === group.key}
-            disabled={loading || reviewing}
+            disabled={loading}
             onclick={() => expand(group.key)}
           >
             <span class="duplicate-group-name"
@@ -347,14 +315,17 @@
                     type="checkbox"
                     aria-label={`Select ${item.path}`}
                     checked={checked.has(item.id)}
-                    disabled={!enabled || reviewing}
+                    disabled={!enabled}
                     onchange={(event) => {
-                      check(
-                        item.id,
-                        activeGroup.key,
-                        activeGroup.copies,
-                        event.currentTarget.checked,
-                      );
+                      if (
+                        !check(
+                          item.id,
+                          activeGroup.key,
+                          activeGroup.copies,
+                          event.currentTarget.checked,
+                        )
+                      )
+                        event.currentTarget.checked = checked.has(item.id);
                       event.currentTarget.checked = checked.has(item.id);
                     }}
                   />
@@ -396,20 +367,14 @@
     </div>
     <div class="selection-bar duplicate-selection">
       <span>{checked.size ? `${checked.size} selected` : 'No files selected'}</span>
-      {#if reviewing}<span>Verifying content</span><button
-          onclick={cancelReview}
-          disabled={reviewId === null}>Cancel</button
-        >{/if}
       {#if checked.size}<button
           onclick={() => {
             checked = new Map();
           }}
-          disabled={reviewing}>Clear</button
+          disabled={!enabled}>Clear</button
         >{/if}
-      <button
-        class="primary"
-        onclick={review}
-        disabled={!enabled || reviewing || checked.size === 0}>Review selection</button
+      <button class="primary" onclick={addSelection} disabled={!enabled || checked.size === 0}
+        >Add to review tray</button
       >
     </div>
   {:else if loading}<div class="table-empty" role="status">Loading groups</div>

@@ -2678,6 +2678,78 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             .allocated
     );
     assert!(known_allocation.0 > 100);
+    {
+        use voldiq_core::cleanup::tray::{self, Group, Metric, Source, Target, TargetProgress};
+        let alias = account_index
+            .entries
+            .iter()
+            .find(|entry| entry.name == "alias.bin")
+            .unwrap()
+            .id;
+        let data = account_index
+            .entries
+            .iter()
+            .find(|entry| entry.name == "data.bin")
+            .unwrap()
+            .id;
+        let groups = [Group {
+            source: Source::Manual,
+            selection: vec![alias, data],
+        }];
+        let target = Target {
+            metric: Metric::Allocated,
+            expression: format!("{}B", known_allocation.0),
+        };
+        let review = tray::summarize(&account_index, &groups, Some(&target), &loading).unwrap();
+        assert_eq!(review.selected_logical, "16384");
+        assert_eq!(review.known_allocated, known_allocation.0.to_string());
+        assert_eq!(review.repeated_identity_paths, 1);
+        assert_eq!(review.remaining_logical.as_deref(), Some("0"));
+        let uncharged = [alias, data]
+            .into_iter()
+            .find(|id| account_index.entry(*id).unwrap().allocated == 0)
+            .unwrap();
+        let alias_only = tray::summarize(
+            &account_index,
+            &[Group {
+                source: Source::Manual,
+                selection: vec![uncharged],
+            }],
+            Some(&target),
+            &loading,
+        )
+        .unwrap();
+        assert_eq!(alias_only.selected_logical, "8192");
+        assert_eq!(alias_only.known_allocated, known_allocation.0.to_string());
+        assert_eq!(alias_only.remaining_logical.as_deref(), Some("8192"));
+        assert!(matches!(
+            review.target,
+            Some(TargetProgress::Measured {
+                complete: true,
+                reached: true,
+                ..
+            })
+        ));
+        account_index.entries[alias.0 as usize].allocation_known = false;
+        let partial = tray::summarize(&account_index, &groups, Some(&target), &loading).unwrap();
+        account_index.entries[alias.0 as usize].allocation_known = true;
+        assert!(!partial.allocation_complete);
+        assert!(
+            partial.groups[0]
+                .items
+                .iter()
+                .any(|item| item.id == alias && item.allocated.is_none())
+        );
+        assert!(matches!(
+            partial.target,
+            Some(TargetProgress::Measured {
+                complete: false,
+                reached: false,
+                ..
+            })
+        ));
+        assert!(tray::summarize(&account_index, &groups, None, &AtomicBool::new(true)).is_err());
+    }
     let account_volume = voldiq_core::space::VolumeIdentity {
         guid_root: "fixture-volume".into(),
         serial: indexed_space.volume_serial.clone().unwrap(),

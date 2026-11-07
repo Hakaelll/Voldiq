@@ -108,9 +108,17 @@
     ><span>{bytes(plan.preview.reclaimable)} potential</span>
   </div>
   <div class="preview-scroll">
-    {#if plan.preview.rule === 'old-browser-http-cache-files'}<p>
+    {#if plan.origins.some((origin) => origin.id === 'old-browser-http-cache-files')}<p>
         Close the browser. Cached pages may need downloading again.
       </p>{/if}
+    <details class="plan-origins">
+      <summary>Review sources</summary>
+      <ul>
+        {#each plan.origins as origin}
+          <li><strong>{origin.label}</strong> · {origin.description} <small>{origin.risk === 'review' ? 'Manual review' : origin.risk}</small></li>
+        {/each}
+      </ul>
+    </details>
     {#if plan.preview.retained.length}<div class="retained-files">
         <strong>Keep</strong>{#each plan.preview.retained as path}<div>{path}</div>{/each}
       </div>{/if}

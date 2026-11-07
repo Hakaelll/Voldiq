@@ -6,7 +6,7 @@ use crate::{
 };
 use std::path::Path;
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Context {
     pub scope: NodeId,

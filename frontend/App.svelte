@@ -36,6 +36,8 @@
   import History from './components/History.svelte';
   import DeveloperStorage from './components/DeveloperStorage.svelte';
   import CleanupPreviewDialog from './components/CleanupPreview.svelte';
+  import CleanupTray from './components/CleanupTray.svelte';
+  import { addToTray, type TrayGroup, type TraySource, type TrayTarget } from './lib/cleanup-tray';
   import CleanupRules from './components/CleanupRules.svelte';
   import type { ApplicationCleanupContext } from './lib/applications';
   import RecycleBin from './components/RecycleBin.svelte';
@@ -196,7 +198,16 @@
   let historical = $state<Snapshot | null>(null);
   let exploration = $state.raw<Exploration>(emptyExploration(null));
   const explored = $derived(explorationIds(exploration, indexId));
-  let selection = $state(new Set<number>());
+  let trayGroups = $state.raw<readonly TrayGroup[]>([]);
+  let trayTarget = $state.raw<TrayTarget | null>(null);
+  let trayOpen = $state(false),
+    trayPreparing = $state(false);
+  let trayPrepareId = $state<number | null>(null),
+    trayButton = $state<HTMLButtonElement>();
+  let trayProblem = $state('');
+  let trayGeneration = 0,
+    trayCancelRequested = false;
+  const selection = $derived(new Set(trayGroups.flatMap((group) => group.selection)));
   let cleanupPreview = $state<CleanupPreview | null>(null);
   let cleanupNeedsRefresh = false;
   let restoreReceipt = $state<number | null>(null);
@@ -292,9 +303,11 @@
     }
   }
   function openSaved(): void {
+    if (trayPreparing) return;
     savedOpen = !savedOpen;
     if (savedOpen) {
       advancedOpen = false;
+      trayOpen = false;
       void loadWorkspaces();
     }
   }
@@ -425,28 +438,90 @@
     details = null;
     return true;
   }
-  function checkFile(id: number, checked: boolean): void {
-    const next = new Set(selection);
-    if (checked) {
-      if (next.size >= 500) {
-        error = 'Select up to 500 files.';
-        return;
-      }
-      next.add(id);
-    } else next.delete(id);
-    selection = next;
+  function openTray(): void {
+    advancedOpen = false;
+    savedOpen = false;
+    trayOpen = true;
   }
-  async function previewSelection(): Promise<void> {
-    if (busy || historical || selection.size === 0) return;
+  function closeTray(): void {
+    if (trayPreparing) return;
+    trayOpen = false;
+    void tick().then(() => {
+      if (!trayOpen && document.activeElement === document.body)
+        trayButton?.focus({ preventScroll: true });
+    });
+  }
+  function removeTrayFile(id: number): void {
+    if (busy) return;
+    trayProblem = '';
+    trayGroups = trayGroups.flatMap((group) => {
+      if (!group.selection.includes(id)) return [group];
+      const remaining = group.selection.filter((node) => node !== id);
+      return remaining.length ? [{ ...group, selection: remaining }] : [];
+    });
+  }
+  function addTrayFiles(
+    source: TraySource,
+    ids: readonly number[],
+    owner: IndexId | null,
+    reveal = true,
+  ): boolean {
+    if (owner === null || owner !== indexId || !ready || busy || historical !== null) return false;
+    const next = addToTray(trayGroups, source, ids);
+    if ('problem' in next) {
+      report(next.problem);
+      return false;
+    }
+    trayGroups = next.groups;
+    trayProblem = '';
+    if (reveal) openTray();
+    return true;
+  }
+  function checkFile(id: number, checked: boolean, owner: IndexId | null): boolean {
+    if (owner === null || owner !== indexId || busy || historical !== null) return false;
+    if (checked) return addTrayFiles({ kind: 'manual' }, [id], owner, false);
+    removeTrayFile(id);
+    return true;
+  }
+  async function prepareTray(): Promise<void> {
+    if (busy || historical !== null || !ready || indexId === null || !trayGroups.length) return;
+    const index = indexId,
+      groups = trayGroups,
+      owner = ++trayGeneration;
+    trayPreparing = true;
+    trayProblem = '';
+    trayCancelRequested = false;
     analysisBusy = true;
+    const progress = new Channel<number>();
+    progress.onmessage = (id) => {
+      if (trayPreparing && owner === trayGeneration && index === indexId && !trayCancelRequested)
+        trayPrepareId = id;
+    };
     try {
-      cleanupPreview = await invokeIndexed<CleanupPreview>('preview_cleanup', {
-        selection: [...selection],
+      const plan = await invoke<CleanupPreview>('preview_cleanup_tray', {
+        indexId: index,
+        groups,
+        progress,
       });
+      if (!trayCancelRequested && index === indexId && groups === trayGroups) cleanupPreview = plan;
+      else await invoke('discard_cleanup', { id: plan.id });
     } catch (problem) {
-      report(problem);
+      if (!trayCancelRequested && index === indexId) trayProblem = String(problem);
     } finally {
+      trayPreparing = false;
+      trayPrepareId = null;
       analysisBusy = false;
+    }
+  }
+  async function cancelTrayPreparation(): Promise<void> {
+    if (trayPrepareId === null) return;
+    const id = trayPrepareId;
+    trayCancelRequested = true;
+    trayPrepareId = null;
+    try {
+      await invoke('cancel_operation', { id });
+    } catch (problem) {
+      trayProblem = String(problem);
     }
   }
   let volume = $derived(volumes.find((v) => v.path === volumePath));
@@ -641,7 +716,10 @@
     invalidateRefresh();
     scope = 0;
     exploration = emptyExploration(next);
-    selection = new Set();
+    trayGroups = [];
+    trayTarget = null;
+    trayOpen = false;
+    trayProblem = '';
     directory = null;
     details = null;
     children = { items: [], total: 0 };
@@ -893,12 +971,25 @@
 
   async function start(path: string, favorite?: RecordRef): Promise<void> {
     if (!path || busy) return;
-    const previous = { ready, indexId, scope, historical, selection, operation, scanPath, details };
+    const previous = {
+      ready,
+      indexId,
+      scope,
+      historical,
+      trayGroups,
+      trayTarget,
+      trayOpen,
+      operation,
+      scanPath,
+      details,
+    };
     const owner = ++scanRequest;
     pauseEligible = scanMode === 'directory';
     pauseStatus = { observed: null, activity: null, problem: null };
     scanId = null;
-    selection = new Set();
+    trayGroups = [];
+    trayTarget = null;
+    trayOpen = false;
     cleanupPreview = null;
     invalidateRefresh();
     invalidateInteraction();
@@ -980,7 +1071,9 @@
         ready = previous.ready;
         scope = previous.scope;
         historical = previous.historical;
-        selection = previous.selection;
+        trayGroups = previous.trayGroups;
+        trayTarget = previous.trayTarget;
+        trayOpen = previous.trayOpen;
         scanPath = previous.scanPath;
         details = previous.details;
         operation = previous.operation;
@@ -1015,7 +1108,9 @@
       directory = details = null;
       children = { items: [], total: 0 };
       types = { items: [], total_bytes: 0, total_files: 0 };
-      selection = new Set();
+      trayGroups = [];
+      trayTarget = null;
+      trayOpen = false;
       cleanupPreview = null;
       cleanupNeedsRefresh = false;
       issues = [];
@@ -1031,7 +1126,6 @@
   async function loadSnapshot(snapshot: Snapshot, loadedIndex: number): Promise<void> {
     scanRequest += 1;
     adoptIndex(loadedIndex);
-    selection = new Set();
     cleanupPreview = null;
     invalidateRefresh();
     invalidateInteraction();
@@ -1407,7 +1501,8 @@
           <button
             class="advanced-toggle"
             bind:this={advancedButton}
-            disabled={!ready ||
+            disabled={trayPreparing ||
+              !ready ||
               indexId === null ||
               !['overview', 'explorer', 'large'].includes(view)}
             aria-expanded={advancedOpen}
@@ -1415,18 +1510,39 @@
             aria-pressed={Boolean(searchExpression.trim())}
             onclick={() => {
               advancedOpen = !advancedOpen;
-              if (advancedOpen) savedOpen = false;
+              if (advancedOpen) {
+                savedOpen = false;
+                trayOpen = false;
+              }
             }}
             >Advanced{#if searchExpression.trim()}
               · On{/if}</button
           >
         </div>{/if}
-      <button
-        bind:this={savedButton}
-        aria-expanded={savedOpen}
-        aria-controls="saved-workspaces-panel"
-        onclick={openSaved}>Saved</button
-      >
+      <div class="toolbar-actions">
+        <button
+          bind:this={savedButton}
+          aria-expanded={savedOpen}
+          aria-controls="saved-workspaces-panel"
+          disabled={trayPreparing}
+          onclick={openSaved}>Saved</button
+        >
+        <button
+          bind:this={trayButton}
+          class="toolbar-tray"
+          aria-expanded={trayOpen}
+          aria-controls="cleanup-review-tray"
+          disabled={trayPreparing}
+          onclick={() => {
+            if (trayOpen) closeTray();
+            else openTray();
+          }}
+        >
+          <Icon name="trash" size={16} />Review tray{#if selection.size}<span class="tray-count"
+              >{selection.size.toLocaleString()}</span
+            >{/if}
+        </button>
+      </div>
     </header>
     {#if savedOpen}<div id="saved-workspaces-panel">
         <SavedWorkspaces
@@ -1802,12 +1918,7 @@
                 {busy}
                 manageable={ready && !historical}
                 onscan={start}
-                onbusy={(value) => {
-                  analysisBusy = value;
-                }}
-                onpreview={(plan) => {
-                  cleanupPreview = plan;
-                }}
+                onadd={addTrayFiles}
                 onerror={report}
               />
             {/if}
@@ -1982,9 +2093,7 @@
                     showIssues = true;
                   }}
                   onerror={report}
-                  onpreview={(plan) => {
-                    cleanupPreview = plan;
-                  }}
+                  onadd={addTrayFiles}
                 />
               {:else}<section class="panel explorer-panel">
                   {#if view === 'explorer' && !explorerMap}<div
@@ -2177,17 +2286,6 @@
                       onerror={report}
                     />
                   </div>
-                  {#if selection.size > 0}<div class="selection-bar">
-                      <span>{selection.size} in cleanup review</span><button
-                        disabled={busy || historical !== null}
-                        onclick={previewSelection}>Review selection</button
-                      ><button
-                        disabled={busy}
-                        onclick={() => {
-                          selection = new Set();
-                        }}>Clear</button
-                      >
-                    </div>{/if}
                 </section>{/if}
               {#if details}<section class="details-panel" tabindex="-1" bind:this={detailsPanel}>
                   <div>
@@ -2298,13 +2396,12 @@
                         ? 'Potentially sensitive items are excluded from cleanup'
                         : details.entry.kind === 'directory'
                           ? 'Select concrete files in the list before reviewing cleanup'
-                          : 'Open the native cleanup preview; nothing is removed now'}
+                          : 'Add this file to cleanup review'}
                       onclick={() => {
                         if (details?.entry.kind === 'file' && !details.sensitive) {
-                          selection = new Set([details.entry.id]);
-                          void previewSelection();
+                          addTrayFiles({ kind: 'manual' }, [details.entry.id], indexId);
                         }
-                      }}><Icon name="trash" />Review cleanup</button
+                      }}><Icon name="trash" />Add to review tray</button
                     >
                     <button
                       onclick={() => {
@@ -2361,6 +2458,25 @@
         {/key}
       {/if}
     </main>
+    {#if trayOpen}<CleanupTray
+        {indexId}
+        groups={trayGroups}
+        target={trayTarget}
+        {busy}
+        preparing={trayPreparing}
+        preparationProblem={trayProblem}
+        canCancel={trayPrepareId !== null}
+        onclose={closeTray}
+        onremove={removeTrayFile}
+        onclear={() => {
+          if (!busy) trayGroups = [];
+        }}
+        ontarget={(value) => {
+          trayTarget = value;
+        }}
+        onprepare={() => void prepareTray()}
+        oncancel={() => void cancelTrayPreparation()}
+      />{/if}
     <footer class="app-footer">
       <span>{isTauri() ? 'Voldiq 0.2.0' : 'Browser preview'}</span><span
         >{ready && entryCount !== null ? `${entryCount.toLocaleString()} entries` : ''}</span
@@ -2423,7 +2539,6 @@
         invalidateInteraction();
         ready = false;
         operation = null;
-        selection = new Set();
         details = null;
         directory = null;
         children = { items: [], total: 0 };
@@ -2446,7 +2561,6 @@
       invalidateInteraction();
       ready = false;
       operation = null;
-      selection = new Set();
       details = null;
       directory = null;
       children = { items: [], total: 0 };

@@ -117,14 +117,6 @@ impl Engine {
             _lease: lease,
         })
     }
-    fn index(&self) -> Result<SharedIndex, String> {
-        self.index
-            .lock()
-            .map_err(|e| e.to_string())?
-            .as_ref()
-            .map(|loaded| loaded.index.clone())
-            .ok_or_else(|| "Scan a drive or folder first.".into())
-    }
     fn index_for(&self, expected: IndexId) -> Result<SharedIndex, String> {
         self.index
             .lock()
@@ -883,6 +875,7 @@ fn main() {
             query_commands::query_space_account,
             query_commands::query_applications,
             query_commands::query_application_cache,
+            query_commands::query_cleanup_tray,
             query_commands::query_recovery_copies,
             query_commands::query_snapshot_visual,
             query_commands::query_snapshot_changes,
@@ -901,11 +894,9 @@ fn main() {
             query_commands::query_details_cancellable,
             query_commands::cancel_query,
             query_commands::open_query_session,
-            preview_cleanup,
+            preview_cleanup_tray,
             query_cleanup_rule,
             query_recycle_bin,
-            preview_cleanup_rule,
-            preview_duplicate_cleanup,
             discard_cleanup,
             clear_current_analysis,
             execute_permanent_cleanup,

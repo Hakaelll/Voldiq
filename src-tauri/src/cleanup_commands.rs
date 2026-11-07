@@ -3,13 +3,13 @@ use serde::Serialize;
 use std::sync::{Arc, Mutex};
 use tauri::State;
 use voldiq_core::{
-    NodeId,
     cleanup::{Plan, Preview},
     scanner::SharedIndex,
 };
 
 struct Session {
     id: u64,
+    index_id: IndexId,
     _index: SharedIndex,
     _plan: Plan,
 }
@@ -83,6 +83,7 @@ enum CleanupAction {
 fn consume_plan(
     plans: &Mutex<Option<Session>>,
     current: &SharedIndex,
+    current_id: IndexId,
     id: u64,
     confirmation: &str,
     action: CleanupAction,
@@ -102,7 +103,8 @@ fn consume_plan(
     let session = slot
         .as_ref()
         .ok_or("Cleanup preview is no longer available.")?;
-    if session.id != id || !Arc::ptr_eq(&session._index, current) {
+    if session.id != id || session.index_id != current_id || !Arc::ptr_eq(&session._index, current)
+    {
         return Err("Cleanup preview belongs to a previous analysis. Review again.".into());
     }
     slot.take()
@@ -122,10 +124,14 @@ pub async fn execute_permanent_cleanup(
     let operation = engine.begin()?;
     let operation_id = operation.id;
     let cancel = operation.cancel.clone();
-    let current = engine.index()?;
+    let current_id = engine
+        .index_id()?
+        .ok_or("Analyze a drive or folder first.")?;
+    let current = engine.index_for(current_id)?;
     let session = consume_plan(
         &plans.0,
         &current,
+        current_id,
         id,
         &confirmation,
         CleanupAction::Permanent,
@@ -189,10 +195,14 @@ pub async fn execute_recycling_cleanup(
     let operation = engine.begin()?;
     let operation_id = operation.id;
     let cancel = operation.cancel.clone();
-    let current = engine.index()?;
+    let current_id = engine
+        .index_id()?
+        .ok_or("Analyze a drive or folder first.")?;
+    let current = engine.index_for(current_id)?;
     let session = consume_plan(
         &plans.0,
         &current,
+        current_id,
         id,
         &confirmation,
         CleanupAction::Recycle,
@@ -257,6 +267,7 @@ pub async fn query_cleanup_history(
 pub struct CleanupPreview {
     id: u64,
     preview: Preview,
+    origins: Vec<voldiq_core::cleanup::tray::Origin>,
 }
 
 #[tauri::command]
@@ -345,171 +356,81 @@ pub async fn query_cleanup_rule(
 }
 
 #[tauri::command]
-pub async fn preview_cleanup_rule(
+pub async fn preview_cleanup_tray(
     index_id: IndexId,
     app: tauri::AppHandle,
-    rule: voldiq_core::cleanup::rules::RuleKind,
-    selection: Vec<NodeId>,
-    application: Option<voldiq_core::applications::review::Context>,
+    groups: Vec<voldiq_core::cleanup::tray::Group>,
+    progress: tauri::ipc::Channel<u64>,
     engine: State<'_, Arc<Engine>>,
     plans: State<'_, CleanupPlans>,
 ) -> Result<CleanupPreview, String> {
-    if application.is_some() && !matches!(rule, voldiq_core::cleanup::rules::RuleKind::BrowserCache)
-    {
-        return Err("Application review requires the browser cache rule.".into());
-    }
     let caches = crate::developer_commands::cache_locations(&app);
     let engine = engine.inner().clone();
     let operation = engine.begin()?;
     let id = operation.id;
     let index = engine.index_for(index_id)?;
+    let duplicates = engine
+        .duplicates
+        .lock()
+        .map_err(|error| error.to_string())?
+        .clone();
+    if groups
+        .iter()
+        .any(|group| matches!(group.source, voldiq_core::cleanup::tray::Source::Duplicates))
+        && duplicates
+            .as_ref()
+            .is_none_or(|run| !Arc::ptr_eq(&run.index, &index))
+    {
+        return Err("Analyze duplicates in the current analysis first.".into());
+    }
+    progress.send(id).map_err(|error| error.to_string())?;
     let plans = plans.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = operation;
-        let guard = index.read().map_err(|e| e.to_string())?;
-        let now = voldiq_core::cleanup::rules::now().map_err(|e| e.to_string())?;
-        let plan = match rule {
-            voldiq_core::cleanup::rules::RuleKind::UserTemp => {
-                voldiq_core::cleanup::rules::preview(&guard, &std::env::temp_dir(), now, &selection)
-            }
-            voldiq_core::cleanup::rules::RuleKind::OldFiles => {
-                voldiq_core::cleanup::rules::preview_old(&guard, now, &selection)
-            }
-            voldiq_core::cleanup::rules::RuleKind::BrowserCache => {
-                let local_data =
-                    voldiq_core::windows::local_app_data().map_err(|e| e.to_string())?;
-                if let Some(context) = application {
-                    let protections =
-                        voldiq_core::metadata::Store::open(engine.operations.directory())
-                            .and_then(|mut store| store.protections())
-                            .map_err(|e| e.to_string())?;
-                    let catalog = voldiq_core::applications::installed_programs(&_operation.cancel)
-                        .map_err(|e| e.to_string())?;
-                    voldiq_core::applications::review::preview(
-                        &guard,
-                        catalog,
-                        &context,
-                        &voldiq_core::applications::review::Environment {
-                            local_data: &local_data,
-                            now,
-                            protections: &protections,
-                        },
-                        &selection,
-                        &_operation.cancel,
-                    )
-                } else {
-                    voldiq_core::cleanup::rules::preview_browser_cache(
-                        &guard,
-                        &local_data,
-                        now,
-                        &selection,
-                    )
-                }
-            }
-            voldiq_core::cleanup::rules::RuleKind::ProjectTemp => {
-                voldiq_core::cleanup::rules::preview_project(&guard, now, &selection, &caches)
-            }
+        let guard = index.read().map_err(|error| error.to_string())?;
+        let prepared = voldiq_core::cleanup::tray::prepare(
+            &guard,
+            &groups,
+            &voldiq_core::cleanup::tray::Environment {
+                temporary: &std::env::temp_dir(),
+                local_data: &voldiq_core::windows::local_app_data()
+                    .map_err(|error| error.to_string())?,
+                caches: &caches,
+                state: engine.operations.directory(),
+                now: voldiq_core::cleanup::rules::now().map_err(|error| error.to_string())?,
+                duplicates: duplicates.as_ref().map(|run| &run.analysis),
+            },
+            &_operation.cancel,
+        )
+        .map_err(|error| error.to_string())?;
+        if _operation.cancel.load(std::sync::atomic::Ordering::Relaxed)
+            || !engine.index_is_current(index_id, &index)?
+        {
+            return Err("Cleanup review cancelled or analysis changed.".into());
         }
-        .and_then(|plan| plan.with_protections(engine.operations.directory()))
-        .map_err(|e| e.to_string())?;
         drop(guard);
-        let preview = plan.preview().clone();
-        *plans.lock().map_err(|e| e.to_string())? = Some(Session {
+        let preview = prepared.plan.preview().clone();
+        *plans.lock().map_err(|error| error.to_string())? = Some(Session {
             id,
+            index_id,
             _index: index,
-            _plan: plan,
+            _plan: prepared.plan,
         });
-        Ok(CleanupPreview { id, preview })
+        Ok(CleanupPreview {
+            id,
+            preview,
+            origins: prepared.origins,
+        })
     })
     .await
-    .map_err(|e| e.to_string())?
-}
-
-#[tauri::command]
-pub async fn preview_cleanup(
-    index_id: IndexId,
-    selection: Vec<NodeId>,
-    engine: State<'_, Arc<Engine>>,
-    plans: State<'_, CleanupPlans>,
-) -> Result<CleanupPreview, String> {
-    let engine = engine.inner().clone();
-    let operation = engine.begin()?;
-    let id = operation.id;
-    let index = engine.index_for(index_id)?;
-    let plans = plans.0.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let _operation = operation;
-        let guard = index.read().map_err(|e| e.to_string())?;
-        let plan = Plan::manual(&guard, &selection)
-            .and_then(|plan| plan.with_protections(engine.operations.directory()))
-            .map_err(|e| e.to_string())?;
-        drop(guard);
-        let preview = plan.preview().clone();
-        *plans.lock().map_err(|e| e.to_string())? = Some(Session {
-            id,
-            _index: index,
-            _plan: plan,
-        });
-        Ok(CleanupPreview { id, preview })
-    })
-    .await
-    .map_err(|e| e.to_string())?
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
 pub fn discard_cleanup(id: u64, plans: State<'_, CleanupPlans>) -> Result<(), String> {
-    let mut slot = plans.0.lock().map_err(|e| e.to_string())?;
+    let mut slot = plans.0.lock().map_err(|error| error.to_string())?;
     if slot.as_ref().is_some_and(|plan| plan.id == id) {
         *slot = None;
     }
     Ok(())
-}
-
-#[tauri::command]
-pub async fn preview_duplicate_cleanup(
-    index_id: IndexId,
-    selection: Vec<NodeId>,
-    progress: tauri::ipc::Channel<u64>,
-    engine: State<'_, Arc<Engine>>,
-    plans: State<'_, CleanupPlans>,
-) -> Result<CleanupPreview, String> {
-    let engine = engine.inner().clone();
-    let operation = engine.begin()?;
-    let id = operation.id;
-    let cancel = operation.cancel.clone();
-    let index = engine.index_for(index_id)?;
-    let run = engine
-        .duplicates
-        .lock()
-        .map_err(|e| e.to_string())?
-        .clone()
-        .ok_or("Analyze duplicates first.")?;
-    if !Arc::ptr_eq(&index, &run.index) {
-        return Err("Duplicate analysis belongs to an older scan.".into());
-    }
-    progress.send(id).map_err(|e| e.to_string())?;
-    let plans = plans.0.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        let _operation = operation;
-        let guard = index.read().map_err(|e| e.to_string())?;
-        run.analysis
-            .check_protections(&engine.protections()?)
-            .map_err(|error| error.to_string())?;
-        let plan = Plan::duplicates(&guard, &run.analysis, &selection, &cancel)
-            .and_then(|plan| plan.with_protections(engine.operations.directory()))
-            .map_err(|e| e.to_string())?;
-        if cancel.load(std::sync::atomic::Ordering::Relaxed) {
-            return Err("Duplicate review cancelled.".into());
-        }
-        drop(guard);
-        let preview = plan.preview().clone();
-        *plans.lock().map_err(|e| e.to_string())? = Some(Session {
-            id,
-            _index: index,
-            _plan: plan,
-        });
-        Ok(CleanupPreview { id, preview })
-    })
-    .await
-    .map_err(|e| e.to_string())?
 }
