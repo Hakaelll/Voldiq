@@ -39,6 +39,11 @@
   import CleanupTray from './components/CleanupTray.svelte';
   import { addToTray, type TrayGroup, type TraySource, type TrayTarget } from './lib/cleanup-tray';
   import CleanupRules from './components/CleanupRules.svelte';
+  import {
+    defaultReviewWeights,
+    readReviewWeights,
+    type ReviewWeights,
+  } from './lib/review-priority';
   import type { ApplicationCleanupContext } from './lib/applications';
   import RecycleBin from './components/RecycleBin.svelte';
   import CleanupActivity from './components/CleanupActivity.svelte';
@@ -184,6 +189,7 @@
   const entryCount = $derived(liveObservation?.entries ?? operation?.entries ?? null);
   let agentOperation = $state<number | null>(null);
   let agentNotice = $state('');
+  let reviewWeights = $state.raw<ReviewWeights>(defaultReviewWeights);
   let applicationCleanup = $state<{ indexId: IndexId; context: ApplicationCleanupContext } | null>(
     null,
   );
@@ -1283,6 +1289,8 @@
           reduceMotion = value.reduceMotion;
         if ('defaultDrive' in value && typeof value.defaultDrive === 'string')
           defaultDrive = volumePath = value.defaultDrive;
+        if ('reviewWeights' in value)
+          reviewWeights = readReviewWeights(value.reviewWeights) ?? defaultReviewWeights;
         if ('recentPaths' in value) recentPaths = readRecentPaths(value.recentPaths);
         if ('scanProfile' in value) scanProfile = parseScanProfile(value.scanProfile) ?? 'auto';
         if ('scanMode' in value && (value.scanMode === 'auto' || value.scanMode === 'directory'))
@@ -1361,6 +1369,7 @@
           scanMode,
           scanConcurrency,
           scanProfile,
+          reviewWeights,
           recentPaths,
         }),
       );
@@ -1913,6 +1922,11 @@
               </div>
             {:else}
               <CleanupRules
+                weights={reviewWeights}
+                onweights={(next) => {
+                  reviewWeights = next;
+                  savePreferences();
+                }}
                 application={applicationCleanup?.indexId === indexId
                   ? applicationCleanup.context
                   : null}

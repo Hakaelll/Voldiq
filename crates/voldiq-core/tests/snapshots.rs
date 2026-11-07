@@ -345,6 +345,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                 local_data: &local,
                 now: review_now,
                 protections: &protections,
+                duplicates: None,
             };
             let context = review::Context {
                 scope: voldiq_core::NodeId(0),
@@ -354,6 +355,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                 context: context.clone(),
                 offset: 0,
                 limit: 50,
+                weights: Default::default(),
             };
             let candidates = review::query(
                 &indexed,
@@ -371,7 +373,14 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                 candidates.candidates.rule.id,
                 "old-browser-http-cache-files"
             );
-            let selected = [candidates.candidates.items[0].id];
+            let priority = &candidates.candidates.items[0].priority;
+            assert_eq!((priority.points, priority.coverage), (3530, 75));
+            let signals = serde_json::to_value(priority).unwrap();
+            assert_eq!(signals["signals"][2]["evidence"], "browser_http_payload");
+            assert_eq!(signals["signals"][2]["points"], 2000);
+            assert!(signals["signals"][3]["value"].is_null());
+            assert!(signals["signals"][5]["value"].is_null());
+            let selected = [candidates.candidates.items[0].file.id];
             let planned = review::preview(
                 &indexed,
                 claims.clone(),
@@ -564,6 +573,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                     context: narrow_context,
                     offset: 0,
                     limit: 50,
+                    weights: Default::default(),
                 },
                 &environment,
                 &loading,
@@ -590,6 +600,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                 local_data: &local,
                 now: review_now,
                 protections: &protected,
+                duplicates: None,
             };
             assert_eq!(
                 review::query(

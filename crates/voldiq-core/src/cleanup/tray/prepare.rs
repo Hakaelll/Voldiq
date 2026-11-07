@@ -72,6 +72,7 @@ pub fn prepare(
                         local_data: env.local_data,
                         now: env.now,
                         protections: &protections,
+                        duplicates: None,
                     },
                     selection,
                     cancel,

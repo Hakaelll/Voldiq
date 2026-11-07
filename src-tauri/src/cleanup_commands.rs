@@ -286,73 +286,63 @@ pub async fn query_cleanup_rule(
     index_id: Option<IndexId>,
     app: tauri::AppHandle,
     rule: voldiq_core::cleanup::rules::RuleKind,
-    offset: usize,
-    limit: usize,
+    request: voldiq_core::cleanup::rules::Query,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<voldiq_core::cleanup::rules::Page, String> {
     let caches = crate::developer_commands::cache_locations(&app);
-    let directory = engine.operations.clone();
+    let engine = engine.inner().clone();
     let index = match index_id {
         Some(id) => Some(engine.index_for(id)?),
         None if engine.index_id()?.is_none() => None,
         None => return Err("Analysis changed. Refresh the view before continuing.".into()),
     };
+    let duplicates = engine
+        .duplicates
+        .lock()
+        .map_err(|error| error.to_string())?
+        .clone()
+        .filter(|run| {
+            Some(run.index_id) == index_id
+                && index
+                    .as_ref()
+                    .is_some_and(|index| Arc::ptr_eq(&run.index, index))
+        });
     tauri::async_runtime::spawn_blocking(move || {
-        let root = std::env::temp_dir();
-        let protections = voldiq_core::metadata::Store::open(directory.directory())
-            .and_then(|mut store| store.protections())
-            .map_err(|e| e.to_string())?;
+        use voldiq_core::cleanup::rules;
+        let protections = engine.protections()?;
         let guard = index
             .as_ref()
             .map(|index| index.read())
             .transpose()
-            .map_err(|e| e.to_string())?;
-        let now = voldiq_core::cleanup::rules::now().map_err(|e| e.to_string())?;
-        match rule {
-            voldiq_core::cleanup::rules::RuleKind::UserTemp => voldiq_core::cleanup::rules::query(
-                guard.as_deref(),
-                &root,
-                now,
-                offset,
-                limit,
-                &protections,
-            ),
-            voldiq_core::cleanup::rules::RuleKind::OldFiles => {
-                voldiq_core::cleanup::rules::query_old(
-                    guard.as_deref(),
-                    now,
-                    offset,
-                    limit,
-                    &protections,
-                )
-            }
-            voldiq_core::cleanup::rules::RuleKind::BrowserCache => {
-                let local_data =
-                    voldiq_core::windows::local_app_data().map_err(|e| e.to_string())?;
-                voldiq_core::cleanup::rules::query_browser_cache(
-                    guard.as_deref(),
-                    &local_data,
-                    now,
-                    offset,
-                    limit,
-                    &protections,
-                )
-            }
-            voldiq_core::cleanup::rules::RuleKind::ProjectTemp => {
-                voldiq_core::cleanup::rules::query_project(
-                    guard.as_deref(),
-                    now,
-                    offset,
-                    limit,
-                    &caches,
-                    &protections,
-                )
-            }
+            .map_err(|error| error.to_string())?;
+        let temporary = std::env::temp_dir();
+        let local_data = if matches!(rule, rules::RuleKind::BrowserCache) {
+            voldiq_core::windows::local_app_data().map_err(|error| error.to_string())?
+        } else {
+            temporary.clone()
+        };
+        let page = rules::query(
+            guard.as_deref(),
+            rule,
+            request,
+            &rules::Environment {
+                temporary: &temporary,
+                local_data: &local_data,
+                caches: &caches,
+                now: rules::now().map_err(|error| error.to_string())?,
+                protections: &protections,
+                duplicates: duplicates.as_ref().map(|run| &run.analysis),
+            },
+            &std::sync::atomic::AtomicBool::new(false),
+        )
+        .map_err(|error| error.to_string())?;
+        if engine.index_id()? != index_id {
+            return Err("Analysis changed. Refresh the view before continuing.".into());
         }
-        .map_err(|e| e.to_string())
+        Ok(page)
     })
     .await
-    .map_err(|e| e.to_string())?
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -379,7 +369,7 @@ pub async fn preview_cleanup_tray(
         .any(|group| matches!(group.source, voldiq_core::cleanup::tray::Source::Duplicates))
         && duplicates
             .as_ref()
-            .is_none_or(|run| !Arc::ptr_eq(&run.index, &index))
+            .is_none_or(|run| run.index_id != index_id || !Arc::ptr_eq(&run.index, &index))
     {
         return Err("Analyze duplicates in the current analysis first.".into());
     }

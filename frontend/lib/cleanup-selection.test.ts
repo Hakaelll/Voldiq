@@ -31,7 +31,7 @@ import {
   type ReportSelection,
   type ReportFormat,
 } from './report-export.ts';
-import type { CleanupRulePage } from './types';
+import type { CleanupPreview } from './types';
 import {
   createLiveSession,
   type LiveEvent,
@@ -39,7 +39,7 @@ import {
   type LiveState,
 } from './live-session.ts';
 
-function item(id: number): CleanupRulePage['items'][number] {
+function item(id: number): CleanupPreview['preview']['items'][number] {
   return {
     id,
     path: `C:\\Temp\\${id}.tmp`,

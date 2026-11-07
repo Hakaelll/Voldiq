@@ -687,6 +687,13 @@ pub(crate) async fn query_application_cache(
     engine: State<'_, Arc<Engine>>,
 ) -> Result<Option<voldiq_core::applications::review::Page>, String> {
     let directory = engine.operations.clone();
+    let current = engine.index_for(index_id)?;
+    let duplicates = engine
+        .duplicates
+        .lock()
+        .map_err(|error| error.to_string())?
+        .clone()
+        .filter(|run| run.index_id == index_id && Arc::ptr_eq(&run.index, &current));
     run_query(
         index_id,
         epoch,
@@ -707,6 +714,7 @@ pub(crate) async fn query_application_cache(
                         local_data: &local_data,
                         now: voldiq_core::cleanup::rules::now()?,
                         protections: &protections,
+                        duplicates: duplicates.as_ref().map(|run| &run.analysis),
                     },
                     cancelled,
                 )

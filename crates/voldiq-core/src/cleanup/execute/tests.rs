@@ -17,12 +17,16 @@ fn duplicate_plan(root: &std::path::Path, state: &std::path::Path) -> Plan {
         std::fs::write(root.join(name), content).unwrap();
     }
     let now = crate::cleanup::rules::now().unwrap();
-    std::fs::OpenOptions::new()
-        .write(true)
-        .open(root.join("older.tmp"))
-        .unwrap()
-        .set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(now - 100 * 86400))
-        .unwrap();
+    for (name, days) in [("a1", 100), ("older.tmp", 300)] {
+        std::fs::OpenOptions::new()
+            .write(true)
+            .open(root.join(name))
+            .unwrap()
+            .set_modified(
+                std::time::UNIX_EPOCH + std::time::Duration::from_secs(now - days * 86400),
+            )
+            .unwrap();
+    }
     let index = scanner::scan(
         root,
         &ScanOptions::default(),
@@ -79,6 +83,83 @@ fn duplicate_plan(root: &std::path::Path, state: &std::path::Path) -> Plan {
         selection: vec![id("a1"), id("a2"), id("b1")],
     };
     let cancel = AtomicBool::new(false);
+    use crate::cleanup::{rules, score};
+    let mut rules_env = rules::Environment {
+        temporary: root,
+        local_data: root,
+        caches: &[],
+        now,
+        protections: &protections,
+        duplicates: Some(&analysis),
+    };
+    let mut request = rules::Query {
+        offset: 0,
+        limit: 1,
+        weights: score::Weights::default(),
+    };
+    let first = rules::query(
+        Some(&index),
+        rules::RuleKind::OldFiles,
+        request,
+        &rules_env,
+        &cancel,
+    )
+    .unwrap();
+    assert_eq!(first.total, 2);
+    assert_eq!(first.items[0].file.id, id("a1"));
+    assert_eq!(
+        (
+            first.items[0].priority.points,
+            first.items[0].priority.coverage
+        ),
+        (4405, 80)
+    );
+    request.offset = 1;
+    let second = rules::query(
+        Some(&index),
+        rules::RuleKind::OldFiles,
+        request,
+        &rules_env,
+        &cancel,
+    )
+    .unwrap();
+    assert_eq!(second.items[0].file.id, id("older.tmp"));
+    request.offset = 0;
+    request.weights.age = 100;
+    request.weights.duplication = 0;
+    request.weights.recovery = 0;
+    let reweighted = rules::query(
+        Some(&index),
+        rules::RuleKind::OldFiles,
+        request,
+        &rules_env,
+        &cancel,
+    )
+    .unwrap();
+    assert_eq!(reweighted.items[0].file.id, id("older.tmp"));
+    request.weights.age = 101;
+    assert!(
+        rules::query(
+            Some(&index),
+            rules::RuleKind::OldFiles,
+            request,
+            &rules_env,
+            &cancel
+        )
+        .is_err()
+    );
+    request.weights = score::Weights::default();
+    rules_env.duplicates = None;
+    let missing = rules::query(
+        Some(&index),
+        rules::RuleKind::OldFiles,
+        request,
+        &rules_env,
+        &cancel,
+    )
+    .unwrap();
+    assert_eq!(missing.items[0].file.id, id("older.tmp"));
+    assert_eq!(missing.items[0].priority.coverage, 55);
     let conflict = tray::prepare(
         &index,
         &[

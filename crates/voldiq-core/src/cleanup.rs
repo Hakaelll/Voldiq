@@ -9,6 +9,7 @@ pub(crate) mod record;
 #[cfg(windows)]
 pub mod recycle;
 pub mod rules;
+pub mod score;
 pub mod tray;
 use std::{
     collections::HashSet,

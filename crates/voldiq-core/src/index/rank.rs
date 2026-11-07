@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-pub(super) fn select<T>(
+pub(crate) fn select<T>(
     items: &mut [T],
     nth: usize,
     compare: &impl Fn(&T, &T) -> Ordering,

@@ -1,8 +1,4 @@
-import type { CleanupRulePage } from './types';
-
-type Item = CleanupRulePage['items'][number];
-
-export function updateCleanupSelection(
+export function updateCleanupSelection<Item extends { id: number }>(
   current: ReadonlyMap<number, Item>,
   items: readonly Item[],
   select: boolean,

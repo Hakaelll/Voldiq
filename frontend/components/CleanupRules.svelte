@@ -8,6 +8,14 @@
   import Icon from './Icon.svelte';
   import type { TraySource } from '../lib/cleanup-tray';
   import { updateCleanupSelection } from '../lib/cleanup-selection';
+  import {
+    defaultReviewWeights,
+    priorityPoints,
+    readReviewWeights,
+    reviewEvidence,
+    reviewFactors,
+    type ReviewWeights,
+  } from '../lib/review-priority';
   let {
     revision,
     manageable,
@@ -18,6 +26,8 @@
     onerror,
     application = null,
     onclearapplication,
+    weights,
+    onweights,
   }: {
     revision: number;
     manageable: boolean;
@@ -28,10 +38,10 @@
     onerror: (problem: unknown) => void;
     application?: ApplicationCleanupContext | null;
     onclearapplication: () => void;
+    weights: ReviewWeights;
+    onweights: (next: ReviewWeights) => void;
   } = $props();
   const limit = 50;
-  let rule = $state<'user_temp' | 'old_files' | 'project_temp' | 'browser_cache'>('user_temp');
-  const activeRule = $derived(application ? 'browser_cache' : rule);
   let applicationName = $state<string | null>(null);
   let cancelRead = () => {};
   let page = $state<CleanupRulePage | null>(null),
@@ -40,11 +50,27 @@
   let selected = $state(new Map<number, CleanupRulePage['items'][number]>());
   let pageOwner = $state<IndexId | null>(null);
   const rules = [
-    { id: 'user_temp', name: 'User temporary files', icon: 'folder' },
-    { id: 'old_files', name: 'Old files', icon: 'history' },
-    { id: 'project_temp', name: 'Project temporary files', icon: 'code' },
-    { id: 'browser_cache', name: 'Browser HTTP cache', icon: 'browser' },
+    { id: 'user_temp', name: 'User temporary files' },
+    { id: 'old_files', name: 'Old files' },
+    { id: 'project_temp', name: 'Project temporary files' },
+    { id: 'browser_cache', name: 'Browser HTTP cache' },
   ] as const;
+  let rule = $state<(typeof rules)[number]['id']>('user_temp');
+  const activeRule = $derived(application ? 'browser_cache' : rule);
+  let expandedPriority = $state<number | null>(null);
+  let weightsProblem = $state('');
+  let weightsOpen = $state(false);
+  let draft = $state<Record<keyof ReviewWeights, number | undefined>>({ ...defaultReviewWeights });
+  $effect(() => {
+    draft = { ...weights };
+  });
+
+  function applyWeights(next: ReviewWeights): void {
+    weightsProblem = '';
+    onweights(next);
+    weightsOpen = false;
+    void load(0, next);
+  }
   let pageSelected = $derived(page?.items.filter((item) => selected.has(item.id)).length ?? 0);
   let allPageSelected = $derived(
     Boolean(page?.items.length) && pageSelected === page?.items.length,
@@ -54,7 +80,7 @@
   }
   let generation = 0;
   let region: HTMLDivElement;
-  async function load(next: number): Promise<void> {
+  async function load(next: number, activeWeights = weights): Promise<void> {
     const token = ++generation;
     const owner = getIndexContext();
     cancelRead();
@@ -62,6 +88,7 @@
     const restoreFocus = region?.contains(focusTarget);
     loadState = 'loading';
     page = null;
+    expandedPriority = null;
     try {
       let result: CleanupRulePage;
       if (application) {
@@ -70,7 +97,7 @@
         const context = application;
         const request = applicationCacheQueries.request({
           indexId,
-          request: { context, offset: next, limit },
+          request: { context, offset: next, limit, weights: activeWeights },
         });
         cancelRead = request.cancel;
         const value = await request.result;
@@ -86,8 +113,7 @@
         applicationName = null;
         result = await invokeIndexed<CleanupRulePage>('query_cleanup_rule', {
           rule: activeRule,
-          offset: next,
-          limit,
+          request: { offset: next, limit, weights: activeWeights },
         });
       }
       if (token !== generation || owner !== getIndexContext()) return;
@@ -154,21 +180,21 @@
         <strong>{applicationName ?? 'Application cache review'}</strong>
         <small>Browser HTTP cache · explicit file selection</small>
       </div>
-      <button onclick={onclearapplication} disabled={busy}>All cleanup rules</button>
+      <button class="quiet-action" onclick={onclearapplication} disabled={busy}
+        >All cleanup rules</button
+      >
     {:else}
-      <div class="rule-choices" role="group" aria-label="Cleanup rule">
-        {#each rules as choice}<button
-            class:active={rule === choice.id}
-            aria-pressed={rule === choice.id}
-            disabled={busy || loadState === 'loading'}
-            onclick={() => {
-              rule = choice.id;
-            }}><Icon name={choice.icon} size={17} />{choice.name}</button
-          >{/each}
-      </div>
+      <label class="rule-picker">
+        File category
+        <select bind:value={rule} disabled={busy || loadState === 'loading'}>
+          {#each rules as choice (choice.id)}
+            <option value={choice.id}>{choice.name}</option>
+          {/each}
+        </select>
+      </label>
     {/if}
     {#if page && loadState === 'ready'}<button
-        class="primary"
+        class={page.indexed ? 'quiet-action' : 'primary'}
         onclick={() => {
           if (page) void onscan(page.root);
         }}
@@ -196,6 +222,50 @@
             · Partial{/if}</span
         >{/if}
     </div>{/if}
+  {#if page?.indexed && loadState === 'ready'}
+    <details class="review-weights" bind:open={weightsOpen}>
+      <summary>Adjust review weights</summary>
+      <form
+        onsubmit={(event) => {
+          event.preventDefault();
+          const next = readReviewWeights(draft);
+          if (next) applyWeights(next);
+          else
+            weightsProblem =
+              'Enter a whole number from 0 to 100 for each factor. Use at least one nonzero weight.';
+        }}
+      >
+        <p>
+          Higher weights move supported matches up the list. Files stay unselected until you choose
+          them.
+        </p>
+        <div class="weight-fields">
+          {#each reviewFactors as [key, label] (key)}
+            <label
+              >{label}<input
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                required
+                bind:value={draft[key]}
+              /></label
+            >
+          {/each}
+        </div>
+        {#if weightsProblem}<p class="weight-error" role="alert">{weightsProblem}</p>{/if}
+        <div class="weight-actions">
+          <button type="submit" class="primary" disabled={busy}>Apply weights</button>
+          <button
+            type="button"
+            class="quiet-action"
+            disabled={busy}
+            onclick={() => applyWeights(defaultReviewWeights)}>Restore defaults</button
+          >
+        </div>
+      </form>
+    </details>
+  {/if}
   <div class="rule-layout">
     <div class="rule-list">
       {#if loadState === 'loading'}<div class="rule-empty" role="status">Loading</div>
@@ -230,9 +300,8 @@
                         event.currentTarget.indeterminate = pageSelected > 0 && !allPageSelected;
                       }}
                     /></th
-                  ><th>Name</th><th class="number">Logical size</th><th>Modified</th><th
-                    class="number">Potential</th
-                  ></tr
+                  ><th>File</th><th class="number">Logical size</th><th class="number">Potential</th
+                  ><th class="number">Review priority</th></tr
                 ></thead
               >
               <tbody
@@ -255,15 +324,62 @@
                       ><div class="file-name">
                         <Icon name="file" />
                         <div>
-                          <strong>{filename(item.path)}</strong><small>{item.path}</small
-                          >{#if item.hard_link}<small>Hard link</small>{/if}
+                          <strong>{filename(item.path)}</strong>
+                          <small>{item.path}</small>
+                          <small
+                            >Modified {date(item.modified)}{#if item.hard_link}
+                              · Hard link{/if}</small
+                          >
                         </div>
                       </div></td
                     >
-                    <td class="number">{bytes(item.logical)}</td><td class="modified"
-                      >{date(item.modified)}</td
-                    ><td class="number">{bytes(item.reclaimable)}</td>
-                  </tr>{/each}</tbody
+                    <td class="number">{bytes(item.logical)}</td>
+                    <td class="number">{bytes(item.reclaimable)}</td>
+                    <td class="number">
+                      <button
+                        class="quiet-action priority-button"
+                        aria-label={`${filename(item.path)}, review priority ${priorityPoints(item.priority.points)} out of 100`}
+                        aria-expanded={expandedPriority === item.id}
+                        aria-controls={expandedPriority === item.id
+                          ? `priority-${item.id}`
+                          : undefined}
+                        onclick={() => {
+                          expandedPriority = expandedPriority === item.id ? null : item.id;
+                        }}
+                        >{priorityPoints(item.priority.points)}
+                        <Icon name="expand" size={12} /></button
+                      >
+                    </td>
+                  </tr>
+                  {#if expandedPriority === item.id}
+                    <tr class="priority-row">
+                      <td colspan="5">
+                        <div id={`priority-${item.id}`} class="priority-details">
+                          <div class="priority-summary">
+                            <strong>Evidence coverage {item.priority.coverage}%</strong>
+                            <span>Assessed {date(page.assessed_at)}</span>
+                          </div>
+                          <dl>
+                            {#each item.priority.signals as signal, at}
+                              <div>
+                                <dt>{reviewFactors[at][1]}</dt>
+                                <dd>{reviewEvidence[signal.evidence]}</dd>
+                                <dd class="priority-value">
+                                  Weight {signal.weight} · {priorityPoints(signal.points)} pts
+                                </dd>
+                              </div>
+                            {/each}
+                          </dl>
+                          <p>
+                            Coverage reflects how much of the chosen weighting had evidence. A
+                            matching local file provides no backup guarantee. Review the files
+                            before confirming any action.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  {/if}
+                {/each}</tbody
               >
             </table>
           </div>{/if}
@@ -271,10 +387,12 @@
       {#if page?.indexed && page.total > limit}<div class="rule-actions">
           <span>{offset + 1}–{offset + page.items.length} of {page.total}</span>
           <button
+            class="quiet-action"
             onclick={() => load(Math.max(0, offset - limit))}
             disabled={offset === 0 || busy || loadState !== 'ready'}>Previous</button
           >
           <button
+            class="quiet-action"
             onclick={() => load(offset + limit)}
             disabled={offset + limit >= page.total || busy || loadState !== 'ready'}>Next</button
           >
@@ -284,6 +402,7 @@
       <div class="selection-bar rule-review-actions">
         <span>{selected.size.toLocaleString()} selected</span>
         <button
+          class="quiet-action"
           disabled={busy}
           onclick={() => {
             selected = new Map();
@@ -312,13 +431,12 @@
     font-size: 12px;
   }
   .application-review-note {
-    border-left: 3px solid var(--accent);
-    padding-left: 12px;
+    max-width: 68ch;
+    margin-top: 10px;
     line-height: 1.6;
   }
   .cleanup-rules {
     min-width: 0;
-    margin-top: 24px;
   }
   .rule-heading,
   .rule-summary,
@@ -332,25 +450,97 @@
     justify-content: space-between;
     padding: 4px 0;
   }
-  .rule-choices {
+  .rule-picker {
     display: flex;
+    align-items: center;
     flex-wrap: wrap;
-    gap: 4px;
-  }
-  .rule-choices button {
-    border: 0;
-    border-radius: var(--radius);
-    padding: 10px 12px;
-    background: transparent;
+    gap: 8px;
     color: var(--secondary);
   }
-  .rule-choices button:hover:not(:disabled) {
-    background: var(--paper);
+  .rule-picker select {
+    max-width: 100%;
   }
-  .rule-choices button.active {
+  .review-weights {
+    margin-bottom: 14px;
+    color: var(--secondary);
+  }
+  .review-weights > summary {
+    width: fit-content;
+    padding: 6px 0;
+    cursor: pointer;
+  }
+  .review-weights form {
+    border-inline-start: 1px solid var(--border);
+    margin-top: 8px;
+    padding-inline-start: 14px;
+  }
+  .weight-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px 20px;
+    max-width: 620px;
+    margin-block: 12px;
+  }
+  .weight-fields label {
+    display: grid;
+    gap: 4px;
+    font-size: 13px;
+  }
+  .weight-fields input {
+    width: 80px;
+  }
+  .weight-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .weight-error {
+    color: var(--error);
+  }
+  .priority-button {
+    justify-content: flex-end;
+    min-width: 64px;
+    font-variant-numeric: tabular-nums;
+  }
+  .priority-button[aria-expanded='true'] {
     color: var(--accent);
-    background: var(--selected);
-    font-weight: 600;
+  }
+  .priority-button[aria-expanded='true'] :global(svg) {
+    transform: rotate(90deg);
+  }
+  .priority-row {
+    background: var(--surface);
+  }
+  .priority-details {
+    max-width: 760px;
+    margin-inline: 30px 0;
+    padding-block: 6px;
+  }
+  .priority-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+  }
+  .priority-summary span,
+  .priority-details dd,
+  .priority-details p {
+    color: var(--secondary);
+  }
+  .priority-details dl {
+    margin: 12px 0;
+  }
+  .priority-details dl div {
+    display: grid;
+    grid-template-columns: 165px minmax(0, 1fr) max-content;
+    gap: 12px;
+    padding-block: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .priority-details dd {
+    margin: 0;
+  }
+  .priority-value {
+    font-variant-numeric: tabular-nums;
   }
   .rule-summary {
     padding: 14px 0 20px;
@@ -372,7 +562,7 @@
   }
   table {
     width: 100%;
-    min-width: 740px;
+    min-width: 640px;
     border-collapse: collapse;
     font-size: 13px;
   }
@@ -420,10 +610,6 @@
   }
   .number {
     text-align: right;
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
-  }
-  .modified {
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
   }

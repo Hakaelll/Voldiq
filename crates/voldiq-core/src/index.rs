@@ -1,7 +1,7 @@
 use crate::{Entry, Error, Issue, Kind, NodeId, Result, search::CompiledQuery};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-mod rank;
+pub(crate) mod rank;
 
 pub(crate) struct PreparedQuery<'i, 'q> {
     index: &'i Index,

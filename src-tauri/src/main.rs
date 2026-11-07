@@ -57,6 +57,7 @@ struct Engine {
 }
 
 struct DuplicateRun {
+    index_id: IndexId,
     index: SharedIndex,
     analysis: Analysis,
 }
@@ -464,6 +465,7 @@ fn start_duplicates(
             Ok(result) => match engine.duplicates.lock() {
                 Ok(mut slot) => {
                     *slot = Some(Arc::new(DuplicateRun {
+                        index_id,
                         index,
                         analysis: result,
                     }));
@@ -547,7 +549,7 @@ async fn query_duplicate_groups(
     let Some(run) = result else {
         return Ok(None);
     };
-    if !Arc::ptr_eq(&run.index, &current) {
+    if run.index_id != index_id || !Arc::ptr_eq(&run.index, &current) {
         return Err("Duplicate results belong to another analysis.".into());
     }
     tauri::async_runtime::spawn_blocking(move || {
@@ -605,7 +607,7 @@ async fn query_duplicate_members(
         .map_err(|e| e.to_string())?
         .clone()
         .ok_or("Analyze duplicates first.")?;
-    if !Arc::ptr_eq(&result.index, &current) {
+    if result.index_id != index_id || !Arc::ptr_eq(&result.index, &current) {
         return Err("Duplicate results belong to another analysis.".into());
     }
     tauri::async_runtime::spawn_blocking(move || {
@@ -655,7 +657,7 @@ async fn get_duplicate_issues(
         .map_err(|error| error.to_string())?
         .clone();
     tauri::async_runtime::spawn_blocking(move || match result {
-        Some(run) if Arc::ptr_eq(&run.index, &current) => {
+        Some(run) if run.index_id == index_id && Arc::ptr_eq(&run.index, &current) => {
             run.analysis
                 .check_protections(&engine.protections()?)
                 .map_err(|error| error.to_string())?;

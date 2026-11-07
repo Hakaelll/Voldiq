@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Workspace reading order and candidate priority
+
+The first scan starts with two visible actions and an adjacent measured drive summary. Explorer groups its representations into Map, List and Grid. History leads with the measured trend and puts capture maintenance in a disclosure. Cleanup opens directly to the file candidates, with one category picker and Windows tools in a separate section. Overview, History, Cleanup and Explorer share an understated section switch. Source token checks measured the foreground and background pairs used for text and active actions at 5.39:1 or higher across both themes.
+
+The candidate query ranks supported rules and scoped application-cache files before paging. The per-file disclosure shows available evidence, missing signals, individual contributions and evidence coverage. Users can save adjusted weights and keep explicitly selected files when reordering. The score uses indexed modification time and current duplicate analysis when available. Local matching content provides limited recovery evidence. The existing tray and confirmation still control preparation and execution.
+
+The six integration checks passed with eight behavior tests and zero Svelte diagnostics. Owned file fixtures cover rank order across pages, reweighting, invalid weights, known browser evidence and missing duplicate signals. Populated rendering, keyboard and Windows scaling remain manual. [Source verification](../benchmarks/workbench-review-priority-source-20261107.json)
+
 ## Common cleanup review tray
 
 Review tray opens from the workspace toolbar and keeps its selection across views in the current analysis. Explorer, the inspector, cleanup rules and exact duplicates add files with their original source. The tray groups files by source and folder. Users can remove individual files, clear the tray and prepare one plan for up to 500 files in 16 source groups. The confirmation dialog lists review sources and retained copies.

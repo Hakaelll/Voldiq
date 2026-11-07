@@ -1,5 +1,6 @@
 import type { Query, CleanupRulePage } from './types';
 import { detachedQuery } from './workbench.ts';
+import { readReviewPriority } from './review-priority.ts';
 
 export type ApplicationSource =
   'current_user64' | 'current_user32' | 'machine64' | 'machine32' | 'supplied_metadata';
@@ -92,6 +93,7 @@ export function readApplicationCachePage(value: unknown): ApplicationCachePage {
       reclaimable: integer(item.reclaimable),
       hard_link: boolean(item.hard_link),
       modified: item.modified === null ? null : integer(item.modified),
+      priority: readReviewPriority(item.priority),
     };
   });
   const total = integer(page.total),
@@ -123,6 +125,7 @@ export function readApplicationCachePage(value: unknown): ApplicationCachePage {
       indexed: boolean(page.indexed),
       complete: boolean(page.complete),
       unverified_branches: integer(page.unverified_branches),
+      assessed_at: integer(page.assessed_at),
       items,
       total,
       logical,

@@ -62,7 +62,12 @@ export const applicationCacheQueries = createQueryRunner<
   unknown,
   {
     indexId: IndexId;
-    request: { context: ApplicationCleanupContext; offset: number; limit: number };
+    request: {
+      context: ApplicationCleanupContext;
+      offset: number;
+      limit: number;
+      weights: import('./review-priority').ReviewWeights;
+    };
   },
   'applications'
 >('applications', {

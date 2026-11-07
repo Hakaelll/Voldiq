@@ -1,6 +1,6 @@
-use super::{Plan, PreviewItem};
+use super::{Plan, PreviewItem, score};
 use crate::{Error, Kind, NodeId, Result, index::Index, windows};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashSet,
     path::Path,
@@ -27,7 +27,7 @@ enum RuleSource<'a> {
     UserTemp,
     OldFiles,
     ProjectTemp(&'a [crate::developer::CacheLocation]),
-    BrowserCache(&'a Path, Option<(NodeId, &'a AtomicBool)>),
+    BrowserCache(&'a Path, Option<NodeId>),
 }
 
 impl RuleSource<'_> {
@@ -125,7 +125,8 @@ pub struct Page {
     pub indexed: bool,
     pub complete: bool,
     pub unverified_branches: usize,
-    pub items: Vec<PreviewItem>,
+    pub items: Vec<Candidate>,
+    pub assessed_at: u64,
     pub total: usize,
     pub logical: u64,
     pub reclaimable: u64,
@@ -138,148 +139,98 @@ pub fn now() -> Result<u64> {
         .map_err(|_| Error::Invalid("System clock is before the Unix epoch.".into()))
 }
 
-pub fn query(
-    index: Option<&Index>,
-    temporary: &Path,
-    now: u64,
-    offset: usize,
-    limit: usize,
-    protections: &crate::metadata::Protections,
-) -> Result<Page> {
-    query_scoped(
-        index,
-        temporary,
-        now,
-        offset,
-        limit,
-        RuleSource::UserTemp,
-        protections,
-    )
+#[derive(Serialize)]
+pub struct Candidate {
+    #[serde(flatten)]
+    pub file: PreviewItem,
+    pub priority: score::Assessment,
 }
 
-pub fn query_old(
-    index: Option<&Index>,
-    now: u64,
-    offset: usize,
-    limit: usize,
-    protections: &crate::metadata::Protections,
-) -> Result<Page> {
-    query_current(index, now, offset, limit, RuleSource::OldFiles, protections)
-}
-
-pub fn query_project(
-    index: Option<&Index>,
-    now: u64,
-    offset: usize,
-    limit: usize,
-    caches: &[crate::developer::CacheLocation],
-    protections: &crate::metadata::Protections,
-) -> Result<Page> {
-    query_current(
-        index,
-        now,
-        offset,
-        limit,
-        RuleSource::ProjectTemp(caches),
-        protections,
-    )
-}
-
-pub fn query_browser_cache(
-    index: Option<&Index>,
-    local_data: &Path,
-    now: u64,
-    offset: usize,
-    limit: usize,
-    protections: &crate::metadata::Protections,
-) -> Result<Page> {
-    query_scoped(
-        index,
-        local_data,
-        now,
-        offset,
-        limit,
-        RuleSource::BrowserCache(local_data, None),
-        protections,
-    )
-}
-
-pub struct BrowserCacheQuery {
-    pub scope: NodeId,
+#[derive(Clone, Copy, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Query {
     pub offset: usize,
     pub limit: usize,
+    #[serde(default)]
+    pub weights: score::Weights,
+}
+
+pub struct Environment<'a> {
+    pub temporary: &'a Path,
+    pub local_data: &'a Path,
+    pub caches: &'a [crate::developer::CacheLocation],
+    pub now: u64,
+    pub protections: &'a crate::metadata::Protections,
+    pub duplicates: Option<&'a crate::duplicates::Analysis>,
+}
+
+pub fn query(
+    index: Option<&Index>,
+    rule: RuleKind,
+    request: Query,
+    env: &Environment<'_>,
+    cancel: &AtomicBool,
+) -> Result<Page> {
+    let (root, source) = match rule {
+        RuleKind::UserTemp => (Some(env.temporary), RuleSource::UserTemp),
+        RuleKind::OldFiles => (
+            index.map(|index| index.root.as_path()),
+            RuleSource::OldFiles,
+        ),
+        RuleKind::ProjectTemp => (
+            index.map(|index| index.root.as_path()),
+            RuleSource::ProjectTemp(env.caches),
+        ),
+        RuleKind::BrowserCache => (
+            Some(env.local_data),
+            RuleSource::BrowserCache(env.local_data, None),
+        ),
+    };
+    query_scoped(index, root, request, source, env, cancel)
 }
 
 pub fn query_browser_cache_scoped(
     index: &Index,
-    local_data: &Path,
-    now: u64,
-    request: &BrowserCacheQuery,
-    protections: &crate::metadata::Protections,
+    scope: NodeId,
+    request: Query,
+    env: &Environment<'_>,
     cancel: &AtomicBool,
 ) -> Result<Page> {
     query_scoped(
         Some(index),
-        local_data,
-        now,
-        request.offset,
-        request.limit,
-        RuleSource::BrowserCache(local_data, Some((request.scope, cancel))),
-        protections,
+        Some(env.local_data),
+        request,
+        RuleSource::BrowserCache(env.local_data, Some(scope)),
+        env,
+        cancel,
     )
 }
 
-fn query_current(
-    index: Option<&Index>,
-    now: u64,
-    offset: usize,
-    limit: usize,
-    source: RuleSource<'_>,
-    protections: &crate::metadata::Protections,
-) -> Result<Page> {
-    match index.filter(|index| index.snapshot_id.is_none()) {
-        Some(index) => query_scoped(
-            Some(index),
-            &index.root,
-            now,
-            offset,
-            limit,
-            source,
-            protections,
-        ),
-        None => Ok(Page {
-            rule: source.kind().metadata(),
-            root: String::new(),
-            indexed: false,
-            complete: false,
-            unverified_branches: 0,
-            items: Vec::new(),
-            total: 0,
-            logical: 0,
-            reclaimable: 0,
-        }),
-    }
+struct Ranked<'a> {
+    entry: &'a crate::Entry,
+    points: u16,
+    exact: bool,
+    local_copy: bool,
 }
 
 fn query_scoped(
     index: Option<&Index>,
-    temporary: &Path,
-    now: u64,
-    offset: usize,
-    limit: usize,
+    temporary: Option<&Path>,
+    request: Query,
     source: RuleSource<'_>,
-    protections: &crate::metadata::Protections,
+    env: &Environment<'_>,
+    cancel: &AtomicBool,
 ) -> Result<Page> {
     let kind = source.kind();
-    let uncancelled = AtomicBool::new(false);
-    let cancel = match source {
-        RuleSource::BrowserCache(_, Some((_, cancel))) => cancel,
-        _ => &uncancelled,
-    };
-    let temporary = verified_root(temporary)?;
+    let now = env.now;
+    let model = score::Model::new(request.weights)?;
+    let temporary = temporary.map(verified_root).transpose()?;
     let mut page = Page {
         rule: kind.metadata(),
-        root: temporary.to_string_lossy().into_owned(),
+        root: temporary
+            .as_deref()
+            .map_or_else(String::new, |path| path.to_string_lossy().into_owned()),
+        assessed_at: now,
         indexed: false,
         complete: false,
         unverified_branches: 0,
@@ -288,7 +239,7 @@ fn query_scoped(
         logical: 0,
         reclaimable: 0,
     };
-    let Some(index) = index else {
+    let (Some(index), Some(temporary)) = (index, temporary) else {
         return Ok(page);
     };
     if index.snapshot_id.is_some() {
@@ -298,7 +249,7 @@ fn query_scoped(
         return Ok(page);
     };
     let mut scope_id = binding.id;
-    if let RuleSource::BrowserCache(_, Some((requested, _))) = source {
+    if let RuleSource::BrowserCache(_, Some(requested)) = source {
         if index.entry(requested)?.kind != Kind::Directory || !index.in_scope(requested, scope_id) {
             return Err(Error::Invalid(
                 "Application cache scope is outside the current browser rule.".into(),
@@ -311,7 +262,7 @@ fn query_scoped(
     page.complete = !index.entry(NodeId(0))?.incomplete
         && !index.entry(scope_id)?.incomplete
         && (binding.whole || matches!(source, RuleSource::BrowserCache(_, Some(_))));
-    let mask = protections.for_index(index, cancel)?;
+    let mask = env.protections.for_index(index, cancel)?;
     page.unverified_branches = mask.unverified_branches(scope_id)?;
     page.complete &= page.unverified_branches == 0;
     let mut protected_scopes = Vec::new();
@@ -352,13 +303,76 @@ fn query_scoped(
                     .iter()
                     .any(|&protected| index.in_scope(entry.id, protected))
         })
+        .map(|entry| Ranked {
+            entry,
+            points: 0,
+            exact: false,
+            local_copy: false,
+        })
         .collect();
     if cancel.load(Ordering::Relaxed) {
         return Err(Error::Invalid("Application cache query cancelled.".into()));
     }
-    candidates.sort_unstable_by_key(|entry| (entry.modified, entry.id.0));
+    if let Some(duplicates) = env
+        .duplicates
+        .filter(|run| run.check_protections(env.protections).is_ok())
+    {
+        for group in &duplicates.groups {
+            super::check_cancelled(cancel)?;
+            let mut identity = None;
+            let mut distinct = false;
+            let mut independent = [None, None];
+            for member in &group.members {
+                super::check_cancelled(cancel)?;
+                let entry = index.entry(member.id)?;
+                if !mask.allows(member.id) || !index.in_scope(member.id, scope_id) {
+                    continue;
+                }
+                let Some(state) = entry.file_state else {
+                    continue;
+                };
+                if let Some(first) = identity {
+                    distinct |= first != state.identity;
+                } else {
+                    identity = Some(state.identity);
+                }
+                if member.links == 1 && !independent.contains(&Some(state.identity)) {
+                    if independent[0].is_none() {
+                        independent[0] = Some(state.identity);
+                    } else if independent[1].is_none() {
+                        independent[1] = Some(state.identity);
+                    }
+                }
+            }
+            if !distinct {
+                continue;
+            }
+            for member in &group.members {
+                super::check_cancelled(cancel)?;
+                if let Ok(at) =
+                    candidates.binary_search_by_key(&member.id.0, |item| item.entry.id.0)
+                {
+                    let item = &mut candidates[at];
+                    if let Some(state) = item.entry.file_state {
+                        item.exact = true;
+                        item.local_copy = independent
+                            .iter()
+                            .flatten()
+                            .any(|peer| *peer != state.identity);
+                    }
+                }
+            }
+        }
+    }
+    let browser = matches!(kind, RuleKind::BrowserCache);
+    let facts = |item: &Ranked<'_>| {
+        score::Facts::candidate(item.entry, now, browser, item.exact, item.local_copy)
+    };
     page.total = candidates.len();
-    for entry in &candidates {
+    for item in &mut candidates {
+        super::check_cancelled(cancel)?;
+        item.points = model.points(facts(item));
+        let entry = item.entry;
         page.logical = page
             .logical
             .checked_add(entry.logical)
@@ -372,22 +386,43 @@ fn query_scoped(
             })
             .ok_or_else(|| Error::Invalid("Cleanup allocation overflow.".into()))?;
     }
-    for entry in candidates
-        .into_iter()
-        .skip(offset)
-        .take(limit.clamp(1, 100))
+    if request.offset >= candidates.len() {
+        return Ok(page);
+    }
+    let compare = |a: &Ranked<'_>, b: &Ranked<'_>| {
+        b.points
+            .cmp(&a.points)
+            .then(a.entry.id.0.cmp(&b.entry.id.0))
+    };
+    let mut cancelled = || cancel.load(Ordering::Relaxed);
+    if request.offset > 0
+        && !crate::index::rank::select(&mut candidates, request.offset, &compare, &mut cancelled)
     {
-        page.items.push(PreviewItem {
-            id: entry.id,
-            path: index.path(entry.id)?.to_string_lossy().into_owned(),
-            logical: entry.logical,
-            reclaimable: if entry.hard_link || !entry.allocation_known {
-                0
-            } else {
-                entry.allocated
+        super::check_cancelled(cancel)?;
+    }
+    let rest = &mut candidates[request.offset..];
+    let limit = request.limit.clamp(1, 100).min(rest.len());
+    if limit < rest.len() && !crate::index::rank::select(rest, limit, &compare, &mut cancelled) {
+        super::check_cancelled(cancel)?;
+    }
+    rest[..limit].sort_unstable_by(compare);
+    for item in &rest[..limit] {
+        super::check_cancelled(cancel)?;
+        let entry = item.entry;
+        page.items.push(Candidate {
+            priority: model.explain(facts(item)),
+            file: PreviewItem {
+                id: entry.id,
+                path: index.path(entry.id)?.to_string_lossy().into_owned(),
+                logical: entry.logical,
+                reclaimable: if entry.hard_link || !entry.allocation_known {
+                    0
+                } else {
+                    entry.allocated
+                },
+                hard_link: entry.hard_link,
+                modified: entry.modified,
             },
-            hard_link: entry.hard_link,
-            modified: entry.modified,
         });
     }
     Ok(page)

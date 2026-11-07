@@ -19,12 +19,15 @@ pub struct Request {
     pub context: Context,
     pub offset: usize,
     pub limit: usize,
+    #[serde(default)]
+    pub weights: crate::cleanup::score::Weights,
 }
 
 pub struct Environment<'a> {
     pub local_data: &'a Path,
     pub now: u64,
     pub protections: &'a Protections,
+    pub duplicates: Option<&'a crate::duplicates::Analysis>,
 }
 
 #[derive(Serialize)]
@@ -110,14 +113,20 @@ pub fn query(
     let (application, scope) = resolve(index, catalog, &request.context, cancel)?;
     let candidates = rules::query_browser_cache_scoped(
         index,
-        environment.local_data,
-        environment.now,
-        &rules::BrowserCacheQuery {
-            scope,
+        scope,
+        rules::Query {
             offset: request.offset,
             limit: request.limit,
+            weights: request.weights,
         },
-        environment.protections,
+        &rules::Environment {
+            temporary: environment.local_data,
+            local_data: environment.local_data,
+            caches: &[],
+            now: environment.now,
+            protections: environment.protections,
+            duplicates: environment.duplicates,
+        },
         cancel,
     )?;
     check(cancel)?;

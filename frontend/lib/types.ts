@@ -69,7 +69,10 @@ export interface CleanupRulePage {
   indexed: boolean;
   complete: boolean;
   unverified_branches: number;
-  items: CleanupPreview['preview']['items'];
+  assessed_at: number;
+  items: (CleanupPreview['preview']['items'][number] & {
+    priority: import('./review-priority').ReviewPriority;
+  })[];
   total: number;
   logical: number;
   reclaimable: number;
