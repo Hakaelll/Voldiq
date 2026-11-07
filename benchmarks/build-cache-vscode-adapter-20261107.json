@@ -1,0 +1,65 @@
+{
+  "checkedUtc": "2026-11-07T22:45:44.1542579Z",
+  "scope": "Logical bytes from inactive Voldiq build and test artifacts. Current GUI, CLI, NSIS installer and VSIX preserved by hash. Native frontend payloads still match the source build.",
+  "release": {
+    "checkedUtc": "2026-11-07T22:45:41.3867068Z",
+    "applied": true,
+    "scope": "Cargo release artifacts in this workspace only. Logical file bytes, not physical allocation or observed volume free-space change.",
+    "target": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\release",
+    "before": {
+      "bytes": 2382139370,
+      "files": 5715
+    },
+    "after": {
+      "bytes": 43128395,
+      "files": 4
+    },
+    "removedBytes": 2339010975,
+    "preserved": [
+      {
+        "path": "voldiq.exe",
+        "bytes": 26333184,
+        "sha256": "BB0427C168B11B3FFA910A9DF46063B3CEE29C028375E8DD1701D25232877B51"
+      },
+      {
+        "path": "voldiq-cli.exe",
+        "bytes": 6574592,
+        "sha256": "6C918A59683809BB0ED10488A6D471952FD95E60CF35414A822965FFC08B646A"
+      },
+      {
+        "path": "bundle/nsis/Voldiq_0.2.0_x64-setup.exe",
+        "bytes": 10189658,
+        "sha256": "EDBA78DFA1A16D0F8AB6FEA14B7771D322B1364E1DE1F9C400D3D6B3B1F3E584"
+      },
+      {
+        "path": "nsis/x64/installer.nsi",
+        "bytes": 30961,
+        "sha256": "9182902504A64B43508531799812A10F9C153B4892FDE626E82AC8C20140FB6B"
+      }
+    ],
+    "cargoOutput": [
+      "     Removed 5715 files, 2.2GiB total"
+    ],
+    "otherCachesTouched": false
+  },
+  "previews": {
+    "applied": true,
+    "removedBytes": 26257408,
+    "previews": [
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\77C1D660831847F225CD5936763EA9C041B616444A47B51951DB9B6E8C150A2D",
+        "bytes": 26257408,
+        "status": "Removed"
+      },
+      {
+        "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\BB0427C168B11B3FFA910A9DF46063B3CEE29C028375E8DD1701D25232877B51",
+        "bytes": 26333184,
+        "status": "KeptCurrent"
+      }
+    ]
+  },
+  "removedOwnedProbeAndPackagingBytes": 118723444,
+  "verifiedVsixSha256": "B61C7F486FC259243229FDDDA1F1148811437DAE18E0F4715746974D28D0EE3D",
+  "exactNativeAssetHashes": 10,
+  "previewRunning": true
+}
