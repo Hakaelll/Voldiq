@@ -1,0 +1,106 @@
+{
+  "checkedUtc": "2026-11-07T20:35:20.8528928Z",
+  "startedUtc": "2026-11-07T20:21:29.8306382Z",
+  "checkoutCommit": "14b8b715b56167d41c0d701802377dd5ee97bc1d",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.966
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 7.0
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.816
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.614
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 741.926
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 74.679
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "D6D8B5A0A390403518A37DAA41F33009B9F971329A0B6112BCF2617B70AC220A"
+    },
+    {
+      "path": "crates/voldiq-core/Cargo.toml",
+      "sha256": "87465FF459540A59B5E4CE4C782819A08E44D40A26017ACE3647B4041FB0FF92"
+    },
+    {
+      "path": "crates/voldiq-core/src/inspection.rs",
+      "sha256": "E6AC55CCB9D120EEB9D06B082586753DA08513083D9E128EDA1384532D9D900E"
+    },
+    {
+      "path": "crates/voldiq-core/src/inspection/archive.rs",
+      "sha256": "0B1A50EFAE07A06E4F3641E156947491A6D5B9DD992200950CE168E489615DF1"
+    },
+    {
+      "path": "crates/voldiq-core/src/inspection/archive/iso.rs",
+      "sha256": "56F1B40F3A64F9D75EDFD25E728ECCF2F2DEFCA662302D1997C66126A79C8484"
+    },
+    {
+      "path": "crates/voldiq-core/src/inspection/archive/zip.rs",
+      "sha256": "48480588CB248C66833EDD9F1905A183E70EE384C3AFA460D1DB0D8252CDC5AA"
+    },
+    {
+      "path": "crates/voldiq-core/src/inspection/native.rs",
+      "sha256": "83312D452AF616B2C2F1EC0995F35278E4FF583009AED8FDAD21D58D08082E6C"
+    },
+    {
+      "path": "crates/voldiq-core/tests/agents.rs",
+      "sha256": "A6B60A5E3C210D50C58F73613A9848C9706377AD8DA521279B8659B1A5A0413E"
+    },
+    {
+      "path": "crates/voldiq-core/tests/agents/archive_fixture.rs",
+      "sha256": "C5EE4A58421826D1021474D50FF6AE0910084989DEA2AAB7B41D10461588DB09"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "FDC0A19856545F998C2CED1E612F95C2BA8E192C2103F129BA47CE7D1F0D4082"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "B125B1AAAB6CB42B5051546098CB050A03BD79DFECD71E2AB8A389178C17567B"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "78DE0CFD04C1A095154DB75F6475F7714C14EDD21119F038E274EC98478C3390"
+    },
+    {
+      "path": "frontend/components/FileInspection.svelte",
+      "sha256": "27E54FEAAB8A43C4DEAACDF567BE14517D821920315EB3FC05F6154FE39DBA07"
+    },
+    {
+      "path": "frontend/lib/queries.ts",
+      "sha256": "770DD5DF00027AA45A85FEB6BAC14EF2DC6FCA032507EE7226750931CE2CF5B9"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "limits": "Owned fixtures exercise ZIP/JAR, TAR/TGZ and ISO virtual listings, Unicode, unsafe paths, loops, malformed input and work limits. Native visual, focus/keyboard, scaling and clean-machine install acceptance remain manual."
+}

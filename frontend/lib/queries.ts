@@ -30,6 +30,13 @@ export type FileInspection =
   | { kind: 'metadata' | 'download_unavailable'; reason: string }
   | { kind: 'text'; text: string; truncated: boolean }
   | { kind: 'image'; width: number; height: number; png: string }
+  | {
+      kind: 'archive';
+      format: 'zip' | 'jar' | 'tar' | 'tgz' | 'iso';
+      items: { path: string; kind: 'file' | 'folder' | 'link'; logical_bytes: string | null }[];
+      omitted: number;
+      limit: 'records' | 'bytes' | null;
+    }
   | { kind: 'download_source'; domain: string }
   | { kind: 'download_url'; url: string };
 

@@ -25,6 +25,8 @@ pub enum Inspection {
         height: u32,
         png: String,
     },
+    #[cfg(windows)]
+    Archive(archive::Report),
     DownloadUnavailable {
         reason: &'static str,
     },
@@ -36,6 +38,8 @@ pub enum Inspection {
     },
 }
 
+#[cfg(windows)]
+mod archive;
 #[cfg(windows)]
 mod native;
 

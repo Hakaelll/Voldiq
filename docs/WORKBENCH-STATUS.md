@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Read-only archive inspection
+
+Read preview now lists virtual ZIP, JAR, TAR, TGZ and ISO 9660 or Joliet entries. The archive must be a verified live file. Names, kinds and declared file bytes are the only member details. The inspector pages the list and reports limits and omissions. ZIP uses the central directory, TAR seeks past payloads and TGZ caps compressed and inflated reads. ISO traverses bounded directory records with repeated extents rejected for descent. The reader handles single-volume ZIP and ISO. Rock Ridge continuation data, UDF-only images, multi-extent ISO entries and unrecognized special records have no supported listing. [ZIP format](https://pkware.cachefly.net/webdocs/casestudies/APPNOTE.TXT) · [GNU TAR format](https://www.gnu.org/software/tar/manual/html_chapter/Tar-Internals.html) · [ECMA-119](https://ecma-international.org/publications-and-standards/standards/ecma-119/)
+
+All six integration checks passed with eight tests. The retained native inspection flow lists five formats from owned fixtures and checks a Unicode filename, a traversal name, a link without its target, deep entries, truncated ZIP input, ISO directory cycles, the 512-record cap and the TGZ read cap. No member files are created. Populated native interaction, keyboard and Windows scaling remain manual. [Source verification](../benchmarks/workbench-archive-inspection-source-20261107.json)
+
 ## Expanded charts and compact analysis workspace
 
 Explorer puts scope and incomplete coverage next to the title. The scan progress row stays available without the idle Live strip, a full-width budget box or an empty selection line. Budget, filters and chart explanations expand on request. Theme switching lives in Settings. The two themes share more closely matched surfaces while keeping explicit text, focus and selection.

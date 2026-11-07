@@ -1,6 +1,10 @@
 use std::path::PathBuf;
 use voldiq_core::agents::{Capability, Limits, Policy, Registry};
 
+#[cfg(windows)]
+#[path = "agents/archive_fixture.rs"]
+mod archive_fixture;
+
 fn policy(root: &std::path::Path, exclusions: Vec<PathBuf>) -> Policy {
     Policy::new(
         vec![root.to_owned()],
@@ -65,6 +69,7 @@ fn scopes_reject_siblings_exclusions_missing_paths_and_changed_roots_without_dis
         }
         #[cfg(windows)]
         let inspection_fixture = {
+            archive_fixture::write(&allowed);
             let markup = "<script>alert('fixture')</script>";
             let download = allowed.join("download.html");
             let address = "https://download.example.invalid/path?private=fixture";
@@ -144,6 +149,45 @@ fn scopes_reject_siblings_exclusions_missing_paths_and_changed_roots_without_dis
             assert!(
                 matches!(read("thumbnail.png", Request::Preview), Inspection::Image { width: 1, height: 2, png } if png.starts_with("iVBORw0KGgo"))
             );
+            let archive = |name| serde_json::to_value(read(name, Request::Preview)).unwrap();
+            let zipped = archive("bundle.zip");
+            assert_eq!(zipped["kind"], "archive");
+            assert_eq!(zipped["format"], "zip");
+            assert_eq!(zipped["omitted"], 2);
+            assert_eq!(
+                zipped["items"],
+                serde_json::json!([
+                    {"path":"folder","kind":"folder","logical_bytes":null},
+                    {"path":"folder/archivo-á.txt","kind":"file","logical_bytes":"15"},
+                    {"path":"link","kind":"link","logical_bytes":null}
+                ])
+            );
+            assert_eq!(archive("bundle.jar")["format"], "jar");
+            let capped = archive("large.zip");
+            assert_eq!(capped["limit"], "records");
+            assert_eq!(capped["items"].as_array().unwrap().len(), 512);
+            assert!(inspect(&index, id("bad.zip"), Request::Preview, &cancel).is_err());
+            let tar = archive("bundle.tar");
+            let gzip = archive("bundle.tar.gz");
+            assert_eq!(tar["format"], "tar");
+            assert_eq!(gzip["format"], "tgz");
+            assert_eq!(tar["items"], gzip["items"]);
+            assert_eq!(
+                tar["items"][0],
+                serde_json::json!({"path":"folder/plain.txt","kind":"file","logical_bytes":"4"})
+            );
+            let budget = archive("bounded.tgz");
+            assert_eq!(budget["limit"], "bytes");
+            assert_eq!(budget["items"].as_array().unwrap().len(), 2);
+            let iso = archive("bundle.iso");
+            assert_eq!(iso["format"], "iso");
+            assert_eq!(iso["omitted"], 1);
+            assert_eq!(
+                iso["items"][2],
+                serde_json::json!({"path":"LIB/README.TXT","kind":"file","logical_bytes":"3"})
+            );
+            assert_eq!(archive("joliet.iso")["items"][0]["path"], "Información.txt");
+            assert!(!allowed.join("folder").exists());
             assert!(inspect(&index, id("AUTH.JSON"), Request::Preview, &cancel).is_err());
             assert!(inspect(&index, NodeId(0), Request::Preview, &cancel).is_err());
             assert!(

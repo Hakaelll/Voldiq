@@ -50,7 +50,12 @@ pub(super) fn inspect(
         return Ok(None);
     }
     let result = match request {
-        Request::Preview => preview::read(&file, &path, entry.logical)?,
+        Request::Preview => match super::archive::Format::of(&path) {
+            Some(format) => {
+                Inspection::Archive(super::archive::read(&file, entry.logical, format, cancel)?)
+            }
+            None => preview::read(&file, &path, entry.logical)?,
+        },
         Request::DownloadSource | Request::DownloadUrl => {
             let stream = match open_download_stream(directory, name) {
                 Ok(stream) => Some(stream),

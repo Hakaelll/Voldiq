@@ -2,7 +2,7 @@
   import { onDestroy } from 'svelte';
   import type { IndexId } from '../lib/index-context';
   import { inspectionQueries, type FileInspection, type InspectionRequest } from '../lib/queries';
-  import type { NodeId } from '../lib/types';
+  import { bytes, type NodeId } from '../lib/types';
 
   let { indexId, id, paused }: { indexId: IndexId; id: NodeId; paused: boolean } = $props();
   let preview = $state<FileInspection | null>(null);
@@ -10,6 +10,8 @@
   let url = $state<string | null>(null);
   let loading = $state<InspectionRequest | null>(null);
   let problem = $state('');
+  let archiveOffset = $state(0);
+  const archivePage = 24;
   let generation = 0;
   let cancel = () => {};
 
@@ -25,7 +27,10 @@
     const owner = ++generation;
     loading = inspection;
     problem = '';
-    if (inspection === 'preview') preview = null;
+    if (inspection === 'preview') {
+      preview = null;
+      archiveOffset = 0;
+    }
     if (inspection === 'download_source') {
       source = null;
       url = null;
@@ -103,6 +108,62 @@
       <img src={`data:image/png;base64,${preview.png}`} alt="Selected file preview" />
       <figcaption>{preview.width} × {preview.height} pixels</figcaption>
     </figure>
+  {:else if preview?.kind === 'archive'}
+    {@const total = preview.items.length}
+    <section class="archive-preview" aria-label="Archive entries">
+      <p>
+        <strong>{preview.format.toUpperCase()}</strong> · {total} virtual {total === 1
+          ? 'entry'
+          : 'entries'}
+      </p>
+      {#if preview.limit || preview.omitted}
+        <p role="status">
+          {#if preview.limit}
+            Partial list. {preview.limit === 'bytes'
+              ? 'Read limit reached.'
+              : 'Entry limit reached.'}
+          {/if}
+          {#if preview.omitted}
+            {preview.omitted} unsafe, unsupported or deeply nested records skipped.
+          {/if}
+        </p>
+      {/if}
+      {#if total}
+        <ul>
+          {#each preview.items.slice(archiveOffset, archiveOffset + archivePage) as item}
+            <li>
+              <span>{item.path}</span>
+              {#if item.kind === 'file' && item.logical_bytes !== null}
+                <small title={`${item.logical_bytes} logical bytes declared by the archive`}>
+                  {bytes(Number(item.logical_bytes))}
+                </small>
+              {:else}
+                <small>{item.kind === 'folder' ? 'Folder' : 'Link'}</small>
+              {/if}
+            </li>
+          {/each}
+        </ul>
+      {:else}
+        <p>No displayable entries.</p>
+      {/if}
+      {#if total > archivePage}
+        <div class="archive-pages" role="group" aria-label="Archive pages">
+          <button
+            class="quiet-action"
+            disabled={archiveOffset === 0}
+            onclick={() => (archiveOffset -= archivePage)}>Previous</button
+          >
+          <span role="status"
+            >{archiveOffset + 1}–{Math.min(archiveOffset + archivePage, total)}</span
+          >
+          <button
+            class="quiet-action"
+            disabled={archiveOffset + archivePage >= total}
+            onclick={() => (archiveOffset += archivePage)}>Next</button
+          >
+        </div>
+      {/if}
+    </section>
   {/if}
 </details>
 
@@ -128,12 +189,37 @@
   }
   .download-source,
   .text-preview,
+  .archive-preview,
   figure {
     margin: 10px 0 0;
   }
   p,
   figcaption {
     font-size: 13px;
+  }
+  .archive-preview ul {
+    list-style: none;
+    margin: 6px 0;
+    padding: 0;
+  }
+  .archive-preview li,
+  .archive-pages {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 13px;
+  }
+  .archive-preview li {
+    padding-block: 5px;
+    border-top: 1px solid var(--border);
+  }
+  .archive-preview li span {
+    overflow-wrap: anywhere;
+  }
+  .archive-preview li small {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
   }
   .inspection-error {
     color: var(--error);
