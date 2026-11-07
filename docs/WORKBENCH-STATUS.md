@@ -8,6 +8,10 @@ The candidate query ranks supported rules and scoped application-cache files bef
 
 The six integration checks passed with eight behavior tests and zero Svelte diagnostics. Owned file fixtures cover rank order across pages, reweighting, invalid weights, known browser evidence and missing duplicate signals. Populated rendering, keyboard and Windows scaling remain manual. [Source verification](../benchmarks/workbench-review-priority-source-20261107.json)
 
+The source commits on `main` are `eb74922` and `93b9206`. The production preview reached ready and page-finished and stayed open through cleanup. Static packaging verified a 25,966,592-byte executable and a 10,070,593-byte NSIS installer with the Microsoft-signed WebView2 bootstrapper. Clean-machine installation remains manual. [Native startup](../benchmarks/native-review-priority-preview-20261107.json) · [Distribution](../benchmarks/distribution-review-priority-20261107.json)
+
+Cache cleanup removed 2,329,611,579 logical release bytes and 25,951,744 logical bytes from a closed preview. The workspace measured 269,001,687 logical regular-file bytes after cleanup. The final check verified four preserved deliverables, current embedded resources and CLI startup. [Release cleanup](../benchmarks/build-cache-review-priority-20261107.json) · [Preview cleanup](../benchmarks/preview-cache-review-priority-20261107.json) · [Post-clean checks](../benchmarks/workspace-footprint-review-priority-20261107.json)
+
 ## Common cleanup review tray
 
 Review tray opens from the workspace toolbar and keeps its selection across views in the current analysis. Explorer, the inspector, cleanup rules and exact duplicates add files with their original source. The tray groups files by source and folder. Users can remove individual files, clear the tray and prepare one plan for up to 500 files in 16 source groups. The confirmation dialog lists review sources and retained copies.
