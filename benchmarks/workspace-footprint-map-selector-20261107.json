@@ -1,0 +1,192 @@
+{
+  "checkedUtc": "2026-11-07T20:45:05.2671227Z",
+  "sourceCommit": "04487cc454ae02ff99f6480dce526f54015c1fa7",
+  "scope": "Logical regular-file workspace bytes; reparse points skipped. No physical-allocation or observed volume-free-space claim. Native startup/resources, static distribution and CLI help are checked; populated map selector and archive inspection rendering, pointer/keyboard/focus/scaling, installation and actual browser/device variants remain manual.",
+  "before": {
+    "checkedUnix": 1794084288.8946748,
+    "elapsedSeconds": 0.219,
+    "scope": "Logical regular-file bytes inside the workspace; reparse points skipped. No files were modified. These are not measured physical allocated bytes.",
+    "totalBytes": 2657253232,
+    "skippedReparsePoints": 119,
+    "directories": [
+      {
+        "path": "target",
+        "bytes": 2476391320,
+        "files": 6573
+      },
+      {
+        "path": "node_modules",
+        "bytes": 89309395,
+        "files": 1860
+      },
+      {
+        "path": ".git",
+        "bytes": 40690776,
+        "files": 368
+      },
+      {
+        "path": "output",
+        "bytes": 16801568,
+        "files": 16
+      },
+      {
+        "path": "interface",
+        "bytes": 12841789,
+        "files": 11
+      },
+      {
+        "path": "assets",
+        "bytes": 7903038,
+        "files": 5
+      },
+      {
+        "path": "benchmarks",
+        "bytes": 6175910,
+        "files": 499
+      },
+      {
+        "path": "crates",
+        "bytes": 2212055,
+        "files": 160
+      },
+      {
+        "path": "frontend",
+        "bytes": 1273723,
+        "files": 116
+      },
+      {
+        "path": "dist",
+        "bytes": 1076396,
+        "files": 11
+      },
+      {
+        "path": "docs",
+        "bytes": 948769,
+        "files": 38
+      },
+      {
+        "path": "src-tauri",
+        "bytes": 711143,
+        "files": 40
+      },
+      {
+        "path": ".impeccable",
+        "bytes": 501734,
+        "files": 17
+      },
+      {
+        "path": ".",
+        "bytes": 319187,
+        "files": 18
+      },
+      {
+        "path": "scripts",
+        "bytes": 96429,
+        "files": 18
+      }
+    ]
+  },
+  "after": {
+    "checkedUnix": 1794084302.2938905,
+    "elapsedSeconds": 0.063,
+    "scope": "Logical regular-file bytes inside the workspace; reparse points skipped. No files were modified. These are not measured physical allocated bytes.",
+    "totalBytes": 271052839,
+    "skippedReparsePoints": 119,
+    "directories": [
+      {
+        "path": "target",
+        "bytes": 90188973,
+        "files": 851
+      },
+      {
+        "path": "node_modules",
+        "bytes": 89309395,
+        "files": 1860
+      },
+      {
+        "path": ".git",
+        "bytes": 40690776,
+        "files": 368
+      },
+      {
+        "path": "output",
+        "bytes": 16801568,
+        "files": 16
+      },
+      {
+        "path": "interface",
+        "bytes": 12841789,
+        "files": 11
+      },
+      {
+        "path": "assets",
+        "bytes": 7903038,
+        "files": 5
+      },
+      {
+        "path": "benchmarks",
+        "bytes": 6177864,
+        "files": 501
+      },
+      {
+        "path": "crates",
+        "bytes": 2212055,
+        "files": 160
+      },
+      {
+        "path": "frontend",
+        "bytes": 1273723,
+        "files": 116
+      },
+      {
+        "path": "dist",
+        "bytes": 1076396,
+        "files": 11
+      },
+      {
+        "path": "docs",
+        "bytes": 948769,
+        "files": 38
+      },
+      {
+        "path": "src-tauri",
+        "bytes": 711143,
+        "files": 40
+      },
+      {
+        "path": ".impeccable",
+        "bytes": 501734,
+        "files": 17
+      },
+      {
+        "path": ".",
+        "bytes": 319187,
+        "files": 18
+      },
+      {
+        "path": "scripts",
+        "bytes": 96429,
+        "files": 18
+      }
+    ]
+  },
+  "sourceInputsVerified": 3,
+  "preservedDeliverablesVerified": 4,
+  "nativeResourceCount": 11,
+  "exactPayloadHashMatches": 10,
+  "htmlVerification": "Tauri-processed HTML references pass the native probe; raw dist HTML byte identity is not claimed.",
+  "cliHelpExitCode": 0,
+  "debugArtifactsPresent": false,
+  "preview": {
+    "processId": 6604,
+    "running": true,
+    "mainWindowHandle": 788604,
+    "sha256": "63524019A65986AA670F6CFDC183830BF74CE722E96DCB0F856BF94EAA2B83A0",
+    "closeObserved": false,
+    "exitObserved": false
+  },
+  "cleanup": {
+    "release": 2334158634,
+    "previews": 52045312
+  }
+}
