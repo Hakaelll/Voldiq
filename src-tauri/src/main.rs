@@ -913,6 +913,7 @@ fn main() {
             query_developer_storage,
             query_commands::query_git_storage,
             query_commands::query_game_libraries,
+            query_commands::query_media_libraries,
             docker_commands::query_docker_storage,
             get_issues,
             reveal_item,

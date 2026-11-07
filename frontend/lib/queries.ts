@@ -4,6 +4,7 @@ import type { SpaceReport } from './space-account';
 import type { RecoveryReport } from './recovery';
 import type { DeviceHealthReport } from './device-health';
 import type { GameLibraryReport } from './game-libraries';
+import type { MediaLibraryReport } from './media-libraries';
 import type { ApplicationQuery, ApplicationCleanupContext } from './applications';
 import type { TrayGroup, TraySummary, TrayTarget } from './cleanup-tray';
 import { invoke } from '@tauri-apps/api/core';
@@ -98,6 +99,21 @@ export const gameLibraryQueries = createQueryRunner<
 >('game_libraries', {
   run: async (_family, requestId, query) =>
     invoke<GameLibraryReport | null>('query_game_libraries', {
+      ...query,
+      epoch: await querySession(),
+      requestId,
+    }),
+  cancel: async (family, requestId) =>
+    invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+});
+
+export const mediaLibraryQueries = createQueryRunner<
+  MediaLibraryReport,
+  { indexId: IndexId; query: { scope: NodeId; offset: number; limit: number; manual: string[] } },
+  'media_libraries'
+>('media_libraries', {
+  run: async (_family, requestId, query) =>
+    invoke<MediaLibraryReport | null>('query_media_libraries', {
       ...query,
       epoch: await querySession(),
       requestId,

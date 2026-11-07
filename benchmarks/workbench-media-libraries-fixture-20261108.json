@@ -1,0 +1,48 @@
+{
+  "media": {
+    "lightroom": {
+      "catalogBytes": 8205,
+      "previewBytes": 7,
+      "proxyBytes": 11
+    },
+    "darktableDatabaseBytes": 16384,
+    "rawTherapee": {
+      "sourceBytes": 17,
+      "derivativeBytes": 19,
+      "profileBytes": 82168
+    },
+    "sharedBytes": 41,
+    "unknownManualBytes": 23,
+    "partitionConserved": true,
+    "scoped": true,
+    "malformedAndChangedRefused": true,
+    "recordedAndCancelledRefused": true
+  },
+  "game": {
+    "recognizedRows": 6,
+    "providers": 4,
+    "steam": {
+      "install": 11,
+      "shaders": 3,
+      "workshop": 5,
+      "userData": 7
+    },
+    "epic": {
+      "install": 17,
+      "separateDlc": 19
+    },
+    "gogDlcRecords": 1,
+    "manualFolderBytes": 23,
+    "nestedManualBytes": 36,
+    "partitionConserved": true,
+    "outOfOrderParents": true,
+    "outsideScopeRefused": true,
+    "malformedAndOversizedRefused": true,
+    "changedManifestRefused": true,
+    "recordedScanRefused": true,
+    "pagination": true
+  },
+  "checkedUtc": "2026-11-07T23:36:22.6030407Z",
+  "sourceSha256": "3EDE6C186306CFA1C91A10BF98D36C16EB58553632BF5DFC54110123F38CDBFE",
+  "scope": "Real SQLite files and indexed filesystem sizes in an owned fixture. Profile contents and layout are synthetic. Existing four-launcher fixture rerun against the shared scoped attribution."
+}

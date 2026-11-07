@@ -109,12 +109,16 @@ fn checked_parent(
 }
 
 pub(crate) fn read_indexed_manifest(index: &Index, id: NodeId, limit: usize) -> Result<Vec<u8>> {
-    let entry = index.entry(id)?;
-    if entry.logical > limit as u64 {
+    if index.entry(id)?.logical > limit as u64 {
         return Err(Error::Invalid(
             "Launcher manifest exceeds the read limit.".into(),
         ));
     }
+    read_indexed_prefix(index, id, limit)
+}
+
+pub(crate) fn read_indexed_prefix(index: &Index, id: NodeId, limit: usize) -> Result<Vec<u8>> {
+    let entry = index.entry(id)?;
     let path = index.path(id)?;
     let parent = checked_parent(index, entry, &path)?;
     let file = open_leaf(
@@ -123,9 +127,10 @@ pub(crate) fn read_indexed_manifest(index: &Index, id: NodeId, limit: usize) -> 
         LeafAccess::Retain,
     )?;
     verify(&file, entry, true)?;
-    let bytes = read_prefix(&file, limit)?;
+    let mut bytes = Vec::new();
+    (&file).take(limit as u64).read_to_end(&mut bytes)?;
     verify(&file, entry, true)?;
-    if bytes.len() as u64 != entry.logical {
+    if bytes.len() as u64 != entry.logical.min(limit as u64) {
         return Err(changed());
     }
     Ok(bytes)

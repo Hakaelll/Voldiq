@@ -1,4 +1,4 @@
-//! Read-only attribution of indexed game files using bounded launcher metadata.
+//! Read-only attribution of indexed game and media files using bounded metadata.
 
 use crate::{NodeId, index::Index};
 use serde::{Deserialize, Serialize};
@@ -6,6 +6,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 #[cfg(windows)]
 mod games;
+pub mod media;
+#[cfg(windows)]
+mod scoped;
 
 #[derive(Deserialize)]
 pub struct Query {
@@ -68,15 +71,7 @@ pub fn query(index: &Index, query: &Query, cancel: &AtomicBool) -> crate::Result
     if cancel.load(Ordering::Relaxed) {
         return Ok(None);
     }
-    if index.entry(query.scope)?.kind != crate::Kind::Directory
-        || !(1..=100).contains(&query.limit)
-        || query.manual.len() > 8
-        || query.manual.iter().any(|path| path.len() > 32768)
-    {
-        return Err(crate::Error::Invalid(
-            "Invalid game library scope, page or folder selection.".into(),
-        ));
-    }
+    validate(index, query)?;
     if index.snapshot_id.is_some() {
         return Ok(Some(Report::RecordedScan));
     }
@@ -84,4 +79,17 @@ pub fn query(index: &Index, query: &Query, cancel: &AtomicBool) -> crate::Result
     return games::query(index, query, cancel);
     #[cfg(not(windows))]
     Ok(Some(Report::Unsupported))
+}
+
+fn validate(index: &Index, query: &Query) -> crate::Result<()> {
+    if index.entry(query.scope)?.kind != crate::Kind::Directory
+        || !(1..=100).contains(&query.limit)
+        || query.manual.len() > 8
+        || query.manual.iter().any(|path| path.len() > 32768)
+    {
+        return Err(crate::Error::Invalid(
+            "Invalid library scope, page or folder selection.".into(),
+        ));
+    }
+    Ok(())
 }

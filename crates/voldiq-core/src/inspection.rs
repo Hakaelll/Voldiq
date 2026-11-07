@@ -43,7 +43,7 @@ mod archive;
 #[cfg(windows)]
 mod native;
 #[cfg(windows)]
-pub(crate) use native::read_indexed_manifest;
+pub(crate) use native::{read_indexed_manifest, read_indexed_prefix};
 
 pub fn inspect(
     index: &Index,

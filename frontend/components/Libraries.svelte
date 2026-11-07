@@ -1,9 +1,11 @@
 <script lang="ts">
   import { invoke } from '@tauri-apps/api/core';
+  import { tick } from 'svelte';
   import { applicationBytes } from '../lib/applications';
   import type { GameLibraryReport } from '../lib/game-libraries';
+  import type { MediaLibraryReport, MediaCategory } from '../lib/media-libraries';
   import type { IndexId } from '../lib/index-context';
-  import { gameLibraryQueries } from '../lib/queries';
+  import { gameLibraryQueries, mediaLibraryQueries } from '../lib/queries';
 
   let {
     indexId,
@@ -20,14 +22,33 @@
   } = $props();
 
   const limit = 25;
-  const providers = { steam: 'Steam', epic: 'Epic Games', gog: 'GOG', itch: 'itch.io' };
+  const providers = {
+    steam: 'Steam',
+    epic: 'Epic Games',
+    gog: 'GOG',
+    itch: 'itch.io',
+    lightroom_classic: 'Lightroom Classic',
+    darktable: 'darktable',
+    raw_therapee: 'RawTherapee',
+  };
+  const categories: Record<MediaCategory, string> = {
+    source_images: 'Source images',
+    derivatives: 'Derivatives',
+    previews: 'Previews',
+    proxies: 'Smart previews / proxies',
+    catalog: 'Catalog and edit data',
+    edit_profiles: 'Editing profiles',
+  };
+  let section = $state<'games' | 'media'>('games');
   let position = $state<{ identity: string; offset: number } | null>(null);
-  const identity = $derived(`${indexId}:${scope}`);
+  const identity = $derived(`${indexId}:${scope}:${section}`);
   const offset = $derived(position?.identity === identity ? position.offset : 0);
   let reload = $state(0);
-  let report = $state.raw<GameLibraryReport | null>(null);
+  let report = $state.raw<GameLibraryReport | MediaLibraryReport | null>(null);
+  let reportIdentity = '';
   let loadState = $state<'idle' | 'loading' | 'ready' | 'failed'>('idle');
   let selecting = $state(false);
+  let addButton = $state<HTMLButtonElement>();
   let notice = $state('');
   const size = (value: string | null) => (value === null ? 'Unobserved' : applicationBytes(value));
 
@@ -40,8 +61,10 @@
       loadState = 'idle';
       return;
     }
+    if (current !== reportIdentity) report = null;
     loadState = 'loading';
-    const job = gameLibraryQueries.request({
+    const runner = section === 'games' ? gameLibraryQueries : mediaLibraryQueries;
+    const job = runner.request({
       indexId,
       query: { scope, offset: start, limit, manual: [...manual] },
     });
@@ -53,6 +76,7 @@
           position = { identity: current, offset: 0 };
           return;
         }
+        reportIdentity = current;
         report = value;
         loadState = value ? 'ready' : 'idle';
       },
@@ -83,13 +107,27 @@
       selecting = false;
     }
   }
+
+  async function removeFolder(path: string): Promise<void> {
+    manual = manual.filter((item) => item !== path);
+    await tick();
+    addButton?.focus({ preventScroll: true });
+  }
 </script>
 
+<div class="section-navigation library-tabs" role="group" aria-label="Library types">
+  <button aria-pressed={section === 'games'} onclick={() => (section = 'games')}>Games</button>
+  <button aria-pressed={section === 'media'} onclick={() => (section = 'media')}>Media</button>
+</div>
 <section aria-labelledby="library-heading" aria-busy={loadState === 'loading'}>
   <div class="library-heading">
     <div>
-      <h2 id="library-heading">Game libraries</h2>
-      <p>Indexed storage matched to Steam, Epic Games, GOG and itch.io manifests.</p>
+      <h2 id="library-heading">{section === 'games' ? 'Game libraries' : 'Media libraries'}</h2>
+      <p>
+        {section === 'games'
+          ? 'Indexed storage matched to Steam, Epic Games, GOG and itch.io manifests.'
+          : 'Indexed media matched to Lightroom Classic, darktable and RawTherapee layouts.'}
+      </p>
     </div>
     <button
       disabled={indexId === null || paused || loadState === 'loading'}
@@ -99,73 +137,100 @@
 
   {#if loadState === 'idle'}
     <p role="status">
-      {paused ? 'Waiting for the folder analysis.' : 'Complete a live scan to see game libraries.'}
+      {paused ? 'Waiting for the folder analysis.' : 'Complete a live scan to see libraries.'}
     </p>
   {:else if loadState === 'failed'}
-    <p role="alert">Game library details could not be loaded. Refresh to retry.</p>
+    <p role="alert">Library details could not be loaded. Refresh to retry.</p>
   {:else if loadState === 'loading' && !report}
-    <p role="status">Reading indexed launcher manifests…</p>
+    <p role="status">
+      {section === 'games' ? 'Reading indexed launcher manifests…' : 'Checking media signatures…'}
+    </p>
   {:else if report?.kind === 'recorded_scan'}
-    <p role="status">Run a live scan to read current launcher manifests.</p>
+    <p role="status">Run a live scan to verify current library files.</p>
   {:else if report?.kind === 'unsupported'}
-    <p role="status">Launcher attribution requires Windows.</p>
+    <p role="status">Library attribution requires Windows.</p>
   {:else if report?.kind === 'available'}
+    {@const omitted =
+      'omitted_manifests' in report ? report.omitted_manifests : report.omitted_signatures}
     <p class="library-coverage" role="status">
       {loadState === 'loading'
         ? 'Updating results…'
-        : `${report.total.toLocaleString()} recognized games · ${size(report.shared_bytes)} shared · ${size(report.unattributed_bytes)} unattributed`}
+        : `${report.total.toLocaleString()} ${section === 'games' ? 'recognized games' : 'recognized media groups'} · ${size(report.shared_bytes)} shared · ${size(report.unattributed_bytes)} unattributed`}
     </p>
     {#if report.coverage_partial}
       <p>
-        Coverage is partial.{report.omitted_manifests
-          ? ` ${report.omitted_manifests.toLocaleString()} launcher records could not be attributed.`
+        Coverage is partial.{omitted
+          ? ` ${omitted.toLocaleString()} records could not be attributed.`
           : ''}
       </p>
     {/if}
     {#if report.items.length}
       <ul class="library-list">
-        {#each report.items as item (`${item.provider}:${item.product}:${item.id}`)}
+        {#each report.items as item ('product' in item ? `${item.provider}:${item.product}:${item.id}` : `${item.provider}:${item.anchor}`)}
           <li>
-            <div class="game-row">
+            {#if 'product' in item}
+              <div class="game-row">
+                <div class="game-name">
+                  <button
+                    title={item.path}
+                    onclick={() => onopen(item.id)}
+                    disabled={loadState === 'loading'}>{item.title}</button
+                  >
+                  <small
+                    >{providers[item.provider]}{item.partial ? ' · Partial attribution' : ''}</small
+                  >
+                </div>
+                <div class="installation">
+                  <small>Installation</small><strong>{size(item.installation_bytes)}</strong>
+                </div>
+              </div>
+              {#if item.shaders_bytes !== null || item.workshop_bytes !== null || item.user_data_bytes !== null || item.dlc_records}
+                <dl>
+                  {#if item.shaders_bytes !== null}<div>
+                      <dt>Shader cache</dt>
+                      <dd>{size(item.shaders_bytes)}</dd>
+                    </div>{/if}
+                  {#if item.workshop_bytes !== null}<div>
+                      <dt>Workshop</dt>
+                      <dd>{size(item.workshop_bytes)}</dd>
+                    </div>{/if}
+                  {#if item.user_data_bytes !== null}<div>
+                      <dt>Saves and user data</dt>
+                      <dd>{size(item.user_data_bytes)}</dd>
+                    </div>{/if}
+                  {#if item.dlc_records}<div>
+                      <dt>DLC records · {item.dlc_records}</dt>
+                      <dd>{item.dlc_bytes === null ? 'No separate size' : size(item.dlc_bytes)}</dd>
+                    </div>{/if}
+                </dl>
+              {/if}
+            {:else}
               <div class="game-name">
                 <button
                   title={item.path}
-                  onclick={() => onopen(item.id)}
-                  disabled={loadState === 'loading'}>{item.title}</button
+                  onclick={() => onopen(item.folder)}
+                  disabled={loadState === 'loading'}>{item.name}</button
                 >
                 <small
                   >{providers[item.provider]}{item.partial ? ' · Partial attribution' : ''}</small
                 >
               </div>
-              <div class="installation">
-                <small>Installation</small><strong>{size(item.installation_bytes)}</strong>
-              </div>
-            </div>
-            {#if item.shaders_bytes !== null || item.workshop_bytes !== null || item.user_data_bytes !== null || item.dlc_records}
-              <dl>
-                {#if item.shaders_bytes !== null}<div>
-                    <dt>Shader cache</dt>
-                    <dd>{size(item.shaders_bytes)}</dd>
-                  </div>{/if}
-                {#if item.workshop_bytes !== null}<div>
-                    <dt>Workshop</dt>
-                    <dd>{size(item.workshop_bytes)}</dd>
-                  </div>{/if}
-                {#if item.user_data_bytes !== null}<div>
-                    <dt>Saves and user data</dt>
-                    <dd>{size(item.user_data_bytes)}</dd>
-                  </div>{/if}
-                {#if item.dlc_records}<div>
-                    <dt>DLC records · {item.dlc_records}</dt>
-                    <dd>{item.dlc_bytes === null ? 'No separate size' : size(item.dlc_bytes)}</dd>
-                  </div>{/if}
-              </dl>
+              {#if item.sizes.length}
+                <dl>
+                  {#each item.sizes as bucket (bucket.category)}
+                    <div>
+                      <dt>{categories[bucket.category]}</dt>
+                      <dd>{size(bucket.logical_bytes)}</dd>
+                    </div>
+                  {/each}
+                </dl>
+              {/if}
             {/if}
           </li>
         {/each}
       </ul>
       {#if report.total > limit}
-        <nav class="library-pages" aria-label="Game library pages">
+        <nav class="library-pages" aria-label="Library pages">
           <button
             disabled={offset === 0 || loadState === 'loading'}
             onclick={() => (position = { identity, offset: offset - limit })}>Previous</button
@@ -179,14 +244,21 @@
       {/if}
     {:else}
       <p>
-        No launcher records matched folders in this analysis. Add a folder below to see its measured
-        size.
+        No {section === 'games' ? 'launcher records' : 'known media layouts'} matched this analysis. Add
+        a folder below to see its measured size.
       </p>
     {/if}
-    <p>
-      Sizes describe indexed files. Saves, mods and DLC inside an installation may be included in
-      its size. Shader caches can regenerate and briefly affect performance.
-    </p>
+    {#if section === 'games'}
+      <p>
+        Sizes describe indexed files. Saves, mods and DLC inside an installation may be included in
+        its size. Shader caches can regenerate and briefly affect performance.
+      </p>
+    {:else}
+      <p>
+        Source images and derivatives require matching RawTherapee profiles. Lightroom and darktable
+        totals cover catalog files and recognized companions in this scan.
+      </p>
+    {/if}
   {/if}
 
   <div class="manual-libraries">
@@ -194,10 +266,12 @@
       <div>
         <h3>Manual folders</h3>
         <p>
-          Measure a folder in the current analysis. These totals can overlap the game results above.
+          Measure a folder in the current analysis. These totals can overlap attributed storage
+          above.
         </p>
       </div>
       <button
+        bind:this={addButton}
         disabled={indexId === null || paused || selecting || manual.length >= 8}
         onclick={addFolder}>Add folder</button
       >
@@ -216,10 +290,7 @@
             {:else}
               <span>{loadState === 'loading' ? 'Measuring…' : 'Unobserved in this analysis'}</span>
             {/if}
-            <button
-              aria-label={`Remove ${path}`}
-              onclick={() => (manual = manual.filter((item) => item !== path))}>Remove</button
-            >
+            <button aria-label={`Remove ${path}`} onclick={() => removeFolder(path)}>Remove</button>
           </li>
         {/each}
       </ul>
@@ -228,6 +299,9 @@
 </section>
 
 <style>
+  .library-tabs {
+    margin-bottom: 12px;
+  }
   .library-heading,
   .game-row,
   .manual-row,

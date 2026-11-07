@@ -6,7 +6,7 @@
   import DeviceHealth from './DeviceHealth.svelte';
   import Applications from './Applications.svelte';
   import StorageCost from './StorageCost.svelte';
-  import GameLibraries from './GameLibraries.svelte';
+  import Libraries from './Libraries.svelte';
   import type { ApplicationCleanupContext } from '../lib/applications';
   import type { Query } from '../lib/types';
   import type { IndexId } from '../lib/index-context';
@@ -153,7 +153,7 @@
     }}>Applications</button
   >
   <button aria-pressed={section === 'libraries'} onclick={() => (section = 'libraries')}
-    >Game libraries</button
+    >Libraries</button
   >
   <button aria-pressed={section === 'cost'} onclick={() => (section = 'cost')}>Storage cost</button>
 </div>
@@ -179,7 +179,7 @@
     <button onclick={onretry} disabled={paused}>Reload folder context</button>
   {/if}
 {:else if section === 'libraries'}
-  <GameLibraries
+  <Libraries
     {indexId}
     scope={scopeId}
     paused={paused || queryState !== 'ready'}

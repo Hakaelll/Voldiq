@@ -147,7 +147,7 @@ The unscanned Overview leads with the drive scan and folder picker, followed by 
 
 Storage cost is an optional Overview section. The dated tariff table aligns the current and scenario monthly charges. An explicit action can capture the indexed folder's logical size as a billing assumption. The editor opens inline and tariffs stay in the current Overview session.
 
-Game libraries shares the Overview section navigation. It uses a flat list with the launcher, observed installation size and any measured subcategories. An adjacent manual folder list reports separate indexed totals and explains potential overlap.
+Libraries shares the Overview section navigation. Games and Media use a flat list with the application and measured subcategories. The shared manual folder list reports separate indexed totals and explains potential overlap. Unknown media folders receive size information only.
 
 Overview groups Drive health under Space & drive diagnostics. Check drive is explicit. The report pairs its checked time and scan root with a short row of device counters or the Windows access or support state for each mapped disk.
 

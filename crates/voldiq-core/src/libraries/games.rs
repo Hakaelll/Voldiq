@@ -1,10 +1,10 @@
 mod manifests;
 
-use super::{Game, ManualLibrary, Provider, Query, Report};
-use crate::{
-    Entry, Kind, NodeId, Result, agents::ordinary_path, index::Index,
-    inspection::read_indexed_manifest,
+use super::scoped::{
+    Locations, OUTSIDE, UNRESOLVED, local_folder, measure_manual, observe, ownership, path_key,
 };
+use super::{Game, Provider, Query, Report};
+use crate::{Entry, Kind, NodeId, Result, index::Index, inspection::read_indexed_manifest};
 use manifests::{FILE_LIMIT, number};
 use std::{
     cmp::Reverse,
@@ -107,44 +107,12 @@ fn manifest_id<'a>(name: &'a str, prefix: &str, suffix: &str) -> Option<&'a str>
     }
 }
 
-fn path_key(path: &Path) -> Option<String> {
-    Some(
-        ordinary_path(path)
-            .ok()?
-            .to_str()?
-            .replace('/', "\\")
-            .trim_end_matches('\\')
-            .to_lowercase(),
-    )
-}
-
-type Locations<K> = HashMap<K, Option<NodeId>>;
-
-fn observe<K: Eq + std::hash::Hash>(locations: &mut Locations<K>, key: K, id: NodeId) {
-    locations
-        .entry(key)
-        .and_modify(|prior| *prior = None)
-        .or_insert(Some(id));
-}
-
-fn local_folder(index: &Index, id: NodeId, scope: NodeId) -> bool {
-    index.in_scope(id, scope)
-        && index.pin_folder(id).is_ok_and(|pin| {
-            index.root_identity.is_some_and(|root| {
-                pin.ancestor_identities()
-                    .is_ok_and(|ancestors| ancestors.contains(&root))
-            })
-        })
-}
-
 const INSTALL: usize = 0;
 const SHADERS: usize = 1;
 const WORKSHOP: usize = 2;
 const USER_DATA: usize = 3;
 const DLC: usize = 4;
 const CATEGORIES: usize = 5;
-const OUTSIDE: u16 = u16::MAX;
-const UNRESOLVED: u16 = u16::MAX - 1;
 
 struct Measured {
     id: NodeId,
@@ -412,21 +380,7 @@ pub(super) fn query(index: &Index, query: &Query, cancel: &AtomicBool) -> Result
         }
     }
 
-    let manual = manuals
-        .into_iter()
-        .map(|path| {
-            let id = absolute_locations.get(&path?)?.as_ref().copied()?;
-            if !local_folder(index, id, query.scope) {
-                return None;
-            }
-            let entry = index.entry(id).ok()?;
-            Some(ManualLibrary {
-                id,
-                logical_bytes: entry.logical.to_string(),
-                partial: entry.incomplete,
-            })
-        })
-        .collect();
+    let manual = measure_manual(index, query.scope, manuals, &absolute_locations);
     games.sort_unstable_by(|left, right| {
         (Reverse(left.total()), left.id.0, &left.record.product).cmp(&(
             Reverse(right.total()),
@@ -476,38 +430,6 @@ pub(super) fn query(index: &Index, query: &Query, cancel: &AtomicBool) -> Result
                 .is_none_or(|observation| !observation.complete),
         manual,
     }))
-}
-
-fn ownership(
-    index: &Index,
-    scope: NodeId,
-    boundaries: &HashMap<NodeId, u16>,
-    owners: &mut [u16],
-    pending: &mut Vec<NodeId>,
-    id: NodeId,
-) -> u16 {
-    let mut cursor = id;
-    let mut owner = loop {
-        let cached = owners[cursor.0 as usize];
-        if cached != UNRESOLVED {
-            break cached;
-        }
-        pending.push(cursor);
-        if cursor == scope {
-            break 0;
-        }
-        match index.entries[cursor.0 as usize].parent {
-            Some(parent) => cursor = parent,
-            None => break OUTSIDE,
-        }
-    };
-    while let Some(node) = pending.pop() {
-        if owner != OUTSIDE {
-            owner = boundaries.get(&node).copied().unwrap_or(owner);
-        }
-        owners[node.0 as usize] = owner;
-    }
-    owner
 }
 
 type SteamOwners = HashMap<(NodeId, String), Vec<usize>>;
