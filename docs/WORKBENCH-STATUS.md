@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Storage cost estimates
+
+Overview → Storage cost compares two quantities using up to eight user-entered, dated tariffs in their original currencies. An optional baseline copies the displayed folder's indexed logical size and labels it as an assumption. Metered estimates apply constant usage. Fixed fees stay equal within the included capacity and show an explicit unavailable estimate above it. Taxes, transfers, discounts and overage charges are excluded. Rates and amounts stay in the Overview session.
+
+All six integration checks passed with eight routine tests and zero Svelte diagnostics. A separate fixture exercised metered and fixed monthly amounts, plan limits, decimal and binary units, rounding, invalid inputs and unmeasured usage. Populated desktop interaction, keyboard and Windows scaling remain manual. [Source verification](../benchmarks/workbench-storage-cost-source-20261107.json)
+
 ## Git repository storage
 
 Developer → Git repositories reports observed logical bytes for loose objects, packs, recognized pack sidecars and the default local LFS object store. The indexed folder opens in Explorer. Linked gitfiles and shared store markers are counted separately. Alternates, custom LFS locations and incremental multi-pack index metadata are outside these totals. The query works from the current or saved index and does not read repository files or run Git. [Repository layout](https://git-scm.com/docs/gitrepository-layout) · [Pack format](https://git-scm.com/docs/pack-format) · [Git LFS layout](https://github.com/git-lfs/git-lfs/blob/main/docs/spec.md)

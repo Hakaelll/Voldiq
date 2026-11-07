@@ -4,6 +4,7 @@
   import SpaceAccount from './SpaceAccount.svelte';
   import RecoveryCopies from './RecoveryCopies.svelte';
   import Applications from './Applications.svelte';
+  import StorageCost from './StorageCost.svelte';
   import type { ApplicationCleanupContext } from '../lib/applications';
   import type { Query } from '../lib/types';
   import type { IndexId } from '../lib/index-context';
@@ -110,7 +111,7 @@
     onreviewcache: (context: ApplicationCleanupContext) => void;
     onapplication: (id: string) => void;
   } = $props();
-  let section = $state<'summary' | 'applications'>('summary');
+  let section = $state<'summary' | 'applications' | 'cost'>('summary');
   const distribution = $derived(visibleFileTypes(types));
   const typeColors = $derived(
     distribution.items.map((_, index) => RANKED_PAINTS[index % RANKED_PAINTS.length].fill),
@@ -148,6 +149,12 @@
       section = 'applications';
     }}>Applications</button
   >
+  <button aria-pressed={section === 'cost'} onclick={() => (section = 'cost')}>Storage cost</button>
+</div>
+<div hidden={section !== 'cost'}>
+  <StorageCost
+    folder={!paused && queryState === 'ready' && directory?.entry.id === scopeId ? directory : null}
+  />
 </div>
 {#if section === 'applications'}
   {#if indexId !== null && directory && directory.entry.id === scopeId}
@@ -165,7 +172,7 @@
     <p role="status">Waiting for the selected folder context.</p>
     <button onclick={onretry} disabled={paused}>Reload folder context</button>
   {/if}
-{:else}
+{:else if section === 'summary'}
   <div class="overview-grid">
     <aside class="overview-summary" aria-label="Storage summary">
       {#if directory && directory.entry.id !== 0}

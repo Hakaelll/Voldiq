@@ -1,0 +1,92 @@
+{
+  "checkedUtc": "2026-11-07T21:39:26.4832462Z",
+  "startedUtc": "2026-11-07T21:23:18.3373165Z",
+  "checkoutCommit": "b3c3ef7c4ae72bb7b8159f0010e43e995f0c1cce",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 5.392
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 24.951
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 5.716
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 23.15
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 769.33
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 139.423
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "frontend/components/Overview.svelte",
+      "sha256": "09BE01B55C0A6F32A01345B1D392FB48215F52DE1B7EDAB5C41276F7D3B91C83"
+    },
+    {
+      "path": "frontend/components/StorageCost.svelte",
+      "sha256": "7D6F5DAC21A2E758C94D0D241D0C31409EDE84473A27819A05325FAAF5DA586D"
+    },
+    {
+      "path": "frontend/lib/storage-cost.ts",
+      "sha256": "CF2593436559FC2CC83E6A9B9264AE7325FA1A0B9DE357C968C54F3F03C35442"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "B8AC514AC33FD94D2F713D365480AC0B8AC45B70FC0A4A9BB1BDAE8DFCF35140"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "E3B8152C14811E6FB2D211D577F207E2141339AF005862F259F3C30EDA240250"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "8B40A15D19C2AF4E895E736F1D2ACD0F85633A188BF86FDD717FD6FABE3F8EAE"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "costFixture": {
+    "rateLabel": "EUR 0.023 / GB / month",
+    "fixedLabel": "USD 9.99 / month · 250 GB included",
+    "meteredCurrent": "EUR 5.75",
+    "meteredScenario": "EUR 2.30",
+    "fixedCurrent": "USD 9.99",
+    "fixedScenario": "USD 9.99",
+    "fixedOutOfPlan": "Above included capacity",
+    "gbFromGib": "EUR 107.37",
+    "tinyRate": "< EUR 0.01",
+    "zeroUsage": "EUR 0.00",
+    "unknownUsage": "Enter usage",
+    "yen": "JPY 3",
+    "invalidDates": true,
+    "invalidCurrency": true,
+    "invalidCapacity": true,
+    "invalidQuantities": true
+  },
+  "limits": "Dated fixture rates exercise fixed and metered scenarios, exact unit conversion, decimal rounding, unknown and invalid inputs. Populated native rendering, keyboard, scaling and clean-machine installation remain manual."
+}
