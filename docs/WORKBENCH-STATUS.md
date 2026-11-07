@@ -6,6 +6,8 @@ Overview → Space & drive diagnostics → Drive health checks the Windows disk 
 
 All six integration checks passed with eight routine tests and zero Svelte diagnostics. An owned folder on the workspace volume returned one real NVMe report. Separate response fixtures exercised multiple extents, exact 128-bit counters, unreported temperature, truncated data and both Windows prediction flag values. The probe also checked changed root identity, recorded scans and cancellation. Other controllers and populated desktop keyboard, rendering and scaling remain manual. [Source verification](../benchmarks/workbench-drive-health-source-20261107.json) · [Device probe](../benchmarks/workbench-drive-health-device-20261107.json)
 
+Source commit `7a63e7a` was pushed to `main`. The production preview reached ready and page-finished. Static distribution checks verified the 26,333,184-byte executable and 10,189,658-byte NSIS installer. Clean-machine installation remains manual. The cache cleanup guard deferred release cleanup while active Rust processes were present. [Native startup](../benchmarks/native-drive-health-preview-20261107.json) · [Distribution](../benchmarks/distribution-drive-health-20261107.json)
+
 ## Storage cost estimates
 
 Overview → Storage cost compares two quantities using up to eight user-entered, dated tariffs in their original currencies. An optional baseline copies the displayed folder's indexed logical size and labels it as an assumption. Metered estimates apply constant usage. Fixed fees stay equal within the included capacity and show an explicit unavailable estimate above it. Taxes, transfers, discounts and overage charges are excluded. Rates and amounts stay in the Overview session.
