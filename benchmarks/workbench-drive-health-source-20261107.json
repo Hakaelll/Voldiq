@@ -1,0 +1,106 @@
+{
+  "checkedUtc": "2026-11-07T22:12:52.9943293Z",
+  "startedUtc": "2026-11-07T21:57:46.9408559Z",
+  "checkoutCommit": "1aa8bebc401d8e345ac4276f2869c533fa1bda75",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.174
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 9.261
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1.249
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 8.176
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 807.198
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 78.946
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/Cargo.toml",
+      "sha256": "5D983EEB1C0F32502622D9E96D08E5ABC1551AF026E611E284654E4D1FFFED53"
+    },
+    {
+      "path": "crates/voldiq-core/src/device_health.rs",
+      "sha256": "97574E0FD4CC04D7D09D79902EB5807EA42968848FBA68A5CE65586EE68C4205"
+    },
+    {
+      "path": "crates/voldiq-core/src/device_health/native.rs",
+      "sha256": "1CBB90A4AE6CEC70356C6C077EB2B99F0A13E07DC53D413FC7162F20A5DFB251"
+    },
+    {
+      "path": "crates/voldiq-core/src/device_health/native/decode.rs",
+      "sha256": "43787DFBBA3ED584591A4098C55CD2885FFC364B9F0F350A6101BC8430E98736"
+    },
+    {
+      "path": "crates/voldiq-core/src/lib.rs",
+      "sha256": "15FFF75890FA7A47B302F4776FD24E154A8EC1D4540D4423323D5B189C9AFD84"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "1E3F34F7B12090B10AD2294A50CFF28786C2761860BA8D0E9692045FACE92180"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "FABEF70EB522B9DAFBE6FA85FF731B6C69E843C7BE3AEE69275E45994F1F7390"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "B7160F784D0799F447B4FB2663F5817FEE252480EC913BD475ED2A119856C6FF"
+    },
+    {
+      "path": "frontend/components/DeviceHealth.svelte",
+      "sha256": "6256787849D751D9808E45D9159AAAE746EE7109FB937CDF896B2F382753017A"
+    },
+    {
+      "path": "frontend/components/Overview.svelte",
+      "sha256": "D9A9EF41B332D791B5452E96674BBC69C3CD2679E185AE749A91C8E8040893F8"
+    },
+    {
+      "path": "frontend/lib/device-health.ts",
+      "sha256": "18A9495ED229958F76887DAB50667A4648EFBE299E6FFDE1A2DBA30B1BC2E920"
+    },
+    {
+      "path": "frontend/lib/queries.ts",
+      "sha256": "545D5132AE75FE8AFDB5FDA7C8FDCE311D974C123E28C0BA79762E78173F58C9"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "05F814B8E605E1CCC00E18EA59DFC4079A7661558F66AE955BAFE608C07722A0"
+    },
+    {
+      "path": "src-tauri/src/query_commands.rs",
+      "sha256": "52881A93413FDD768A97BA59B851FC786EB6599C5BE885E76AF4EBF239753441"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "limits": "Device response fixtures and a live-volume probe are recorded separately. Native visual, focus/keyboard, scaling and clean-machine install acceptance remain manual."
+}

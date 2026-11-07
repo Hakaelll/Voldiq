@@ -2,6 +2,7 @@ import type { HistoryClip, HistoryClipRequest } from './history-clip';
 import type { IndexId } from './index-context';
 import type { SpaceReport } from './space-account';
 import type { RecoveryReport } from './recovery';
+import type { DeviceHealthReport } from './device-health';
 import type { ApplicationQuery, ApplicationCleanupContext } from './applications';
 import type { TrayGroup, TraySummary, TrayTarget } from './cleanup-tray';
 import { invoke } from '@tauri-apps/api/core';
@@ -163,6 +164,21 @@ export const recoveryQueries = createQueryRunner<RecoveryReport, { indexId: Inde
       invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
   },
 );
+
+export const deviceHealthQueries = createQueryRunner<
+  DeviceHealthReport,
+  { indexId: IndexId },
+  'device_health'
+>('device_health', {
+  run: async (_family, requestId, query) =>
+    invoke<DeviceHealthReport | null>('query_device_health', {
+      ...query,
+      epoch: await querySession(),
+      requestId,
+    }),
+  cancel: async (family, requestId) =>
+    invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+});
 
 export const spaceAccountQueries = createQueryRunner<SpaceReport, { indexId: IndexId }>(
   'space_account',

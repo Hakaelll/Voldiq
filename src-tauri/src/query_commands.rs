@@ -1,6 +1,6 @@
 use crate::analysis_status::IndexId;
 use crate::{
-    Engine,
+    Engine, SharedIndex,
     overview::{Overview, overview},
 };
 use serde::Deserialize;
@@ -35,6 +35,7 @@ pub(crate) enum QueryFamily {
     CleanupTray,
     FileInspection,
     GitStorage,
+    DeviceHealth,
 }
 
 #[derive(Default)]
@@ -51,7 +52,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 18],
+    slots: [Slot; 19],
 }
 
 impl QueryFamily {
@@ -75,6 +76,7 @@ impl QueryFamily {
             Self::CleanupTray => 15,
             Self::FileInspection => 16,
             Self::GitStorage => 17,
+            Self::DeviceHealth => 18,
         }
     }
 }
@@ -501,6 +503,28 @@ async fn run_query<T: Send + 'static>(
     engine: Arc<Engine>,
     execute: impl FnOnce(&Index, &AtomicBool) -> Result<Option<T>, String> + Send + 'static,
 ) -> Result<Option<T>, String> {
+    run_index_job(
+        index_id,
+        epoch,
+        family,
+        request_id,
+        engine,
+        move |shared, cancelled| {
+            let index = shared.read().map_err(|error| error.to_string())?;
+            execute(&index, cancelled)
+        },
+    )
+    .await
+}
+
+async fn run_index_job<T: Send + 'static>(
+    index_id: IndexId,
+    epoch: u64,
+    family: QueryFamily,
+    request_id: u64,
+    engine: Arc<Engine>,
+    execute: impl FnOnce(&SharedIndex, &AtomicBool) -> Result<Option<T>, String> + Send + 'static,
+) -> Result<Option<T>, String> {
     let Some(cancelled) = engine.queries.begin(epoch, family, request_id)? else {
         return Ok(None);
     };
@@ -516,10 +540,7 @@ async fn run_query<T: Send + 'static>(
             return Ok(None);
         }
         let shared = _request.engine.index_for(index_id)?;
-        let result = {
-            let index = shared.read().map_err(|error| error.to_string())?;
-            execute(&index, &cancelled)?
-        };
+        let result = execute(&shared, &cancelled)?;
         if cancelled.load(Ordering::Relaxed)
             || !_request.engine.index_is_current(index_id, &shared)?
         {
@@ -625,6 +646,30 @@ pub(crate) async fn query_folder_budget(
             voldiq_core::budgets::Store::open(directory.directory())
                 .and_then(|store| store.read(index, node_id, &history, detailed, cancelled))
                 .map_err(|e| e.to_string())
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn query_device_health(
+    index_id: IndexId,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<voldiq_core::device_health::Report>, String> {
+    run_index_job(
+        index_id,
+        epoch,
+        QueryFamily::DeviceHealth,
+        request_id,
+        engine.inner().clone(),
+        |shared, cancelled| {
+            let target = {
+                let index = shared.read().map_err(|error| error.to_string())?;
+                voldiq_core::device_health::Target::from_index(&index)
+            };
+            Ok(voldiq_core::device_health::read(target, cancelled))
         },
     )
     .await

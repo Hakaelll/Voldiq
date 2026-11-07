@@ -879,6 +879,7 @@ fn main() {
             query_commands::query_application_cache,
             query_commands::query_cleanup_tray,
             query_commands::query_recovery_copies,
+            query_commands::query_device_health,
             query_commands::query_snapshot_visual,
             query_commands::query_snapshot_changes,
             query_commands::query_snapshot_capture,

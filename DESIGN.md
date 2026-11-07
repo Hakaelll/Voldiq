@@ -147,6 +147,8 @@ The unscanned Overview leads with the drive scan and folder picker, followed by 
 
 Storage cost is an optional Overview section. The dated tariff table aligns the current and scenario monthly charges. An explicit action can capture the indexed folder's logical size as a billing assumption. The editor opens inline and tariffs stay in the current Overview session.
 
+Overview groups Drive health under Space & drive diagnostics. Check drive is explicit. The report pairs its checked time and scan root with a short row of device counters or the Windows access or support state for each mapped disk.
+
 Overview, Cleanup, History and the Explorer list share text section controls with an underline for the active view. Explorer offers Map, List and Grid at this level. Map styles are chosen inside the map toolbar. The workspace toolbar shows drive and search controls on analysis views and the drive picker in Windows tools. Cleanup opens directly to candidates, with Recycle Bin and Windows Storage in Windows tools. History puts the measured trend before its snapshot rows and groups storage maintenance under Manage snapshots.
 
 Cleanup ranks files under a single category picker. The table leads with each file's name, path and modification date, followed by aligned sizes and review priority. A priority opens its evidence beneath the file row. Weight controls stay inside a disclosure and reordering preserves explicit selections.

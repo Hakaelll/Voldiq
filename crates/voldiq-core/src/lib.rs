@@ -5,6 +5,7 @@ pub mod cleanup;
 pub mod cloud;
 mod database;
 pub mod developer;
+pub mod device_health;
 pub mod duplicates;
 pub mod exports;
 pub mod index;

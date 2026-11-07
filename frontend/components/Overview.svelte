@@ -3,6 +3,7 @@
   import StorageMap from './StorageMap.svelte';
   import SpaceAccount from './SpaceAccount.svelte';
   import RecoveryCopies from './RecoveryCopies.svelte';
+  import DeviceHealth from './DeviceHealth.svelte';
   import Applications from './Applications.svelte';
   import StorageCost from './StorageCost.svelte';
   import type { ApplicationCleanupContext } from '../lib/applications';
@@ -394,8 +395,13 @@
     </section>
     {#if indexId !== null}
       <details class="overview-diagnostics">
-        <summary>Space accounting & recovery copies</summary>
-        <div><SpaceAccount {indexId} {paused} /><RecoveryCopies {indexId} {paused} /></div>
+        <summary>Space & drive diagnostics</summary>
+        <div>
+          <SpaceAccount {indexId} {paused} /><DeviceHealth {indexId} {paused} /><RecoveryCopies
+            {indexId}
+            {paused}
+          />
+        </div>
       </details>
     {/if}
   </div>

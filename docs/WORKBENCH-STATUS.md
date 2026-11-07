@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Windows drive health
+
+Overview → Space & drive diagnostics → Drive health checks the Windows disk numbers backing a live scan. It reads the NVMe SMART log or the Windows failure-prediction flag on demand. The report identifies its method and check time. Access, missing support, changed scope and invalid driver data have distinct states. The native query keeps asynchronous controller events, holds no index lock during driver I/O and discards cancelled responses. A pending synchronous driver call can finish after the UI cancels. [Windows volume extents](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-ioctl_volume_get_volume_disk_extents) · [NVMe log](https://learn.microsoft.com/en-us/windows/win32/api/nvme/ns-nvme-nvme_health_info_log) · [Windows failure prediction](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddstor/ni-ntddstor-ioctl_storage_predict_failure)
+
+All six integration checks passed with eight routine tests and zero Svelte diagnostics. An owned folder on the workspace volume returned one real NVMe report. Separate response fixtures exercised multiple extents, exact 128-bit counters, unreported temperature, truncated data and both Windows prediction flag values. The probe also checked changed root identity, recorded scans and cancellation. Other controllers and populated desktop keyboard, rendering and scaling remain manual. [Source verification](../benchmarks/workbench-drive-health-source-20261107.json) · [Device probe](../benchmarks/workbench-drive-health-device-20261107.json)
+
 ## Storage cost estimates
 
 Overview → Storage cost compares two quantities using up to eight user-entered, dated tariffs in their original currencies. An optional baseline copies the displayed folder's indexed logical size and labels it as an assumption. Metered estimates apply constant usage. Fixed fees stay equal within the included capacity and show an explicit unavailable estimate above it. Taxes, transfers, discounts and overage charges are excluded. Rates and amounts stay in the Overview session.

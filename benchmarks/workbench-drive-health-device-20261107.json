@@ -1,0 +1,21 @@
+{
+  "responseFixtures": {
+    "nvme": true,
+    "prediction": true,
+    "extents": true
+  },
+  "liveProbe": {
+    "kind": "disks",
+    "methods": [
+      "nvme"
+    ]
+  },
+  "scopeChecks": {
+    "changed": true,
+    "recorded": true,
+    "cancelled": true
+  },
+  "checkedUtc": "2026-11-07T22:07:50.3870778Z",
+  "scope": "Temporary owned index on the current workspace volume. Only the availability/method is recorded for real hardware. Binary fixtures exercise the shipped response decoders.",
+  "decoderSha256": "43787DFBBA3ED584591A4098C55CD2885FFC364B9F0F350A6101BC8430E98736"
+}
