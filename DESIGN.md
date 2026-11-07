@@ -141,7 +141,9 @@ components:
 
 ## Overview
 
-The unscanned Overview pairs a measured drive summary with a separate scan panel, using the same bordered 8px surfaces as the populated dashboard. A short instruction explains the explicit scan actions. The original symbol, selected-drive scan, folder picker and up to three actual recent paths remain. The selected drive's measured percentage forms a ring above its used, free and total bytes. Missing measurements remain unavailable. The layout stacks below 1000px; scanning never starts automatically.
+The unscanned Overview leads with the drive scan and folder picker, followed by up to three recent paths. A divider separates the scan actions from the selected drive's capacity chart and measured bytes. The sections stack below 850px in the same reading order. Missing measurements stay unavailable and scanning starts on request.
+
+Overview, Cleanup, History and the Explorer list share text section controls with an underline for the active view. Explorer offers Map, List and Grid at this level. Map styles are chosen inside the map toolbar. The workspace toolbar shows drive and search controls on analysis views and the drive picker in Windows tools. Cleanup opens directly to candidates, with Recycle Bin and Windows Storage in Windows tools. History puts the measured trend before its snapshot rows and groups storage maintenance under Manage snapshots.
 
 Populated maps show each sufficiently wide root region's percentage of the rendered measured weights, using the selected size metric. Nested children are excluded from this denominator to avoid counting the same bytes twice. The selection caption pairs its path and selected size with its indexed file count. File-type legends use responsive columns with aligned swatches and measured size/count labels.
 

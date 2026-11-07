@@ -101,6 +101,15 @@ button.primary {
 button.primary:hover {
   background: #173784;
 }
+button.quiet-action {
+  border-color: transparent;
+  background: transparent;
+  color: var(--secondary);
+}
+button.quiet-action:hover:not(:disabled) {
+  background: var(--paper);
+  color: var(--text);
+}
 input,
 select,
 textarea {
@@ -112,6 +121,7 @@ textarea {
   min-width: 0;
   caret-color: var(--accent);
 }
+summary:focus-visible,
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
@@ -1389,17 +1399,15 @@ main {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-bottom: 12px;
+  margin-top: 12px;
 }
 .cleanup-workbench {
   display: grid;
-  gap: 20px;
+  gap: 24px;
   min-width: 0;
 }
-.cleanup-sections {
-  justify-self: start;
-  max-width: 100%;
-  flex-wrap: wrap;
+.cleanup-workbench > .section-navigation {
+  margin-bottom: 0;
 }
 .cleanup-content {
   min-width: 0;
@@ -1451,12 +1459,21 @@ main {
   align-items: center;
   flex-wrap: wrap;
   gap: 8px 16px;
-  padding: 10px 0;
+  padding: 0 0 8px;
   font-size: 12px;
 }
-.exploration-hint {
-  flex: 1;
+.inspection-help {
+  margin-inline-start: auto;
   color: var(--secondary);
+}
+.inspection-help summary,
+.history-management > summary {
+  width: fit-content;
+  padding-block: 6px;
+  cursor: pointer;
+}
+.inspection-help p {
+  margin-top: 5px;
 }
 .ranking-row.explored {
   box-shadow: inset 1px 0 var(--accent);
@@ -2046,16 +2063,37 @@ main {
   color: var(--secondary);
 }
 .history-toolbar,
-.history-compare {
+.history-compare,
+.history-actions,
+.history-maintenance {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
+}
+.history-toolbar,
+.history-compare {
   margin-bottom: 18px;
 }
-.history-toolbar > span {
-  margin-left: auto;
+.history-toolbar {
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.history-toolbar .section-navigation {
+  border-bottom: 0;
+  margin-bottom: 0;
+}
+.history-actions {
+  margin-inline-start: auto;
+  padding-bottom: 5px;
+}
+.history-management {
+  margin-bottom: 20px;
   color: var(--secondary);
-  font-size: 12px;
+}
+.history-maintenance {
+  padding: 6px 0 6px 16px;
+  font-size: 13px;
 }
 .history-empty {
   min-height: 240px;
@@ -2139,16 +2177,6 @@ main {
   align-items: baseline;
   gap: 16px;
   margin-bottom: 18px;
-}
-.history-modes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin-bottom: 18px;
-}
-.history-modes button[aria-pressed='true'] {
-  border-color: var(--accent);
-  color: var(--accent);
 }
 .history-activity {
   padding: 16px;
@@ -2349,10 +2377,11 @@ main {
   font-variant-numeric: tabular-nums;
 }
 .snapshot-retention-disclosure {
-  margin-bottom: 18px;
+  margin-left: 16px;
 }
 .snapshot-retention-disclosure > summary {
-  padding: 12px 16px;
+  width: fit-content;
+  padding-block: 8px;
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
@@ -3005,7 +3034,7 @@ button:active:not(:disabled) {
 .section-navigation {
   display: flex;
   flex-wrap: wrap;
-  gap: 18px;
+  column-gap: 24px;
   margin-bottom: 28px;
   border-bottom: 1px solid var(--border);
 }
@@ -3021,6 +3050,9 @@ button:active:not(:disabled) {
   color: var(--text);
   font-weight: 600;
   box-shadow: inset 0 -2px var(--accent);
+}
+.section-navigation button:hover:not(:disabled) {
+  color: var(--text);
 }
 .map-switch {
   display: inline-flex;
@@ -3047,6 +3079,7 @@ button:active:not(:disabled) {
 .workspace-view-switch {
   align-self: flex-start;
   margin: 12px 0 0;
+  max-width: 100%;
 }
 .storage-map .storage-viewport {
   position: relative;
@@ -3194,7 +3227,7 @@ button:active:not(:disabled) {
 }
 .file-workspace
   .explorer-panel
-  > div:not(.storage-map):not(.map-list-hidden):not(.map-list-visible):not(.map-switch) {
+  > div:not(.storage-map):not(.map-list-hidden):not(.map-list-visible):not(.workspace-view-switch) {
   display: flex;
   flex-direction: column;
   flex: 1;

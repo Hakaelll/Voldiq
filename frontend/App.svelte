@@ -184,7 +184,6 @@
   const entryCount = $derived(liveObservation?.entries ?? operation?.entries ?? null);
   let agentOperation = $state<number | null>(null);
   let agentNotice = $state('');
-  let cleanupSection = $state<'candidates' | 'activity' | 'requests' | 'transfers'>('candidates');
   let applicationCleanup = $state<{ indexId: IndexId; context: ApplicationCleanupContext } | null>(
     null,
   );
@@ -194,7 +193,9 @@
     { id: 'activity', label: 'Activity' },
     { id: 'requests', label: 'Agent plans' },
     { id: 'transfers', label: 'Transfers' },
+    { id: 'windows', label: 'Windows tools' },
   ] as const;
+  let cleanupSection = $state<(typeof cleanupSections)[number]['id']>('candidates');
   let historical = $state<Snapshot | null>(null);
   let exploration = $state.raw<Exploration>(emptyExploration(null));
   const explored = $derived(explorationIds(exploration, indexId));
@@ -1452,38 +1453,41 @@
   </aside>
   <div class="workspace">
     <header class="toolbar">
-      <div class="toolbar-location">
-        <label class="drive-select"
-          ><Icon name="disk" /><select
-            aria-label="Select drive"
-            bind:value={volumePath}
-            disabled={busy}
-            ><option value="" disabled>Select a drive</option>{#each volumes as drive}<option
-                value={drive.path}
-                disabled={!drive.accessible}
-                >{drive.name || 'Local disk'} ({drive.path}) · {drive.filesystem}</option
-              >{/each}</select
-          ></label
-        ><button onclick={choose} disabled={busy || !isTauri()}
-          ><Icon name="folder" />Choose folder</button
+      {#if indexedView || (view === 'cleanup' && cleanupSection === 'windows')}<div
+          class="toolbar-location"
         >
-        {#if recentPaths.length}
-          <select
-            class="recent-select"
-            aria-label="Recently analyzed paths"
-            disabled={busy || !isTauri()}
-            onchange={(event) => {
-              const path = event.currentTarget.value;
-              event.currentTarget.value = '';
-              void start(path);
-            }}
-          >
-            <option value="">Recent</option>
-            {#each recentPaths as path}<option value={path}>{path}</option>{/each}
-          </select>
-        {/if}
-      </div>
-      {#if ['overview', 'explorer', 'large'].includes(view)}<div class="toolbar-search">
+          <label class="drive-select"
+            ><Icon name="disk" /><select
+              aria-label="Select drive"
+              bind:value={volumePath}
+              disabled={busy}
+              ><option value="" disabled>Select a drive</option>{#each volumes as drive}<option
+                  value={drive.path}
+                  disabled={!drive.accessible}
+                  >{drive.name || 'Local disk'} ({drive.path}) · {drive.filesystem}</option
+                >{/each}</select
+            ></label
+          >{#if indexedView && (ready || view !== 'overview')}<button
+              onclick={choose}
+              disabled={busy || !isTauri()}><Icon name="folder" />Choose folder</button
+            >
+            {#if recentPaths.length}
+              <select
+                class="recent-select"
+                aria-label="Recently analyzed paths"
+                disabled={busy || !isTauri()}
+                onchange={(event) => {
+                  const path = event.currentTarget.value;
+                  event.currentTarget.value = '';
+                  void start(path);
+                }}
+              >
+                <option value="">Recent</option>
+                {#each recentPaths as path}<option value={path}>{path}</option>{/each}
+              </select>
+            {/if}{/if}
+        </div>{/if}
+      {#if indexedView && ready}<div class="toolbar-search">
           <div class="search">
             <Icon name="search" /><input
               bind:this={search}
@@ -1615,7 +1619,7 @@
             </p>{/if}
         </div>
         <div class="page-actions">
-          {#if view !== 'settings' && view !== 'history'}<ScanProfileSelect
+          {#if indexedView}<ScanProfileSelect
               bind:profile={scanProfile}
               disabled={busy}
               compact
@@ -1632,7 +1636,7 @@
                 exportBusy = value;
               }}
             />{/if}
-          {#if ready && indexId !== null}{#key indexId}<ReportExport
+          {#if indexedView && ready && indexId !== null}{#key indexId}<ReportExport
                 {indexId}
                 {scope}
                 root={scanPath}
@@ -1647,7 +1651,7 @@
                   exportBusy = value;
                 }}
               />{/key}{/if}
-          {#if view !== 'settings' && view !== 'history'}<button
+          {#if indexedView && (ready || view !== 'overview')}<button
               class:primary={!ready}
               onclick={() => start(scanPath || volumePath)}
               disabled={!isTauri() || busy || !(scanPath || volumePath)}
@@ -1869,7 +1873,7 @@
         </section>
       {:else if view === 'cleanup'}
         <section class="cleanup-workbench" aria-label="Cleanup and operations">
-          <div class="cleanup-sections map-switch" role="group" aria-label="Cleanup sections">
+          <div class="section-navigation" role="group" aria-label="Cleanup sections">
             {#each cleanupSections as section}<button
                 aria-pressed={cleanupSection === section.id}
                 disabled={analysisBusy}
@@ -1892,9 +1896,11 @@
                   if (!busy && !cleanupPreview && restoreReceipt === null) restoreReceipt = receipt;
                 }}
               />
-            {:else}
+            {:else if cleanupSection === 'windows'}
+              <RecycleBin drive={volumePath} />
               <div class="cleanup-actions">
                 <button
+                  class="quiet-action"
                   disabled={busy}
                   onclick={async () => {
                     try {
@@ -1905,7 +1911,7 @@
                   }}>Windows storage</button
                 >
               </div>
-              <RecycleBin drive={volumePath} />
+            {:else}
               <CleanupRules
                 application={applicationCleanup?.indexId === indexId
                   ? applicationCleanup.context
@@ -1978,19 +1984,27 @@
                   >{/if}
               </div>{/if}
             {#if directory?.entry.incomplete}<div class="notice">Incomplete coverage</div>{/if}
-            {#if view === 'overview' || view === 'explorer' || view === 'large'}
+            {#if indexedView}
               <div class="exploration-bar" role="group" aria-label="Inspection selection">
-                <span
-                  role="status"
-                  title="Up to 500 items across the current analysis, including items outside this view."
-                  >{explored.size} selected for inspection</span
-                >
-                <span class="exploration-hint"
-                  >Ctrl+click toggles · Shift+click adds · Ctrl+Space toggles a focused item</span
-                >
-                <button disabled={!explored.size && !details} onclick={clearExploration}
-                  >Clear inspection</button
-                >
+                <span role="status" class:sr-only={!explored.size}>
+                  {explored.size} selected for inspection
+                </span>
+                {#if explored.size || details}
+                  <button
+                    class="quiet-action"
+                    onclick={() => {
+                      clearExploration();
+                      fileWorkspace?.focus();
+                    }}>Clear inspection</button
+                  >
+                {/if}
+                <details class="inspection-help">
+                  <summary>Selection shortcuts</summary>
+                  <p>
+                    Ctrl+click toggles an item. Shift+click adds it. Ctrl+Space toggles a focused
+                    item.
+                  </p>
+                </details>
               </div>
             {/if}
             <div
@@ -2097,39 +2111,14 @@
                 />
               {:else}<section class="panel explorer-panel">
                   {#if view === 'explorer' && !explorerMap}<div
-                      class="workspace-view-switch map-switch"
+                      class="workspace-view-switch section-navigation"
                       role="group"
                       aria-label="Storage representation"
                     >
                       <button
                         onclick={() => {
                           explorerMap = true;
-                          mapMode = 'treemap';
-                        }}>Treemap</button
-                      >
-                      <button
-                        onclick={() => {
-                          explorerMap = true;
-                          mapMode = 'city';
-                        }}>Skyline</button
-                      >
-                      <button
-                        onclick={() => {
-                          explorerMap = true;
-                          mapMode = 'sunburst';
-                        }}>Sunburst</button
-                      >
-                      <button
-                        onclick={() => {
-                          explorerMap = true;
-                          mapMode = 'circles';
-                        }}>Circles</button
-                      >
-                      <button
-                        onclick={() => {
-                          explorerMap = true;
-                          mapMode = 'voronoi';
-                        }}>Voronoi</button
+                        }}>Map</button
                       >
                       <button
                         aria-pressed={fileRepresentation === 'table'}

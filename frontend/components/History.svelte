@@ -375,33 +375,74 @@
   bind:this={region}
 >
   <div class="history-toolbar">
-    <button
-      onclick={() => refresh(offset)}
-      disabled={locked || !isTauri() || loadState === 'loading'}>Reload captures</button
-    >
-    <button
-      bind:this={saveButton}
-      class="primary"
-      onclick={save}
-      disabled={!enabled || locked || !isTauri()}><Icon name="history" />Save snapshot</button
-    >
-    {#if canCancel}<button
-        onclick={cancelOperation}
-        disabled={operationId === null || cancelPending}
-        >{cancelPending ? 'Cancelling…' : 'Cancel'}</button
-      >{/if}
-    <span
-      >{#if loadState === 'ready'}{bytes(storage)} stored{/if}</span
-    >
-    <button
-      onclick={() =>
-        mutate(async () => {
-          await invoke('compact_snapshots');
-          await refresh();
-        })}
-      disabled={locked || !isTauri() || !storage || loadState !== 'ready'}>Compact</button
-    >
+    {#if loadState === 'ready' && (snapshots.length > 0 || offset > 0)}
+      <div class="section-navigation" role="group" aria-label="History view">
+        <button
+          aria-pressed={workspace.kind === 'captures' || focusedComparison}
+          onclick={showCaptures}
+          disabled={locked}>Snapshots & compare</button
+        >
+        <button
+          aria-pressed={workspace.kind === 'calendar'}
+          onclick={() => enterActivity('calendar')}
+          disabled={locked || !compatible.length}>Calendar</button
+        >
+        <button
+          aria-pressed={workspace.kind === 'diary'}
+          onclick={() => enterActivity('diary')}
+          disabled={locked || !compatible.length}>Diary</button
+        >
+        <button
+          aria-pressed={playback}
+          onclick={() => enterActivity('playback')}
+          disabled={locked || !compatible.length}>Playback</button
+        >
+      </div>
+    {/if}
+    <div class="history-actions">
+      {#if canCancel}<button
+          class="quiet-action"
+          onclick={cancelOperation}
+          disabled={operationId === null || cancelPending}
+          >{cancelPending ? 'Cancelling…' : 'Cancel'}</button
+        >{/if}
+      <button
+        bind:this={saveButton}
+        class="primary"
+        onclick={save}
+        disabled={!enabled || locked || !isTauri()}><Icon name="history" />Save snapshot</button
+      >
+    </div>
   </div>
+  <details class="history-management">
+    <summary>Manage snapshots</summary>
+    <div class="history-maintenance">
+      {#if loadState === 'ready'}<span>{bytes(storage)} stored</span>{/if}
+      <button
+        class="quiet-action"
+        onclick={() => refresh(offset)}
+        disabled={locked || !isTauri() || loadState === 'loading'}>Reload captures</button
+      >
+      <button
+        class="quiet-action"
+        onclick={() =>
+          mutate(async () => {
+            await invoke('compact_snapshots');
+            await refresh();
+          })}
+        disabled={locked || !isTauri() || !storage || loadState !== 'ready'}>Compact storage</button
+      >
+    </div>
+    {#if compatible.length}<details class="snapshot-retention-disclosure" bind:open={retentionOpen}>
+        <summary>Snapshot retention</summary>
+        {#if retentionOpen}{#key compatible[0].id}<SnapshotRetention
+              snapshot={compatible[0].id}
+              disabled={locked}
+              onconfigure={configureRetention}
+              onapply={applyRetention}
+            />{/key}{/if}
+      </details>{/if}
+  </details>
   {#if retentionResult}<p role="status">{retentionResult}</p>{/if}
   {#if loadState !== 'ready'}
     <section class="panel history-empty" aria-live="polite">
@@ -416,112 +457,13 @@
       <h2>No snapshots yet</h2>
     </section>
   {:else}
-    <div class="history-modes" role="group" aria-label="History view">
-      <button
-        aria-pressed={workspace.kind === 'captures' || focusedComparison}
-        onclick={showCaptures}
-        disabled={locked}>Compare</button
-      >
-      <button
-        aria-pressed={workspace.kind === 'calendar'}
-        onclick={() => enterActivity('calendar')}
-        disabled={locked || !compatible.length}>Calendar</button
-      >
-      <button
-        aria-pressed={workspace.kind === 'diary'}
-        onclick={() => enterActivity('diary')}
-        disabled={locked || !compatible.length}>Diary</button
-      >
-      <button
-        aria-pressed={playback}
-        onclick={() => enterActivity('playback')}
-        disabled={locked || !compatible.length}>Playback</button
-      >
-    </div>
-    {#if compatible.length}<details
-        class="panel snapshot-retention-disclosure"
-        bind:open={retentionOpen}
-      >
-        <summary>Snapshot retention</summary>
-        {#if retentionOpen}{#key compatible[0].id}<SnapshotRetention
-              snapshot={compatible[0].id}
-              disabled={locked}
-              onconfigure={configureRetention}
-              onapply={applyRetention}
-            />{/key}{/if}
-      </details>{/if}
     <div class="history-layout" class:comparing={workspace.kind !== 'captures'}>
       <div class="history-captures">
-        <h2>Snapshots</h2>
-        <section class="panel snapshot-list" aria-label="Saved snapshots">
-          {#each snapshots as snapshot (snapshot.id)}
-            <article
-              class="snapshot-row"
-              class:selected={snapshot.id === before || snapshot.id === after}
-            >
-              <input
-                class="snapshot-select"
-                type="checkbox"
-                aria-label={`Compare snapshot ${date(snapshot.captured)} · ${snapshot.root}`}
-                checked={snapshot.id === before || snapshot.id === after}
-                disabled={locked ||
-                  (!pair.some((s) => s.id === snapshot.id) &&
-                    (pair.length === 2 ||
-                      (pair.length === 1 && pair[0].root_key !== snapshot.root_key)))}
-                onchange={(event) => {
-                  selectCapture(snapshot, event.currentTarget.checked);
-                  event.currentTarget.checked = snapshot.id === before || snapshot.id === after;
-                }}
-              />
-              <div class="snapshot-name">
-                <strong title={date(snapshot.captured)}>{date(snapshot.captured)}</strong><small
-                  title={snapshot.root}>{snapshot.root}</small
-                >
-              </div>
-              {#if !snapshot.complete}<span class="snapshot-status">Partial</span>{/if}
-              <span class="number">{bytes(snapshot.logical)}</span>
-              <span class="snapshot-entries" title="Indexed entries"
-                >{snapshot.entries.toLocaleString()}</span
-              >
-              <button onclick={() => open(snapshot)} disabled={locked}>Open</button>
-              {#if deleting === snapshot.id}
-                <button
-                  bind:this={cancelButton}
-                  onclick={() => cancelDelete(snapshot.id)}
-                  disabled={locked}>Cancel</button
-                ><button class="danger" onclick={() => remove(snapshot.id)} disabled={locked}
-                  >Delete snapshot</button
-                >
-              {:else}
-                <button
-                  title="Delete snapshot"
-                  data-delete-snapshot={snapshot.id}
-                  aria-label={`Delete snapshot from ${date(snapshot.captured)}`}
-                  onclick={() => confirmDelete(snapshot.id)}
-                  disabled={locked}><Icon name="trash" /></button
-                >
-              {/if}
-            </article>
-          {/each}
-          {#if offset || snapshots.length === limit}<div class="duplicate-pagination">
-              <button
-                onclick={() => refresh(Math.max(0, offset - limit))}
-                disabled={locked || offset === 0}>Previous</button
-              ><span
-                >{snapshots.length
-                  ? `${offset + 1}–${offset + snapshots.length}`
-                  : 'End of history'}</span
-              ><button
-                onclick={() => refresh(offset + limit)}
-                disabled={locked || snapshots.length < limit}>Next</button
-              >
-            </div>{/if}
-        </section>
         {#if chart}
           {@const plotPoints = chart.points.map((point) => `${point.x},${point.y}`).join(' ')}
           <section class="panel history-trend" aria-label="Recorded logical size">
             <div class="panel-heading">
-              <h2>Logical size</h2>
+              <h2>Logical size over time</h2>
               <span>{bytes(trend[0]?.logical ?? 0)} → {bytes(trend.at(-1)?.logical ?? 0)}</span>
             </div>
             <div class="history-plot" bind:clientWidth={chartWidth}>
@@ -606,6 +548,74 @@
               <span><i style:background="var(--chart-violet)"></i>Latest capture</span>
             </div>
           </section>{/if}
+        <h2>Snapshots</h2>
+        <section class="panel snapshot-list" aria-label="Saved snapshots">
+          {#each snapshots as snapshot (snapshot.id)}
+            <article
+              class="snapshot-row"
+              class:selected={snapshot.id === before || snapshot.id === after}
+            >
+              <input
+                class="snapshot-select"
+                type="checkbox"
+                aria-label={`Compare snapshot ${date(snapshot.captured)} · ${snapshot.root}`}
+                checked={snapshot.id === before || snapshot.id === after}
+                disabled={locked ||
+                  (!pair.some((s) => s.id === snapshot.id) &&
+                    (pair.length === 2 ||
+                      (pair.length === 1 && pair[0].root_key !== snapshot.root_key)))}
+                onchange={(event) => {
+                  selectCapture(snapshot, event.currentTarget.checked);
+                  event.currentTarget.checked = snapshot.id === before || snapshot.id === after;
+                }}
+              />
+              <div class="snapshot-name">
+                <strong title={date(snapshot.captured)}>{date(snapshot.captured)}</strong><small
+                  title={snapshot.root}>{snapshot.root}</small
+                >
+              </div>
+              {#if !snapshot.complete}<span class="snapshot-status">Partial</span>{/if}
+              <span class="number">{bytes(snapshot.logical)}</span>
+              <span class="snapshot-entries" title="Indexed entries"
+                >{snapshot.entries.toLocaleString()}</span
+              >
+              <button class="quiet-action" onclick={() => open(snapshot)} disabled={locked}
+                >Open</button
+              >
+              {#if deleting === snapshot.id}
+                <button
+                  bind:this={cancelButton}
+                  onclick={() => cancelDelete(snapshot.id)}
+                  disabled={locked}>Cancel</button
+                ><button class="danger" onclick={() => remove(snapshot.id)} disabled={locked}
+                  >Delete snapshot</button
+                >
+              {:else}
+                <button
+                  class="quiet-action"
+                  title="Delete snapshot"
+                  data-delete-snapshot={snapshot.id}
+                  aria-label={`Delete snapshot from ${date(snapshot.captured)}`}
+                  onclick={() => confirmDelete(snapshot.id)}
+                  disabled={locked}><Icon name="trash" /></button
+                >
+              {/if}
+            </article>
+          {/each}
+          {#if offset || snapshots.length === limit}<div class="duplicate-pagination">
+              <button
+                onclick={() => refresh(Math.max(0, offset - limit))}
+                disabled={locked || offset === 0}>Previous</button
+              ><span
+                >{snapshots.length
+                  ? `${offset + 1}–${offset + snapshots.length}`
+                  : 'End of history'}</span
+              ><button
+                onclick={() => refresh(offset + limit)}
+                disabled={locked || snapshots.length < limit}>Next</button
+              >
+            </div>{/if}
+        </section>
       </div>
       <div class="history-comparison">
         <div class="history-compare-heading">

@@ -54,10 +54,15 @@
         >{/if}
     </div>
     <div class="actions">
-      <button onclick={openInWindows} disabled={opening} aria-label="Open Windows Recycle Bin">
+      <button
+        class="quiet-action"
+        onclick={openInWindows}
+        disabled={opening}
+        aria-label="Open Windows Recycle Bin"
+      >
         <Icon name="external" />Open in Windows
       </button>
-      <button onclick={load} disabled={!drive || loadState.kind === 'loading'}>
+      <button class="primary" onclick={load} disabled={!drive || loadState.kind === 'loading'}>
         {loadState.kind === 'loading'
           ? 'Analyzing…'
           : loadState.kind === 'ready'

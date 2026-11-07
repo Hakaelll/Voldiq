@@ -137,16 +137,14 @@
   });
 </script>
 
-<div class="overview-sections section-navigation" role="group" aria-label="Overview sections">
+<div class="section-navigation overview-sections" role="group" aria-label="Overview sections">
   <button
-    class:active={section === 'summary'}
     aria-pressed={section === 'summary'}
     onclick={() => {
       section = 'summary';
     }}>Summary</button
   >
   <button
-    class:active={section === 'applications'}
     aria-pressed={section === 'applications'}
     disabled={indexId === null || !directory}
     onclick={() => {
@@ -260,7 +258,9 @@
       <div class="panel-heading">
         <div>
           <h2>File types by size</h2>
-          <p>{bytes(types.total_bytes)} logical · {types.total_files.toLocaleString()} files</p>
+          <p class="sr-only">
+            {bytes(types.total_bytes)} logical · {types.total_files.toLocaleString()} files
+          </p>
         </div>
       </div>
       <div class="type-distribution">
@@ -357,7 +357,7 @@
     <section class="largest-panel">
       <div class="panel-heading">
         <h2>Largest items</h2>
-        <button onclick={onlist}>See all</button>
+        <button class="quiet-action" onclick={onlist}>See all</button>
       </div>
       {#each children.items.slice(0, 10) as entry}
         <button
@@ -405,22 +405,6 @@
 
 <style>
   .overview-sections {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-bottom: 18px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border);
-  }
-  .overview-sections button {
-    border-color: transparent;
-    background: transparent;
-    color: var(--secondary);
-    font-size: 12px;
-  }
-  .overview-sections button.active {
-    background: var(--selected);
-    color: var(--text);
-    border-color: var(--strong);
+    margin-bottom: 26px;
   }
 </style>

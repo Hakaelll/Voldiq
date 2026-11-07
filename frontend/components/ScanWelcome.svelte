@@ -1,6 +1,5 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
-  import BrandMark from './BrandMark.svelte';
   import { bytes, type Volume } from '../lib/types';
   import { volumeMeasurement, volumeCaller, volumeObservationLabel } from '../lib/volume-space';
   let {
@@ -28,6 +27,35 @@
 </script>
 
 <div class="scan-welcome">
+  <section class="welcome-start">
+    <h2>{scanning ? 'Scanning…' : native ? 'Scan your storage' : 'Desktop preview'}</h2>
+    <p class="welcome-description">
+      {scanning
+        ? 'Your storage map will appear here when the scan finishes.'
+        : 'Scan a drive or folder to see what takes up space and explore your files.'}
+    </p>
+    <div class="welcome-actions">
+      <button
+        class="primary"
+        onclick={() => {
+          if (volume) onscan(volume.path);
+        }}
+        disabled={busy || !native || !volume?.accessible}
+        ><Icon name="scan" />Scan selected drive</button
+      ><button class="quiet-action" onclick={onchoose} disabled={busy || !native}
+        ><Icon name="folder" />Choose a folder</button
+      >
+    </div>
+    {#if recent.length}<div class="welcome-recent">
+        <h3>Recent</h3>
+        {#each recent.slice(0, 3) as path}<button
+            title={path}
+            disabled={busy || !native}
+            onclick={() => onscan(path)}
+            ><Icon name="folder" /><span>{path}</span><Icon name="expand" size={14} /></button
+          >{/each}
+      </div>{/if}
+  </section>
   {#if volume?.accessible}<section class="welcome-drive" aria-label="Selected drive">
       <header>
         <Icon name="disk" size={24} />
@@ -74,56 +102,25 @@
         </p>{/if}
       <p>{volumeObservationLabel(volume)}</p>
     </section>{/if}
-  <section class="welcome-start">
-    <div class="welcome-mark"><BrandMark size={112} /></div>
-    <span class="welcome-eyebrow">Storage overview</span>
-    <h2>{scanning ? 'Scanning…' : native ? 'Understand your disk space' : 'Desktop preview'}</h2>
-    <p class="welcome-description">
-      {scanning
-        ? 'Your storage map will appear here when the scan finishes.'
-        : 'Scan a drive or folder to see what takes up space and explore your files.'}
-    </p>
-    <div class="welcome-actions">
-      <button
-        class="primary"
-        onclick={() => {
-          if (volume) onscan(volume.path);
-        }}
-        disabled={busy || !native || !volume?.accessible}
-        ><Icon name="scan" />Scan selected drive</button
-      ><button onclick={onchoose} disabled={busy || !native}
-        ><Icon name="folder" />Choose a folder</button
-      >
-    </div>
-    {#if recent.length}<div class="welcome-recent">
-        <h3>Recent</h3>
-        {#each recent.slice(0, 3) as path}<button
-            title={path}
-            disabled={busy || !native}
-            onclick={() => onscan(path)}
-            ><Icon name="folder" /><span>{path}</span><Icon name="expand" size={14} /></button
-          >{/each}
-      </div>{/if}
-  </section>
 </div>
 
 <style>
   .scan-welcome {
     display: grid;
-    grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
-    max-width: 1100px;
-    margin: 12px auto;
-    gap: 20px;
-    min-height: 500px;
+    grid-template-columns: minmax(0, 1fr) minmax(230px, 320px);
+    align-items: start;
+    max-width: 1040px;
+    gap: clamp(32px, 6vw, 88px);
+    padding-block: 32px;
+    border-top: 1px solid var(--border);
   }
   .scan-welcome:not(:has(.welcome-drive)) {
     grid-template-columns: minmax(0, 1fr);
   }
   .welcome-drive {
-    padding: 28px;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--panel);
+    min-width: 0;
+    border-inline-start: 1px solid var(--border);
+    padding-inline-start: 28px;
   }
   header {
     display: flex;
@@ -144,16 +141,16 @@
     margin-top: 4px;
   }
   .drive-ring {
-    width: 204px;
-    height: 204px;
-    margin: 32px auto;
+    width: 164px;
+    height: 164px;
+    margin: 24px 0;
     border-radius: 50%;
-    padding: 16px;
+    padding: 12px;
   }
   .drive-ring > div {
     height: 100%;
     border-radius: 50%;
-    background: var(--panel);
+    background: var(--workspace);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -193,46 +190,24 @@
     font-variant-numeric: tabular-nums;
   }
   .welcome-start {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 40px 28px;
     min-width: 0;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--panel);
-    text-align: center;
-  }
-  .welcome-mark {
-    margin-bottom: 24px;
   }
   .welcome-start > h2 {
-    font-size: 28px;
-    letter-spacing: -0.6px;
-    margin: 8px 0 12px;
-    max-width: 360px;
-  }
-  .welcome-eyebrow {
-    color: var(--secondary);
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
+    font-size: 23px;
+    letter-spacing: -0.02em;
+    margin-bottom: 8px;
   }
   .welcome-description {
-    max-width: 340px;
-    margin-bottom: 28px;
-    font-size: 13px;
+    max-width: 46ch;
+    margin-bottom: 20px;
   }
   .welcome-drive > p {
     margin-top: 14px;
-    font-size: 11px;
+    font-size: 12px;
   }
   .welcome-actions {
     display: flex;
     flex-wrap: wrap;
-    justify-content: center;
     gap: 12px;
   }
   .welcome-actions button {
@@ -242,7 +217,7 @@
   .welcome-recent {
     width: 100%;
     max-width: 400px;
-    margin-top: 40px;
+    margin-top: 30px;
   }
   h3 {
     margin: 0 0 10px;
@@ -266,25 +241,14 @@
     text-overflow: ellipsis;
     text-align: left;
   }
-  @media (max-width: 1000px) {
+  @media (max-width: 850px) {
     .scan-welcome {
       grid-template-columns: minmax(0, 1fr);
-    }
-    .welcome-start {
-      padding: 32px 20px;
-    }
-  }
-  @media (max-width: 700px) {
-    .scan-welcome {
-      grid-template-columns: minmax(0, 1fr);
-      margin-top: 16px;
     }
     .welcome-drive {
-      padding: 24px;
-    }
-    .drive-ring {
-      width: 170px;
-      height: 170px;
+      border-inline-start: 0;
+      padding: 24px 0 0;
+      border-top: 1px solid var(--border);
     }
   }
 </style>

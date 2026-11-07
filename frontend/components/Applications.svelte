@@ -323,6 +323,7 @@
             >
           </div>
           <button
+            class="quiet-action"
             onclick={() => explore(app)}
             disabled={paused}
             title="Show this application's matching files in the current folder">View files</button
@@ -455,7 +456,7 @@
     letter-spacing: -0.02em;
   }
   h3 {
-    font-size: 12px;
+    font-size: 16px;
     font-weight: 600;
   }
   .application-heading p,
@@ -601,7 +602,7 @@
     min-width: 0;
   }
   .application-name strong {
-    font-size: 13px;
+    font-size: 14px;
     overflow-wrap: anywhere;
   }
   .application-name > span,
@@ -613,6 +614,7 @@
   }
   .application-value {
     text-align: right;
+    font-size: 14px;
     font-variant-numeric: tabular-nums;
   }
   .application-value strong {
