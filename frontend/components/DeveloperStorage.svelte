@@ -4,6 +4,7 @@
   import { bytes, type DeveloperPage, type DeveloperItem } from '../lib/types';
   import Icon from './Icon.svelte';
   import DockerStorage from './DockerStorage.svelte';
+  import GitStorage from './GitStorage.svelte';
   let {
     enabled,
     revision,
@@ -16,6 +17,7 @@
     onerror: (problem: unknown) => void;
   } = $props();
   const labels = { dependencies: 'Dependencies', build: 'Build artifacts', cache: 'Cache' };
+  let section = $state<'projects' | 'git'>('projects');
   const limit = 50;
   let page = $state<DeveloperPage | null>(null);
   let selected = $state<DeveloperItem | null>(null);
@@ -67,7 +69,7 @@
     revision;
     category;
     sort;
-    if (enabled)
+    if (enabled && section === 'projects')
       untrack(() => {
         offset = 0;
         void load(0);
@@ -83,8 +85,21 @@
   });
 </script>
 
+<nav class="section-navigation developer-navigation" aria-label="Developer storage views">
+  <button aria-pressed={section === 'projects'} onclick={() => (section = 'projects')}
+    >Projects</button
+  >
+  <button aria-pressed={section === 'git'} onclick={() => (section = 'git')}
+    >Git repositories</button
+  >
+</nav>
+
+{#if section === 'git'}
+  <GitStorage {enabled} {revision} {onopen} />
+{/if}
 <div
   class="developer-storage"
+  hidden={section !== 'projects'}
   bind:this={region}
   role="region"
   aria-label="Developer storage"
@@ -261,6 +276,9 @@
 </div>
 
 <style>
+  .developer-navigation {
+    margin-bottom: 12px;
+  }
   .developer-storage {
     min-width: 0;
   }

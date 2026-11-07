@@ -186,7 +186,8 @@ The encoder and Windows destination core are verified, and the complete native C
 
 - [x] Add bounded plain text and static PNG inspection with metadata fallback. Add domain-first download provenance with explicit local URL reveal.
 - [x] Add bounded read-only ZIP, JAR, TAR, TGZ and ISO inspection to live file details. Use only virtual entry labels.
-- [ ] Add Git diagnostics, optional SMART/cost/video capabilities and a lightweight VS Code adapter.
+- [x] Add read-only Git object, pack and default LFS storage diagnostics from the scoped index.
+- [ ] Add optional SMART/cost/video capabilities and a lightweight VS Code adapter.
 
 Destination implementation reference: Microsoft's [FILE_RENAME_INFO contract](https://learn.microsoft.com/en-us/windows/win32/api/winbase/ns-winbase-file_rename_info) describes a retained parent directory handle for relative publication and an error on collision when ReplaceIfExists is false. The initial owned fixture returned Win32 error 87 at that publication call. Use the existing staging approach, [NtSetInformationFile with native FileRenameInformation class 10](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/content/ntifs/nf-ntifs-ntsetinformationfile), and verify the same no-replacement behavior. This changes the API, not the retained-parent requirement. [SetFileInformationByHandle](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-setfileinformationbyhandle) documents DELETE access for abort through the retained newly created file handle. The streaming encoder alone provides none of these file guarantees.
 - [ ] Add opt-in cloud metadata connectors and authenticated LAN summaries with revocation; do not expose internal IPC or deletion over LAN.

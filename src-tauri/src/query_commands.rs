@@ -34,6 +34,7 @@ pub(crate) enum QueryFamily {
     Applications,
     CleanupTray,
     FileInspection,
+    GitStorage,
 }
 
 #[derive(Default)]
@@ -50,7 +51,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 17],
+    slots: [Slot; 18],
 }
 
 impl QueryFamily {
@@ -73,6 +74,7 @@ impl QueryFamily {
             Self::Applications => 14,
             Self::CleanupTray => 15,
             Self::FileInspection => 16,
+            Self::GitStorage => 17,
         }
     }
 }
@@ -546,6 +548,28 @@ pub(crate) async fn query_file_inspection(
         engine.inner().clone(),
         move |index, cancel| {
             voldiq_core::inspection::inspect(index, id, inspection, cancel)
+                .map_err(|error| error.to_string())
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn query_git_storage(
+    index_id: IndexId,
+    query: voldiq_core::developer::git::Query,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<voldiq_core::developer::git::Report>, String> {
+    run_query(
+        index_id,
+        epoch,
+        QueryFamily::GitStorage,
+        request_id,
+        engine.inner().clone(),
+        move |index, cancel| {
+            voldiq_core::developer::git::query(index, &query, cancel)
                 .map_err(|error| error.to_string())
         },
     )

@@ -55,6 +55,40 @@ export const inspectionQueries = createQueryRunner<
     invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
 });
 
+export type GitStorageReport = {
+  total: number;
+  coverage_partial: boolean;
+  git_file_markers: number;
+  shared_store_markers: number;
+  items: {
+    id: NodeId;
+    store_id: NodeId;
+    path: string;
+    loose_bytes: string;
+    pack_bytes: string;
+    pack_metadata_bytes: string;
+    lfs_bytes: string | null;
+    total_bytes: string;
+    partial: boolean;
+    alternates: boolean;
+  }[];
+};
+
+export const gitStorageQueries = createQueryRunner<
+  GitStorageReport,
+  { indexId: IndexId; query: { scope: NodeId; offset: number; limit: number } },
+  'git_storage'
+>('git_storage', {
+  run: async (_family, requestId, input) =>
+    invoke<GitStorageReport | null>('query_git_storage', {
+      ...input,
+      epoch: await querySession(),
+      requestId,
+    }),
+  cancel: async (family, requestId) =>
+    invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+});
+
 export const cleanupTrayQueries = createQueryRunner<
   TraySummary,
   { indexId: IndexId; groups: readonly TrayGroup[]; target: TrayTarget | null },

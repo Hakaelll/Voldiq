@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
+pub mod git;
+
 pub struct CacheLocation {
     pub path: PathBuf,
     pub tool: &'static str,

@@ -910,6 +910,7 @@ fn main() {
             restore_commands::discard_restoration,
             restore_commands::execute_restoration,
             query_developer_storage,
+            query_commands::query_git_storage,
             docker_commands::query_docker_storage,
             get_issues,
             reveal_item,

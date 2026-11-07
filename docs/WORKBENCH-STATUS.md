@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Git repository storage
+
+Developer → Git repositories reports observed logical bytes for loose objects, packs, recognized pack sidecars and the default local LFS object store. The indexed folder opens in Explorer. Linked gitfiles and shared store markers are counted separately. Alternates, custom LFS locations and incremental multi-pack index metadata are outside these totals. The query works from the current or saved index and does not read repository files or run Git. [Repository layout](https://git-scm.com/docs/gitrepository-layout) · [Pack format](https://git-scm.com/docs/pack-format) · [Git LFS layout](https://github.com/git-lfs/git-lfs/blob/main/docs/spec.md)
+
+All six integration checks passed with eight tests and zero Svelte diagnostics. The owned fixture verifies separate stores, exact byte counts, false-positive rejection, scope, pagination and cancellation from a saved index after the temporary tree is removed. Populated desktop interaction, keyboard and Windows scaling remain manual. [Source verification](../benchmarks/workbench-git-storage-source-20261107.json)
+
 ## Segmented map toolbar
 
 Treemap, Sunburst, Circles, Voronoi and Skyline are visible in one native radio group. Export and expanded view have a separate action group. Pan, Lasso and Lens occupy the secondary rail. Map settings and Files use disclosures that keep their controls together, including the existing list, grid, inline items and inspector actions. The checked segment uses the same semantic colors as the rest of Voldiq. [TreeMap toolbar reference](https://github.com/Prithvi-Web/TreeMap-Disk-Visualizer/blob/main/src/ui/markup/015-view-treemap.html)

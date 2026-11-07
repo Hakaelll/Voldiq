@@ -6,6 +6,9 @@ use voldiq_core::{
     snapshots::Store,
 };
 
+#[path = "snapshots/git_fixture.rs"]
+mod git_fixture;
+
 fn capture(path: &Path) -> Index {
     scan(
         path,
@@ -18,6 +21,7 @@ fn capture(path: &Path) -> Index {
 
 #[test]
 fn history_survives_restart_and_compares_actual_directory_changes() {
+    git_fixture::compare_indexed_git_storage();
     let fixture = tempfile::tempdir().unwrap();
     let database = tempfile::tempdir().unwrap();
     let db = database.path().join("history.db");

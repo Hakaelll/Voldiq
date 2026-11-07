@@ -286,6 +286,8 @@ Recorded size appears only when more than one compatible saved snapshot exists. 
 
 ### Developer storage
 
+Projects and Git repositories share the local section navigation. Git uses a flat size table ordered by observed total. Partial coverage and unresolved stores appear beside the results. Repository paths open the matching indexed folder in Explorer.
+
 Developer storage has a measured category bar and legend above a flat list/details split. The native Dependencies, Build and Cache totals cover all classified directories after nested candidates are excluded, before 50-row paging. No illustrative Other category is invented. The 340px detail column appears at 1200px and above; smaller windows stack it below the list. Selecting a row displays its indexed path, tool, sizes and file count. Open folder uses the existing guarded Explorer handler. Partial status sits outside the truncated path; unknown allocation stays Unknown. Docker remains mounted in the detail column through loading and paging, retains its independent read-only analysis and reports unknown/overlapping sizes. Its bars compare known category sizes with the largest known category, without implying additive totals. Loading, Retry and empty states keep short labels. List paging restores focus without moving it from Docker controls. Category filtering and alternate list ordering remain pending. Native visual acceptance belongs to the user.
 
 ### Manual selection preview

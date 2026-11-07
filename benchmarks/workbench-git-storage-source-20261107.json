@@ -1,0 +1,98 @@
+{
+  "checkedUtc": "2026-11-07T21:09:31.8131998Z",
+  "startedUtc": "2026-11-07T20:56:48.9532345Z",
+  "checkoutCommit": "7a44ca42305794d2fa49e43488a3f35ad22a7645",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.848
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 7.577
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.776
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.497
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 660.947
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 87.199
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/developer.rs",
+      "sha256": "B73A0FAE641CE3B381960C22CBC6044F812E0E16A07A8518331AD590E901A1CE"
+    },
+    {
+      "path": "crates/voldiq-core/src/developer/git.rs",
+      "sha256": "FEEB2E25ADA4087D0285B7E97B2CBF7FBDAED0DAFC70D91C5E87E48CF2E4DF7B"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "E8479C002A96AC5409F17E3751389743F08F206DC83927D179E079852C5B329B"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots/git_fixture.rs",
+      "sha256": "9822496868EDEB65BA81049C3B78713025F155C3D3C434A61C7EA6517E80C9F9"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "85AE8D4D589E0D83D10B1456334D0B7FE5DD6D049D601073F7BF906EEE8DA033"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "E0F3C9C79B9266EAF442B97E6A33A7A98C86A9884C1A8D480FBD76177AD3EF4F"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "8FB4D99935F1B154D328148403990FAF6E85ECB2A5E33F55E0858426EDD5C262"
+    },
+    {
+      "path": "frontend/components/DeveloperStorage.svelte",
+      "sha256": "275B20EDD33C12B6C7C48FBF6471DFC116CD032D67DC7DB5ABC3F657E3FCF112"
+    },
+    {
+      "path": "frontend/components/GitStorage.svelte",
+      "sha256": "117B49F71C11A1785E80D4E6744E05CE74B0B87AFD64A5664067824FE221CE2B"
+    },
+    {
+      "path": "frontend/lib/queries.ts",
+      "sha256": "A2F1F1B08BFEE599572D0299FCCFF0331BD7B89452182D0372136A38843D00BA"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "9BA5D2F6DA5198A3AB994857577C9E8B619753E2BD41DE876069A7E194773BAA"
+    },
+    {
+      "path": "src-tauri/src/query_commands.rs",
+      "sha256": "37B282B271A7397C24689EF1BA4E7F30FE6B683D469608C30CF840B3637C2503"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "limits": "An owned saved-index fixture checks scoped logical object, pack, pack metadata and default LFS bytes, external markers, pagination and cancellation after removing the original tree. Native visual, focus/keyboard, scaling and clean-machine install acceptance remain manual."
+}
