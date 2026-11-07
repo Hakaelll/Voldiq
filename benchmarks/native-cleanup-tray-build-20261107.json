@@ -1,0 +1,9 @@
+{
+  "startedUtc": "2026-11-07T18:35:05.3410385Z",
+  "finishedUtc": "2026-11-07T18:45:31.9886512Z",
+  "sourceCommit": "ebedd85fdcbb270f7ccec0ee3a55415028485104",
+  "command": "cargo build --offline --release --workspace --features voldiq/production --bins",
+  "exitCode": 0,
+  "sourceInputsVerified": 24,
+  "sha256": "C16C2B2A671D8546900E91B5D0504A550168D5A2F3855678603219C37C88814F"
+}

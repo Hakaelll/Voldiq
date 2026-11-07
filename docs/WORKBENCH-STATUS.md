@@ -10,6 +10,10 @@ Integration passed six stages with eight behavior tests, zero Svelte diagnostics
 
 The remaining workbench requirements are tracked in the coverage matrix.
 
+Source was pushed to `main` as `ebedd85`. The native preview reached ready and page-finished and remained open after cleanup. The NSIS package includes a 25,951,744-byte executable and 10,060,006-byte installer using the Microsoft-signed WebView2 bootstrapper. Clean-machine installation remains a manual check. [Native startup](../benchmarks/native-cleanup-tray-preview-20261107.json) · [Distribution](../benchmarks/distribution-cleanup-tray-20261107.json)
+
+Release cleanup removed 2,765,557,885 logical artifact bytes and preserved four deliverables by hash. The workspace measured 268,243,276 logical bytes. The final check verified embedded resources and CLI startup. [Cleanup](../benchmarks/build-cache-cleanup-tray-20261107.json) · [Post-clean checks](../benchmarks/workspace-footprint-cleanup-tray-20261107.json)
+
 ## Application file search and contextual exploration
 
 Applications now uses View files to open the existing Explorer table in the current folder with current filters and an exact application ID. The chart uses the same action. The shared compiler checks the combined expression before adoption; changed folder/query/analysis contexts reject late responses. The advanced editor adds a concise example without another control group. Existing sidebar behavior, black tokens and chart palette remain unchanged. Native rendering, keyboard/focus and Windows scaling remain manual.
