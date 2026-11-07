@@ -63,6 +63,31 @@ fn scopes_reject_siblings_exclusions_missing_paths_and_changed_roots_without_dis
         ] {
             std::fs::write(allowed.join(name), b"ordinary").unwrap();
         }
+        #[cfg(windows)]
+        let inspection_fixture = {
+            let markup = "<script>alert('fixture')</script>";
+            let download = allowed.join("download.html");
+            let address = "https://download.example.invalid/path?private=fixture";
+            std::fs::write(&download, markup).unwrap();
+            std::fs::write(
+                allowed.join("download.html:Zone.Identifier"),
+                format!("[ZoneTransfer]\r\nZoneId=3\r\nHostUrl={address}\r\n"),
+            )
+            .unwrap();
+            let mut thumbnail = Vec::new();
+            {
+                let mut png = png::Encoder::new(&mut thumbnail, 1, 2);
+                png.set_color(png::ColorType::Rgb);
+                let mut writer = png.write_header().unwrap();
+                writer.write_image_data(&[255, 0, 0, 0, 255, 0]).unwrap();
+                writer.finish().unwrap();
+            }
+            std::fs::write(allowed.join("thumbnail.png"), thumbnail).unwrap();
+            std::fs::write(allowed.join("large.txt"), vec![b'a'; 66 * 1024]).unwrap();
+            std::fs::write(allowed.join("binary.exe"), b"MZ").unwrap();
+            std::fs::write(allowed.join("malformed.png"), b"not a PNG").unwrap();
+            (download, markup, address)
+        };
         let cancel = std::sync::atomic::AtomicBool::new(false);
         let index = voldiq_core::scanner::scan(
             &allowed,
@@ -74,6 +99,68 @@ fn scopes_reject_siblings_exclusions_missing_paths_and_changed_roots_without_dis
             |_| {},
         )
         .unwrap();
+        #[cfg(windows)]
+        {
+            use voldiq_core::inspection::{Inspection, Request, inspect};
+            let id = |name| {
+                index
+                    .entries
+                    .iter()
+                    .find(|entry| entry.name == name)
+                    .unwrap()
+                    .id
+            };
+            let read = |name, request| {
+                inspect(&index, id(name), request, &cancel)
+                    .unwrap()
+                    .unwrap()
+            };
+            let (download, markup, address) = inspection_fixture;
+            assert!(
+                matches!(read("download.html", Request::Preview), Inspection::Text { text, truncated: false } if text == markup)
+            );
+            assert_eq!(
+                serde_json::to_value(read("download.html", Request::DownloadSource)).unwrap(),
+                serde_json::json!({"kind":"download_source","domain":"download.example.invalid"})
+            );
+            assert!(
+                matches!(read("download.html", Request::DownloadUrl), Inspection::DownloadUrl { url } if url == address)
+            );
+            assert!(matches!(
+                read("report.txt", Request::DownloadSource),
+                Inspection::DownloadUnavailable { .. }
+            ));
+            assert!(
+                matches!(read("large.txt", Request::Preview), Inspection::Text { text, truncated: true } if text == "a".repeat(64 * 1024))
+            );
+            assert!(matches!(
+                read("binary.exe", Request::Preview),
+                Inspection::Metadata { .. }
+            ));
+            assert!(matches!(
+                read("malformed.png", Request::Preview),
+                Inspection::Metadata { .. }
+            ));
+            assert!(
+                matches!(read("thumbnail.png", Request::Preview), Inspection::Image { width: 1, height: 2, png } if png.starts_with("iVBORw0KGgo"))
+            );
+            assert!(inspect(&index, id("AUTH.JSON"), Request::Preview, &cancel).is_err());
+            assert!(inspect(&index, NodeId(0), Request::Preview, &cancel).is_err());
+            assert!(
+                inspect(
+                    &index,
+                    id("download.html"),
+                    Request::Preview,
+                    &std::sync::atomic::AtomicBool::new(true)
+                )
+                .unwrap()
+                .is_none()
+            );
+            // Replace the indexed identity while keeping the same path and logical length.
+            std::fs::rename(&download, allowed.join("original-download.html")).unwrap();
+            std::fs::write(&download, markup).unwrap();
+            assert!(inspect(&index, id("download.html"), Request::Preview, &cancel).is_err());
+        }
         let safety_state = tempfile::tempdir().unwrap();
         let mut readers = Registry::open(&safety_state.path().join("agents.db")).unwrap();
         let reader = readers

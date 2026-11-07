@@ -86,6 +86,19 @@ impl AuthorizedPath {
             .collect()
     }
 
+    #[cfg(windows)]
+    pub(crate) fn directory_handle(&self) -> Result<&File> {
+        let file = self.handles.last().ok_or_else(denied)?;
+        let metadata = file.metadata()?;
+        if !metadata.is_dir()
+            || windows::is_reparse(&metadata)
+            || windows::requires_recall(&metadata)
+        {
+            return Err(denied());
+        }
+        Ok(file)
+    }
+
     fn open(path: &Path) -> Result<Self> {
         validate_path(path)?;
         let mut handles = Vec::new();

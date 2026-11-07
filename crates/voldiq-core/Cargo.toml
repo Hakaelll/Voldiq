@@ -20,6 +20,8 @@ gif = "=0.14.2"
 libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
+base64 = "0.22"
+url = "2.5"
 krilla = { version = "=0.8.2", default-features = false }
 parley = { version = "=0.11.1", default-features = false, features = ["std", "complex-scripts"] }
 skrifa = { version = "=0.44.0", default-features = false, features = ["std"] }

@@ -24,6 +24,30 @@ function querySession(): Promise<number> {
   return session;
 }
 
+export type InspectionRequest = 'preview' | 'download_source' | 'download_url';
+
+export type FileInspection =
+  | { kind: 'metadata' | 'download_unavailable'; reason: string }
+  | { kind: 'text'; text: string; truncated: boolean }
+  | { kind: 'image'; width: number; height: number; png: string }
+  | { kind: 'download_source'; domain: string }
+  | { kind: 'download_url'; url: string };
+
+export const inspectionQueries = createQueryRunner<
+  FileInspection,
+  { indexId: IndexId; id: NodeId; inspection: InspectionRequest },
+  'file_inspection'
+>('file_inspection', {
+  run: async (_family, requestId, input) =>
+    invoke<FileInspection | null>('query_file_inspection', {
+      ...input,
+      epoch: await querySession(),
+      requestId,
+    }),
+  cancel: async (family, requestId) =>
+    invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+});
+
 export const cleanupTrayQueries = createQueryRunner<
   TraySummary,
   { indexId: IndexId; groups: readonly TrayGroup[]; target: TrayTarget | null },

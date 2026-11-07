@@ -33,6 +33,7 @@ pub(crate) enum QueryFamily {
     HistoryClip,
     Applications,
     CleanupTray,
+    FileInspection,
 }
 
 #[derive(Default)]
@@ -49,7 +50,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 16],
+    slots: [Slot; 17],
 }
 
 impl QueryFamily {
@@ -71,6 +72,7 @@ impl QueryFamily {
             Self::HistoryClip => 13,
             Self::Applications => 14,
             Self::CleanupTray => 15,
+            Self::FileInspection => 16,
         }
     }
 }
@@ -525,6 +527,29 @@ async fn run_query<T: Send + 'static>(
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub(crate) async fn query_file_inspection(
+    index_id: IndexId,
+    id: NodeId,
+    inspection: voldiq_core::inspection::Request,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<voldiq_core::inspection::Inspection>, String> {
+    run_query(
+        index_id,
+        epoch,
+        QueryFamily::FileInspection,
+        request_id,
+        engine.inner().clone(),
+        move |index, cancel| {
+            voldiq_core::inspection::inspect(index, id, inspection, cancel)
+                .map_err(|error| error.to_string())
+        },
+    )
+    .await
 }
 
 #[tauri::command]

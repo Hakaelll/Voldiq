@@ -52,6 +52,7 @@
   import AgentPlanReview from './components/AgentPlanReview.svelte';
   import TransferCatalogue from './components/TransferCatalogue.svelte';
   import FolderNotes from './components/FolderNotes.svelte';
+  import FileInspection from './components/FileInspection.svelte';
   import FolderBudget from './components/FolderBudget.svelte';
   import LiveControl from './components/LiveControl.svelte';
   import ReportExport from './components/ReportExport.svelte';
@@ -2428,6 +2429,11 @@
                   </div>
                   {#if details.entry.kind === 'directory' && details.path_exact}
                     {#key details.path}<FolderNotes path={details.path} />{/key}
+                  {/if}
+                  {#if indexId !== null && historical === null && details.entry.kind === 'file' && !details.entry.incomplete && !details.sensitive}
+                    {#key `${indexId}/${details.entry.id}`}
+                      <FileInspection {indexId} id={details.entry.id} paused={busy} />
+                    {/key}
                   {/if}
                   {#if details.children}<div class="detail-children">
                       <h3>Children ({details.children.total.toLocaleString()})</h3>

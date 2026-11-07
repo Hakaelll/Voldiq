@@ -8,6 +8,7 @@ pub mod developer;
 pub mod duplicates;
 pub mod exports;
 pub mod index;
+pub mod inspection;
 pub mod jobs;
 pub mod live;
 pub mod map;

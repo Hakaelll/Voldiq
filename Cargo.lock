@@ -4745,6 +4745,7 @@ dependencies = [
 name = "voldiq-core"
 version = "0.2.0"
 dependencies = [
+ "base64 0.22.1",
  "blake3",
  "getrandom 0.3.4",
  "gif",
@@ -4759,6 +4760,7 @@ dependencies = [
  "skrifa 0.44.0",
  "tempfile",
  "thiserror 2.0.21",
+ "url",
  "windows",
  "windows-sys 0.61.2",
  "zip",

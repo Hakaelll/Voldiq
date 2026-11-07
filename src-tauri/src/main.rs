@@ -894,6 +894,7 @@ fn main() {
             budget_commands::remove_folder_budget,
             query_commands::translate_search,
             query_commands::query_details_cancellable,
+            query_commands::query_file_inspection,
             query_commands::cancel_query,
             query_commands::open_query_session,
             preview_cleanup_tray,

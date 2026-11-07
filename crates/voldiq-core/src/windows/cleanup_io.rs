@@ -81,19 +81,34 @@ pub(crate) fn open_leaf(parent: &File, name: &OsStr, access: LeafAccess) -> Resu
 }
 
 pub(crate) fn open_component(parent: &File, name: &OsStr, access: u32, share: u32) -> Result<File> {
+    native_open(&mut component_name(name)?, Some(parent), access, share)
+}
+
+pub(crate) fn open_download_stream(parent: &File, name: &OsStr) -> Result<File> {
+    let mut stream = component_name(name)?;
+    stream.extend(":Zone.Identifier:$DATA".encode_utf16());
+    native_open(
+        &mut stream,
+        Some(parent),
+        FILE_READ_ATTRIBUTES | FILE_READ_DATA,
+        FILE_SHARE_READ,
+    )
+}
+
+fn component_name(name: &OsStr) -> Result<Vec<u16>> {
     let mut components = Path::new(name).components();
     if !matches!(components.next(), Some(Component::Normal(_))) || components.next().is_some() {
         return Err(Error::Invalid(
             "Cleanup requires a single child name.".into(),
         ));
     }
-    let mut name: Vec<u16> = name.encode_wide().collect();
+    let name: Vec<u16> = name.encode_wide().collect();
     if name.iter().any(|&unit| matches!(unit, 0 | 47 | 58 | 92)) {
         return Err(Error::Invalid(
             "Cleanup child name contains a namespace separator.".into(),
         ));
     }
-    native_open(&mut name, Some(parent), access, share)
+    Ok(name)
 }
 
 fn native_root_name(path: &Path) -> Vec<u16> {

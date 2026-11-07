@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Safe file inspection and download provenance
+
+Inspect file opens from the live file details. Explicit reads reuse the indexed file identity and a pinned parent, check the current local file before and after reading, and refuse sensitive paths, incomplete entries and cloud placeholders. Text preview reads at most 64 KiB of UTF-8 or BOM-marked UTF-16 and uses plain text. Static PNG input is bounded by file size and resolution and is re-encoded as a thumbnail. Other formats retain their indexed metadata.
+
+The Windows `Zone.Identifier` reader bounds the stream to 16 KiB and reports only the recorded HTTP(S) host until the user requests the URL. The inspector renders the URL as selectable text and clears it on close. [Windows stream format](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-fscc/6e3f7352-d11c-4d76-8c39-2516a9df36e8)
+
+The six source checks passed with eight behavior tests and zero Svelte diagnostics. The retained owned-file test covers an actual NTFS stream, domain-only serialization, explicit URL reveal, absent provenance, bounded text, HTML as source text, PNG and metadata fallbacks, cancellation, sensitive paths and replaced identities. [Source verification](../benchmarks/workbench-file-inspection-source-20261107.json)
+
 ## Workspace reading order and candidate priority
 
 The first scan starts with two visible actions and an adjacent measured drive summary. Explorer groups its representations into Map, List and Grid. History leads with the measured trend and puts capture maintenance in a disclosure. Cleanup opens directly to the file candidates, with one category picker and Windows tools in a separate section. Overview, History, Cleanup and Explorer share an understated section switch. Source token checks measured the foreground and background pairs used for text and active actions at 5.39:1 or higher across both themes.
