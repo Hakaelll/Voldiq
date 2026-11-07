@@ -1,0 +1,110 @@
+{
+  "checkedUtc": "2026-11-07T23:10:27.712875Z",
+  "startedUtc": "2026-11-07T22:58:18.29205Z",
+  "checkoutCommit": "1dd560bc277e903f8991c44c46ac883697e005b3",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.88
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 6.797
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.798
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.209
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 636.789
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 78.919
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/inspection.rs",
+      "sha256": "25D844ED36D51A9001E9702AF7BA9D5478294F3B5B11FF25CFEA34B4B443A2FC"
+    },
+    {
+      "path": "crates/voldiq-core/src/inspection/native.rs",
+      "sha256": "62977D8295D9F5CB739BCB53DB2230FF4282BCF711903672F6E34FD07427F23C"
+    },
+    {
+      "path": "crates/voldiq-core/src/lib.rs",
+      "sha256": "C02E898F55D2F10ACCB586EBA264482744B8C9AF5FCA46233997E1387C2BF8CF"
+    },
+    {
+      "path": "crates/voldiq-core/src/libraries.rs",
+      "sha256": "31BFCBC1457E9AE1DE21A85E214C33FD8A2444256E485E3C002D29BC550311C5"
+    },
+    {
+      "path": "crates/voldiq-core/src/libraries/games.rs",
+      "sha256": "EE736B9AB68486B022A2BBF591929105ACAAD3F77CA45E20D77528CCCA717466"
+    },
+    {
+      "path": "crates/voldiq-core/src/libraries/games/manifests.rs",
+      "sha256": "98D09039D2A251332D27557B8CB65E3CE2DD86E1FB59974A13371DFE23F17382"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "FB07B92D2684F0DB09AB8FF941428072F67F3CEC806F9B41DA71BE51D109DF44"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "8C4702E6E1E826D1244ECAD478A8FC3290D8B7311B2AC51EAC742693FCF8E34D"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "F35E24042B7F1A6B5797A1489A8DC1EEDE84ABA3502873EFB72C1039DE019A1D"
+    },
+    {
+      "path": "frontend/components/GameLibraries.svelte",
+      "sha256": "AD5874E7718B84C994E6D3436F67EADE0676FB95F35DB3CE736EAA0F69D915A2"
+    },
+    {
+      "path": "frontend/components/Overview.svelte",
+      "sha256": "204E11A6A0C0974C853E8A54FBE55063D8B833004E4BA91EAF06FB17D32C60A0"
+    },
+    {
+      "path": "frontend/lib/game-libraries.ts",
+      "sha256": "27525B0A5865E1E7CAF9E850454D58935372207D923BD4063895AC6280C0533B"
+    },
+    {
+      "path": "frontend/lib/queries.ts",
+      "sha256": "E1D6F3B9DD0F5ECDFD06A619FF67883B3C57BA5A1D0BA536712E280571E59F3F"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "8D5F7132FA2ACA1352168FCB219B9432B88578BCF33A816E557E889B1D5B97B2"
+    },
+    {
+      "path": "src-tauri/src/query_commands.rs",
+      "sha256": "7A7365176CE9A6992324B3839A308B16D06E2B91F2A9F4E157A22E13DE1CDB22"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "limits": "Launcher manifests and indexed attribution are verified in a separate owned fixture. Native visual, focus/keyboard, scaling and clean-machine install acceptance remain manual."
+}

@@ -1,0 +1,27 @@
+{
+  "recognizedRows": 6,
+  "providers": 4,
+  "steam": {
+    "install": 11,
+    "shaders": 3,
+    "workshop": 5,
+    "userData": 7
+  },
+  "epic": {
+    "install": 17,
+    "separateDlc": 19
+  },
+  "gogDlcRecords": 1,
+  "manualFolderBytes": 23,
+  "nestedManualBytes": 36,
+  "partitionConserved": true,
+  "outOfOrderParents": true,
+  "outsideScopeRefused": true,
+  "malformedAndOversizedRefused": true,
+  "changedManifestRefused": true,
+  "recordedScanRefused": true,
+  "pagination": true,
+  "checkedUtc": "2026-11-07T23:07:52.8253051Z",
+  "sourceSha256": "EE736B9AB68486B022A2BBF591929105ACAAD3F77CA45E20D77528CCCA717466",
+  "scope": "Real filesystem scanning of an owned temporary layout with synthetic launcher records. No launcher process or production installation is used."
+}

@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Game libraries
+
+Overview → Game libraries reads bounded manifests that are already in the live scan. It recognizes Steam app manifests, Epic Launcher `.item` files, GOG mini-manifests and gzip-compressed itch.io receipts. Sizes come from indexed logical file paths. Steam shader caches, Workshop and recognized user data have separate totals. Epic add-ons with their own indexed directories have a separate size. Co-located DLC evidence appears as a count without a separate size. Conflicting claims contribute to shared bytes. Manual folders report independent indexed totals and stay in the Overview session. No cleanup action is offered. [Steam app manifests](https://docs.rs/steamlocate/latest/src/steamlocate/app.rs.html) · [Epic manifest fields](https://github.com/legendary-gl/legendary/blob/master/legendary/models/egl.py) · [GOG mini-manifests](https://docs.gog.com/sdk-dlc-discovery/) · [itch.io receipts](https://github.com/itchio/butler/blob/master/docs/launcher-integration.md)
+
+All six integration checks passed with eight routine tests and zero Svelte diagnostics. The owned fixture scanned all four launcher layouts, conserved the scoped byte partition after reordering parent IDs, measured a separate Epic add-on, identified co-located GOG DLC and rejected outside, changed and oversized metadata. Actual installed-launcher compatibility, populated desktop interaction, keyboard and Windows scaling remain manual. Saved scans and headless library queries do not have recorded launcher evidence yet. [Source verification](../benchmarks/workbench-game-libraries-source-20261108.json) · [Owned fixture](../benchmarks/workbench-game-libraries-fixture-20261108.json)
+
 ## VS Code adapter
 
 The optional extension runs the existing Windows CLI from a trusted local workspace. A user-selected CLI is checked by hash and kept outside the open workspace. The connection uses only Scan and Metadata and is stored in VS Code SecretStorage. Folder analysis saves a Voldiq snapshot and shows scoped totals and up to 20 largest files in the output channel. Cancellation uses the native job ID. The VSIX contains neither a scanner nor runtime dependencies. [Setup](../vscode-extension/README.md) · [Workspace Trust](https://code.visualstudio.com/api/extension-guides/workspace-trust)

@@ -26,22 +26,7 @@ pub(super) fn inspect(
     }
     let entry = index.entry(id)?;
     let path = index.path(id)?;
-    if index.snapshot_id.is_some()
-        || entry.kind != Kind::File
-        || entry.incomplete
-        || entry.file_state.is_none()
-        || entry.cloud.is_placeholder()
-        || crate::security::warning(&path).is_some()
-    {
-        return Err(Error::Invalid(
-            "Inspection requires a live, complete local file outside sensitive locations.".into(),
-        ));
-    }
-    let parent = index.pin_folder(entry.parent.ok_or_else(changed)?)?;
-    let root = index.root_identity.ok_or_else(changed)?;
-    if !parent.ancestor_identities()?.contains(&root) {
-        return Err(changed());
-    }
+    let parent = checked_parent(index, entry, &path)?;
     let directory = parent.directory_handle()?;
     let name = path.file_name().ok_or_else(changed)?;
     let file = open_leaf(directory, name, LeafAccess::Retain)?;
@@ -97,6 +82,53 @@ pub(super) fn inspect(
         return Ok(None);
     }
     Ok(Some(result))
+}
+
+fn checked_parent(
+    index: &Index,
+    entry: &Entry,
+    path: &std::path::Path,
+) -> Result<crate::agents::AuthorizedPath> {
+    if index.snapshot_id.is_some()
+        || entry.kind != Kind::File
+        || entry.incomplete
+        || entry.file_state.is_none()
+        || entry.cloud.is_placeholder()
+        || crate::security::warning(path).is_some()
+    {
+        return Err(Error::Invalid(
+            "Inspection requires a live, complete local file outside sensitive locations.".into(),
+        ));
+    }
+    let parent = index.pin_folder(entry.parent.ok_or_else(changed)?)?;
+    let root = index.root_identity.ok_or_else(changed)?;
+    if !parent.ancestor_identities()?.contains(&root) {
+        return Err(changed());
+    }
+    Ok(parent)
+}
+
+pub(crate) fn read_indexed_manifest(index: &Index, id: NodeId, limit: usize) -> Result<Vec<u8>> {
+    let entry = index.entry(id)?;
+    if entry.logical > limit as u64 {
+        return Err(Error::Invalid(
+            "Launcher manifest exceeds the read limit.".into(),
+        ));
+    }
+    let path = index.path(id)?;
+    let parent = checked_parent(index, entry, &path)?;
+    let file = open_leaf(
+        parent.directory_handle()?,
+        path.file_name().ok_or_else(changed)?,
+        LeafAccess::Retain,
+    )?;
+    verify(&file, entry, true)?;
+    let bytes = read_prefix(&file, limit)?;
+    verify(&file, entry, true)?;
+    if bytes.len() as u64 != entry.logical {
+        return Err(changed());
+    }
+    Ok(bytes)
 }
 
 fn verify(file: &File, entry: &Entry, default_stream: bool) -> Result<()> {

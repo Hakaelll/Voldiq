@@ -912,6 +912,7 @@ fn main() {
             restore_commands::execute_restoration,
             query_developer_storage,
             query_commands::query_git_storage,
+            query_commands::query_game_libraries,
             docker_commands::query_docker_storage,
             get_issues,
             reveal_item,

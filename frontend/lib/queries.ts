@@ -3,6 +3,7 @@ import type { IndexId } from './index-context';
 import type { SpaceReport } from './space-account';
 import type { RecoveryReport } from './recovery';
 import type { DeviceHealthReport } from './device-health';
+import type { GameLibraryReport } from './game-libraries';
 import type { ApplicationQuery, ApplicationCleanupContext } from './applications';
 import type { TrayGroup, TraySummary, TrayTarget } from './cleanup-tray';
 import { invoke } from '@tauri-apps/api/core';
@@ -83,6 +84,21 @@ export const gitStorageQueries = createQueryRunner<
   run: async (_family, requestId, input) =>
     invoke<GitStorageReport | null>('query_git_storage', {
       ...input,
+      epoch: await querySession(),
+      requestId,
+    }),
+  cancel: async (family, requestId) =>
+    invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+});
+
+export const gameLibraryQueries = createQueryRunner<
+  GameLibraryReport,
+  { indexId: IndexId; query: { scope: NodeId; offset: number; limit: number; manual: string[] } },
+  'game_libraries'
+>('game_libraries', {
+  run: async (_family, requestId, query) =>
+    invoke<GameLibraryReport | null>('query_game_libraries', {
+      ...query,
       epoch: await querySession(),
       requestId,
     }),

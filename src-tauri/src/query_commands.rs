@@ -36,6 +36,7 @@ pub(crate) enum QueryFamily {
     FileInspection,
     GitStorage,
     DeviceHealth,
+    GameLibraries,
 }
 
 #[derive(Default)]
@@ -52,7 +53,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 19],
+    slots: [Slot; 20],
 }
 
 impl QueryFamily {
@@ -77,6 +78,7 @@ impl QueryFamily {
             Self::FileInspection => 16,
             Self::GitStorage => 17,
             Self::DeviceHealth => 18,
+            Self::GameLibraries => 19,
         }
     }
 }
@@ -570,6 +572,27 @@ pub(crate) async fn query_file_inspection(
         move |index, cancel| {
             voldiq_core::inspection::inspect(index, id, inspection, cancel)
                 .map_err(|error| error.to_string())
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn query_game_libraries(
+    index_id: IndexId,
+    query: voldiq_core::libraries::Query,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<voldiq_core::libraries::Report>, String> {
+    run_query(
+        index_id,
+        epoch,
+        QueryFamily::GameLibraries,
+        request_id,
+        engine.inner().clone(),
+        move |index, cancel| {
+            voldiq_core::libraries::query(index, &query, cancel).map_err(|error| error.to_string())
         },
     )
     .await

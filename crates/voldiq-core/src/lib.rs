@@ -11,6 +11,7 @@ pub mod exports;
 pub mod index;
 pub mod inspection;
 pub mod jobs;
+pub mod libraries;
 pub mod live;
 pub mod map;
 pub mod metadata;

@@ -42,6 +42,8 @@ pub enum Inspection {
 mod archive;
 #[cfg(windows)]
 mod native;
+#[cfg(windows)]
+pub(crate) use native::read_indexed_manifest;
 
 pub fn inspect(
     index: &Index,

@@ -6,6 +6,7 @@
   import DeviceHealth from './DeviceHealth.svelte';
   import Applications from './Applications.svelte';
   import StorageCost from './StorageCost.svelte';
+  import GameLibraries from './GameLibraries.svelte';
   import type { ApplicationCleanupContext } from '../lib/applications';
   import type { Query } from '../lib/types';
   import type { IndexId } from '../lib/index-context';
@@ -112,7 +113,8 @@
     onreviewcache: (context: ApplicationCleanupContext) => void;
     onapplication: (id: string) => void;
   } = $props();
-  let section = $state<'summary' | 'applications' | 'cost'>('summary');
+  let section = $state<'summary' | 'applications' | 'libraries' | 'cost'>('summary');
+  let manualLibraries = $state<string[]>([]);
   const distribution = $derived(visibleFileTypes(types));
   const typeColors = $derived(
     distribution.items.map((_, index) => RANKED_PAINTS[index % RANKED_PAINTS.length].fill),
@@ -150,6 +152,9 @@
       section = 'applications';
     }}>Applications</button
   >
+  <button aria-pressed={section === 'libraries'} onclick={() => (section = 'libraries')}
+    >Game libraries</button
+  >
   <button aria-pressed={section === 'cost'} onclick={() => (section = 'cost')}>Storage cost</button>
 </div>
 <div hidden={section !== 'cost'}>
@@ -173,6 +178,14 @@
     <p role="status">Waiting for the selected folder context.</p>
     <button onclick={onretry} disabled={paused}>Reload folder context</button>
   {/if}
+{:else if section === 'libraries'}
+  <GameLibraries
+    {indexId}
+    scope={scopeId}
+    paused={paused || queryState !== 'ready'}
+    bind:manual={manualLibraries}
+    {onopen}
+  />
 {:else if section === 'summary'}
   <div class="overview-grid">
     <aside class="overview-summary" aria-label="Storage summary">
