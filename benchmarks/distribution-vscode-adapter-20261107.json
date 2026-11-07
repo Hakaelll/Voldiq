@@ -1,0 +1,19 @@
+{
+  "checkedUtc": "2026-11-07T22:40:22.8964812Z",
+  "file": "voldiq-0.2.0.vsix",
+  "bytes": 9884,
+  "sha256": "B61C7F486FC259243229FDDDA1F1148811437DAE18E0F4715746974D28D0EE3D",
+  "packager": "@vscode/vsce 4.1.0",
+  "codeVersion": "1.141.0",
+  "installedInIsolatedProfile": "voldiq.voldiq@0.2.0",
+  "contents": [
+    "extension.vsixmanifest",
+    "[Content_Types].xml",
+    "extension/client.cjs",
+    "extension/extension.cjs",
+    "extension/LICENSE.txt",
+    "extension/package.json",
+    "extension/readme.md"
+  ],
+  "scope": "Exact package sources and an isolated CLI install. Extension activation, SecretStorage UI, commands, and editor interaction remain manual."
+}

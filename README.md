@@ -24,6 +24,8 @@ No account, cloud service, advertising or telemetry. The application uses actual
 
 The current source adds human-managed connections in Settings, plan review and transfer history in Cleanup, plus a separate Rust CLI and authenticated local stdio MCP server. They scan allowed folders, query measured snapshots and prepare exact recycling plans through the existing core, without loading the desktop renderer. Humans approve specific manifests in Voldiq; agent file execution is still being implemented. These additions are not part of the published 0.2.0 installer yet. See [MCP setup](docs/MCP.md) and [workbench coverage](docs/WORKBENCH-COVERAGE.md).
 
+The optional [VS Code adapter](vscode-extension/README.md) runs the CLI for folder scans and shows a bounded report in the editor. It is packaged separately from the desktop installer.
+
 Auto, Eco, Balanced and Fast scan profiles now control bounded metadata concurrency and native request buffers. Eco adds short cancellable waits. Choose a profile beside scan actions or in Settings; it also applies to favorites and Live rescans. These settings do not promise a CPU percentage or scan speed. Scan pause remains pending.
 
 ## Install

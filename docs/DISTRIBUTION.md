@@ -18,6 +18,18 @@ pnpm tauri build --features production --bundles nsis
 
 The Tauri command builds the frontend before compiling the native release executable. Its output directory is `target/release/bundle/nsis`. Open release previews from the separate hash-addressed copy described below so that packaging can update the canonical executable.
 
+### Optional VS Code adapter
+
+Package the adapter independently of the installer. It uses the separate `voldiq-cli.exe` built by Cargo and ships without the CLI or Node dependencies.
+
+```powershell
+Push-Location vscode-extension
+pnpm dlx '@vscode/vsce@4.1.0' package --no-dependencies --out ../target/voldiq-0.2.0.vsix
+Pop-Location
+```
+
+Install the VSIX with the VS Code Extensions view and follow the [connection setup](../vscode-extension/README.md). [Official packaging reference](https://code.visualstudio.com/api/working-with-extensions/publishing-extension)
+
 ### Open a release preview
 
 Prepare a separate copy before opening a release build. Running `target/release/voldiq.exe` directly can prevent the bundler from updating its metadata.

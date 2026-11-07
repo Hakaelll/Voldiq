@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## VS Code adapter
+
+The optional extension runs the existing Windows CLI from a trusted local workspace. A user-selected CLI is checked by hash and kept outside the open workspace. The connection uses only Scan and Metadata and is stored in VS Code SecretStorage. Folder analysis saves a Voldiq snapshot and shows scoped totals and up to 20 largest files in the output channel. Cancellation uses the native job ID. The VSIX contains neither a scanner nor runtime dependencies. [Setup](../vscode-extension/README.md) · [Workspace Trust](https://code.visualstudio.com/api/extension-guides/workspace-trust)
+
+All six integration checks passed with eight routine tests. The real CLI fixture scanned two owned files totaling 25 bytes, respected a one-row policy limit and rejected an unauthorized folder, unknown and broader credentials, and a changed executable hash. It cancelled a running native job by ID. The 9,884-byte VSIX matched the JavaScript and manifest sources and installed through VS Code 1.141.0 in a temporary profile. Extension activation, credential entry and editor interaction remain manual. [Source verification](../benchmarks/workbench-vscode-adapter-source-20261107.json) · [CLI fixture](../benchmarks/workbench-vscode-adapter-protocol-20261107.json) · [VSIX verification](../benchmarks/distribution-vscode-adapter-20261107.json)
+
 ## Windows drive health
 
 Overview → Space & drive diagnostics → Drive health checks the Windows disk numbers backing a live scan. It reads the NVMe SMART log or the Windows failure-prediction flag on demand. The report identifies its method and check time. Access, missing support, changed scope and invalid driver data have distinct states. The native query keeps asynchronous controller events, holds no index lock during driver I/O and discards cancelled responses. A pending synchronous driver call can finish after the UI cancels. [Windows volume extents](https://learn.microsoft.com/en-us/windows/win32/api/winioctl/ni-winioctl-ioctl_volume_get_volume_disk_extents) · [NVMe log](https://learn.microsoft.com/en-us/windows/win32/api/nvme/ns-nvme-nvme_health_info_log) · [Windows failure prediction](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/ntddstor/ni-ntddstor-ioctl_storage_predict_failure)

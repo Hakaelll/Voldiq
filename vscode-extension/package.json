@@ -1,0 +1,72 @@
+{
+  "name": "voldiq",
+  "displayName": "Voldiq",
+  "description": "Analyze local Windows folders from VS Code with the Voldiq command-line engine.",
+  "version": "0.2.0",
+  "publisher": "voldiq",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Hakaelll/Voldiq.git"
+  },
+  "main": "./extension.cjs",
+  "extensionKind": [
+    "ui"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": false
+    },
+    "virtualWorkspaces": {
+      "supported": false
+    }
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "voldiq.connect",
+        "title": "Connect to Voldiq",
+        "category": "Voldiq"
+      },
+      {
+        "command": "voldiq.analyzeFolder",
+        "title": "Analyze Folder",
+        "category": "Voldiq"
+      },
+      {
+        "command": "voldiq.disconnect",
+        "title": "Forget Connection",
+        "category": "Voldiq"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "voldiq.connect",
+          "when": "isWindows && isWorkspaceTrusted"
+        },
+        {
+          "command": "voldiq.analyzeFolder",
+          "when": "isWindows && isWorkspaceTrusted"
+        },
+        {
+          "command": "voldiq.disconnect",
+          "when": "isWindows && isWorkspaceTrusted"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "voldiq.analyzeFolder",
+          "when": "isWindows && isWorkspaceTrusted && resourceScheme == file && explorerResourceIsFolder",
+          "group": "navigation@70"
+        }
+      ]
+    }
+  }
+}

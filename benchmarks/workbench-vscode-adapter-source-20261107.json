@@ -1,0 +1,90 @@
+{
+  "checkedUtc": "2026-11-07T22:44:25.7420927Z",
+  "startedUtc": "2026-11-07T22:41:24.4320715Z",
+  "checkoutCommit": "d0f7e92cbd3d8b046bdd9cda64b5ae2229eb928f",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.351
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.726
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.813
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.916
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 158.034
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 6.452
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "README.md",
+      "sha256": "BC1C25EB9A87713311CD66406379D17E5860C8E0255F5D244734C0EAE3A4A28C"
+    },
+    {
+      "path": "docs/DISTRIBUTION.md",
+      "sha256": "0048AF957585DAD4846D8956DD2AD85358FD8276D4276A3F62734B462AB5AB9C"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "3AE95979BA5C2799249A6AD42423EFE7B44AE0B1F9E2CC7DC3931C85F1724FCF"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "E2612057E7A6520E0B614EB28BAAFC13374C2B86A4251BBEB95DB54774ADB3B3"
+    },
+    {
+      "path": "vscode-extension/.vscodeignore",
+      "sha256": "D591ADB73DFBDAFAE018D3BF52073A8F42DAE9B8DBCB433FA83F9F2F016A8822"
+    },
+    {
+      "path": "vscode-extension/LICENSE",
+      "sha256": "9289EDBDE73DFCC42092B24E8EA63AA78E3F5260D5BFE8504D193E45CB7EC417"
+    },
+    {
+      "path": "vscode-extension/README.md",
+      "sha256": "FC33027F0463357CC1CE1BD4728C38B71A3F64EC5FE11F34991048E94B8CA9F9"
+    },
+    {
+      "path": "vscode-extension/package.json",
+      "sha256": "33564FDDF70987A8088C68CF064F7A6DDFEDE54416E92D66C8AFFD081600388B"
+    },
+    {
+      "path": "vscode-extension/client.cjs",
+      "sha256": "8CD566BDF82877D5EEFA73FEB8B451F59190305A5642B3D0E3A016053482F97E"
+    },
+    {
+      "path": "vscode-extension/extension.cjs",
+      "sha256": "39FE5D8BBC5556C38304920EE64A6CA77078BE6541B8ABC1F76D6470DD05D5A6"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "limits": "The VSIX was installed in a temporary CLI profile and the adapter exercised the real CLI with owned files. Native extension activation, credential entry, menus and editor interaction remain manual."
+}

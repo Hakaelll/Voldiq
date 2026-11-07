@@ -1,0 +1,20 @@
+{
+  "versionedEnvelope": 1,
+  "ownedScan": {
+    "logical": 25,
+    "files": 2,
+    "largestLogical": 17,
+    "limitedRows": 1
+  },
+  "scopeRefused": true,
+  "broaderCredentialRefused": true,
+  "unknownCredentialRefused": true,
+  "replacedExecutableRefused": true,
+  "cancellation": {
+    "requested": true,
+    "outcome": "cancelled"
+  },
+  "checkedUtc": "2026-11-07T22:39:11.6536102Z",
+  "cliSha256": "6C918A59683809BB0ED10488A6D471952FD95E60CF35414A822965FFC08B646A",
+  "adapterSha256": "8CD566BDF82877D5EEFA73FEB8B451F59190305A5642B3D0E3A016053482F97E"
+}
