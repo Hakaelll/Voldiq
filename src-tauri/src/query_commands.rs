@@ -39,6 +39,7 @@ pub(crate) enum QueryFamily {
     GameLibraries,
     MediaLibraries,
     SimilarImages,
+    SystemStorage,
 }
 
 #[derive(Default)]
@@ -55,7 +56,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 22],
+    slots: [Slot; 23],
 }
 
 impl QueryFamily {
@@ -83,6 +84,7 @@ impl QueryFamily {
             Self::GameLibraries => 19,
             Self::MediaLibraries => 20,
             Self::SimilarImages => 21,
+            Self::SystemStorage => 22,
         }
     }
 }
@@ -852,6 +854,28 @@ pub(crate) async fn query_space_account(
         engine.inner().clone(),
         |index, cancelled| {
             voldiq_core::space::read_desktop(index, cancelled).map_err(|error| error.to_string())
+        },
+    )
+    .await
+}
+
+#[cfg(windows)]
+#[tauri::command]
+pub(crate) async fn query_system_storage(
+    index_id: IndexId,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<voldiq_core::space::system::Report>, String> {
+    run_query(
+        index_id,
+        epoch,
+        QueryFamily::SystemStorage,
+        request_id,
+        engine.inner().clone(),
+        |index, cancelled| {
+            voldiq_core::space::system::read_desktop(index, cancelled)
+                .map_err(|error| error.to_string())
         },
     )
     .await

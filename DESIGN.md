@@ -153,6 +153,8 @@ The library list identifies recorded snapshot evidence near its measured totals.
 
 Overview groups Drive health under Space & drive diagnostics. Check drive is explicit. The report pairs its checked time and scan root with a short row of device counters or the Windows access or support state for each mapped disk.
 
+System storage sits beside Space account. Its explicit check presents a flat list of indexed Windows locations and host virtual disks. Each row identifies the location and its recorded logical size. Known allocation appears only where it can be attributed to the individual indexed file. Unobserved paths, unavailable locations and paths outside the scan have different labels. The panel links to Windows Storage settings and leaves the space account's residual calculation separate.
+
 The Space account explains where to check a live file. In the file inspector, Check file use runs on request alongside the preview and download source actions. Reported applications appear in a compact list with their process IDs. Empty, incomplete and cancelled checks have distinct messages. The scope is one file name at the time of the check.
 
 Overview, Cleanup, History and the Explorer list share text section controls with an underline for the active view. Explorer offers Map, List and Grid at this level. Map styles are chosen inside the map toolbar. The workspace toolbar shows drive and search controls on analysis views and the drive picker in Windows tools. Cleanup opens directly to candidates, with Recycle Bin and Windows Storage in Windows tools. History puts the measured trend before its snapshot rows and groups storage maintenance under Manage snapshots.

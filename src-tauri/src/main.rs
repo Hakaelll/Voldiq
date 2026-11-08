@@ -875,6 +875,8 @@ fn main() {
             query_commands::inspect_search,
             query_commands::query_folder_budget,
             query_commands::query_space_account,
+            #[cfg(windows)]
+            query_commands::query_system_storage,
             query_commands::query_applications,
             query_commands::query_application_cache,
             query_commands::query_cleanup_tray,

@@ -1,5 +1,8 @@
 use super::{Catalog, MAX_REGISTRATIONS, Registration, Source, SourceCoverage, check};
-use crate::{Error, Result, windows};
+use crate::{
+    Error, Result,
+    windows::{self, registry::Key},
+};
 use std::{
     path::PathBuf,
     sync::atomic::AtomicBool,
@@ -9,34 +12,6 @@ use windows_sys::Win32::{Foundation::*, System::Registry::*};
 
 const UNINSTALL: &str = r"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall";
 const MAX_VISITED_KEYS: usize = 4096;
-
-struct Key(HKEY);
-impl Drop for Key {
-    fn drop(&mut self) {
-        unsafe { RegCloseKey(self.0) };
-    }
-}
-impl Key {
-    fn open(parent: HKEY, name: &str, access: u32) -> std::result::Result<Self, u32> {
-        let name: Vec<_> = name.encode_utf16().chain(Some(0)).collect();
-        let mut key = std::ptr::null_mut();
-        // The terminated name and output pointer remain valid for this local, read-only open.
-        let code = unsafe {
-            RegOpenKeyExW(
-                parent,
-                name.as_ptr(),
-                REG_OPTION_OPEN_LINK,
-                access,
-                &mut key,
-            )
-        };
-        if code == ERROR_SUCCESS {
-            Ok(Self(key))
-        } else {
-            Err(code)
-        }
-    }
-}
 
 fn now() -> Result<u64> {
     SystemTime::now()
@@ -172,19 +147,19 @@ fn record(
     name: String,
     local: Option<&std::path::Path>,
 ) -> Result<Record> {
-    let before = revision(key)?;
-    let Some(display_name) = string(key, "DisplayName", 1024)? else {
+    let before = key.revision()?;
+    let Some(display_name) = key.string("DisplayName", 1024)? else {
         return Ok(Record::NoDisplayName);
     };
-    let location = string(key, "InstallLocation", 4096)?;
+    let location = key.string("InstallLocation", 4096)?;
     let mut record = Registration {
         source,
         key: name,
         name: display_name,
         install_location: location.map(PathBuf::from),
         profile: None,
-        publisher: string(key, "Publisher", 1024)?,
-        version: string(key, "DisplayVersion", 1024)?,
+        publisher: key.string("Publisher", 1024)?,
+        version: key.string("DisplayVersion", 1024)?,
     };
     if let Some(local) = local
         && let Some(layout) = super::BrowserLayout::registered(&record)
@@ -200,81 +175,12 @@ fn record(
     if !super::valid_registration(&record) {
         return Err(Error::Invalid("Unsupported registration metadata.".into()));
     }
-    if revision(key)? != before {
+    if key.revision()? != before {
         return Err(Error::Invalid(
             "Registration changed while being read.".into(),
         ));
     }
     Ok(Record::Application(record))
-}
-
-fn revision(key: &Key) -> Result<(u32, u32)> {
-    let mut time = FILETIME::default();
-    // The retained local key and timestamp output remain alive through this metadata-only call.
-    let code = unsafe {
-        RegQueryInfoKeyW(
-            key.0,
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            std::ptr::null(),
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            std::ptr::null_mut(),
-            &mut time,
-        )
-    };
-    if code != ERROR_SUCCESS {
-        return Err(Error::Invalid("Registration revision unavailable.".into()));
-    }
-    Ok((time.dwHighDateTime, time.dwLowDateTime))
-}
-
-fn string(key: &Key, name: &str, max_bytes: usize) -> Result<Option<String>> {
-    let name: Vec<_> = name.encode_utf16().chain(Some(0)).collect();
-    let mut buffer = [0u16; 4096];
-    let mut bytes = std::mem::size_of_val(&buffer) as u32;
-    // REG_SZ only: never expand environment references, read commands or accept arbitrary value types.
-    let code = unsafe {
-        RegGetValueW(
-            key.0,
-            std::ptr::null(),
-            name.as_ptr(),
-            RRF_RT_REG_SZ | RRF_NOEXPAND,
-            std::ptr::null_mut(),
-            buffer.as_mut_ptr().cast(),
-            &mut bytes,
-        )
-    };
-    if code == ERROR_FILE_NOT_FOUND {
-        return Ok(None);
-    }
-    if code != ERROR_SUCCESS
-        || bytes as usize > std::mem::size_of_val(&buffer)
-        || !bytes.is_multiple_of(2)
-    {
-        return Err(Error::Invalid(
-            "Registration value is unavailable or unsupported.".into(),
-        ));
-    }
-    let units = &buffer[..bytes as usize / 2];
-    let units = units
-        .strip_suffix(&[0])
-        .ok_or_else(|| Error::Invalid("Unterminated registration value.".into()))?;
-    if units.contains(&0) {
-        return Err(Error::Invalid("Embedded registration terminator.".into()));
-    }
-    let text = String::from_utf16(units)
-        .map_err(|_| Error::Invalid("Registration text is not Unicode.".into()))?;
-    if text.len() > max_bytes || text.chars().any(char::is_control) {
-        return Err(Error::Invalid(
-            "Registration text exceeds its supported bounds.".into(),
-        ));
-    }
-    Ok((!text.trim().is_empty()).then_some(text))
 }
 
 pub(super) fn generic_roots() -> Result<Vec<(u64, u64)>> {

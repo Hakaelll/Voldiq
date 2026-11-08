@@ -8,6 +8,9 @@ use voldiq_core::{
 
 #[path = "snapshots/git_fixture.rs"]
 mod git_fixture;
+#[cfg(windows)]
+#[path = "snapshots/system_storage_fixture.rs"]
+mod system_storage_fixture;
 
 fn capture(path: &Path) -> Index {
     scan(
@@ -2669,6 +2672,8 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     let indexed_space = voldiq_core::space::summarize(&account_index, &loading)
         .unwrap()
         .unwrap();
+    #[cfg(windows)]
+    system_storage_fixture::verify();
     assert_eq!(indexed_space.logical_paths.0, 16_384);
     assert_eq!(
         (

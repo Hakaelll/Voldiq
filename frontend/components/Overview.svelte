@@ -2,6 +2,7 @@
   import type { GraphicCapture } from '../lib/graphic-export';
   import StorageMap from './StorageMap.svelte';
   import SpaceAccount from './SpaceAccount.svelte';
+  import SystemStorage from './SystemStorage.svelte';
   import RecoveryCopies from './RecoveryCopies.svelte';
   import DeviceHealth from './DeviceHealth.svelte';
   import Applications from './Applications.svelte';
@@ -410,7 +411,7 @@
       <details class="overview-diagnostics">
         <summary>Space & drive diagnostics</summary>
         <div>
-          <SpaceAccount {indexId} {paused} /><DeviceHealth {indexId} {paused} /><RecoveryCopies
+          <SpaceAccount {indexId} {paused} /><SystemStorage {indexId} {paused} /><DeviceHealth {indexId} {paused} /><RecoveryCopies
             {indexId}
             {paused}
           />

@@ -1,6 +1,7 @@
 import type { HistoryClip, HistoryClipRequest } from './history-clip';
 import type { IndexId } from './index-context';
 import type { SpaceReport } from './space-account';
+import type { SystemStorageReport } from './system-storage';
 import type { RecoveryReport } from './recovery';
 import type { DeviceHealthReport } from './device-health';
 import type { GameLibraryReport } from './game-libraries';
@@ -66,6 +67,21 @@ export const inspectionQueries = createQueryRunner<
     }
     return invoke<FileInspection | null>('query_file_inspection', { ...args, inspection });
   },
+  cancel: async (family, requestId) =>
+    invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+});
+
+export const systemStorageQueries = createQueryRunner<
+  SystemStorageReport,
+  { indexId: IndexId },
+  'system_storage'
+>('system_storage', {
+  run: async (_family, requestId, input) =>
+    invoke<SystemStorageReport | null>('query_system_storage', {
+      ...input,
+      requestId,
+      epoch: await querySession(),
+    }),
   cancel: async (family, requestId) =>
     invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
 });

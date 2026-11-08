@@ -12,6 +12,8 @@ pub mod cleanup_stage;
 pub(crate) mod owned_file;
 pub mod recycle_bin;
 #[cfg(windows)]
+pub(crate) mod registry;
+#[cfg(windows)]
 pub(crate) mod security;
 mod storage;
 pub use storage::storage_seek_penalty;

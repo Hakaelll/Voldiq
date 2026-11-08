@@ -1,0 +1,118 @@
+{
+  "checkedUtc": "2026-11-08T02:17:46.1347612Z",
+  "startedUtc": "2026-11-08T01:59:41.2348037Z",
+  "checkoutCommit": "dfac345f1b3360f83713bb1cac044a0f9aa63c97",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 4.294
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 22.123
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 2.281
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 15.493
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1025.304
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 15.283
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/applications/registry.rs",
+      "sha256": "F7854F615BCC5D6DA765632523855A1FF0027B8415F480390E8183E7A316AB0F"
+    },
+    {
+      "path": "crates/voldiq-core/src/space.rs",
+      "sha256": "A157F776ABE76DB1920ABB7AECCCD3263A8E97330AAC70F652FD9B9E3EC3FFAB"
+    },
+    {
+      "path": "crates/voldiq-core/src/space/system.rs",
+      "sha256": "B03C0066514D1A013E64E343987E078AB29BE3274C283259D2DECB45E0DECA0D"
+    },
+    {
+      "path": "crates/voldiq-core/src/space/system/native.rs",
+      "sha256": "94C60C2F8A7B2A193DD21D1E7D43746BFEF9DE5C7F55E80FCA71534DE20F63C8"
+    },
+    {
+      "path": "crates/voldiq-core/src/windows.rs",
+      "sha256": "DFEB75C4A4A2FA02CE4D431CF0E38E59ADDD4F1D73A7286D67C81CECB9C1828F"
+    },
+    {
+      "path": "crates/voldiq-core/src/windows/registry.rs",
+      "sha256": "7F7F0CB5205C2F5AB776BD43ED1C792A4C7251FF58CBCA28FBCF2BCF8CA1D31F"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "D83A79ED35A68986BDD7F794A02A54282C39FB4EE5DE47C867DE066D0433806C"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots/system_storage_fixture.rs",
+      "sha256": "E7CD6963908E1ADD906D2A1E41AE9B5FCEBD7E866F3A42FAAC8E1C9F37C3CA6F"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "19C57131F8E49053A466DE81824C61967B71B55A5D30E1422756E68E920D981D"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "73BE498B4F355A09C35B06FEC85A3CD3653FD49EE1F456BDF6B046BAFC77FFDD"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "7F1287126673E6ADD97E8AD6A52C1DF46B603BF2F2DF7DCFCB596346CFED51E3"
+    },
+    {
+      "path": "frontend/components/Overview.svelte",
+      "sha256": "AC35D0BE51C931D1F9718539EECCA1FE393CD1BE5A0617C1335640538022524A"
+    },
+    {
+      "path": "frontend/components/SystemStorage.svelte",
+      "sha256": "BCE877BBEB6943F78D21AEEF06CCC5E39B33AADB0DC93F4EFAC3EF5CECF9246E"
+    },
+    {
+      "path": "frontend/lib/queries.ts",
+      "sha256": "E94297CEF3156CA2E7F79E9DC2E0F79CB748D37254BB995C6D39E3728E91EBCA"
+    },
+    {
+      "path": "frontend/lib/system-storage.ts",
+      "sha256": "F28B4E3B681AAE60DC72579196338593DC196767AFD0A6921C21218C69233D38"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "CDF85B9EFA0FA1547E00DABBF3F5C3D98C452406712D246B47EAC1405D76488A"
+    },
+    {
+      "path": "src-tauri/src/query_commands.rs",
+      "sha256": "591BF7CA742FCC5E29136C69E9194FB10787F9BC13D7E6DC86343D4CE0BE0BC0"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "limits": "The retained history flow checks owned indexed system paths, unknown and outside-scope results, Docker and WSL registration matches, hard links, and a real metadata-only check on an owned scan. Populated native rendering, pointer, keyboard, scaling and clean-machine installation remain manual."
+}

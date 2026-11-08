@@ -3,6 +3,8 @@
 #[cfg(windows)]
 mod native;
 mod reconcile;
+#[cfg(windows)]
+pub mod system;
 use crate::{Error, Result};
 pub use reconcile::{
     Accounting, Allocation, AllocationReason, Coverage, Indexed, Report, Residual, ResidualReason,
