@@ -45,6 +45,8 @@ mod native;
 #[cfg(windows)]
 pub(crate) use native::{read_indexed_manifest, read_indexed_prefix};
 
+pub mod file_use;
+
 pub fn inspect(
     index: &Index,
     id: NodeId,

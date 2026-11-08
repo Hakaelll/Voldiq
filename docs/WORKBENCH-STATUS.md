@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## File use on Windows
+
+Inspect file → Check file use asks Windows Restart Manager about the selected live file name. The report lists application names and process IDs at the time of the check. The query pins and rechecks the indexed file and its path, does not read its contents and releases the index lock before the Windows call. It omits Voldiq's own process. An empty response covers only what Restart Manager found for that name. Sharing conflicts, paths beyond the check's length limit, responses beyond 128 records and Windows errors have separate incomplete states. Cancelling discards the result while an in-flight Windows call finishes. Space account points to the file inspector. Process names and IDs are diagnostic information, with no application-close command. [Resource registration](https://learn.microsoft.com/en-us/windows/win32/api/restartmanager/nf-restartmanager-rmregisterresources) · [Process list](https://learn.microsoft.com/en-us/windows/win32/api/restartmanager/nf-restartmanager-rmgetlist)
+
+All six integration checks passed with eight routine tests and zero Svelte diagnostics. The retained Windows fixture observed the PID of an owned process holding a temporary file and stopped reporting it after the process exited. The same flow checked the exclusive sharing conflict, cancellation, a replaced file, a directory and a sensitive path. Populated rendering, pointer and keyboard interaction and Windows scaling remain manual. [Source verification](../benchmarks/workbench-file-use-source-20261108.json)
+
 ## Recorded library evidence
 
 New desktop snapshots store the indexed references and verified fields needed to reconstruct game and media reports. Opening a snapshot uses the bytes and paths recorded at scan time. Older snapshots remain readable and show when library evidence is unavailable. CLI `libraries` and MCP `voldiq_libraries` use the same reports and require both Metadata and ReadContent. Headless scans capture evidence only with current content authorization, and queries restrict the report to the authorized snapshot and indexed folder. [CLI and MCP contract](MCP.md)

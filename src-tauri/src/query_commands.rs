@@ -580,6 +580,32 @@ pub(crate) async fn query_file_inspection(
 }
 
 #[tauri::command]
+pub(crate) async fn query_file_use(
+    index_id: IndexId,
+    id: NodeId,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<voldiq_core::inspection::file_use::Report>, String> {
+    run_index_job(
+        index_id,
+        epoch,
+        QueryFamily::FileInspection,
+        request_id,
+        engine.inner().clone(),
+        move |shared, cancel| {
+            let target = {
+                let index = shared.read().map_err(|error| error.to_string())?;
+                voldiq_core::inspection::file_use::Target::from_index(&index, id)
+                    .map_err(|error| error.to_string())?
+            };
+            target.read(cancel).map_err(|error| error.to_string())
+        },
+    )
+    .await
+}
+
+#[tauri::command]
 pub(crate) async fn query_media_libraries(
     index_id: IndexId,
     query: voldiq_core::libraries::Query,

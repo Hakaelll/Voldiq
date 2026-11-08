@@ -4,6 +4,9 @@ use voldiq_core::agents::{Capability, Limits, Policy, Registry};
 #[cfg(windows)]
 #[path = "agents/archive_fixture.rs"]
 mod archive_fixture;
+#[cfg(windows)]
+#[path = "agents/file_use_fixture.rs"]
+mod file_use_fixture;
 
 fn policy(root: &std::path::Path, exclusions: Vec<PathBuf>) -> Policy {
     Policy::new(
@@ -188,6 +191,7 @@ fn scopes_reject_siblings_exclusions_missing_paths_and_changed_roots_without_dis
             );
             assert_eq!(archive("joliet.iso")["items"][0]["path"], "Información.txt");
             assert!(!allowed.join("folder").exists());
+            file_use_fixture::verify(&index, id("report.txt"), &allowed.join("report.txt"));
             assert!(inspect(&index, id("AUTH.JSON"), Request::Preview, &cancel).is_err());
             assert!(inspect(&index, NodeId(0), Request::Preview, &cancel).is_err());
             assert!(
@@ -204,6 +208,15 @@ fn scopes_reject_siblings_exclusions_missing_paths_and_changed_roots_without_dis
             std::fs::rename(&download, allowed.join("original-download.html")).unwrap();
             std::fs::write(&download, markup).unwrap();
             assert!(inspect(&index, id("download.html"), Request::Preview, &cancel).is_err());
+            use voldiq_core::inspection::file_use::Target;
+            assert!(Target::from_index(&index, id("AUTH.JSON")).is_err());
+            assert!(Target::from_index(&index, NodeId(0)).is_err());
+            assert!(
+                Target::from_index(&index, id("download.html"))
+                    .unwrap()
+                    .read(&cancel)
+                    .is_err()
+            );
         }
         let safety_state = tempfile::tempdir().unwrap();
         let mut readers = Registry::open(&safety_state.path().join("agents.db")).unwrap();

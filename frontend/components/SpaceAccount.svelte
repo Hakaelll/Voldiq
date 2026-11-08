@@ -238,6 +238,7 @@
             copies may already be included in indexed allocation. Context values are not additional
             deductions or promised reclaimable space.
           </p>
+          <p>For a live file, open Inspect file and choose Check file use for a Windows observation.</p>
         </details>
       {/if}
     </div>{/if}

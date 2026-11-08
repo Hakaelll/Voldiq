@@ -84,7 +84,7 @@ pub(super) fn inspect(
     Ok(Some(result))
 }
 
-fn checked_parent(
+pub(super) fn checked_parent(
     index: &Index,
     entry: &Entry,
     path: &std::path::Path,
@@ -136,7 +136,7 @@ pub(crate) fn read_indexed_prefix(index: &Index, id: NodeId, limit: usize) -> Re
     Ok(bytes)
 }
 
-fn verify(file: &File, entry: &Entry, default_stream: bool) -> Result<()> {
+pub(super) fn verify(file: &File, entry: &Entry, default_stream: bool) -> Result<()> {
     let expected = entry.file_state.ok_or_else(changed)?;
     let metadata = file.metadata()?;
     let identity = windows::file_identity(file)?;

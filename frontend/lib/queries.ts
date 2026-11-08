@@ -27,7 +27,12 @@ function querySession(): Promise<number> {
   return session;
 }
 
-export type InspectionRequest = 'preview' | 'download_source' | 'download_url';
+export type InspectionRequest = 'preview' | 'download_source' | 'download_url' | 'file_use';
+
+export type FileUseReport =
+  | { kind: 'observed'; applications: { pid: number; name: string }[] }
+  | { kind: 'sharing_conflict' | 'path_limit' | 'busy' | 'process_limit' }
+  | { kind: 'windows_error'; code: number };
 
 export type FileInspection =
   | { kind: 'metadata' | 'download_unavailable'; reason: string }
@@ -41,19 +46,26 @@ export type FileInspection =
       limit: 'records' | 'bytes' | null;
     }
   | { kind: 'download_source'; domain: string }
-  | { kind: 'download_url'; url: string };
+  | { kind: 'download_url'; url: string }
+  | { kind: 'file_use'; report: FileUseReport };
 
 export const inspectionQueries = createQueryRunner<
   FileInspection,
   { indexId: IndexId; id: NodeId; inspection: InspectionRequest },
   'file_inspection'
 >('file_inspection', {
-  run: async (_family, requestId, input) =>
-    invoke<FileInspection | null>('query_file_inspection', {
+  run: async (_family, requestId, { inspection, ...input }) => {
+    const args = {
       ...input,
       epoch: await querySession(),
       requestId,
-    }),
+    };
+    if (inspection === 'file_use') {
+      const report = await invoke<FileUseReport | null>('query_file_use', args);
+      return report === null ? null : { kind: 'file_use', report };
+    }
+    return invoke<FileInspection | null>('query_file_inspection', { ...args, inspection });
+  },
   cancel: async (family, requestId) =>
     invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
 });

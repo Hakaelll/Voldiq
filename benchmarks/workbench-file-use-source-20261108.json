@@ -1,0 +1,110 @@
+{
+  "checkedUtc": "2026-11-08T00:41:10.8579546Z",
+  "startedUtc": "2026-11-08T00:29:09.8130425Z",
+  "checkoutCommit": "9b6b5095f5e10dfe40a0872a5d8f0e484000582e",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.906
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 7.571
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.76
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.359
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 629.356
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 77.074
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/Cargo.toml",
+      "sha256": "C5AB7C55B5BA8D7F8795E6509AE55FC7135D67E639386280329863B7194E62E0"
+    },
+    {
+      "path": "crates/voldiq-core/src/inspection.rs",
+      "sha256": "47FD69AD75C21DDE8C6C7AB0923591C55F9E6F9147298B60944F9EFD01AEE5A8"
+    },
+    {
+      "path": "crates/voldiq-core/src/inspection/file_use.rs",
+      "sha256": "3A5BF7A317EEE1E89C61ABD498B9BF2787B82AD9D3D2F3B272D62B7A28D58748"
+    },
+    {
+      "path": "crates/voldiq-core/src/inspection/file_use/windows.rs",
+      "sha256": "B403AF8FFCACFFFAEB6C9BA125A82FB226D32E3D760621C913DCDA303551689A"
+    },
+    {
+      "path": "crates/voldiq-core/src/inspection/native.rs",
+      "sha256": "8F8F4F2EE547DA3F88D3B03BD512600BE53F4AABBFA1B6B1AC4E0FE985A992BA"
+    },
+    {
+      "path": "crates/voldiq-core/tests/agents.rs",
+      "sha256": "8545B4A762E17153BA9AB70649449E764AAF436176717D8BC8A34863E1AD7EBF"
+    },
+    {
+      "path": "crates/voldiq-core/tests/agents/file_use_fixture.rs",
+      "sha256": "90FFCA1236DA68913296FCF4C7FAFF5F8A2E9F7210E00EEBE9C27236BD10A480"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "BAA85AC3A19234D98F1ADF60BBB54DF1683F540FBD99EF6EA2F9CD738A903634"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "BCEFA914AB59DD61BFCE2DEAB61BFDF5F17EDEC47A5F4F27AF7A1BFAA644CEF5"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "7201CCA5A146D867187C53BC8766B9A9F64B996524618B008BCFF71CD81B5B4D"
+    },
+    {
+      "path": "frontend/components/FileInspection.svelte",
+      "sha256": "ED036EC6FE4658862240A1141F48B29BE7E6FF5A7C2ED21E830375DF0D2065C1"
+    },
+    {
+      "path": "frontend/components/SpaceAccount.svelte",
+      "sha256": "CA085DEFC5CDD6B79595BDD1CD663DB737A90C25421F8DCB4BC3E5CA9F2B9094"
+    },
+    {
+      "path": "frontend/lib/queries.ts",
+      "sha256": "14139BE96C2446AF27B8630246783A1E4FDC63B0F848955327A1E93B101A0F2B"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "25C2C0C76318F386BCED993700620FBB4A8FF3C82CD82BB7A6178E5C67921DDB"
+    },
+    {
+      "path": "src-tauri/src/query_commands.rs",
+      "sha256": "3DFEC84F10777D96F92EB64E15A73F35ADD4DD5F1D6BC4056A817A56D90E6410"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "limits": "The retained inspection flow checks a real owned process holding a temporary file, sharing conflict, cancellation and stale-file rejection. Populated native rendering, pointer, keyboard, scaling and clean-machine installation remain manual."
+}

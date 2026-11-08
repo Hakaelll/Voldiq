@@ -1,7 +1,12 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, tick } from 'svelte';
   import type { IndexId } from '../lib/index-context';
-  import { inspectionQueries, type FileInspection, type InspectionRequest } from '../lib/queries';
+  import {
+    inspectionQueries,
+    type FileInspection,
+    type FileUseReport,
+    type InspectionRequest,
+  } from '../lib/queries';
   import { bytes, type NodeId } from '../lib/types';
 
   let { indexId, id, paused }: { indexId: IndexId; id: NodeId; paused: boolean } = $props();
@@ -10,16 +15,35 @@
   let url = $state<string | null>(null);
   let loading = $state<InspectionRequest | null>(null);
   let problem = $state('');
+  let fileUse = $state<FileUseReport | 'cancelled' | null>(null);
+  let checkFileUse = $state<HTMLButtonElement>();
   let archiveOffset = $state(0);
   const archivePage = 24;
   let generation = 0;
   let cancel = () => {};
 
+  const unavailable: Record<
+    Exclude<FileUseReport['kind'], 'observed' | 'windows_error'>,
+    string
+  > = {
+    sharing_conflict: 'Windows reported a sharing conflict. The process list is unavailable.',
+    path_limit: 'This path exceeds the length supported by this check.',
+    busy: 'A previous Windows check is still running. Try again shortly.',
+    process_limit: 'The process response exceeded this check’s 128-entry limit.',
+  };
+
   function stop(): void {
     generation++;
     cancel();
+    if (loading === 'file_use') fileUse = 'cancelled';
     loading = null;
     url = null;
+  }
+
+  async function cancelFileUse(): Promise<void> {
+    stop();
+    await tick();
+    checkFileUse?.focus();
   }
 
   async function inspect(inspection: InspectionRequest): Promise<void> {
@@ -35,12 +59,18 @@
       source = null;
       url = null;
     }
+    if (inspection === 'file_use') fileUse = null;
     const request = inspectionQueries.request({ indexId, id, inspection });
     cancel = request.cancel;
     try {
       const result = await request.result;
-      if (owner !== generation || result === null) return;
+      if (owner !== generation) return;
+      if (result === null) {
+        if (inspection === 'file_use') fileUse = 'cancelled';
+        return;
+      }
       if (inspection === 'preview') preview = result;
+      else if (result.kind === 'file_use') fileUse = result.report;
       else if (result.kind === 'download_url') url = result.url;
       else source = result;
     } catch (error) {
@@ -73,9 +103,41 @@
       disabled={paused || loading !== null}
       onclick={() => inspect('download_source')}>Check download source</button
     >
+    <button
+      bind:this={checkFileUse}
+      class="quiet-action"
+      disabled={paused || loading !== null}
+      onclick={() => inspect('file_use')}>Check file use</button
+    >
+    {#if loading === 'file_use'}
+      <button class="quiet-action" onclick={cancelFileUse}>Cancel check</button>
+    {/if}
   </div>
-  {#if loading}<p role="status">Reading…</p>{/if}
+  {#if loading}
+    <p role="status">{loading === 'file_use' ? 'Checking file use…' : 'Reading…'}</p>
+  {/if}
   {#if problem}<p class="inspection-error" role="alert">{problem}</p>{/if}
+  {#if fileUse === 'cancelled'}
+    <p role="status">File use check cancelled.</p>
+  {:else if fileUse?.kind === 'observed'}
+    <p role="status">
+      {fileUse.applications.length === 0
+        ? 'Restart Manager reported no other processes for this file name.'
+        : 'Processes reported for this file name'}
+    </p>
+    {#if fileUse.applications.length > 0}
+      <ul class="file-use-processes" aria-label="Reported processes">
+        {#each fileUse.applications as application}
+          <li><bdi>{application.name || 'Unnamed process'}</bdi> · PID {application.pid}</li>
+        {/each}
+      </ul>
+    {/if}
+    <p>Restart Manager checks one file name at a time and can miss open handles.</p>
+  {:else if fileUse?.kind === 'windows_error'}
+    <p role="status">File use check incomplete. Windows error {fileUse.code}.</p>
+  {:else if fileUse}
+    <p role="status">File use check incomplete. {unavailable[fileUse.kind]}</p>
+  {/if}
   {#if source?.kind === 'download_source'}
     <div class="download-source">
       <p>Recorded domain <strong>{source.domain}</strong></p>
@@ -168,6 +230,11 @@
 </details>
 
 <style>
+  .file-use-processes {
+    margin-block: 0;
+    padding-inline-start: 1.25rem;
+    overflow-wrap: anywhere;
+  }
   details {
     border-block: 1px solid var(--border);
     padding-block: 10px;
