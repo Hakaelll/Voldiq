@@ -186,6 +186,24 @@ async fn choose_folder() -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
+async fn choose_docker_disk() -> Result<Option<String>, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        rfd::FileDialog::new()
+            .set_title("Choose a Docker Desktop virtual disk")
+            .add_filter("Virtual hard disk", &["vhdx"])
+            .pick_file()
+            .map(|path| {
+                path.into_os_string()
+                    .into_string()
+                    .map_err(|_| "Disk path cannot be represented exactly.".to_owned())
+            })
+            .transpose()
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
 fn start_scan(
     path: String,
     options: ScanOptions,
@@ -843,6 +861,7 @@ fn main() {
             plan_commands::cancel_agent_plan,
             get_volumes,
             choose_folder,
+            choose_docker_disk,
             export_commands::save_report,
             export_commands::save_svg,
             export_commands::save_png,

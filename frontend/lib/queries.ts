@@ -73,7 +73,7 @@ export const inspectionQueries = createQueryRunner<
 
 export const systemStorageQueries = createQueryRunner<
   SystemStorageReport,
-  { indexId: IndexId },
+  { indexId: IndexId; dockerDisk: string | null },
   'system_storage'
 >('system_storage', {
   run: async (_family, requestId, input) =>

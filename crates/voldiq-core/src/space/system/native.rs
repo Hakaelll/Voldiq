@@ -1,4 +1,4 @@
-use super::{Locations, RegisteredDisk, RegistrationCoverage, WslLocations};
+use super::{Locations, PagingLocations, RegisteredDisk, RegistrationCoverage, WslLocations};
 use crate::{
     Error, Result,
     agents::ordinary_path,
@@ -14,14 +14,21 @@ use std::{
 use windows_sys::Win32::{
     Foundation::{ERROR_FILE_NOT_FOUND, ERROR_NO_MORE_ITEMS, ERROR_SUCCESS},
     Storage::FileSystem::GetVolumePathNameW,
-    System::Registry::{HKEY_CURRENT_USER, KEY_ENUMERATE_SUB_KEYS, KEY_QUERY_VALUE, RegEnumKeyExW},
+    System::Registry::{
+        HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_ENUMERATE_SUB_KEYS, KEY_QUERY_VALUE,
+        RegEnumKeyExW,
+    },
     UI::Shell::{FOLDERID_LocalAppData, FOLDERID_ProgramData, FOLDERID_Windows},
 };
 
 const WSL_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Lxss";
 const REGISTRATION_LIMIT: u32 = 128;
 
-pub(super) fn discover(root: &Path, cancel: &AtomicBool) -> Locations {
+pub(super) fn discover(
+    root: &Path,
+    selected_docker_disk: Option<PathBuf>,
+    cancel: &AtomicBool,
+) -> Locations {
     let windows_directory = windows::known_folder_location(&FOLDERID_Windows).ok();
     Locations {
         scan_volume_root: volume_root(root),
@@ -30,7 +37,47 @@ pub(super) fn discover(root: &Path, cancel: &AtomicBool) -> Locations {
         local_app_data: windows::known_folder_location(&FOLDERID_LocalAppData).ok(),
         program_data: windows::known_folder_location(&FOLDERID_ProgramData).ok(),
         wsl: wsl_locations(cancel),
+        paging: paging_locations(cancel),
+        selected_docker_disk,
     }
+}
+
+const MEMORY_MANAGEMENT: &str =
+    r"SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management";
+const PAGING_LIMIT: usize = 32;
+
+fn paging_locations(cancel: &AtomicBool) -> PagingLocations {
+    let mut result = PagingLocations {
+        coverage: RegistrationCoverage::Unavailable,
+        paths: Vec::new(),
+    };
+    if cancel.load(Ordering::Relaxed) {
+        return result;
+    }
+    let Ok(key) = Key::open(HKEY_LOCAL_MACHINE, MEMORY_MANAGEMENT, KEY_QUERY_VALUE) else {
+        return result;
+    };
+    let revision = key.revision().ok();
+    let Ok(Some(entries)) = key.multi_string("ExistingPageFiles") else {
+        return result;
+    };
+    result.coverage =
+        if entries.len() > PAGING_LIMIT || revision.is_none() || key.revision().ok() != revision {
+            RegistrationCoverage::Partial
+        } else {
+            RegistrationCoverage::Complete
+        };
+    for entry in entries.iter().take(PAGING_LIMIT) {
+        if cancel.load(Ordering::Relaxed) {
+            break;
+        }
+        let name = entry.strip_prefix(r"\??\").unwrap_or(entry);
+        match ordinary_path(Path::new(name)) {
+            Ok(path) if path.file_name().is_some() => result.paths.push(path),
+            _ => result.coverage = RegistrationCoverage::Partial,
+        }
+    }
+    result
 }
 
 fn volume_root(path: &Path) -> Option<PathBuf> {

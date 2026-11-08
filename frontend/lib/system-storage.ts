@@ -19,6 +19,7 @@ export type SystemStorageReport =
       indexed_at: number | null;
       scope_complete: boolean;
       docker_defaults_available: boolean;
+      paging_registry: 'complete' | 'partial' | 'unavailable';
       wsl_registrations: 'complete' | 'partial' | 'unavailable';
       items: {
         category: SystemStorageCategory;

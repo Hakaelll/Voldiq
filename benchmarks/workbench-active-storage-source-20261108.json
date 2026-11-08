@@ -1,0 +1,98 @@
+{
+  "checkedUtc": "2026-11-08T03:22:10.3161868Z",
+  "startedUtc": "2026-11-08T03:14:51.9090648Z",
+  "checkoutCommit": "dc3420334d4ffbba510d5adc5055c5d7a9993d8b",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.055
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 6.914
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.792
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.69
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 419.317
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 4.625
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/space/system.rs",
+      "sha256": "8E8B0A34929C296E6F005CAA79207C02C6E69A4AACADF6DFA2A1C1D603012913"
+    },
+    {
+      "path": "crates/voldiq-core/src/space/system/native.rs",
+      "sha256": "46084422FDB119E7FF1E8E94F1C51576F52A70831A5C66E391BA1AAFF8D67BD4"
+    },
+    {
+      "path": "crates/voldiq-core/src/windows/registry.rs",
+      "sha256": "3DDB802951E87668C7271F7528BAF3B949BA3CCF402AD51DCADF6D0852831E6C"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots/system_storage_fixture.rs",
+      "sha256": "FF67F31A4F3DEBD7506A14B281C1C9EF28B6B1B4E11D7C65A8F8DCC507F460CC"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "CF8123D3C32518ACB71306F92785CC35992BAAEDF78A9AF31B10630580558BBC"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "DA2D4C813F65398C95DB39B7A57AC713EBEEDE3262E824F66A2227F41A0F9B21"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "3124CC0223BFFED0C392F60DEA00DC789E2D56ED151DDF67832412A18AB61AA4"
+    },
+    {
+      "path": "frontend/components/SystemStorage.svelte",
+      "sha256": "C7315E05DADCBF831F022F07B32566A0B88F8E612752BD9A4F16EA227067C920"
+    },
+    {
+      "path": "frontend/lib/queries.ts",
+      "sha256": "87605AA1B0B4FC61DACDB53982AF306B851F4C9EAD3E0167A6B33DB27406F26B"
+    },
+    {
+      "path": "frontend/lib/system-storage.ts",
+      "sha256": "6096BF5C3354822A0025F1C8274E8883CFE50E1A006954EAFD70B07E991FA1F1"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "7741C07BA7877BDC50CAAD2A8FD6CCA8243E439B76B792AC595C286B511055BD"
+    },
+    {
+      "path": "src-tauri/src/query_commands.rs",
+      "sha256": "4F0B50E0BA6BD10A7DA4922BF1B16B85EADC9BF1B46C7047B3CC604D6C2E37AE"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "limits": "The retained history flow checks scoped active paging paths, default overlap, manual Docker disk evidence and outside-scope omission. Actual installed virtual disks and native picker and visual interaction remain manual. Populated native rendering, pointer, keyboard, scaling and clean-machine installation remain manual."
+}

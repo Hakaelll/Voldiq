@@ -86,6 +86,39 @@ impl Key {
         }
     }
 
+    pub(crate) fn multi_string(&self, name: &str) -> Result<Option<Vec<String>>> {
+        let mut buffer = [0u16; 4096];
+        let capacity = std::mem::size_of_val(&buffer) as u32;
+        let Some(bytes) = self.value(
+            name,
+            RRF_RT_REG_MULTI_SZ,
+            buffer.as_mut_ptr().cast(),
+            capacity,
+        )?
+        else {
+            return Ok(None);
+        };
+        if !bytes.is_multiple_of(2) {
+            return Err(invalid());
+        }
+        let units = buffer[..bytes as usize / 2]
+            .strip_suffix(&[0])
+            .ok_or_else(invalid)?;
+        if units.is_empty() || units == [0] {
+            return Ok(Some(Vec::new()));
+        }
+        let list = units.strip_suffix(&[0]).ok_or_else(invalid)?;
+        list.split(|&unit| unit == 0)
+            .map(|part| {
+                if part.is_empty() {
+                    return Err(invalid());
+                }
+                String::from_utf16(part).map_err(|_| invalid())
+            })
+            .collect::<Result<Vec<_>>>()
+            .map(Some)
+    }
+
     fn value(
         &self,
         name: &str,

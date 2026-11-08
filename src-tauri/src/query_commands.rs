@@ -863,18 +863,19 @@ pub(crate) async fn query_space_account(
 #[tauri::command]
 pub(crate) async fn query_system_storage(
     index_id: IndexId,
+    docker_disk: Option<std::path::PathBuf>,
     epoch: u64,
     request_id: u64,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<Option<voldiq_core::space::system::Report>, String> {
-    run_query(
+    run_index_job(
         index_id,
         epoch,
         QueryFamily::SystemStorage,
         request_id,
         engine.inner().clone(),
-        |index, cancelled| {
-            voldiq_core::space::system::read_desktop(index, cancelled)
+        move |shared, cancelled| {
+            voldiq_core::space::system::read_desktop(shared, docker_disk, cancelled)
                 .map_err(|error| error.to_string())
         },
     )

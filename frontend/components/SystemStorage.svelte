@@ -16,6 +16,10 @@
   let reload = $state(0);
   let cancelRead = () => {};
   let settingsError = $state('');
+  let diskError = $state('');
+  let pickingDisk = $state(false);
+  let selectedDisk = $state.raw<{ owner: IndexId; path: string } | null>(null);
+  const diskPath = $derived(selectedDisk?.owner === indexId ? selectedDisk.path : null);
 
   const missing: Record<Exclude<SystemStorageObservation['kind'], 'indexed'>, string> = {
     not_observed: 'Not observed in the index',
@@ -23,7 +27,7 @@
     location_unavailable: 'Location unavailable',
   };
   const help = {
-    paging: 'Default paging or swap location on the scanned volume.',
+    paging: 'Paging and swap observations on indexed paths.',
     hibernation: 'Windows stores hibernation and Fast Startup data here.',
     previous_windows: 'Windows.old can support rollback. Manage it in Windows Storage settings.',
     component_store:
@@ -38,7 +42,7 @@
       model = { kind: 'idle' };
       return;
     }
-    const request = systemStorageQueries.request({ indexId });
+    const request = systemStorageQueries.request({ indexId, dockerDisk: diskPath });
     cancelRead = request.cancel;
     model = { kind: 'loading' };
     let current = true;
@@ -62,6 +66,21 @@
       await invoke('open_windows_storage');
     } catch (error) {
       settingsError = String(error);
+    }
+  }
+
+  async function chooseDisk(): Promise<void> {
+    if (pickingDisk) return;
+    const owner = indexId;
+    diskError = '';
+    pickingDisk = true;
+    try {
+      const path = await invoke<string | null>('choose_docker_disk');
+      if (path && owner === indexId && open && !paused) selectedDisk = { owner, path };
+    } catch (error) {
+      if (owner === indexId) diskError = String(error);
+    } finally {
+      pickingDisk = false;
     }
   }
 </script>
@@ -105,6 +124,13 @@
           <button onclick={() => (reload += 1)}>Refresh</button>
         </div>
         <p class="system-note">
+          {#if report.paging_registry === 'unavailable'}The Windows paging registry was unavailable.
+            Default paths are still checked.
+          {:else if report.paging_registry === 'partial'}The Windows paging registry returned
+            partial results.
+          {:else}Existing paging files reported by Windows are matched to this scan.{/if}
+        </p>
+        <p class="system-note">
           These observations come from the scan and can overlap with its totals. Sizes inside
           virtual disks and recoverable space are unmeasured.
         </p>
@@ -145,8 +171,21 @@
           {/if}
           {#if !report.docker_defaults_available}Some Docker defaults were unavailable.
           {/if}
-          Custom Docker locations are outside the default-path check.
+          For a custom Docker location, select the VHDX shown in Docker Desktop’s disk settings.
         </p>
+        <div class="system-disk-actions">
+          <button class="quiet-action" disabled={pickingDisk} onclick={chooseDisk}
+            >Choose Docker disk</button
+          >
+          {#if diskPath}<button
+              class="quiet-action"
+              onclick={() => {
+                selectedDisk = null;
+                diskError = '';
+              }}>Clear selected disk</button
+            >{/if}
+        </div>
+        {#if diskError}<p role="alert">{diskError}</p>{/if}
         <p class="system-note">
           {#if report.wsl_registrations === 'unavailable'}WSL registrations were unavailable.
           {:else if report.wsl_registrations === 'partial'}Current-user WSL registration coverage
@@ -171,6 +210,11 @@
   }
   .system-controls p {
     overflow-wrap: anywhere;
+  }
+  .system-disk-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
   }
   .system-list {
     max-height: 340px;

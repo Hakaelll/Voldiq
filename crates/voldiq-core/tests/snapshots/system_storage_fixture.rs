@@ -1,9 +1,13 @@
-use std::{fs, path::Path, sync::atomic::AtomicBool};
+use std::{
+    fs,
+    path::Path,
+    sync::{Arc, RwLock, atomic::AtomicBool},
+};
 use voldiq_core::space::{
     Bytes,
     system::{
-        Category, Locations, Observation, RegisteredDisk, RegistrationCoverage, Report,
-        WslLocations, describe, read_desktop,
+        Category, Locations, Observation, PagingLocations, RegisteredDisk, RegistrationCoverage,
+        Report, WslLocations, describe, read_desktop,
     },
 };
 
@@ -32,6 +36,8 @@ pub(super) fn verify() {
             .unwrap();
     }
     write(&root, "pagefile.sys", 19);
+    write(&root, "paging/memory.bin", 53);
+    write(&root, "custom/selected.vhdx", 59);
     write(&root, "HIBERFIL.SYS", 23);
     write(&root, "Local/Docker/wsl/disk/docker_data.vhdx", 29);
     write(&root, "Distros/linux/custom.vhdx", 31);
@@ -46,12 +52,22 @@ pub(super) fn verify() {
     .unwrap();
     let outside = temporary.path().join("observed-other");
     write(&outside, "external.vhdx", 47);
-    let locations = Locations {
+    let mut locations = Locations {
         scan_volume_root: Some(root.clone()),
         windows_volume_root: Some(root.clone()),
         windows_directory: Some(root.join("Windows")),
         local_app_data: Some(local.clone()),
         program_data: Some(program_data),
+        paging: PagingLocations {
+            coverage: RegistrationCoverage::Partial,
+            paths: vec![
+                root.join("pagefile.sys"),
+                root.join("paging/memory.bin"),
+                root.join("paging/missing.bin"),
+                outside.join("hidden-pagefile.sys"),
+            ],
+        },
+        selected_docker_disk: Some(root.join("custom/selected.vhdx")),
         wsl: WslLocations {
             coverage: RegistrationCoverage::Partial,
             disks: vec![
@@ -75,7 +91,7 @@ pub(super) fn verify() {
         },
     };
     let cancel = AtomicBool::new(false);
-    let mut index = super::capture(&root);
+    let index = super::capture(&root);
     let report = describe(&index, &locations, &cancel).unwrap().unwrap();
     let serialized = serde_json::to_string(&report).unwrap();
     assert!(!serialized.contains("Outside private distro") && !serialized.contains("lookalike"));
@@ -83,6 +99,7 @@ pub(super) fn verify() {
         items,
         scope_complete,
         docker_defaults_available,
+        paging_registry,
         wsl_registrations,
         ..
     } = report
@@ -90,6 +107,7 @@ pub(super) fn verify() {
         panic!("Expected live report")
     };
     assert!(scope_complete && docker_defaults_available);
+    assert_eq!(paging_registry, RegistrationCoverage::Partial);
     assert_eq!(wsl_registrations, RegistrationCoverage::Partial);
     let logical = |label: &str| match &items
         .iter()
@@ -103,8 +121,27 @@ pub(super) fn verify() {
         } => *bytes,
         other => panic!("Expected indexed bytes for {label}: {other:?}"),
     };
-    assert_eq!(items.len(), 8);
-    assert_eq!(logical("Paging file"), 19);
+    assert_eq!(items.len(), 11);
+    assert_eq!(logical("Existing paging file"), 19);
+    assert!(!items.iter().any(|item| item.label == "Paging file"));
+    assert!(items.iter().any(|item| item.label == "Existing paging file"
+        && matches!(
+            item.observation,
+            Observation::Indexed {
+                logical: Bytes(53),
+                ..
+            }
+        )));
+    assert!(items.iter().any(|item| item.label == "Existing paging file"
+        && matches!(item.observation, Observation::NotObserved)));
+    assert_eq!(
+        items
+            .iter()
+            .filter(|item| item.label == "Existing paging file")
+            .count(),
+        3
+    );
+    assert_eq!(logical("Docker disk · manually selected"), 59);
     assert_eq!(logical("Hibernation file"), 23);
     assert_eq!(logical("Windows component store"), 13);
     assert_eq!(logical("Previous Windows installation"), 17);
@@ -127,11 +164,42 @@ pub(super) fn verify() {
             .any(|item| item.category == Category::Docker && item.label == "docker-desktop-data")
     );
 
+    locations.selected_docker_disk = Some(local.join("Docker/wsl/disk/docker_data.vhdx"));
+    let Some(Report::Live { items, .. }) = describe(&index, &locations, &cancel).unwrap() else {
+        panic!("Expected selected-disk report")
+    };
+    assert_eq!(
+        items
+            .iter()
+            .filter(|item| matches!(
+                item.observation,
+                Observation::Indexed {
+                    logical: Bytes(29),
+                    ..
+                }
+            ))
+            .count(),
+        1
+    );
+    assert!(
+        items
+            .iter()
+            .any(|item| item.label == "Docker disk · manually selected"
+                && matches!(
+                    item.observation,
+                    Observation::Indexed {
+                        logical: Bytes(29),
+                        ..
+                    }
+                ))
+    );
+    locations.selected_docker_disk = Some(root.join("custom/selected.vhdx"));
+
     let nested = super::capture(&root.join("lookalike"));
     let Some(Report::Live { items, .. }) = describe(&nested, &locations, &cancel).unwrap() else {
         panic!("Expected scoped report")
     };
-    assert_eq!(items.len(), 5);
+    assert_eq!(items.len(), 6);
     assert!(
         items
             .iter()
@@ -139,6 +207,7 @@ pub(super) fn verify() {
     );
     let missing = Locations {
         scan_volume_root: Some(root.join("not-indexed")),
+        selected_docker_disk: Some(outside.join("external.vhdx")),
         ..locations
     };
     let Some(Report::Live { items, .. }) = describe(&index, &missing, &cancel).unwrap() else {
@@ -148,14 +217,16 @@ pub(super) fn verify() {
         items.iter().any(|item| item.label == "Paging file"
             && matches!(item.observation, Observation::NotObserved))
     );
-    let Some(Report::Live { items, .. }) = read_desktop(&index, &cancel).unwrap() else {
-        panic!("Expected native location check")
-    };
     assert!(
         items
             .iter()
-            .take(5)
-            .all(|item| matches!(item.observation, Observation::OutsideScope))
+            .any(|item| item.label == "Docker disk · manually selected"
+                && matches!(item.observation, Observation::OutsideScope))
+    );
+    assert!(
+        !serde_json::to_string(&items)
+            .unwrap()
+            .contains("external.vhdx")
     );
     assert!(
         describe(&index, &missing, &AtomicBool::new(true))
@@ -218,9 +289,19 @@ pub(super) fn verify() {
         "Sensitive files are excluded from cleanup."
     );
 
-    index.snapshot_id = Some(1);
+    let shared = Arc::new(RwLock::new(index));
+    let Some(Report::Live { items, .. }) = read_desktop(&shared, None, &cancel).unwrap() else {
+        panic!("Expected native location check")
+    };
+    assert!(
+        items
+            .iter()
+            .take(5)
+            .all(|item| matches!(item.observation, Observation::OutsideScope))
+    );
+    shared.write().unwrap().snapshot_id = Some(1);
     assert!(matches!(
-        read_desktop(&index, &cancel).unwrap(),
+        read_desktop(&shared, None, &cancel).unwrap(),
         Some(Report::RecordedScan)
     ));
 }

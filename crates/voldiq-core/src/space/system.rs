@@ -3,9 +3,10 @@
 mod native;
 
 use crate::{
-    Kind, NodeId, Result,
+    Error, Kind, NodeId, Result,
     agents::ordinary_path,
     index::{ACCOUNTING_VERSION, Index},
+    scanner::SharedIndex,
 };
 use serde::Serialize;
 use std::{
@@ -22,7 +23,14 @@ pub struct Locations {
     pub windows_directory: Option<PathBuf>,
     pub local_app_data: Option<PathBuf>,
     pub program_data: Option<PathBuf>,
+    pub paging: PagingLocations,
+    pub selected_docker_disk: Option<PathBuf>,
     pub wsl: WslLocations,
+}
+
+pub struct PagingLocations {
+    pub coverage: RegistrationCoverage,
+    pub paths: Vec<PathBuf>,
 }
 
 pub struct WslLocations {
@@ -52,6 +60,7 @@ pub enum Report {
         indexed_at: Option<u64>,
         scope_complete: bool,
         docker_defaults_available: bool,
+        paging_registry: RegistrationCoverage,
         wsl_registrations: RegistrationCoverage,
         items: Vec<Item>,
     },
@@ -94,6 +103,14 @@ struct Target {
     label: String,
     path: Option<PathBuf>,
     kind: Kind,
+    visibility: Visibility,
+}
+
+#[derive(PartialEq, Eq)]
+enum Visibility {
+    Always,
+    InScope,
+    IndexedOnly,
 }
 
 impl Locations {
@@ -135,15 +152,38 @@ impl Locations {
                 Kind::Directory,
             ),
         ];
-        let mut targets: Vec<_> = fixed
-            .into_iter()
-            .map(|(category, label, base, relative, kind)| Target {
-                category,
-                label: label.into(),
-                path: base.as_ref().map(|base| base.join(relative)),
-                kind,
-            })
-            .collect();
+        let mut targets = Vec::new();
+        targets.extend(self.paging.paths.iter().map(|path| Target {
+            category: Category::Paging,
+            label: "Existing paging file".into(),
+            path: Some(path.clone()),
+            kind: Kind::File,
+            visibility: Visibility::InScope,
+        }));
+        targets.extend(
+            fixed
+                .into_iter()
+                .map(|(category, label, base, relative, kind)| Target {
+                    category,
+                    label: label.into(),
+                    path: base.as_ref().map(|base| base.join(relative)),
+                    kind,
+                    visibility: Visibility::Always,
+                }),
+        );
+        if let Some(path) = &self.selected_docker_disk {
+            targets.push(Target {
+                category: Category::Docker,
+                label: "Docker disk · manually selected".into(),
+                path: path
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .is_some_and(|ext| ext.eq_ignore_ascii_case("vhdx"))
+                    .then(|| path.clone()),
+                kind: Kind::File,
+                visibility: Visibility::Always,
+            });
+        }
         for (label, base, relative) in [
             (
                 "Docker Desktop · WSL 2",
@@ -167,6 +207,7 @@ impl Locations {
                     label: label.into(),
                     path: Some(base.join(relative)),
                     kind: Kind::File,
+                    visibility: Visibility::IndexedOnly,
                 });
             }
         }
@@ -183,6 +224,7 @@ impl Locations {
                 label: disk.name.clone(),
                 path: Some(disk.path.clone()),
                 kind: Kind::File,
+                visibility: Visibility::IndexedOnly,
             });
         }
         targets
@@ -200,16 +242,36 @@ enum Found {
     Ambiguous,
 }
 
-pub fn read_desktop(index: &Index, cancel: &AtomicBool) -> Result<Option<Report>> {
+pub fn read_desktop(
+    shared: &SharedIndex,
+    selected_docker_disk: Option<PathBuf>,
+    cancel: &AtomicBool,
+) -> Result<Option<Report>> {
     if cancel.load(Ordering::Relaxed) {
         return Ok(None);
     }
-    if index.snapshot_id.is_some() {
-        return Ok(Some(Report::RecordedScan));
+    let (root, pin) = {
+        let index = shared
+            .read()
+            .map_err(|error| Error::Invalid(error.to_string()))?;
+        if index.snapshot_id.is_some() {
+            return Ok(Some(Report::RecordedScan));
+        }
+        (index.root.clone(), index.pin_folder(NodeId(0))?)
+    };
+    let locations = native::discover(&root, selected_docker_disk, cancel);
+    let index = shared
+        .read()
+        .map_err(|error| Error::Invalid(error.to_string()))?;
+    if index.root != root
+        || index.root_identity != Some(pin.identity())
+        || index.snapshot_id.is_some()
+    {
+        return Err(Error::Invalid(
+            "Scan root changed. Check system storage again.".into(),
+        ));
     }
-    let _root = index.pin_folder(NodeId(0))?;
-    let locations = native::discover(&index.root, cancel);
-    describe(index, &locations, cancel)
+    describe(&index, &locations, cancel)
 }
 
 /// Interpret the supplied locations against one index, without reopening target paths.
@@ -275,11 +337,12 @@ pub fn describe(
         .as_ref()
         .is_some_and(|value| value.accounting_version == ACCOUNTING_VERSION);
     for (target, path) in targets {
-        let dynamic = matches!(target.category, Category::Docker | Category::Wsl);
-        if dynamic
-            && path
-                .as_ref()
-                .is_none_or(|path| !path.starts_with(&root) || !emitted.insert(path.clone()))
+        let within = path.as_ref().is_some_and(|path| path.starts_with(&root));
+        if target.visibility != Visibility::Always && !within
+            || within
+                && path
+                    .as_ref()
+                    .is_some_and(|path| !emitted.insert(path.clone()))
         {
             continue;
         }
@@ -314,7 +377,7 @@ pub fn describe(
                 _ => Observation::NotObserved,
             },
         };
-        if !dynamic
+        if target.visibility != Visibility::IndexedOnly
             || matches!(
                 observation,
                 Observation::Indexed { .. } | Observation::LocationUnavailable
@@ -339,6 +402,7 @@ pub fn describe(
             .is_some_and(|value| value.complete),
         docker_defaults_available: locations.local_app_data.is_some()
             && locations.program_data.is_some(),
+        paging_registry: locations.paging.coverage,
         wsl_registrations: locations.wsl.coverage,
         items,
     }))
