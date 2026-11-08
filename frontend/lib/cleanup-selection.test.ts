@@ -1,4 +1,10 @@
 import { createScanControl, type ScanControlView } from './scan-control.ts';
+import {
+  filterCommands,
+  groupCommands,
+  paletteCommands,
+  paletteFocusIndex,
+} from './command-palette.ts';
 import { historicalRects } from './history-geometry.ts';
 import { paintHistoryFrame, gifPacket, webmPacket } from './history-export.ts';
 import type { HistoryClip, GifProgress, HistoryGifRequest } from './history-clip.ts';
@@ -58,6 +64,20 @@ function item(id: number): CleanupPreview['preview']['items'][number] {
 }
 
 test('frontend interactions preserve ownership and bounded motion', async () => {
+  const commands = paletteCommands(null, false, false);
+  assert.deepEqual(filterCommands(commands, '  AJÚSTES ').map((command) => command.action), [
+    { kind: 'navigate', view: 'settings' },
+  ]);
+  assert.deepEqual(filterCommands(commands, 'files').map((command) => command.id), [
+    'navigate:large',
+    'search',
+  ]);
+  assert.deepEqual(groupCommands(commands).map(({ group }) => group), ['actions', 'views']);
+  const settingsIndex = commands.findIndex((command) => command.id === 'navigate:settings');
+  assert.equal(commands[settingsIndex].disabled, false);
+  assert.equal(paletteFocusIndex('ArrowDown', settingsIndex, commands), 1);
+  assert.equal(paletteFocusIndex('ArrowUp', 1, commands), settingsIndex);
+  assert.equal(filterCommands(commands, 'unknown command').length, 0);
   const pauseViews: ScanControlView[] = [];
   let rejectLate: (error: Error) => void = () => {};
   let nativePauseState = 'running';

@@ -1,7 +1,14 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import { filterCommands, paletteFocusIndex, type PaletteCommand } from '../lib/command-palette';
+  import { onMount, tick } from 'svelte';
+  import {
+    filterCommands,
+    groupCommands,
+    paletteFocusIndex,
+    paletteGroups,
+    type PaletteCommand,
+  } from '../lib/command-palette';
   import type { CatalogState } from '../lib/workbench';
+  import Icon from './Icon.svelte';
   let {
     commands,
     catalog,
@@ -15,20 +22,49 @@
     onclose: () => void;
     onreload: () => void;
   } = $props();
-  let dialog: HTMLDialogElement, input: HTMLInputElement;
+  let dialog: HTMLDialogElement, input: HTMLInputElement, results: HTMLDivElement;
   let text = $state(''),
-    focused = $state(-1);
+    preferred = $state<string | null>(null);
   const matches = $derived(filterCommands(commands, text));
-  const visible = $derived(matches.slice(0, 50));
+  const groups = $derived(groupCommands(matches.slice(0, 50)));
+  const visible = $derived(groups.flatMap((group) => group.commands));
+  const active = $derived(
+    visible.find((command) => command.id === preferred && !command.disabled) ??
+      visible.find((command) => !command.disabled),
+  );
+
+  function optionId(command: PaletteCommand): string {
+    return `palette-option-${encodeURIComponent(command.id)}`;
+  }
+
   function choose(command: PaletteCommand): void {
     if (visible.includes(command) && !command.disabled) oncommand(command);
   }
+
+  async function handleSearchKey(event: KeyboardEvent): Promise<void> {
+    if (event.isComposing || event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      if (active) choose(active);
+      return;
+    }
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    const next = paletteFocusIndex(event.key, active ? visible.indexOf(active) : -1, visible);
+    if (next === null) return;
+    event.preventDefault();
+    const command = visible[next];
+    preferred = command.id;
+    await tick();
+    if (preferred === command.id && dialog.open)
+      document.getElementById(optionId(command))?.scrollIntoView({ block: 'nearest' });
+  }
+
   onMount(() => {
     dialog.showModal();
     input.focus();
-  });
-  onDestroy(() => {
-    if (dialog.open) dialog.close();
+    return () => {
+      if (dialog.open) dialog.close();
+    };
   });
 </script>
 
@@ -53,16 +89,10 @@
     }
   }}
   onkeydown={(event) => {
-    if (event.key === 'Escape') {
-      event.stopPropagation();
-      return;
-    }
-    if (event.target === input && (event.key === 'Home' || event.key === 'End')) return;
-    const next = paletteFocusIndex(event.key, focused, visible);
-    if (next !== null) {
+    if (event.key === 'Escape' && !event.isComposing) {
       event.preventDefault();
-      focused = next;
-      dialog.querySelectorAll<HTMLButtonElement>('[data-command]')[next]?.focus();
+      event.stopPropagation();
+      onclose();
     }
   }}
 >
@@ -70,44 +100,65 @@
     <h2 id="palette-title">Commands</h2>
     <button onclick={onclose} aria-label="Close command palette">Esc</button>
   </header>
-  <form
-    onsubmit={(event) => {
-      event.preventDefault();
-      const command = visible[focused] ?? visible.find((command) => !command.disabled);
-      if (command) choose(command);
-    }}
-  >
+  <div class="palette-search">
+    <Icon name="search" />
     <input
       bind:this={input}
       bind:value={text}
-      oninput={() => (focused = -1)}
+      oninput={() => {
+        preferred = null;
+        results.scrollTop = 0;
+      }}
+      onkeydown={handleSearchKey}
       type="search"
+      role="combobox"
       aria-label="Find a command, saved view or favorite"
-      placeholder="Search commands, views and favorite folders…"
+      aria-autocomplete="list"
+      aria-expanded="true"
+      aria-controls="palette-options"
+      aria-activedescendant={active ? optionId(active) : undefined}
+      placeholder="Search commands, views and favorites…"
       autocomplete="off"
       maxlength="200"
     />
-  </form>
+  </div>
   {#if catalog.kind === 'loading'}<p role="status">Loading saved workspaces…</p>
   {:else if catalog.kind === 'failed'}<p role="alert">
       {catalog.message} <button onclick={onreload}>Reload</button>
     </p>{/if}
-  <ul aria-label="Matching commands">
-    {#each visible as command, i (command.id)}<li>
-        <button
-          data-command
-          type="button"
-          disabled={command.disabled}
-          onfocus={() => (focused = i)}
-          onclick={() => choose(command)}
-        >
-          <strong>{command.label}</strong><span title={command.detail}>{command.detail}</span>
-        </button>
-      </li>{/each}
-  </ul>
-  <footer role="status">
-    {#if matches.length === 0}No matching commands.{:else}{visible.length} of {matches.length} commands{/if}<span
-      >↑ ↓ Navigate · Enter Select</span
-    >
+  <div class="palette-results" bind:this={results}>
+    <div id="palette-options" role="listbox" aria-label="Matching commands">
+      {#each groups as { group, commands: options } (group)}
+        <div role="group" aria-label={paletteGroups[group]}>
+          <div class="palette-group-name" aria-hidden="true">{paletteGroups[group]}</div>
+          {#each options as command (command.id)}
+            <button
+              type="button"
+              role="option"
+              id={optionId(command)}
+              tabindex="-1"
+              aria-selected={active === command}
+              disabled={command.disabled}
+              onpointerdown={(event) => {
+                if (event.button === 0) event.preventDefault();
+              }}
+              onclick={() => choose(command)}
+            >
+              <Icon name={command.icon} size={17} />
+              <strong title={command.label}>{command.label}</strong>
+              {#if command.detail}<span title={command.detail}>{command.detail}</span>{/if}
+            </button>
+          {/each}
+        </div>
+      {/each}
+    </div>
+    {#if matches.length === 0}<p class="palette-empty">No matching commands.</p>{/if}
+  </div>
+  <footer>
+    <span role="status">
+      {#if matches.length > visible.length}{visible.length} of {matches.length} results
+      {:else}{matches.length} {matches.length === 1 ? 'result' : 'results'}{/if}
+    </span>
+    <span><kbd>↑</kbd> <kbd>↓</kbd> Move <kbd>Enter</kbd> Open</span>
   </footer>
 </dialog>

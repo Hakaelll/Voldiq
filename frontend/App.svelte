@@ -28,7 +28,7 @@
     type SavedView,
     type Destination,
   } from './lib/workbench';
-  import { paletteCommands, type PaletteCommand } from './lib/command-palette';
+  import { destinations, paletteCommands, type PaletteCommand } from './lib/command-palette';
   import type { SearchDraftRequest } from './lib/search-editor';
   import CloudFilterSelect from './components/CloudFilterSelect.svelte';
   import FolderComposition from './components/FolderComposition.svelte';
@@ -96,24 +96,8 @@
     type Snapshot,
     type CleanupPreview,
   } from './lib/types';
-  type View =
-    | 'overview'
-    | 'explorer'
-    | 'large'
-    | 'duplicates'
-    | 'cleanup'
-    | 'developer'
-    | 'history'
-    | 'settings';
-  const navigation: { id: View; label: string; icon: string }[] = [
-    { id: 'overview', label: 'Overview', icon: 'overview' },
-    { id: 'explorer', label: 'Explorer', icon: 'folder' },
-    { id: 'large', label: 'Large files', icon: 'large' },
-    { id: 'duplicates', label: 'Duplicates', icon: 'duplicate' },
-    { id: 'cleanup', label: 'Cleanup', icon: 'trash' },
-    { id: 'developer', label: 'Developer storage', icon: 'code' },
-    { id: 'history', label: 'History', icon: 'history' },
-  ];
+  type View = Destination;
+  const navigation = destinations.filter((item) => item.id !== 'settings');
   let view = $state<View>('overview');
   const indexedView = $derived(view === 'overview' || view === 'explorer' || view === 'large');
   $effect(() => {
@@ -398,9 +382,15 @@
     closePalette(false);
     const action = command.action;
     switch (action.kind) {
-      case 'navigate':
+      case 'navigate': {
         navigate(action.view);
+        const owner = interactionToken;
+        void tick().then(() => {
+          if (owner === interactionToken && view === action.view)
+            document.getElementById('workspace-title')?.focus({ preventScroll: true });
+        });
         return;
+      }
       case 'search':
         void focusFileSearch();
         return;
@@ -1407,20 +1397,22 @@
       ><Icon name="search" />{#if expanded}<span>Search & commands</span><kbd>Ctrl K</kbd
         >{/if}</button
     >
-    <nav aria-label="Main navigation">
-      {#each navigation as item}<button
-          class:active={view === item.id}
-          title={item.label}
-          disabled={analysisBusy}
-          aria-label={item.label}
-          aria-current={view === item.id ? 'page' : undefined}
-          onclick={() => {
-            navigate(item.id);
-          }}
-          ><Icon name={item.icon} size={20} />{#if expanded}<span>{item.label}</span>{/if}</button
-        >{/each}
-    </nav>
-    <div class="nav-bottom">
+    <div class="nav-scroll">
+      <nav aria-label="Main navigation">
+        {#each navigation as item}
+          <button
+            class:active={view === item.id}
+            title={item.label}
+            disabled={analysisBusy}
+            aria-label={item.label}
+            aria-current={view === item.id ? 'page' : undefined}
+            onclick={() => navigate(item.id)}
+          >
+            <Icon name={item.icon} size={20} />
+            {#if expanded}<span>{item.label}</span>{/if}
+          </button>
+        {/each}
+      </nav>
       {#if expanded && volume?.accessible}<div class="drive-summary">
           <span><Icon name="disk" />{volume.name || volume.path}</span
           >{#if volumeSpace && Number(volumeSpace.total) > 0}<progress
@@ -1437,6 +1429,17 @@
               >{bytes(Number(volumeAvailability.available))} available to you</small
             >{/if}
         </div>{/if}
+    </div>
+    <div class="nav-bottom">
+      <button
+        class:active={view === 'settings'}
+        title="Settings"
+        disabled={analysisBusy}
+        aria-label="Settings"
+        aria-current={view === 'settings' ? 'page' : undefined}
+        onclick={() => navigate('settings')}
+        ><Icon name="settings" />{#if expanded}<span>Settings</span>{/if}</button
+      >
       <button
         title={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
         aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
@@ -1447,16 +1450,6 @@
         }}
         ><Icon name={expanded ? 'collapse' : 'expand'} />{#if expanded}<span>Collapse sidebar</span
           >{/if}</button
-      >
-      <button
-        class:active={view === 'settings'}
-        title="Settings"
-        disabled={analysisBusy}
-        aria-label="Settings"
-        onclick={() => {
-          navigate('settings');
-        }}
-        ><Icon name="settings" />{#if expanded}<span>Settings</span>{/if}</button
       >
     </div>
   </aside>
@@ -1605,7 +1598,7 @@
     >
       <div class="page-heading">
         <div>
-          <h1 class:sr-only={chartFocused}>
+          <h1 id="workspace-title" tabindex="-1" class:sr-only={chartFocused}>
             {view === 'overview'
               ? 'Storage overview'
               : view === 'explorer'

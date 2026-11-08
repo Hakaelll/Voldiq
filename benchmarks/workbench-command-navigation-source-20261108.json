@@ -1,0 +1,78 @@
+{
+  "checkedUtc": "2026-11-08T04:29:07.143839Z",
+  "startedUtc": "2026-11-08T04:25:45.6011528Z",
+  "checkoutCommit": "471926ecf768a06b640640320deaec3d90a69a49",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.121
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 10.937
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.808
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 7.867
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 173.848
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 6.945
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "C5B6877B03660AEC162BDA0B49931DCACB2B9C5E44484EE2B6596DF2CD2A87C9"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "D06B7C96B74CABE4C150940DDA40EE1D9C38FB1023FEA7B3D9ECF142113EB6A3"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "AA0FB5F80A6A2F929F722F4C75651F4033D83A7CABDCE9D5396E5904EC3BBE64"
+    },
+    {
+      "path": "frontend/components/CommandPalette.svelte",
+      "sha256": "14ADEDBBD6D7F17553AD61A0BAC2C2E648F80B3BF1EEE519479AD17473584C78"
+    },
+    {
+      "path": "frontend/lib/cleanup-selection.test.ts",
+      "sha256": "8B6D30DD859C13865F5CA28F41854DDFD80EA7156AF3BCDEE841FD04CF0DAC06"
+    },
+    {
+      "path": "frontend/lib/command-palette.ts",
+      "sha256": "ADACF120062E043CCEE84F13FE0C3E77240CB7D294CF507176DDF8F9C42207E8"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "40451BB488A45182B2BC6EA37F44B15667DDBB48C8E4A013302A9B19C15C984D"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "limits": "The retained frontend flow checks Settings aliases, ranking, grouping, empty results and arrow skipping of unavailable commands. Native pointer, keyboard, focus, short-window and scaling acceptance remain manual."
+}
