@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Scan a dropped folder
+
+Drop one local folder onto the desktop window. Voldiq checks the folder and displays its full path in a compact row with Scan folder and Dismiss. The current analysis stays in place until confirmation. Confirming reopens the folder by native identity and holds its directory pins through the normal scan. Files, inaccessible folders and replaced identities are rejected. Scan profile, exclusions, progress and cancellation use the existing pipeline. [Tauri drag and drop](https://v2.tauri.app/reference/javascript/api/namespacewebview/#ondragdropevent)
+
+The retained Windows history flow round-tripped a Unicode folder, scanned its 17-byte file and rejected a regular file, a missing folder and a different directory placed at the same path. All six integration checks passed with eight routine tests, zero Svelte diagnostics and strict Clippy. Native pointer drag/drop, focus, short-window layout and scaling remain manual. Explorer context registration and notifications remain pending. [Source verification](../benchmarks/workbench-folder-drop-source-20261108.json)
+
+Source commit `5fabccb` was pushed to `main`. The production preview reached ready and page-finished and stayed open through cleanup. Static checks verified a 27,427,328-byte executable and a 10,442,190-byte unsigned NSIS installer. Cleanup removed 2,365,569,654 logical bytes of inactive release artifacts and 27,302,400 bytes of closed preview copies. The workspace measured 303,964,473 logical bytes afterward. Clean-machine installation remains manual. [Native startup](../benchmarks/native-folder-drop-preview-20261108.json) · [Distribution](../benchmarks/distribution-folder-drop-20261108.json) · [Post-clean checks](../benchmarks/workspace-footprint-folder-drop-20261108.json)
+
 ## Settings access, command palette and Windows sign-in
 
 Settings stays in the sidebar footer while the page list and drive summary scroll independently. Ctrl+K opens a compact palette with separate actions, views, saved views and favorites. Results use left-aligned labels and rank label matches ahead of details and aliases. Arrows change the active result while the search field retains focus. Enter runs the selection and Escape closes the dialog. Settings can be found through its label, preferences or Ajustes. The retained frontend flow verifies ranking, grouping, alias matching, no results and skipping unavailable commands. Native pointer, keyboard, short-window layout, contrast and scaling acceptance remain manual. [Command palette verification](../benchmarks/workbench-command-navigation-source-20261108.json)
