@@ -70,6 +70,71 @@ export const inspectionQueries = createQueryRunner<
     invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
 });
 
+export interface SimilarPair {
+  ids: [NodeId, NodeId];
+  names: [string, string];
+  distance: number;
+}
+
+export interface SimilarImagesReport {
+  scope: string;
+  incomplete_scope: boolean;
+  limit: 'files' | 'bytes' | null;
+  compared_images: number;
+  unavailable_images: number;
+  protected_images: number;
+  repeated_images: number;
+  unverified_branches: number;
+  matching_pairs: number;
+  pairs: SimilarPair[];
+}
+
+interface ComparisonImage {
+  id: NodeId;
+  name: string;
+  path: string;
+  logical: number;
+  modified: number | null;
+  width: number;
+  height: number;
+  png: string;
+}
+
+export interface ImageComparison {
+  distance: number;
+  images: [ComparisonImage, ComparisonImage];
+}
+
+export const similarImageQueries = createQueryRunner<
+  SimilarImagesReport,
+  { indexId: IndexId; scope: NodeId; maxDistance: number },
+  'similar_images'
+>('similar_images', {
+  run: async (_family, requestId, input) =>
+    invoke<SimilarImagesReport | null>('query_similar_images', {
+      ...input,
+      requestId,
+      epoch: await querySession(),
+    }),
+  cancel: async (family, requestId) =>
+    invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+});
+
+export const imageComparisonQueries = createQueryRunner<
+  ImageComparison,
+  { indexId: IndexId; scope: NodeId; ids: SimilarPair['ids'] },
+  'similar_images'
+>('similar_images', {
+  run: async (_family, requestId, input) =>
+    invoke<ImageComparison | null>('query_image_comparison', {
+      ...input,
+      requestId,
+      epoch: await querySession(),
+    }),
+  cancel: async (family, requestId) =>
+    invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+});
+
 export type GitStorageReport = {
   total: number;
   coverage_partial: boolean;

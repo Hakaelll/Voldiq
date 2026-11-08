@@ -1,0 +1,110 @@
+{
+  "checkedUtc": "2026-11-08T01:31:27.4729537Z",
+  "startedUtc": "2026-11-08T01:16:33.5017521Z",
+  "checkoutCommit": "55d90ca29cf2da36f19e41a191f09add6061cb96",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.342
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.579
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.84
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.862
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 832.087
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 44.233
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/Cargo.toml",
+      "sha256": "2E3ADDE86209BB961AEBC0381CAF12898963EE81AAFFEC5C03DD39B58CC73069"
+    },
+    {
+      "path": "crates/voldiq-core/src/duplicates.rs",
+      "sha256": "734219F7278AB6FBF8CCAFE7BE7A79C6B79B37772BB8E0E7B98B8BECEAFA9362"
+    },
+    {
+      "path": "crates/voldiq-core/src/duplicates/similar.rs",
+      "sha256": "80B7B0DD857C286FED8E636D3369DBC83FF8B1EF24FA9A54A68DF166EFDF06C4"
+    },
+    {
+      "path": "crates/voldiq-core/src/duplicates/similar/image.rs",
+      "sha256": "2A9A01530F6289EDE5A8A3EB8FC7F289AE8473B4990B78714FBB3529A7415FAD"
+    },
+    {
+      "path": "crates/voldiq-core/tests/agents.rs",
+      "sha256": "D7B9009B84A300F3331411B951BD30B038F375AA6DC22CC2E9F8DDCC9F6CF818"
+    },
+    {
+      "path": "crates/voldiq-core/tests/agents/similar_images_fixture.rs",
+      "sha256": "240A0E17378CBBD4C6D98C1EB482C26F138467CAD9C63EF824284A639B4B8697"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "0CF8B00EBB65DC4A7588D55BEFEEF31B1D01977AFA3938CFA81E39236304B520"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "A2E7980F9E492CF2496BD14D1DE932F3A6B5A08A0F5DAF75D3D1942D7B42070F"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "AA01F4D7522FD3BA3DF01E8ADD510719DBDD5416BA7BFF6764D95C8C8A4E07F1"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "88460885B4CA353D81727B245197210C463825C22FAB68D6CD2A700F15BB7540"
+    },
+    {
+      "path": "frontend/components/Duplicates.svelte",
+      "sha256": "FC34B32979C1E8EBE26C6530399C2DA64E5749B0A9051422AAC9A98E52179A09"
+    },
+    {
+      "path": "frontend/components/SimilarImages.svelte",
+      "sha256": "7AB7BE1B0D9776E7D720E632896320EFC55AD603C238C8F9500F2A22EBBE6720"
+    },
+    {
+      "path": "frontend/lib/queries.ts",
+      "sha256": "4FA4839EC049AA0D54F19A268347529392668A0B12BD6BD4DE6B715281A8CED5"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "F6853485A51B55C6F59C8AD3BC06424F5669E55DB25CD886B23F70A86D3CBD1B"
+    },
+    {
+      "path": "src-tauri/src/query_commands.rs",
+      "sha256": "E67A256C4397BFB625CEE5A0510BD70FBC8BAD18D5E2F60BBE5F10F9C86A1569"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "limits": "The retained native inspection flow compares owned PNG and JPEG files, including known distances, EXIF orientation, exact-byte and hard-link suppression, scope, protections, cancellation and stale input. Populated native rendering, pointer, keyboard, scaling and clean-machine installation remain manual."
+}

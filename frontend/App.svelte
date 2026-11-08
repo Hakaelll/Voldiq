@@ -2116,7 +2116,9 @@
                 />
               {:else if view === 'duplicates'}
                 <Duplicates
+                  {indexId}
                   {scope}
+                  live={historical === null}
                   enabled={ready && !busy}
                   onbusy={(value) => {
                     analysisBusy = value;

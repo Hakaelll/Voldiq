@@ -38,6 +38,7 @@ pub(crate) enum QueryFamily {
     DeviceHealth,
     GameLibraries,
     MediaLibraries,
+    SimilarImages,
 }
 
 #[derive(Default)]
@@ -54,7 +55,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 21],
+    slots: [Slot; 22],
 }
 
 impl QueryFamily {
@@ -81,6 +82,7 @@ impl QueryFamily {
             Self::DeviceHealth => 18,
             Self::GameLibraries => 19,
             Self::MediaLibraries => 20,
+            Self::SimilarImages => 21,
         }
     }
 }
@@ -600,6 +602,75 @@ pub(crate) async fn query_file_use(
                     .map_err(|error| error.to_string())?
             };
             target.read(cancel).map_err(|error| error.to_string())
+        },
+    )
+    .await
+}
+
+#[cfg(windows)]
+#[tauri::command]
+pub(crate) async fn query_similar_images(
+    index_id: IndexId,
+    scope: NodeId,
+    max_distance: u8,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<voldiq_core::duplicates::similar::Report>, String> {
+    let engine = engine.inner().clone();
+    run_index_job(
+        index_id,
+        epoch,
+        QueryFamily::SimilarImages,
+        request_id,
+        engine.clone(),
+        move |shared, cancel| {
+            let protections = engine.protections()?;
+            let report = voldiq_core::duplicates::similar::find(
+                shared,
+                scope,
+                max_distance,
+                cancel,
+                &protections,
+            )
+            .map_err(|error| error.to_string())?;
+            if report.is_some() && engine.protections()?.fingerprint() != protections.fingerprint()
+            {
+                return Err("Folder protections changed. Find similar images again.".into());
+            }
+            Ok(report)
+        },
+    )
+    .await
+}
+
+#[cfg(windows)]
+#[tauri::command]
+pub(crate) async fn query_image_comparison(
+    index_id: IndexId,
+    scope: NodeId,
+    ids: [NodeId; 2],
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<voldiq_core::duplicates::similar::Comparison>, String> {
+    let engine = engine.inner().clone();
+    run_index_job(
+        index_id,
+        epoch,
+        QueryFamily::SimilarImages,
+        request_id,
+        engine.clone(),
+        move |shared, cancel| {
+            let protections = engine.protections()?;
+            let report =
+                voldiq_core::duplicates::similar::compare(shared, scope, ids, cancel, &protections)
+                    .map_err(|error| error.to_string())?;
+            if report.is_some() && engine.protections()?.fingerprint() != protections.fingerprint()
+            {
+                return Err("Folder protections changed. Find similar images again.".into());
+            }
+            Ok(report)
         },
     )
     .await

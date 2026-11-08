@@ -110,7 +110,7 @@ Search first adds one bounded core parser/compiler to the existing query engine.
 - [ ] Extend the remaining application recipes and supported library layouts.
 
 The common tray binds up to 500 file IDs in 16 source groups to the current analysis. Manual files, existing recipe candidates and exact duplicates enter through the same UI state. Indexed logical sizes and known allocation remain separate, with hard-link identities counted once for allocation. A target only tracks the chosen measure. Shared preparation rechecks each source, rejects selected retained copies across groups and carries all keeper evidence into the existing executor. The remaining app, library, scoring and rule work stays in this stage.
-- [ ] Extend duplicate review with perceptual image comparison, explicit similarity and manual selection; do not weaken exact duplicate retention.
+- Similar images unit: add a separate read-only comparison in Duplicates. Decode bounded local PNG/JPEG bytes through the Windows codecs after the existing indexed no-recall content checks. Normalize JPEG EXIF orientation. Compare 64 neighboring luminance differences, rank by Hamming distance and disclose scope, omitted files and work limits. Collapse repeated physical identities and matching encoded digests. Reopen both sides for a preview with shared zoom and file metadata. Send explicit choices to the manual review tray and leave the exact retention rules in their existing flow. Extend the retained native fixture with real images and keep eight routine tests. [Windows Imaging Component](https://learn.microsoft.com/en-us/windows/win32/api/_wic/)
 - [ ] Verify parser failures, protection precedence, accounting and unsafe suggestions. Commit and push.
 
 ## F. History and diagnosis

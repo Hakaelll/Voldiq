@@ -1,4 +1,6 @@
 pub(crate) mod persistence;
+#[cfg(windows)]
+pub mod similar;
 
 use crate::{Error, Issue, Kind, NodeId, Result, scanner::SharedIndex, windows};
 use serde::Serialize;

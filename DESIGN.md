@@ -179,6 +179,8 @@ Developer storage uses a 44px measured category strip with bytes, percentages an
 
 Duplicate group rows include compact meters relative to the report's total potential allocation. The active group's copy-balance strip compares its unselected and selected copy counts across member pages. Each member identifies Keep or Selected for review, and selected rows use the shared selection surface. These are selection states, not deletion results or verified retained-file authority; the native review remains mandatory.
 
+Duplicates has separate Exact copies and Similar images sections. Similar images explains the visual distance and the current folder scope above a ranked pair list. A selected pair opens two adjacent previews with shared zoom and independent scrolling. Each preview shows the path, oriented dimensions, logical size and recorded modification date. Checkboxes start empty and send the chosen files to the manual review tray. Visual distance grants no exact-duplicate authority.
+
 History compares logical file changes with three bars on a shared signed scale around a central zero line. Added bytes extend right, removed bytes left, and Changed uses its complete signed net difference. Values and file counts remain readable beside each bar, including zero-byte changes. Newly observed and unobserved coverage stay separate and do not affect this scale. No extra chart runtime is loaded.
 
 **Creative North Star: "The Windows storage workspace"**

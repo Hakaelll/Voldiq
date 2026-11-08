@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Similar images
+
+Duplicates → Similar images compares local PNG and JPEG files under the current indexed folder. It uses the built-in Windows decoders, honors JPEG EXIF orientation and compares 64 horizontal luminance differences. The threshold ranges from 0 to 16 differing bits. Repeated physical identities and encoded digests count once. The report ranks up to 100 pairs, labels partial scope and shows skipped, protected and unavailable counts. A pass considers up to 512 candidates and 256 MiB of input. Per-file limits are 32 MiB and 25 million pixels. [Windows Imaging Component](https://learn.microsoft.com/en-us/windows/win32/api/_wic/)
+
+Selecting a pair reopens and verifies both indexed files before making previews. Each side shows the oriented dimensions, size, path and modification date. Zoom applies to both sides. Checkboxes begin empty and feed the existing manual review tray. Visual hashes and their distances carry no exact-duplicate or removal authority.
+
+All six integration checks passed with eight routine tests and zero Svelte diagnostics. The owned image fixture checked the literal distance of a scaled pair, rejected an inverted gradient, skipped repeated identities and bytes, decoded the actual preview pixels, and verified JPEG orientation. It also exercised the threshold, scope, protection, cancellation and stale-file checks. Populated comparison rendering, zoom, pointer and keyboard interaction and Windows scaling remain manual. [Source verification](../benchmarks/workbench-similar-images-source-20261108.json)
+
 ## File use on Windows
 
 Inspect file → Check file use asks Windows Restart Manager about the selected live file name. The report lists application names and process IDs at the time of the check. The query pins and rechecks the indexed file and its path, does not read its contents and releases the index lock before the Windows call. It omits Voldiq's own process. An empty response covers only what Restart Manager found for that name. Sharing conflicts, paths beyond the check's length limit, responses beyond 128 records and Windows errors have separate incomplete states. Cancelling discards the result while an in-flight Windows call finishes. Space account points to the file inspector. Process names and IDs are diagnostic information, with no application-close command. [Resource registration](https://learn.microsoft.com/en-us/windows/win32/api/restartmanager/nf-restartmanager-rmregisterresources) · [Process list](https://learn.microsoft.com/en-us/windows/win32/api/restartmanager/nf-restartmanager-rmgetlist)

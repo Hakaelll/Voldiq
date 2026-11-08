@@ -897,6 +897,10 @@ fn main() {
             query_commands::query_details_cancellable,
             query_commands::query_file_inspection,
             query_commands::query_file_use,
+            #[cfg(windows)]
+            query_commands::query_similar_images,
+            #[cfg(windows)]
+            query_commands::query_image_comparison,
             query_commands::cancel_query,
             query_commands::open_query_session,
             preview_cleanup_tray,

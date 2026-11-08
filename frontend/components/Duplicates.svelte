@@ -3,6 +3,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
   import Icon from './Icon.svelte';
+  import SimilarImages from './SimilarImages.svelte';
   import type { TraySource } from '../lib/cleanup-tray';
   import {
     bytes,
@@ -13,7 +14,9 @@
     type Issue,
   } from '../lib/types';
   let {
+    indexId,
     scope,
+    live,
     enabled,
     onbusy,
     onselect,
@@ -21,7 +24,9 @@
     onerror,
     onadd,
   }: {
+    indexId: IndexId | null;
     scope: number;
+    live: boolean;
     enabled: boolean;
     onbusy: (value: boolean) => void;
     onselect: (id: number) => void;
@@ -31,6 +36,7 @@
   } = $props();
   const groupLimit = 20,
     memberLimit = 50;
+  let mode = $state<'exact' | 'similar'>('exact');
   let page = $state<DuplicatePage | null>(null),
     members = $state<DuplicateItem[]>([]);
   let offset = $state(0),
@@ -197,7 +203,22 @@
   });
 </script>
 
-<section class="duplicates-view">
+<div class="workspace-view-switch section-navigation" role="group" aria-label="Duplicate analysis">
+  <button aria-pressed={mode === 'exact'} onclick={() => (mode = 'exact')}>Exact copies</button>
+  <button aria-pressed={mode === 'similar'} onclick={() => (mode = 'similar')} disabled={working}>
+    Similar images
+  </button>
+</div>
+{#if mode === 'similar'}
+  {#if indexId !== null && live}
+    {#key `${indexId}/${scope}`}
+      <SimilarImages {indexId} {scope} {enabled} {onselect} {onadd} />
+    {/key}
+  {:else}
+    <p class="table-empty">Scan a live folder to find similar images.</p>
+  {/if}
+{/if}
+<section class="duplicates-view" hidden={mode !== 'exact'}>
   <div class="filter-bar">
     <label>Minimum MiB<input type="number" min="0" bind:value={minimum} disabled={working} /></label
     >
@@ -382,6 +403,9 @@
 </section>
 
 <style>
+  .duplicates-view[hidden] {
+    display: none;
+  }
   .group-size-track {
     display: block;
     height: 3px;
