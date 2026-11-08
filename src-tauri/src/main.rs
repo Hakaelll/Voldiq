@@ -33,6 +33,8 @@ mod query_commands;
 mod restore_commands;
 mod scan_control;
 mod snapshot_commands;
+mod window_close_preference;
+mod window_tray;
 mod workbench_commands;
 use analysis_status::IndexId;
 use cleanup_commands::*;
@@ -823,6 +825,14 @@ fn main() {
             }
         })
         .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event
+                && let Some(engine) = window.try_state::<Arc<Engine>>()
+            {
+                scan_control::cancel_on_close(&engine);
+                if window_tray::hide_on_close(window, &engine) {
+                    api.prevent_close();
+                }
+            }
             if (matches!(event, tauri::WindowEvent::Destroyed)
                 || (matches!(
                     event,
@@ -912,6 +922,8 @@ fn main() {
             snapshot_commands::get_snapshot_retention,
             snapshot_commands::set_snapshot_retention,
             snapshot_commands::apply_snapshot_retention,
+            window_tray::get_window_close_behavior,
+            window_tray::set_window_close_behavior,
             budget_commands::save_folder_budget,
             budget_commands::remove_folder_budget,
             query_commands::translate_search,
@@ -966,10 +978,14 @@ fn main() {
                 tauri::RunEvent::Exit => "exit",
                 _ => return,
             };
-            if matches!(name, "close-requested" | "exit-requested")
-                && let Some(engine) = app.try_state::<Arc<Engine>>()
-            {
-                scan_control::cancel_on_close(&engine);
+            if name == "exit-requested" {
+                if let Some(engine) = app.try_state::<Arc<Engine>>() {
+                    scan_control::cancel_on_close(&engine);
+                    let _ = engine.live.stop(None);
+                }
+                if let Some(reviews) = app.try_state::<plan_commands::PlanReviews>() {
+                    reviews.close();
+                }
             }
             trace.record(name, Some(app));
         });

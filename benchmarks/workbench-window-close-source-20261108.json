@@ -1,0 +1,83 @@
+{
+  "checkedUtc": "2026-11-08T03:51:45.1611904Z",
+  "startedUtc": "2026-11-08T03:37:06.6578211Z",
+  "checkoutCommit": "2464362456d45be60c2317d4a3e210e987106802",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.962
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.509
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.812
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.552
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 782.171
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 80.473
+    }
+  ],
+  "preferenceFixture": "Default exit, explicit opt-in, fresh read, repeat save, reset, foreign file and directory preservation, and wire names passed.",
+  "sourceInputs": [
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "3051D352BB76DE012A713F26B97992CA1B1B61B5511CC33113B5649AC2C05EEF"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "6F03D4E0BF43FBDFC611D725F637AE44E95002F09A2C2BAFDD9E0358D6B49F4D"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "7E2031E5B41C160C849FA646FB8C789F52E1A00BCFBFDCB0E968A2D9D38B3ECA"
+    },
+    {
+      "path": "frontend/components/WindowSettings.svelte",
+      "sha256": "F6E9EFF4E92CB4CE22A8990704F8D20569F8610A050DB8467293977A27B15A4C"
+    },
+    {
+      "path": "src-tauri/Cargo.toml",
+      "sha256": "7ABACF382C3D5C66A3435EB44C68381D320DF23CEF4829179792CD7E85DEFEE3"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "D8B7988D144C432FA5DF547E4CB24B9C27D4860E521C20910A5B7061C7A90451"
+    },
+    {
+      "path": "src-tauri/src/window_close_preference.rs",
+      "sha256": "F7C52CA8EBF416F84C9745F5BDC432A468DFBB8F435A3534CDBAA5DFECEED764"
+    },
+    {
+      "path": "src-tauri/src/window_tray.rs",
+      "sha256": "4D7F8BF8BCA3F67AA1BB53E46CCC1155DABD9AA1F61DB26C0CAE19B6CDDE3560"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "limits": "The disposable fixture exercises the actual native preference module. Windows tray close, reopen, exit, keyboard, scaling and clean-machine installation remain manual."
+}

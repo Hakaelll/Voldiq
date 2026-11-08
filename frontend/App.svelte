@@ -62,6 +62,7 @@
   import { volumeMeasurement, volumeCaller } from './lib/volume-space';
   import type { LiveObservation } from './lib/live-session';
   import ProtectedFolders from './components/ProtectedFolders.svelte';
+  import WindowSettings from './components/WindowSettings.svelte';
   import { readRecentPaths, rememberPath } from './lib/recent-paths';
   import { overviewQueries, detailQueries } from './lib/queries';
   import { createNavigationRefresh } from './lib/navigation-refresh';
@@ -1842,6 +1843,7 @@
               /></label
             >
           </section>
+          <WindowSettings />
           <section aria-labelledby="scanning-heading">
             <h2 id="scanning-heading">Scanning</h2>
             <ScanProfileSelect
