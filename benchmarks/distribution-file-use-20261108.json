@@ -1,0 +1,106 @@
+{
+  "checkedUtc": "2026-11-08T00:48:26.3658702Z",
+  "checkoutCommit": "5a122bab948e81f9628eeae3c13d84656dbf07d8",
+  "buildCommitVerified": false,
+  "scope": "Native embedded-UI probe and static artifact/generated-source checks; installation and installer payload extraction are not verified.",
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "CE1557A3D3DA6FCA0BB85DC8C2EB7AD5CCB7607C5DFAB3B0EB1F58476A02C107"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      },
+      {
+        "path": "assets/index-DoJN3pRu.js",
+        "bytes": 527725,
+        "sha256": "EB1029EAC7F6D6F9750B18E0698D6985B24FEF74D1109DEB5E1C9F673BD27513"
+      },
+      {
+        "path": "assets/history-export-gximNGWc.js",
+        "bytes": 3986,
+        "sha256": "0A0AA66FFD8ED97C5C13A78088F61C6306FE8962DC26BD70ED59ED55FAC177A0"
+      },
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "assets/voronoi.worker-DwJ2QmrW.js",
+        "bytes": 5606,
+        "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+      },
+      {
+        "path": "assets/256x256-BkkuVpWj.png",
+        "bytes": 69723,
+        "sha256": "BE1C9BFF0E4D3E5E88FDFAA71B0A97A9C99EFA625CD062DB6A3F74DB633B0974"
+      },
+      {
+        "path": "assets/svg-surface-D3Yw6xZb.js",
+        "bytes": 6995,
+        "sha256": "16031B0D00F7998ED47803E71C5F769269D4295083881302DD52A7B7F3A450AA"
+      },
+      {
+        "path": "assets/history-video-xEDMX4fp.js",
+        "bytes": 2865,
+        "sha256": "EABB9BCD4AA45E929AF15FD14DEC6BD9059228D5077E3AB77F5C0D115080C1E6"
+      },
+      {
+        "path": "assets/index-BKRSnnM7.css",
+        "bytes": 110180,
+        "sha256": "764588ABC8A2CE6B50FC305649D520492AC292E8F57D6975D615DA0C347ECCE3"
+      },
+      {
+        "path": "assets/city.worker-DLxzT0Wm.js",
+        "bytes": 2879,
+        "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+      }
+    ]
+  },
+  "native": {
+    "name": "voldiq.exe",
+    "bytes": 26763264,
+    "sha256": "8F9AB026A133171E47B4AD39B7CC2F545F39CE912973CFA44C0580E81189A5AC",
+    "peMachine": "0x8664",
+    "productVersion": "0.2.0",
+    "signature": "NotSigned",
+    "signer": null
+  },
+  "installer": {
+    "name": "Voldiq_0.2.0_x64-setup.exe",
+    "bytes": 10292044,
+    "sha256": "D9866907BFC21FEEA0E0456E5488A09D71E06B30E56078CCF869D5E88AA9F3B8",
+    "peMachine": "0x014C",
+    "productVersion": "0.2.0",
+    "signature": "NotSigned",
+    "signer": null
+  },
+  "runtime": {
+    "name": "MicrosoftEdgeWebview2Setup.exe",
+    "bytes": 1897688,
+    "sha256": "CF2F2445FEF0C5C14E372045F84998771EEB8BB01D59BE4AFD00692FA160082E",
+    "peMachine": "0x014C",
+    "productVersion": "1.3.315.17",
+    "signature": "Valid",
+    "signer": "CN=Microsoft Corporation, O=Microsoft Corporation, L=Redmond, S=Washington, C=US"
+  },
+  "installMode": "currentUser",
+  "webviewMode": "embedBootstrapper",
+  "runtimeDownloadIfMissing": true,
+  "iconSizes": [
+    16,
+    24,
+    32,
+    48,
+    64,
+    128,
+    256
+  ]
+}
