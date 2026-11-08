@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Window close and system tray
+
+Settings → Window offers Exit Voldiq and Keep Voldiq in the system tray. Exit is the default. The opt-in is stored under local Voldiq state. Closing in tray mode exposes Open Voldiq and Exit Voldiq through the Windows tray. The close handler stops Live and cancels a controlled Directory scan. Work already started may finish while hidden. An unavailable preference or tray creation failure leaves the regular exit path in place. [Tauri system tray](https://v2.tauri.app/learn/system-tray/)
+
+The disposable native preference fixture verified default exit, explicit opt-in, reread, repeated saves, reset and rejection of malformed or conflicting marker data without overwriting it. The six integration checks passed with eight routine tests, zero Svelte diagnostics and strict Clippy. [Source verification](../benchmarks/workbench-window-close-source-20261108.json)
+
+Source commit `50e3928` was pushed to `main`. The production app reached ready and page-finished and stayed open through cleanup. Static checks verified the 27,302,400-byte executable and 10,417,425-byte unsigned NSIS installer. Cleanup removed 2,360,196,256 logical bytes of inactive release artifacts, 54,022,144 bytes of closed preview copies and the standalone fixture build. The workspace measured 275,500,759 logical bytes afterward. Windows tray close, reopen and exit, Settings interaction, keyboard, scaling and clean-machine installation remain manual. Automatic startup and verified updates remain pending. [Native startup](../benchmarks/native-window-close-preview-20261108.json) · [Distribution](../benchmarks/distribution-window-close-20261108.json) · [Post-clean checks](../benchmarks/workspace-footprint-window-close-20261108.json)
+
 ## Active paging and custom Docker disks
 
 System storage matches Windows' `ExistingPageFiles` registry paths to the current index, with an explicit coverage state and the default paging and swap checks retained. It reads a bounded `REG_MULTI_SZ` value without expansion and releases the index lock during location discovery. It uses indexed bytes for each match. A matching default is shown once under the existing paging file label. The native WMI provider denied access on this machine. The registry agreed with the separate CIM check and requires only registry read access. [Windows paging registry](https://learn.microsoft.com/en-us/troubleshoot/windows-client/performance/windows-based-computer-freeze-troubleshooting)
