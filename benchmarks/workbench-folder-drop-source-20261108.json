@@ -1,0 +1,86 @@
+{
+  "checkedUtc": "2026-11-08T04:59:12.6992494Z",
+  "startedUtc": "2026-11-08T04:43:41.0711425Z",
+  "checkoutCommit": "2617f201bdbc2b99c9bca39bb29339cf3b0f64c0",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.007
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 7.252
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.966
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.809
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 825.251
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 91.325
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/scanner.rs",
+      "sha256": "92C55D78223E402585C01AD14BDA92CEC90C8A7AFEB0D0AF1700EC11F93AE377"
+    },
+    {
+      "path": "crates/voldiq-core/src/scanner/folder.rs",
+      "sha256": "D210BD3FC4E97C7CAD798CAAEFB2390F870E3BF3172EE6352674CCEBB435A84A"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "6AEAB1A9B34DBC025F7466B7A1D8092BC8374197C547744356E87E7E0839935C"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "493C2B0E429BBF43807B81B4B35FA7869149310C4AD0AF31108B1F10E8E3B37E"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "8E578F0EC4C013B0FA5F2C37F9DDE1F8F597149492C8C1A16781B7F93C88FB24"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "E7AE023E1201CA6FE6B24C6BF7C3E97192E45E0A1763B14F96F95E4D4B9854A9"
+    },
+    {
+      "path": "frontend/components/ScanWelcome.svelte",
+      "sha256": "C5C44A0463B86B2876D1B43069ABB040561EBC0B559ACB485591AC654C2798FA"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "A14DB30C652FFC7D214948C0FF5CE40475F2695BE4DC6E1C4A680A60B9318793"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "EE7C4FA15BF738D03D40686089B9590CB923E14089B07C82C81F8560F64BD447"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "limits": "The retained history flow roundtrips and scans a pinned Unicode folder and rejects files, missing folders and replacements. Native pointer drag/drop, focus, scaling and clean-machine installation remain manual."
+}

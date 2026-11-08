@@ -36,6 +36,39 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     std::fs::write(fixture.path().join("Résumé.txt"), [6; 7]).unwrap();
     let first = capture(fixture.path());
     {
+        use voldiq_core::scanner::ScanFolder;
+        let owned = tempfile::tempdir().unwrap();
+        let path = owned.path().join("Datos de análisis");
+        std::fs::create_dir(&path).unwrap();
+        std::fs::write(path.join("measured"), [0; 17]).unwrap();
+        let prepared = ScanFolder::prepare(&path).unwrap();
+        let json = serde_json::to_value(prepared).unwrap();
+        assert_eq!(
+            std::fs::canonicalize(json["path"].as_str().unwrap()).unwrap(),
+            std::fs::canonicalize(&path).unwrap()
+        );
+        assert!(
+            json["path"]
+                .as_str()
+                .unwrap()
+                .ends_with("Datos de análisis")
+        );
+        let received: ScanFolder = serde_json::from_value(json).unwrap();
+        let pinned = received.reopen().unwrap();
+        let scanned = capture(pinned.path());
+        assert_eq!(
+            (scanned.entries[0].files, scanned.entries[0].logical),
+            (1, 17)
+        );
+        assert!(ScanFolder::prepare(&path.join("measured")).is_err());
+        assert!(ScanFolder::prepare(&owned.path().join("missing")).is_err());
+        drop(pinned);
+        std::fs::rename(&path, owned.path().join("previous folder")).unwrap();
+        std::fs::create_dir(&path).unwrap();
+        assert!(received.reopen().is_err());
+        assert!(ScanFolder::prepare(&path).unwrap().reopen().is_ok());
+    }
+    {
         use voldiq_core::applications::{Catalog, Query as AppQuery, Registration, Source};
         let owned = tempfile::tempdir().unwrap();
         let suite = owned.path().join("Suite");

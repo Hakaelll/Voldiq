@@ -32,7 +32,9 @@
     <p class="welcome-description">
       {scanning
         ? 'Your storage map will appear here when the scan finishes.'
-        : 'Scan a drive or folder to see what takes up space and explore your files.'}
+        : native
+          ? 'Scan a drive, choose a folder or drop a folder here to see what takes up space.'
+          : 'Scan a drive or folder to see what takes up space and explore your files.'}
     </p>
     <div class="welcome-actions">
       <button

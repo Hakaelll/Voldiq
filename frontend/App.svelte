@@ -3,6 +3,7 @@
   import { onMount, tick } from 'svelte';
   import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
+  import { getCurrentWebview } from '@tauri-apps/api/webview';
   import { readPlanProgress } from './lib/plan-progress';
   import Icon from './components/Icon.svelte';
   import Overview from './components/Overview.svelte';
@@ -97,6 +98,15 @@
     type CleanupPreview,
   } from './lib/types';
   type View = Destination;
+  type ScanFolder = { path: string; identity: [string, string] };
+  type ScanSource =
+    | { kind: 'favorite'; reference: RecordRef }
+    | { kind: 'drop'; folder: ScanFolder };
+  type FolderDrop =
+    | { kind: 'idle' }
+    | { kind: 'checking' }
+    | { kind: 'ready'; folder: ScanFolder }
+    | { kind: 'error'; message: string };
   const navigation = destinations.filter((item) => item.id !== 'settings');
   let view = $state<View>('overview');
   const indexedView = $derived(view === 'overview' || view === 'explorer' || view === 'large');
@@ -115,6 +125,9 @@
   let operation = $state<Progress | null>(null),
     scanId = $state<number | null>(null);
   let indexId = $state<IndexId | null>(setIndexContext(null));
+  let folderDrop = $state.raw<FolderDrop>({ kind: 'idle' });
+  let draggingFolder = $state(false);
+  let folderDropRequest = 0;
   let ready = $state(false),
     revision = $state(0),
     scope = $state(0);
@@ -406,7 +419,7 @@
         return;
       case 'scan':
         savedOpen = false;
-        void start(action.path, action.reference);
+        void start(action.path, { kind: 'favorite', reference: action.reference });
         return;
       default: {
         const unreachable: never = action;
@@ -973,7 +986,7 @@
   let pauseEligible = $state(false);
   let pauseStatus = $state<ScanControlView>({ observed: null, activity: null, problem: null });
 
-  async function start(path: string, favorite?: RecordRef): Promise<void> {
+  async function start(path: string, source?: ScanSource): Promise<void> {
     if (!path || busy) return;
     const previous = {
       ready,
@@ -1054,8 +1067,14 @@
       }
     };
     try {
-      const id = await invoke<number>(favorite ? 'start_favorite_scan' : 'start_scan', {
-        ...(favorite ? { reference: favorite } : { path }),
+      const request =
+        source?.kind === 'favorite'
+          ? { command: 'start_favorite_scan', target: { reference: source.reference } }
+          : source?.kind === 'drop'
+            ? { command: 'start_dropped_folder', target: { folder: source.folder } }
+            : { command: 'start_scan', target: { path } };
+      const id = await invoke<number>(request.command, {
+        ...request.target,
         options: {
           mode: scanMode,
           concurrency: scanConcurrency,
@@ -1093,6 +1112,31 @@
     } catch (problem) {
       report(problem);
     }
+  }
+  function dismissFolderDrop(): void {
+    folderDropRequest += 1;
+    folderDrop = { kind: 'idle' };
+  }
+  async function prepareFolderDrop(paths: string[]): Promise<void> {
+    const owner = ++folderDropRequest;
+    if (paths.length !== 1) {
+      folderDrop = { kind: 'error', message: 'Drop one folder at a time.' };
+      return;
+    }
+    folderDrop = { kind: 'checking' };
+    try {
+      const folder = await invoke<ScanFolder>('prepare_dropped_folder', { path: paths[0] });
+      if (owner === folderDropRequest) folderDrop = { kind: 'ready', folder };
+    } catch (problem) {
+      if (owner === folderDropRequest) folderDrop = { kind: 'error', message: String(problem) };
+    }
+  }
+  function scanDroppedFolder(): void {
+    if (busy || folderDrop.kind !== 'ready') return;
+    const { folder } = folderDrop;
+    dismissFolderDrop();
+    if (!indexedView) navigate('overview');
+    void start(folder.path, { kind: 'drop', folder });
   }
   async function clearAnalysis(): Promise<void> {
     if (busy) return;
@@ -1222,6 +1266,16 @@
   }
   onMount(() => {
     let mounted = true;
+    const dropEvents = isTauri()
+      ? getCurrentWebview()
+          .onDragDropEvent(({ payload }) => {
+            if (!mounted) return;
+            if (payload.type === 'enter') draggingFolder = true;
+            if (payload.type === 'leave' || payload.type === 'drop') draggingFolder = false;
+            if (payload.type === 'drop') void prepareFolderDrop(payload.paths);
+          })
+          .catch(report)
+      : null;
     void loadWorkspaces();
     const agentEvents = isTauri()
       ? listen<unknown>('agent-operation', ({ payload }) => {
@@ -1345,6 +1399,8 @@
     window.addEventListener('keydown', keyboard);
     return () => {
       mounted = false;
+      folderDropRequest += 1;
+      if (dropEvents) void dropEvents.then((unlisten) => unlisten?.()).catch(report);
       catalogEpoch += 1;
       workspaceLoadToken += 1;
       if (agentEvents) void agentEvents.then((unlisten) => unlisten?.());
@@ -1550,6 +1606,24 @@
         </button>
       </div>
     </header>
+    {#if draggingFolder || folderDrop.kind !== 'idle'}
+      <div class="folder-drop">
+        <div role="status" class="folder-drop-status">
+          <Icon name="folder" size={17} />
+          {#if draggingFolder}<span>Drop one folder to prepare a scan.</span>
+          {:else if folderDrop.kind === 'checking'}<span>Checking folder…</span>
+          {:else if folderDrop.kind === 'ready'}
+            <span title={folderDrop.folder.path}>{folderDrop.folder.path}</span>
+          {:else if folderDrop.kind === 'error'}<span>{folderDrop.message}</span>{/if}
+        </div>
+        {#if !draggingFolder}
+          {#if folderDrop.kind === 'ready'}
+            <button class="primary" disabled={busy} onclick={scanDroppedFolder}>Scan folder</button>
+          {/if}
+          <button class="quiet-action" onclick={dismissFolderDrop}>Dismiss</button>
+        {/if}
+      </div>
+    {/if}
     {#if savedOpen}<div id="saved-workspaces-panel">
         <SavedWorkspaces
           {catalog}
@@ -1564,7 +1638,7 @@
           onload={(reference) => void loadWorkspace(reference)}
           onscan={(reference, path) => {
             savedOpen = false;
-            void start(path, reference);
+            void start(path, { kind: 'favorite', reference });
           }}
           onclose={closeSaved}
         />

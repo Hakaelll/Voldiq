@@ -225,13 +225,48 @@ fn start_scan(
     )
 }
 
+#[tauri::command]
+async fn prepare_dropped_folder(path: PathBuf) -> Result<scanner::ScanFolder, String> {
+    tauri::async_runtime::spawn_blocking(move || scanner::ScanFolder::prepare(&path))
+        .await
+        .map_err(|error| error.to_string())?
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+async fn start_dropped_folder(
+    folder: scanner::ScanFolder,
+    options: ScanOptions,
+    progress: Channel<analysis_status::ScanProgress>,
+    engine: State<'_, Arc<Engine>>,
+    database: State<'_, SnapshotDatabase>,
+) -> Result<u64, String> {
+    let pinned = tauri::async_runtime::spawn_blocking(move || folder.reopen())
+        .await
+        .map_err(|error| error.to_string())?
+        .map_err(|error| error.to_string())?;
+    let path = pinned
+        .path()
+        .to_str()
+        .ok_or("Folder path cannot be represented exactly.")?
+        .to_owned();
+    launch_scan(
+        path,
+        options,
+        progress,
+        engine.inner().clone(),
+        &database,
+        Some(pinned),
+    )
+}
+
 fn launch_scan(
     path: String,
     mut options: ScanOptions,
     progress: Channel<analysis_status::ScanProgress>,
     engine: Arc<Engine>,
     database: &SnapshotDatabase,
-    favorite: Option<voldiq_core::agents::AuthorizedPath>,
+    pinned_root: Option<voldiq_core::agents::AuthorizedPath>,
 ) -> Result<u64, String> {
     let operation = engine.begin()?;
     let id = operation.id;
@@ -245,7 +280,7 @@ fn launch_scan(
     let store = database.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = operation;
-        let _favorite = favorite;
+        let _pinned_root = pinned_root;
         let mut final_progress = None;
         let path = PathBuf::from(path);
         let start = std::time::Instant::now();
@@ -890,6 +925,8 @@ fn main() {
             export_commands::report_progress,
             export_commands::cancel_report,
             start_scan,
+            prepare_dropped_folder,
+            start_dropped_folder,
             scan_control::get_scan_control,
             scan_control::pause_scan,
             scan_control::resume_scan,

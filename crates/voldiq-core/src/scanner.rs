@@ -1,7 +1,9 @@
 mod control;
 mod directory;
+mod folder;
 mod pin;
 pub use control::{ScanControl, ScanControlState};
+pub use folder::ScanFolder;
 mod profile;
 use crate::{
     Entry, Error, Issue, Kind, NodeId, Progress, Result, ScanOptions, ScanPhase, index::Index,

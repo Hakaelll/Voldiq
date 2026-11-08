@@ -224,6 +224,8 @@ Destination implementation reference: Microsoft's [FILE_RENAME_INFO contract](ht
 
   Windows startup unit: register the installed executable only after explicit consent in Settings. Bind the command to the current executable and the current-user NSIS install location. Write a quoted native path on a fixed drive within the Windows Run limit, preserve conflicting data and show registration separately from Windows Startup apps enforcement. Reuse the product's existing uninstaller cleanup without adding installer hooks or writing preferences on launch. Exercise the native registry code in a disposable application hive. Installed sign-in and verified updates remain separate.
 
+  Folder drop unit: accept one local folder from the desktop webview. Present its verified path above the workbench with Scan folder and Dismiss. Keep the current analysis until confirmation and ignore stale validation responses. Reopen the same native identity on confirmation, pin it during the existing scan and preserve options, progress and cancellation. Exercise a real owned scan and replacement rejection in the retained suite. Native pointer interaction, Explorer context registration and notifications remain separate.
+
 - [ ] Run final source/behavior gates and real synthetic/headless measurements. Record hardware-dependent and manual acceptance limits. Review the whole diff inline, update all coverage rows, commit and push.
 
 ## Decisions
