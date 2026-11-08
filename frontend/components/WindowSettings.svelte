@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invoke, isTauri } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
+  import WindowsStartupSetting from './WindowsStartupSetting.svelte';
 
   type CloseBehavior = 'exit' | 'tray';
 
@@ -75,4 +76,5 @@
       {#if behavior === null}<button onclick={load}>Retry</button>{/if}
     </div>
   {/if}
+  <WindowsStartupSetting />
 </section>

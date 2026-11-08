@@ -35,6 +35,8 @@ mod scan_control;
 mod snapshot_commands;
 mod window_close_preference;
 mod window_tray;
+#[cfg(windows)]
+mod windows_startup;
 mod workbench_commands;
 use analysis_status::IndexId;
 use cleanup_commands::*;
@@ -773,6 +775,14 @@ async fn query_developer_storage(
     .map_err(|e| e.to_string())?
 }
 
+#[cfg(windows)]
+#[tauri::command]
+fn windows_startup(registered: Option<bool>) -> Result<windows_startup::Status, String> {
+    let user = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER);
+    let executable = std::env::current_exe().map_err(|error| error.to_string())?;
+    windows_startup::preference(&user, &executable, registered).map_err(|error| error.to_string())
+}
+
 fn main() {
     #[cfg(windows)]
     if let Some(code) = voldiq_core::cleanup::helper::run_cli() {
@@ -924,6 +934,8 @@ fn main() {
             snapshot_commands::apply_snapshot_retention,
             window_tray::get_window_close_behavior,
             window_tray::set_window_close_behavior,
+            #[cfg(windows)]
+            windows_startup,
             budget_commands::save_folder_budget,
             budget_commands::remove_folder_budget,
             query_commands::translate_search,

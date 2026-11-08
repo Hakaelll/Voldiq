@@ -4758,6 +4758,7 @@ dependencies = [
  "tokio",
  "voldiq-core",
  "windows-sys 0.61.2",
+ "winreg",
  "yaml-rust2",
 ]
 

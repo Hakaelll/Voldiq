@@ -222,6 +222,8 @@ Destination implementation reference: Microsoft's [FILE_RENAME_INFO contract](ht
 
   Window close unit: make exit the default. Persist an explicit tray choice locally and show the native Windows tray only when closing the main window in that mode. Register Open and Exit before hiding. Stop Live and preserve controlled Directory-scan cancellation. Keep native agent-review teardown on actual process exit. Verify preference transitions with disposable files and check the production startup separately from manual tray, keyboard and scaling acceptance. Automatic startup, verified updates and the other desktop integration tasks stay open.
 
+  Windows startup unit: register the installed executable only after explicit consent in Settings. Bind the command to the current executable and the current-user NSIS install location. Write a quoted native path on a fixed drive within the Windows Run limit, preserve conflicting data and show registration separately from Windows Startup apps enforcement. Reuse the product's existing uninstaller cleanup without adding installer hooks or writing preferences on launch. Exercise the native registry code in a disposable application hive. Installed sign-in and verified updates remain separate.
+
 - [ ] Run final source/behavior gates and real synthetic/headless measurements. Record hardware-dependent and manual acceptance limits. Review the whole diff inline, update all coverage rows, commit and push.
 
 ## Decisions

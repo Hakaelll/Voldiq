@@ -1,0 +1,87 @@
+{
+  "checkedUtc": "2026-11-08T04:24:10.3948843Z",
+  "startedUtc": "2026-11-08T04:10:46.5547881Z",
+  "checkoutCommit": "078560a0cd1c0fda662d7abb3051966df0743f2c",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.882
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 12.917
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1.012
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.781
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 678.63
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 102.584
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "21B7A8D77AE221205A6B56C3A89005D0B9DF8F0B14F605C5B0D59D2B21FF4E29"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "88CFEB577A0D06FCA7B23B3E8F10F86D8F684EA7262CD41E115D5679D2D0B8D8"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "C5DB22621CD28F65273745E3DFD77F50FBF4A849EB3459E5E3A56F5A3CAEC5CF"
+    },
+    {
+      "path": "frontend/components/WindowSettings.svelte",
+      "sha256": "70E709A16A823597D426B1EB1A04035ED12CDC3C052F939E9334A13B633EFE5E"
+    },
+    {
+      "path": "frontend/components/WindowsStartupSetting.svelte",
+      "sha256": "3E01853EE854438197E442C59DA34EE1286B9E98E26907036DFCAC36206D3E2E"
+    },
+    {
+      "path": "scripts/verify_distribution.ps1",
+      "sha256": "2D5A2CA2C245195603DA889A9CD58C7D4FFD13DBCE154B46092C1E75EFE637B8"
+    },
+    {
+      "path": "src-tauri/Cargo.toml",
+      "sha256": "1E969339DB93F4C61695B93DEF3DB9C29046003E7B60003F841A2C15C9BAC3EA"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "BAAA01420E974C786B29658B0474EF6ED02459625430E004EDF367E4A9E8EC71"
+    },
+    {
+      "path": "src-tauri/src/windows_startup.rs",
+      "sha256": "3C72E5317222752DDCA394001A133EDD542544426DCDBD358EBBE872CC1E1ED2"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "startupFixture": "Private Windows app hive passed installed admission, preview refusal, default without writes, exact Unicode registration, restart, reset, conflict preservation, bounded data and path limits.",
+  "limits": "The fixture uses the Windows registry APIs through an isolated on-disk application hive. Actual installed Settings interaction, logon, uninstall, focus and scaling remain manual."
+}

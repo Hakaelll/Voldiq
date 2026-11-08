@@ -61,6 +61,20 @@ if ((Read-Define 'INSTALLMODE') -ne 'currentUser' -or (Read-Define 'INSTALLWEBVI
 if ([IO.Path]::GetFullPath((Read-Define 'MAINBINARYSRCPATH')) -ne $nativePath) {
     throw 'Generated installer references another native executable.'
 }
+$startupCleanup = @'
+  ${If} $UpdateMode <> 1
+    DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCTNAME}"
+  ${EndIf}
+'@
+$installLocation = 'WriteRegStr SHCTX "${UNINSTKEY}" "InstallLocation" "$\"$INSTDIR$\""'
+$uninstallStart = $nsis.IndexOf('Section Uninstall')
+if ((Read-Define 'PRODUCTNAME') -cne 'Voldiq' -or
+    (Read-Define 'MAINBINARYNAME') -cne 'voldiq' -or
+    (Read-Define 'UNINSTKEY') -cne 'Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCTNAME}' -or
+    -not $nsis.Contains($installLocation) -or $uninstallStart -lt 0 -or
+    -not $nsis.Substring($uninstallStart).Replace([string][char]13, '').Contains($startupCleanup.Replace([string][char]13, ''))) {
+    throw 'Generated NSIS install identity or startup removal contract changed.'
+}
 $runtimeInstruction = if ($webviewMode -eq 'offlineInstaller') {
     'File "/oname=$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe" "${WEBVIEW2INSTALLERPATH}"'
 } else {
@@ -120,6 +134,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Could not identify the current checkout commit
     installer = $setup
     runtime = $runtime
     installMode = 'currentUser'
+    startupEntryRemovedOnUninstall = $true
     webviewMode = $webviewMode
     runtimeDownloadIfMissing = ($webviewMode -eq 'embedBootstrapper')
     iconSizes = @($frames)
