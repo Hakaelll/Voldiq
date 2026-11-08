@@ -25,7 +25,7 @@
   const help = {
     paging: 'Default paging or swap location on the scanned volume.',
     hibernation: 'Windows stores hibernation and Fast Startup data here.',
-    previous_windows: 'Windows Storage settings handles previous installations.',
+    previous_windows: 'Windows.old can support rollback. Manage it in Windows Storage settings.',
     component_store:
       'WinSxS shares hard links with Windows. DISM can analyze component-store usage.',
     docker: 'Host virtual disk. Review disk settings in Docker Desktop.',

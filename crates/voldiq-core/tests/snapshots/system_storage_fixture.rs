@@ -20,6 +20,17 @@ pub(super) fn verify() {
     let program_data = root.join("ProgramData");
     write(&root, "Windows/WinSxS/component.bin", 13);
     write(&root, "Windows.old/preserved.bin", 17);
+    write(&root, "ordinary.tmp", 11);
+    let now = voldiq_core::cleanup::rules::now().unwrap();
+    let old = std::time::UNIX_EPOCH + std::time::Duration::from_secs(now - 120 * 24 * 60 * 60);
+    for relative in ["Windows.old/preserved.bin", "ordinary.tmp"] {
+        fs::OpenOptions::new()
+            .write(true)
+            .open(root.join(relative))
+            .unwrap()
+            .set_modified(old)
+            .unwrap();
+    }
     write(&root, "pagefile.sys", 19);
     write(&root, "HIBERFIL.SYS", 23);
     write(&root, "Local/Docker/wsl/disk/docker_data.vhdx", 29);
@@ -151,6 +162,62 @@ pub(super) fn verify() {
             .unwrap()
             .is_none()
     );
+    use voldiq_core::cleanup::{Plan, rules};
+    let id = |name| {
+        index
+            .entries
+            .iter()
+            .find(|entry| entry.name == name)
+            .unwrap()
+            .id
+    };
+    let rollback = id("preserved.bin");
+    let ordinary = id("ordinary.tmp");
+    let state = temporary.path().join("state");
+    fs::create_dir(&state).unwrap();
+    let protections = voldiq_core::metadata::Store::open(&state)
+        .unwrap()
+        .protections()
+        .unwrap();
+    let page = rules::query(
+        Some(&index),
+        rules::RuleKind::OldFiles,
+        rules::Query {
+            offset: 0,
+            limit: 50,
+            weights: Default::default(),
+        },
+        &rules::Environment {
+            temporary: &root,
+            local_data: &local,
+            caches: &[],
+            now,
+            protections: &protections,
+            duplicates: None,
+        },
+        &cancel,
+    )
+    .unwrap();
+    assert!(
+        page.items.iter().any(|item| item.file.id == ordinary),
+        "ordinary file missing: indexed={}, total={}, complete={}, entry={:?}",
+        page.indexed,
+        page.total,
+        page.complete,
+        index.entry(ordinary).unwrap()
+    );
+    assert!(
+        page.items.iter().all(|item| item.file.id != rollback),
+        "Windows.old was suggested for cleanup"
+    );
+    let error = Plan::manual(&index, &[rollback])
+        .err()
+        .expect("Windows.old was allowed in a manual cleanup plan");
+    assert_eq!(
+        error.to_string(),
+        "Sensitive files are excluded from cleanup."
+    );
+
     index.snapshot_id = Some(1);
     assert!(matches!(
         read_desktop(&index, &cancel).unwrap(),

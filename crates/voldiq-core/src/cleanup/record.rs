@@ -239,6 +239,7 @@ pub(crate) fn sensitive(path: &std::path::Path) -> bool {
                 ".git"
                     | "$recycle.bin"
                     | "system volume information"
+                    | "windows.old"
                     | "ntuser.dat"
                     | "pagefile.sys"
                     | "hiberfil.sys"

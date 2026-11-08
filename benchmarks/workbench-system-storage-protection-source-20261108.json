@@ -1,0 +1,86 @@
+{
+  "checkedUtc": "2026-11-08T02:38:37.7520501Z",
+  "startedUtc": "2026-11-08T02:23:32.3819014Z",
+  "checkoutCommit": "10aed881532a745c99f2ced95a486ca9d11e59a4",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.982
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 9.229
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.971
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 8.455
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 834.869
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 50.843
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/cleanup/record.rs",
+      "sha256": "D0390AE7B2BD2AFE921E1D08F9762858D03342BE21542428F9409977E5D4F28D"
+    },
+    {
+      "path": "crates/voldiq-core/src/space/system.rs",
+      "sha256": "B03C0066514D1A013E64E343987E078AB29BE3274C283259D2DECB45E0DECA0D"
+    },
+    {
+      "path": "crates/voldiq-core/src/space/system/native.rs",
+      "sha256": "94C60C2F8A7B2A193DD21D1E7D43746BFEF9DE5C7F55E80FCA71534DE20F63C8"
+    },
+    {
+      "path": "crates/voldiq-core/src/windows/registry.rs",
+      "sha256": "7F7F0CB5205C2F5AB776BD43ED1C792A4C7251FF58CBCA28FBCF2BCF8CA1D31F"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots/system_storage_fixture.rs",
+      "sha256": "33F9D407CE9678C5CF43DB7AF90F4C568D9E2142FF688C46A4744D84A693B958"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "1B7E9170E9FF2025B6124038F6672F85AA9944A1EE4BF37C464E1F8F0A2A9582"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "458F473B97102C44E438D10087AEBD62776D6B0CC941AD05B86C4580743B250A"
+    },
+    {
+      "path": "frontend/components/SystemStorage.svelte",
+      "sha256": "03E523BE5B5D74B32374485B70B5FEDD689755190DD0532BC7CB31D4346C9289"
+    },
+    {
+      "path": "frontend/lib/system-storage.ts",
+      "sha256": "F28B4E3B681AAE60DC72579196338593DC196767AFD0A6921C21218C69233D38"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "limits": "The retained history flow checks system-path evidence and rejects aged Windows.old files from cleanup suggestions and manual preparation while keeping an ordinary old file eligible. Populated native rendering, pointer, keyboard, scaling and clean-machine installation remain manual."
+}
