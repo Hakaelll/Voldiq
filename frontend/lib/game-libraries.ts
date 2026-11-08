@@ -5,6 +5,7 @@ export type GameLibraryReport =
   | {
       kind: 'available';
       total: number;
+      recorded: boolean;
       shared_bytes: string;
       unattributed_bytes: string;
       omitted_manifests: number;

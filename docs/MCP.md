@@ -66,6 +66,7 @@ This example forwards an environment variable by name, without embedding its val
 | `voldiq_space_account` | Metadata | Scoped indexed allocation, logical path bytes, cloud/reparse metadata, accounting and coverage; whole-volume context and residual withheld |
 | `voldiq_query` | Metadata | Bounded page with shared structured filters and advanced expression |
 | `voldiq_applications` | Metadata | Current authorized Windows installation claims over scoped indexed files; capped page, dated provenance and exact logical-byte partition |
+| `voldiq_libraries` | Metadata and ReadContent | Recorded game or media evidence and logical sizes from an authorized snapshot and indexed folder |
 | `voldiq_export_csv` | Metadata + Export | Bounded files/folders CSV page and scope/filter/coverage metadata; full paths require explicit opt-in |
 | `voldiq_query_translate` | Metadata | Offline expression proposal and exact unparsed input spans; no snapshot/query execution |
 | `voldiq_details` | Metadata | One indexed entry, path and ancestor metadata |
@@ -168,6 +169,12 @@ CLI `voldiq-cli space <snapshot_id>` and MCP `voldiq_space_account({"snapshot_id
 The service requires Metadata, checks the snapshot's native root identity and exclusion coverage, and repeats authorization before returning. A cached snapshot does not preserve revoked permission. The report always has `volume: {"kind":"scoped_only"}` and `residual: {"kind":"unavailable","reason":"scoped_only"}`. A folder grant does not authorize the containing volume's usage, free space, reserves or caller allowance. There is no whole-volume option and this adapter never invokes the native volume reader.
 
 CLI Ctrl+C and MCP request cancellation use the existing cooperative worker lifetime. Initial snapshot loading may finish before observing cancellation; cancelled summaries return no partial report. Signal/notification delivery remains separate runtime acceptance. This call does not scan, read file contents, hydrate placeholders, request approval or modify files.
+
+## Recorded library analysis
+
+Run `voldiq-cli libraries <snapshot_id> games` or `voldiq-cli libraries <snapshot_id> media`. An optional JSON request accepts an indexed folder `scope`, an `offset` through 1024 and a `limit` from 1 through 100. The connection can further restrict page size. MCP `voldiq_libraries` takes `snapshot_id`, `kind` and optional `query` with the same fields.
+
+Desktop snapshot saves record library evidence from the current scan. Agent scans record it when the connection has Scan, Metadata and ReadContent, with a content check for each bounded signature or manifest read. Querying a report requires Metadata, ReadContent and current authorization for the snapshot root and exclusions. Library rows and byte totals use the saved index and evidence within the requested folder. A game row requires both its manifest and install folder in that scope. `recorded_scan` identifies a snapshot without library evidence. `recorded: true` identifies an available report based on a saved capture.
 
 ## Snapshot comparison
 

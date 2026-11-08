@@ -41,6 +41,7 @@ pub struct Index {
     pub snapshot_id: Option<i64>,
     pub captured_caches: Vec<crate::developer::CacheEvidence>,
     pub captured_applications: Option<crate::applications::Capture>,
+    pub captured_libraries: Option<crate::libraries::Capture>,
     pub ntfs_checkpoint: Option<crate::ntfs::Checkpoint>,
 }
 

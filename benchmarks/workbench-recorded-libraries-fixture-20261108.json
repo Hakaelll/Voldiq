@@ -1,0 +1,14 @@
+{
+  "schema9Migrated": true,
+  "renumberedNodes": true,
+  "sourceFilesRemoved": true,
+  "recordedGameBytes": 13,
+  "recordedMediaBytes": 17,
+  "recordedManualBytes": 23,
+  "deniedManifestOmitted": true,
+  "narrowedScope": true,
+  "foreignPathMapRejected": true,
+  "checkedUtc": "2026-11-08T00:03:31.7371869Z",
+  "evidenceSourceSha256": "AC667DAA343F15827B44FFEA68C7DB0594DEC1844777D385AA1F54DA64719CEF",
+  "scope": "Owned SQLite history, renamed node order, bounded capture, removed source metadata and cross-root mapping rejection. No real library or user state changed."
+}

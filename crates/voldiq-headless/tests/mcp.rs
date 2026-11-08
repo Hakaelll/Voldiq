@@ -753,6 +753,14 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         let files = files.structured_content.unwrap();
         assert_eq!(files["result"]["total"], 1);
         assert_eq!(files["result"]["items"][0]["logical"], 11);
+        verify_recorded_libraries(
+            &client,
+            &mut registry,
+            state.path(),
+            recorded_root.path(),
+            recorded_id,
+        )
+        .await;
     }
     registry.revoke(provisioned.id).unwrap();
     for (name, args) in [
@@ -819,6 +827,150 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
             .await
             .is_error,
         Some(true)
+    );
+    client.cancel().await.unwrap();
+}
+
+#[cfg(windows)]
+async fn verify_recorded_libraries(
+    metadata_client: &rmcp::service::RunningService<rmcp::RoleClient, ()>,
+    registry: &mut Registry,
+    state: &std::path::Path,
+    root: &std::path::Path,
+    legacy: i64,
+) {
+    let manifests = root.join("steamapps");
+    let game = manifests.join("common/Owned Game");
+    std::fs::create_dir_all(&game).unwrap();
+    let manifest = manifests.join("appmanifest_120.acf");
+    let profile = root.join("Owned.NEF.pp3");
+    std::fs::write(
+        &manifest,
+        br#""AppState" { "appid" "120" "name" "Owned Game" "installdir" "Owned Game" }"#,
+    )
+    .unwrap();
+    std::fs::write(game.join("game.bin"), [0; 13]).unwrap();
+    std::fs::write(root.join("Owned.NEF"), [0; 17]).unwrap();
+    std::fs::write(&profile, b"[Version]\nAppVersion=5.12\nVersion=360\n").unwrap();
+
+    let provisioned = registry
+        .provision(
+            "Library evidence fixture",
+            Policy::new(
+                vec![root.to_owned()],
+                vec![],
+                vec![
+                    Capability::Metadata,
+                    Capability::Scan,
+                    Capability::ReadContent,
+                ],
+                Limits {
+                    page_size: 1,
+                    ..Limits::default()
+                },
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let run = |args: &[&str]| {
+        let output = std::process::Command::new(env!("CARGO_BIN_EXE_voldiq-cli"))
+            .arg("--state")
+            .arg(state)
+            .args(args)
+            .env("VOLDIQ_AGENT_TOKEN", provisioned.credential.expose())
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        serde_json::from_slice::<Value>(&output.stdout).unwrap()
+    };
+    let job = run(&["scan", root.to_str().unwrap(), "--wait"]);
+    let snapshot = job["result"]["snapshot_id"].as_i64().unwrap();
+    std::fs::remove_file(manifest).unwrap();
+    std::fs::remove_file(profile).unwrap();
+    let games = run(&["libraries", &snapshot.to_string(), "games"]);
+    assert_eq!(games["result"]["recorded"], true);
+    assert_eq!(games["result"]["items"][0]["installation_bytes"], "13");
+    let scope = games["result"]["items"][0]["id"].as_u64().unwrap();
+
+    let denied = call(
+        metadata_client,
+        "voldiq_libraries",
+        json!({"snapshot_id":snapshot,"kind":"games"}),
+    )
+    .await;
+    assert_eq!(
+        denied.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
+    );
+
+    let mut command = tokio::process::Command::new(env!("CARGO_BIN_EXE_voldiq-cli"));
+    command
+        .arg("--state")
+        .arg(state)
+        .args(["mcp", "serve", "--stdio"])
+        .env("VOLDIQ_AGENT_TOKEN", provisioned.credential.expose());
+    let client = ().serve(TokioChildProcess::new(command).unwrap()).await.unwrap();
+    assert!(
+        client
+            .list_all_tools()
+            .await
+            .unwrap()
+            .iter()
+            .any(|tool| tool.name == "voldiq_libraries")
+    );
+    let media = call(
+        &client,
+        "voldiq_libraries",
+        json!({"snapshot_id":snapshot,"kind":"media"}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_eq!(media["result"]["recorded"], true);
+    assert_eq!(
+        media["result"]["items"][0]["sizes"][0],
+        json!({"category":"source_images","logical_bytes":"17"})
+    );
+    let narrowed = call(
+        &client,
+        "voldiq_libraries",
+        json!({"snapshot_id":snapshot,"kind":"games","query":{"scope":scope}}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_eq!(narrowed["result"]["items"], json!([]));
+    assert_eq!(narrowed["result"]["unattributed_bytes"], "13");
+    let older = call(
+        &client,
+        "voldiq_libraries",
+        json!({"snapshot_id":legacy,"kind":"media"}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_eq!(older["result"]["kind"], "recorded_scan");
+    let invalid = call(
+        &client,
+        "voldiq_libraries",
+        json!({"snapshot_id":snapshot,"kind":"games","query":{"manual":[root]}}),
+    )
+    .await;
+    assert_eq!(invalid.is_error, Some(true));
+    registry.revoke(provisioned.id).unwrap();
+    let revoked = call(
+        &client,
+        "voldiq_libraries",
+        json!({"snapshot_id":snapshot,"kind":"media"}),
+    )
+    .await;
+    assert_eq!(
+        revoked.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
     );
     client.cancel().await.unwrap();
 }

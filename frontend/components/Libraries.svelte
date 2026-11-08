@@ -146,7 +146,9 @@
       {section === 'games' ? 'Reading indexed launcher manifests…' : 'Checking media signatures…'}
     </p>
   {:else if report?.kind === 'recorded_scan'}
-    <p role="status">Run a live scan to verify current library files.</p>
+    <p role="status">
+      This snapshot has no library evidence. Save a new snapshot after a live scan.
+    </p>
   {:else if report?.kind === 'unsupported'}
     <p role="status">Library attribution requires Windows.</p>
   {:else if report?.kind === 'available'}
@@ -157,6 +159,7 @@
         ? 'Updating results…'
         : `${report.total.toLocaleString()} ${section === 'games' ? 'recognized games' : 'recognized media groups'} · ${size(report.shared_bytes)} shared · ${size(report.unattributed_bytes)} unattributed`}
     </p>
+    {#if report.recorded}<p>Sizes and library evidence from the saved snapshot.</p>{/if}
     {#if report.coverage_partial}
       <p>
         Coverage is partial.{omitted

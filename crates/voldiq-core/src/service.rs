@@ -194,6 +194,7 @@ impl AgentService {
         Ok(
             serde_json::json!({"schema_version":1,"capabilities":policy.capabilities(),"limits":policy.limits(),
             "transport":"local_stdio","approval":"independent_human_required","plan_preparation_available":true,"execution_available":execution,"application_attribution_available":cfg!(windows),
+            "library_attribution_available":cfg!(windows) && policy.capabilities().contains(&Capability::ReadContent),
             "scope":"Stored snapshots whose native root identity and exclusion coverage satisfy this connection's current policy."}),
         )
     }
@@ -261,8 +262,29 @@ impl AgentService {
                 })
                 .unwrap_or_else(|_| crate::applications::Capture::unavailable()),
         );
+        let evidence = if registry
+            .policy(&self.principal, Capability::ReadContent)
+            .is_ok()
+        {
+            crate::libraries::capture(&index, &cancel, |node| {
+                index
+                    .path(node)
+                    .and_then(|path| crate::agents::ordinary_path(&path))
+                    .is_ok_and(|path| {
+                        registry
+                            .authorize(&self.principal, Capability::ReadContent, &path)
+                            .is_ok()
+                    })
+            })?
+        } else {
+            None
+        };
+        registry.authorize_index(&self.principal, &index)?;
+        if cancel.load(Ordering::Relaxed) {
+            return jobs.finish(self.principal.id(), id, JobState::Cancelled, None);
+        }
         let mut store = Store::open(&self.directory.directory().join("snapshots.db"))?;
-        let snapshot = store.save(&index, &cancel, &[])?;
+        let snapshot = store.save_with_libraries(&index, &cancel, &[], evidence.as_ref())?;
         jobs.finish(self.principal.id(), id, JobState::Completed, Some(snapshot))
     }
 
@@ -375,6 +397,51 @@ impl AgentService {
         self.registry()?
             .policy(&self.principal, Capability::Metadata)?;
         Ok(crate::search::translate(source)?)
+    }
+
+    pub fn libraries(
+        &self,
+        snapshot: i64,
+        kind: crate::libraries::LibraryKind,
+        request: crate::libraries::HeadlessQuery,
+        cancel: &AtomicBool,
+    ) -> Result<Option<serde_json::Value>> {
+        use crate::libraries::{self, LibraryKind};
+        let registry = self.registry()?;
+        let policy = registry.policy(&self.principal, Capability::ReadContent)?;
+        if request.offset > 1024 || !(1..=100).contains(&request.limit) {
+            return Err(Error::Invalid("Invalid library page.".into()));
+        }
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        let index = self.index(snapshot)?;
+        let query = libraries::Query {
+            scope: request.scope,
+            offset: request.offset,
+            limit: request.limit.min(policy.limits().page_size),
+            manual: Vec::new(),
+        };
+        let result = match kind {
+            LibraryKind::Games => {
+                libraries::query(&index, &query, cancel)?.map(serde_json::to_value)
+            }
+            LibraryKind::Media => {
+                libraries::media::query(&index, &query, cancel)?.map(serde_json::to_value)
+            }
+        }
+        .transpose()
+        .map_err(|_| Error::Invalid("Could not encode the library report.".into()))?;
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        let current = self.registry()?;
+        let fresh = current.policy(&self.principal, Capability::ReadContent)?;
+        self.validate_index(&current, &index)?;
+        if query.limit > fresh.limits().page_size {
+            return Err(denied());
+        }
+        Ok(result)
     }
 
     pub fn query(&self, snapshot: i64, query: &Query, cancel: &AtomicBool) -> Result<Option<Page>> {

@@ -1,0 +1,158 @@
+{
+  "checkedUtc": "2026-11-08T00:13:42.0039645Z",
+  "startedUtc": "2026-11-08T00:08:16.2512683Z",
+  "checkoutCommit": "0b4c170ab287d047349b1c3685ef8a351c7d816e",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.213
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.216
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.813
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.746
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 229.939
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 79.806
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/examples/query_benchmark.rs",
+      "sha256": "7F793AFE71C297980350B3399F5AC48281CF19B73BA913546E00C3C3A19CF25F"
+    },
+    {
+      "path": "crates/voldiq-core/src/index.rs",
+      "sha256": "4EC1810BE3AC6DC4565FA8E99F32011A148420B960C5A07BD1FF7129F5A39EF8"
+    },
+    {
+      "path": "crates/voldiq-core/src/libraries.rs",
+      "sha256": "83D78F1A5E0E2A987CF1E9237C7C0E5FCEAD52DF6806E92C3EE745DFD789763E"
+    },
+    {
+      "path": "crates/voldiq-core/src/libraries/capture.rs",
+      "sha256": "F1EFA8574434351C3C661EF887CB2B89F15A03CAF517340DFD99F50839E42AC7"
+    },
+    {
+      "path": "crates/voldiq-core/src/libraries/games.rs",
+      "sha256": "1A61DFD6F62224379AF277080C6CF1E0E2498328C69CDE0C9840337E01D595F0"
+    },
+    {
+      "path": "crates/voldiq-core/src/libraries/media.rs",
+      "sha256": "1FD31979B87F922C5542A852C1EF1F1941C6F5B7763709CEBA94ABF436DAC013"
+    },
+    {
+      "path": "crates/voldiq-core/src/libraries/media/indexed.rs",
+      "sha256": "EF6B11E4789F23AA73EFB47CF6BE30F280EACFA817904C1BB6C7B0E44136E09C"
+    },
+    {
+      "path": "crates/voldiq-core/src/libraries/scoped.rs",
+      "sha256": "0FD0B01A79FD32A8E0C8661BB4181B87564B4D65A1AC52D6A73D3F3F54629E8A"
+    },
+    {
+      "path": "crates/voldiq-core/src/ntfs/replay.rs",
+      "sha256": "E3160DCC62E34F85478341BC34FA78861D162C7FC6B4DAD8478F2A4624A20B1A"
+    },
+    {
+      "path": "crates/voldiq-core/src/scanner.rs",
+      "sha256": "1E995BF748C0F85E1FFA35F7373BE024D4D6C5EC92171626F7965663C69D2C90"
+    },
+    {
+      "path": "crates/voldiq-core/src/service.rs",
+      "sha256": "A2575E3297F0477FF1EEC538B6CAEB8DC0393304F79F0A8C1656B3C1DB277DFC"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots.rs",
+      "sha256": "CCBC768E2D3F83BDC55B359DE99290AF055C206CEA232F0BD1B28D853EDFCA30"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/library_evidence.rs",
+      "sha256": "AC667DAA343F15827B44FFEA68C7DB0594DEC1844777D385AA1F54DA64719CEF"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/resume.rs",
+      "sha256": "18A1522F36B516F508FF0CF87259A0BC4F4879823DDC3EB3FF7EDA8D5F86E4DB"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "35B0D5DED692F5C7CF02CDA0139BC94BA05A39D766EB2565F7617D6270716B99"
+    },
+    {
+      "path": "crates/voldiq-headless/src/main.rs",
+      "sha256": "8FCDE25D367F1B21A70DE7D93AA882A9BF49FF879374812C20B9B99DABEB1E59"
+    },
+    {
+      "path": "crates/voldiq-headless/src/mcp.rs",
+      "sha256": "EC7E12DAC994F757D64648E446D258A917BD58E17A1D96BA7B58D5D3773AACDF"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/mcp.rs",
+      "sha256": "DC6CD1DD3F9F388EAF967EA2C1314FA2EC9BDAE36B9D177D033146E0F7F58DAA"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "334AA43FD00FFB11F86F5CEDB7F9D52C3B844B4EC85B24C4B9A10E3A9A848442"
+    },
+    {
+      "path": "docs/MCP.md",
+      "sha256": "3BECE337483A31F2F813D2EF07E3107B83E1799398398C9D98AA938D9AA3E8BE"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "B1D01014C0F22ECEC6FB75A78AB80E62BC892B289B08BE28BA8B55016BC2D22E"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "429C0848B9C5DB5036B461161250600930D13002BF0C54A92031954B7407D839"
+    },
+    {
+      "path": "frontend/components/Libraries.svelte",
+      "sha256": "140306FB2F659649D3429E881CFF52CDAEDB882BD547F411F4D8421AFCDF9789"
+    },
+    {
+      "path": "frontend/lib/game-libraries.ts",
+      "sha256": "7ED7D70AD9D4AE4DEE2A92D5338F85BF4B131575F42071A6850748423C87D9C7"
+    },
+    {
+      "path": "frontend/lib/media-libraries.ts",
+      "sha256": "A73AC77729F777C6D4BA024B888F57DA17DD728140B8B8A63C0AB064E9B1F695"
+    },
+    {
+      "path": "src-tauri/examples/overview_benchmark.rs",
+      "sha256": "CBE619D144ED64BAEF1D31976CABDB0E9A484EA2B2E289429B5E99C15F7DEC6A"
+    },
+    {
+      "path": "src-tauri/src/snapshot_commands.rs",
+      "sha256": "E806B10E0682AAC2ED8174424FB8491DD9012B32DCAF0B2FAF29CEECDB697561"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "limits": "The retained SDK/CLI flow verifies capture, file removal, narrowed scope, capability and revocation; a separate owned fixture verifies historical desktop reads. Native visual, focus/keyboard, scaling and clean-machine install acceptance remain manual."
+}

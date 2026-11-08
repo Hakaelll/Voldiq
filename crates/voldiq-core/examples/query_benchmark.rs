@@ -40,6 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         snapshot_id: None,
         captured_caches: Vec::new(),
         captured_applications: None,
+        captured_libraries: None,
         observation: None,
         ntfs_checkpoint: None,
     };

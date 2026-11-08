@@ -163,76 +163,120 @@ fn profile_header(bytes: &[u8]) -> bool {
     app && version
 }
 
+enum Signature<'a> {
+    Lightroom(&'a str),
+    Darktable,
+    Profile(String, Category),
+}
+
+fn candidate<'a>(index: &'a Index, entry: &'a Entry) -> Option<(&'a Entry, Signature<'a>)> {
+    if !entry.is_metadata_file() {
+        return None;
+    }
+    let (stem, extension) = entry.name.rsplit_once('.')?;
+    if !["lrcat", "db", "pp3"]
+        .iter()
+        .any(|kind| extension.eq_ignore_ascii_case(kind))
+    {
+        return None;
+    }
+    let directory = parent(index, entry).filter(|node| node.kind == Kind::Directory)?;
+    let kind = if !stem.is_empty() && extension.eq_ignore_ascii_case("lrcat") {
+        Signature::Lightroom(stem)
+    } else if (entry.name.eq_ignore_ascii_case("library.db")
+        || entry.name.eq_ignore_ascii_case("data.db"))
+        && darktable_directory(index, directory)
+    {
+        Signature::Darktable
+    } else {
+        let (target, category) = profile_target(&entry.name)?;
+        Signature::Profile(target, category)
+    };
+    Some((directory, kind))
+}
+
+pub(in crate::libraries) fn signatures(
+    index: &Index,
+    scope: NodeId,
+    cancel: &AtomicBool,
+    authorize: &mut impl FnMut(NodeId) -> bool,
+) -> Option<HashSet<NodeId>> {
+    let mut known = HashSet::new();
+    let mut inspected = 0;
+    for entry in &index.entries {
+        if cancel.load(Ordering::Relaxed) {
+            return None;
+        }
+        let Some((_, kind)) = candidate(index, entry) else {
+            continue;
+        };
+        if !index.in_scope(entry.id, scope) || !authorize(entry.id) {
+            continue;
+        }
+        inspected += 1;
+        let is_profile = matches!(kind, Signature::Profile(..));
+        let prefix = if is_profile {
+            PROFILE_PREFIX
+        } else {
+            SQLITE_HEADER
+        };
+        if read_indexed_prefix(index, entry.id, prefix).is_ok_and(|bytes| {
+            if is_profile {
+                profile_header(&bytes)
+            } else {
+                sqlite_header(&bytes)
+            }
+        }) {
+            known.insert(entry.id);
+        }
+        if inspected == SIGNATURE_LIMIT {
+            break;
+        }
+    }
+    (!cancel.load(Ordering::Relaxed)).then_some(known)
+}
+
 pub(super) fn query(index: &Index, query: &Query, cancel: &AtomicBool) -> Result<Option<Report>> {
     let stopped = || cancel.load(Ordering::Relaxed);
     let mut groups = Vec::new();
     let mut claims = HashMap::new();
     let mut darktable = HashMap::new();
     let mut lookup = Vec::<(Sibling, Relation)>::new();
-    let mut inspected = 0;
+    let known = if index.snapshot_id.is_some() {
+        let Some(capture) = &index.captured_libraries else {
+            return Ok(Some(Report::RecordedScan));
+        };
+        capture.media.iter().copied().collect()
+    } else {
+        let Some(known) = signatures(index, query.scope, cancel, &mut |_| true) else {
+            return Ok(None);
+        };
+        known
+    };
     let mut omitted = 0;
     for entry in &index.entries {
         if stopped() {
             return Ok(None);
         }
-        if !entry.is_metadata_file() {
-            continue;
-        }
-        let Some((stem, extension)) = entry.name.rsplit_once('.') else {
+        let Some((directory, signature)) = candidate(index, entry) else {
             continue;
         };
-        if !["lrcat", "db", "pp3"]
-            .iter()
-            .any(|kind| extension.eq_ignore_ascii_case(kind))
-        {
+        if !index.in_scope(entry.id, query.scope) {
             continue;
         }
-        let Some(directory) = parent(index, entry).filter(|node| node.kind == Kind::Directory)
-        else {
-            continue;
-        };
-        let lightroom = !stem.is_empty() && extension.eq_ignore_ascii_case("lrcat");
-        let darktable_db = (entry.name.eq_ignore_ascii_case("library.db")
-            || entry.name.eq_ignore_ascii_case("data.db"))
-            && darktable_directory(index, directory);
-        let profile = extension
-            .eq_ignore_ascii_case("pp3")
-            .then(|| profile_target(&entry.name))
-            .flatten();
-        if (!lightroom && !darktable_db && profile.is_none())
-            || !index.in_scope(entry.id, query.scope)
-        {
-            continue;
-        }
-        if inspected == SIGNATURE_LIMIT {
+        if !known.contains(&entry.id) {
             omitted += 1;
             continue;
         }
-        inspected += 1;
-        let prefix = if profile.is_some() {
-            PROFILE_PREFIX
-        } else {
-            SQLITE_HEADER
-        };
-        let Ok(bytes) = read_indexed_prefix(index, entry.id, prefix) else {
-            omitted += 1;
-            continue;
-        };
-        if let Some((target, category)) = profile {
-            if profile_header(&bytes) {
-                lookup.push((
-                    (directory.id, target),
-                    Relation::Profile {
-                        id: entry.id,
-                        category,
-                    },
-                ));
-            } else {
-                omitted += 1;
-            }
-        } else if !sqlite_header(&bytes) {
-            omitted += 1;
-        } else if lightroom {
+        if let Signature::Profile(target, category) = signature {
+            lookup.push((
+                (directory.id, target),
+                Relation::Profile {
+                    id: entry.id,
+                    category,
+                },
+            ));
+        } else if let Signature::Lightroom(stem) = signature {
             let group = groups.len();
             groups.push(Group::new(
                 entry.id,
@@ -461,6 +505,7 @@ pub(super) fn query(index: &Index, query: &Query, cancel: &AtomicBool) -> Result
     Ok(Some(Report::Available {
         items,
         total,
+        recorded: index.snapshot_id.is_some(),
         shared_bytes: shared.to_string(),
         unattributed_bytes: unattributed.to_string(),
         omitted_signatures: omitted,

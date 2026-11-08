@@ -106,7 +106,8 @@ Search first adds one bounded core parser/compiler to the existing query engine.
 - [x] Rank supported cleanup rule and scoped application-cache candidates with adjustable, explainable evidence. Preserve existing verified developer rules and explicit tray selection.
 - [x] Add desktop game library attribution for Steam, Epic, GOG and itch.io plus manually chosen indexed folders.
 - [x] Classify media storage from documented Lightroom Classic, Windows darktable and RawTherapee layouts, with unknown folders measured separately.
-- [ ] Extend scoped headless library attribution and the remaining application recipes.
+- [x] Save scoped game and media evidence and expose recorded reports in desktop, CLI and MCP.
+- [ ] Extend the remaining application recipes and supported library layouts.
 
 The common tray binds up to 500 file IDs in 16 source groups to the current analysis. Manual files, existing recipe candidates and exact duplicates enter through the same UI state. Indexed logical sizes and known allocation remain separate, with hard-link identities counted once for allocation. A target only tracks the chosen measure. Shared preparation rechecks each source, rejects selected retained copies across groups and carries all keeper evidence into the existing executor. The remaining app, library, scoring and rule work stays in this stage.
 - [ ] Extend duplicate review with perceptual image comparison, explicit similarity and manual selection; do not weaken exact duplicate retention.

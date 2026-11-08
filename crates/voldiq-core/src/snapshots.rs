@@ -4,6 +4,7 @@ pub use clip::{ExportClip, ExportClipProgress, ExportClipRequest};
 mod application_evidence;
 mod budget_history;
 mod cache_evidence;
+mod library_evidence;
 mod retention;
 mod visual;
 pub use activity::{
@@ -252,12 +253,12 @@ impl Store {
         let mut connection = Connection::open(path)?;
         crate::database::configure(&connection)?;
         let version: u32 = connection.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version < 9 {
+        if version < 10 {
             let transaction =
                 connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
             let version: u32 =
                 transaction.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-            if version > 9 {
+            if version > 10 {
                 return Err(Error::Invalid(
                     "Unsupported snapshot database version.".into(),
                 ));
@@ -289,8 +290,11 @@ impl Store {
             if version <= 8 {
                 transaction.execute_batch(application_evidence::SCHEMA)?;
             }
+            if version <= 9 {
+                transaction.execute_batch(library_evidence::SCHEMA)?;
+            }
             transaction.commit()?;
-        } else if version != 9 {
+        } else if version != 10 {
             return Err(Error::Invalid(
                 "Unsupported snapshot database version.".into(),
             ));
@@ -318,6 +322,16 @@ impl Store {
         index: &Index,
         cancel: &AtomicBool,
         caches: &[crate::developer::CacheLocation],
+    ) -> Result<i64> {
+        self.save_with_libraries(index, cancel, caches, None)
+    }
+
+    pub fn save_with_libraries(
+        &mut self,
+        index: &Index,
+        cancel: &AtomicBool,
+        caches: &[crate::developer::CacheLocation],
+        libraries: Option<&crate::libraries::Capture>,
     ) -> Result<i64> {
         if index.snapshot_id.is_some() {
             return Err(Error::Invalid(
@@ -465,6 +479,9 @@ impl Store {
         }
         cache_evidence::write(&transaction, snapshot_id, &paths, &cache_evidence)?;
         application_evidence::write(&transaction, snapshot_id, &paths, index, cancel)?;
+        if let Some(capture) = libraries {
+            library_evidence::write(&transaction, snapshot_id, &paths, index, capture, cancel)?;
+        }
         if cancel.load(Ordering::Relaxed) {
             return Err(Error::Invalid("Snapshot capture cancelled.".into()));
         }
@@ -588,6 +605,7 @@ impl Store {
             snapshot_id: Some(id),
             captured_caches: Vec::new(),
             captured_applications: None,
+            captured_libraries: None,
             ntfs_checkpoint: None,
         };
         if !index.root.is_absolute() {
@@ -672,6 +690,7 @@ impl Store {
         index.entry(NodeId(0))?;
         index.captured_caches = self.load_caches(id, &paths, &index)?;
         index.captured_applications = self.load_applications(id, &paths, &index)?;
+        index.captured_libraries = self.load_libraries(id, &paths, &index)?;
         let mut issues = self
             .connection
             .prepare("SELECT path,message FROM snapshot_issues WHERE snapshot_id=?1 LIMIT 1000")?;

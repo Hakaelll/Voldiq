@@ -1,6 +1,10 @@
 use super::ManualLibrary;
-use crate::{NodeId, agents::ordinary_path, index::Index};
-use std::{collections::HashMap, path::Path};
+use crate::{Kind, NodeId, Result, agents::ordinary_path, index::Index};
+use std::{
+    collections::{HashMap, HashSet},
+    path::Path,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 pub(super) const OUTSIDE: u16 = u16::MAX;
 pub(super) const UNRESOLVED: u16 = u16::MAX - 1;
@@ -77,7 +81,9 @@ pub(super) fn measure_manual(
         .into_iter()
         .map(|path| {
             let id = locations.get(&path?)?.as_ref().copied()?;
-            if !local_folder(index, id, scope) {
+            if !index.in_scope(id, scope)
+                || (index.snapshot_id.is_none() && !local_folder(index, id, scope))
+            {
                 return None;
             }
             let entry = index.entry(id).ok()?;
@@ -88,4 +94,35 @@ pub(super) fn measure_manual(
             })
         })
         .collect()
+}
+
+pub(super) fn locate_manual(
+    index: &Index,
+    scope: NodeId,
+    manuals: &[Option<String>],
+    cancel: &AtomicBool,
+) -> Result<Option<Locations<String>>> {
+    let requested: HashSet<_> = manuals.iter().flatten().collect();
+    let mut locations = Locations::new();
+    if requested.is_empty() {
+        return Ok(Some(locations));
+    }
+    let names: HashSet<_> = requested
+        .iter()
+        .filter_map(|path| path.rsplit('\\').next())
+        .collect();
+    for entry in &index.entries {
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        if entry.kind == Kind::Directory
+            && (entry.id == NodeId(0) || names.contains(entry.name.to_lowercase().as_str()))
+            && index.in_scope(entry.id, scope)
+            && let Some(path) = path_key(&index.path(entry.id)?)
+            && requested.contains(&path)
+        {
+            observe(&mut locations, path, entry.id);
+        }
+    }
+    Ok(Some(locations))
 }

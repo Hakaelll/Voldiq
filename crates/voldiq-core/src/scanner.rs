@@ -181,6 +181,7 @@ pub fn scan_live(
         snapshot_id: None,
         captured_caches: Vec::new(),
         captured_applications: None,
+        captured_libraries: None,
         observation: None,
         ntfs_checkpoint: None,
     }));

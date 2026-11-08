@@ -101,10 +101,15 @@ pub async fn save_snapshot(
             return Err("Rescan before saving a new snapshot.".into());
         }
         let caches = crate::developer_commands::cache_locations(&app);
+        let evidence = voldiq_core::libraries::capture(&index, &cancel, |_| true)
+            .map_err(|error| error.to_string())?;
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
         let saved = store
             .lock()
             .map_err(|error| error.to_string())?
-            .save(&index, &cancel, &caches);
+            .save_with_libraries(&index, &cancel, &caches, evidence.as_ref());
         match saved {
             Ok(id) => Ok(Some(id)),
             Err(_) if cancel.load(Ordering::Relaxed) => Ok(None),

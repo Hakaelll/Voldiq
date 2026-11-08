@@ -149,6 +149,8 @@ Storage cost is an optional Overview section. The dated tariff table aligns the 
 
 Libraries shares the Overview section navigation. Games and Media use a flat list with the application and measured subcategories. The shared manual folder list reports separate indexed totals and explains potential overlap. Unknown media folders receive size information only.
 
+The library list identifies recorded snapshot evidence near its measured totals. A snapshot without a capture offers the next step without inventing sizes.
+
 Overview groups Drive health under Space & drive diagnostics. Check drive is explicit. The report pairs its checked time and scan root with a short row of device counters or the Windows access or support state for each mapped disk.
 
 Overview, Cleanup, History and the Explorer list share text section controls with an underline for the active view. Explorer offers Map, List and Grid at this level. Map styles are chosen inside the map toolbar. The workspace toolbar shows drive and search controls on analysis views and the drive picker in Windows tools. Cleanup opens directly to candidates, with Recycle Bin and Windows Storage in Windows tools. History puts the measured trend before its snapshot rows and groups storage maintenance under Manage snapshots.

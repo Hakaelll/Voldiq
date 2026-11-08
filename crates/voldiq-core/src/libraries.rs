@@ -4,8 +4,11 @@ use crate::{NodeId, index::Index};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 
+mod capture;
 #[cfg(windows)]
 mod games;
+pub use capture::{Capture, capture};
+pub(crate) use capture::{MAX_CAPTURE_BYTES, MAX_ROOTS};
 pub mod media;
 #[cfg(windows)]
 mod scoped;
@@ -19,12 +22,38 @@ pub struct Query {
     pub manual: Vec<String>,
 }
 
+#[derive(Clone, Copy, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum LibraryKind {
+    Games,
+    Media,
+}
+
+#[derive(Deserialize)]
+#[serde(default, deny_unknown_fields)]
+pub struct HeadlessQuery {
+    pub scope: NodeId,
+    pub offset: usize,
+    pub limit: usize,
+}
+
+impl Default for HeadlessQuery {
+    fn default() -> Self {
+        Self {
+            scope: NodeId(0),
+            offset: 0,
+            limit: 25,
+        }
+    }
+}
+
 #[derive(Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum Report {
     Available {
         items: Vec<Game>,
         total: usize,
+        recorded: bool,
         shared_bytes: String,
         unattributed_bytes: String,
         omitted_manifests: usize,
@@ -35,7 +64,7 @@ pub enum Report {
     Unsupported,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Provider {
     Steam,
@@ -72,7 +101,7 @@ pub fn query(index: &Index, query: &Query, cancel: &AtomicBool) -> crate::Result
         return Ok(None);
     }
     validate(index, query)?;
-    if index.snapshot_id.is_some() {
+    if index.snapshot_id.is_some() && index.captured_libraries.is_none() {
         return Ok(Some(Report::RecordedScan));
     }
     #[cfg(windows)]

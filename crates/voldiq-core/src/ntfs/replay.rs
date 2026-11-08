@@ -217,6 +217,7 @@ pub fn replay(
         snapshot_id: None,
         captured_caches: Vec::new(),
         captured_applications: None,
+        captured_libraries: None,
         observation: None,
         ntfs_checkpoint: None,
     };

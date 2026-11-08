@@ -2143,7 +2143,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     drop(store);
     let connection = rusqlite::Connection::open(&db).unwrap();
     connection
-        .execute_batch("DROP TABLE snapshot_application_roots; DROP TABLE snapshot_applications; DROP TABLE snapshot_retention; DROP TRIGGER history_snapshot_insert; DROP TRIGGER history_snapshot_update; DROP TRIGGER history_snapshot_delete; DROP TABLE snapshot_history_revision; DROP INDEX snapshots_observed; ALTER TABLE snapshots DROP COLUMN observed_at; ALTER TABLE snapshots DROP COLUMN observed_complete; ALTER TABLE snapshots DROP COLUMN engine_version; ALTER TABLE snapshots DROP COLUMN accounting_version; ALTER TABLE snapshot_versions DROP COLUMN cloud; DROP TABLE duplicate_hashes; PRAGMA user_version=4;")
+        .execute_batch("DROP TABLE snapshot_library_nodes; DROP TABLE snapshot_libraries; DROP TABLE snapshot_application_roots; DROP TABLE snapshot_applications; DROP TABLE snapshot_retention; DROP TRIGGER history_snapshot_insert; DROP TRIGGER history_snapshot_update; DROP TRIGGER history_snapshot_delete; DROP TABLE snapshot_history_revision; DROP INDEX snapshots_observed; ALTER TABLE snapshots DROP COLUMN observed_at; ALTER TABLE snapshots DROP COLUMN observed_complete; ALTER TABLE snapshots DROP COLUMN engine_version; ALTER TABLE snapshots DROP COLUMN accounting_version; ALTER TABLE snapshot_versions DROP COLUMN cloud; DROP TABLE duplicate_hashes; PRAGMA user_version=4;")
         .unwrap();
     drop(connection);
     let mut store = Store::open(&db).unwrap();

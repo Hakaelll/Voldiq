@@ -4,7 +4,7 @@ use serde::Serialize;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 #[cfg(windows)]
-mod indexed;
+pub(super) mod indexed;
 
 #[derive(Serialize)]
 #[serde(tag = "kind", rename_all = "snake_case")]
@@ -12,6 +12,7 @@ pub enum Report {
     Available {
         items: Vec<Library>,
         total: usize,
+        recorded: bool,
         shared_bytes: String,
         unattributed_bytes: String,
         omitted_signatures: usize,
@@ -63,7 +64,7 @@ pub fn query(index: &Index, query: &Query, cancel: &AtomicBool) -> Result<Option
         return Ok(None);
     }
     super::validate(index, query)?;
-    if index.snapshot_id.is_some() {
+    if index.snapshot_id.is_some() && index.captured_libraries.is_none() {
         return Ok(Some(Report::RecordedScan));
     }
     #[cfg(windows)]

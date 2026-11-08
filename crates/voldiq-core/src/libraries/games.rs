@@ -3,7 +3,7 @@ mod manifests;
 use super::scoped::{
     Locations, OUTSIDE, UNRESOLVED, local_folder, measure_manual, observe, ownership, path_key,
 };
-use super::{Game, Provider, Query, Report};
+use super::{Game, Provider, Query, Report, capture::GameEvidence};
 use crate::{Entry, Kind, NodeId, Result, index::Index, inspection::read_indexed_manifest};
 use manifests::{FILE_LIMIT, number};
 use std::{
@@ -116,7 +116,7 @@ const CATEGORIES: usize = 5;
 
 struct Measured {
     id: NodeId,
-    record: Record,
+    record: GameEvidence,
     size: [Option<u128>; CATEGORIES],
     roots: [u16; CATEGORIES],
     partial: bool,
@@ -160,7 +160,15 @@ fn assign(
     }
 }
 
-pub(super) fn query(index: &Index, query: &Query, cancel: &AtomicBool) -> Result<Option<Report>> {
+type Discovery = (Vec<GameEvidence>, usize, Locations<String>);
+
+fn discover(
+    index: &Index,
+    scope: NodeId,
+    manuals: &[Option<String>],
+    cancel: &AtomicBool,
+    authorize: &mut impl FnMut(NodeId) -> bool,
+) -> Result<Option<Discovery>> {
     let stopped = || cancel.load(Ordering::Relaxed);
     let mut records = Vec::new();
     let mut omitted = 0;
@@ -173,7 +181,7 @@ pub(super) fn query(index: &Index, query: &Query, cancel: &AtomicBool) -> Result
         let Some(candidate) = candidate(index, entry) else {
             continue;
         };
-        if !index.in_scope(entry.id, query.scope) {
+        if !index.in_scope(entry.id, scope) {
             continue;
         }
         if inspected == MANIFEST_LIMIT
@@ -183,25 +191,24 @@ pub(super) fn query(index: &Index, query: &Query, cancel: &AtomicBool) -> Result
             omitted += 1;
             continue;
         }
+        if !authorize(entry.id) {
+            omitted += 1;
+            continue;
+        }
         inspected += 1;
         remaining -= entry.logical;
         match read_indexed_manifest(index, entry.id, FILE_LIMIT)
             .ok()
             .and_then(|bytes| candidate.parse(&bytes))
         {
-            Some(record) => records.push(record),
+            Some(record) => records.push((entry.id, record)),
             None => omitted += 1,
         }
     }
 
-    let manuals: Vec<_> = query
-        .manual
-        .iter()
-        .map(|path| path_key(Path::new(path)))
-        .collect();
     let mut absolute: HashSet<_> = manuals.iter().flatten().cloned().collect();
     let mut steam = HashSet::new();
-    for record in &records {
+    for (_, record) in &records {
         match &record.install {
             Install::Absolute(path) => absolute.extend(path_key(Path::new(path))),
             Install::Steam { steamapps, folder } => {
@@ -225,7 +232,7 @@ pub(super) fn query(index: &Index, query: &Query, cancel: &AtomicBool) -> Result
         }
         let basename = entry.name.to_lowercase();
         if (entry.id == NodeId(0) || basenames.contains(basename.as_str()))
-            && index.in_scope(entry.id, query.scope)
+            && index.in_scope(entry.id, scope)
             && let Some(path) = path_key(&index.path(entry.id)?)
             && absolute.contains(&path)
         {
@@ -235,16 +242,13 @@ pub(super) fn query(index: &Index, query: &Query, cancel: &AtomicBool) -> Result
             && let Some(steamapps) = common.parent
         {
             let key = (steamapps, basename);
-            if steam.contains(&key) && index.in_scope(entry.id, query.scope) {
+            if steam.contains(&key) && index.in_scope(entry.id, scope) {
                 observe(&mut steam_locations, key, entry.id);
             }
         }
     }
-    let mut games = Vec::<Measured>::new();
-    let mut base = HashMap::new();
-    let mut dlc = Vec::new();
-    let mut boundaries = HashMap::new();
-    for record in records {
+    let mut evidence = Vec::new();
+    for (source, record) in records {
         if stopped() {
             return Ok(None);
         }
@@ -257,10 +261,84 @@ pub(super) fn query(index: &Index, query: &Query, cancel: &AtomicBool) -> Result
                 .copied()
                 .flatten(),
         };
-        let Some(id) = located.filter(|id| local_folder(index, *id, query.scope)) else {
+        let Some(id) = located.filter(|id| local_folder(index, *id, scope)) else {
             omitted += 1;
             continue;
         };
+        let steamapps = match record.install {
+            Install::Steam { steamapps, .. } => Some(steamapps),
+            _ => None,
+        };
+        evidence.push(GameEvidence {
+            source,
+            folder: id,
+            steamapps,
+            provider: record.provider,
+            title: record.title,
+            product: record.product,
+            main: record.main,
+        });
+    }
+    Ok(Some((evidence, omitted, absolute_locations)))
+}
+
+pub(super) fn capture(
+    index: &Index,
+    cancel: &AtomicBool,
+    authorize: &mut impl FnMut(NodeId) -> bool,
+) -> Result<Option<Vec<GameEvidence>>> {
+    Ok(discover(index, NodeId(0), &[], cancel, authorize)?.map(|(games, _, _)| games))
+}
+
+pub(super) fn query(index: &Index, query: &Query, cancel: &AtomicBool) -> Result<Option<Report>> {
+    let stopped = || cancel.load(Ordering::Relaxed);
+    let manuals: Vec<_> = query
+        .manual
+        .iter()
+        .map(|path| path_key(Path::new(path)))
+        .collect();
+    let (records, mut omitted, absolute_locations) = if index.snapshot_id.is_some() {
+        let Some(capture) = &index.captured_libraries else {
+            return Ok(Some(Report::RecordedScan));
+        };
+        let records: Vec<_> = capture
+            .games
+            .iter()
+            .filter(|game| {
+                index.in_scope(game.source, query.scope) && index.in_scope(game.folder, query.scope)
+            })
+            .cloned()
+            .collect();
+        let mut candidates = 0_usize;
+        for entry in &index.entries {
+            if stopped() {
+                return Ok(None);
+            }
+            if candidate(index, entry).is_some() && index.in_scope(entry.id, query.scope) {
+                candidates += 1;
+            }
+        }
+        let Some(locations) = super::scoped::locate_manual(index, query.scope, &manuals, cancel)?
+        else {
+            return Ok(None);
+        };
+        let omitted = candidates.saturating_sub(records.len());
+        (records, omitted, locations)
+    } else {
+        let Some(discovery) = discover(index, query.scope, &manuals, cancel, &mut |_| true)? else {
+            return Ok(None);
+        };
+        discovery
+    };
+    let mut games = Vec::<Measured>::new();
+    let mut base = HashMap::new();
+    let mut dlc = Vec::new();
+    let mut boundaries = HashMap::new();
+    for record in records {
+        if stopped() {
+            return Ok(None);
+        }
+        let id = record.folder;
         if record.main.is_some() {
             dlc.push((id, record));
         } else {
@@ -307,12 +385,12 @@ pub(super) fn query(index: &Index, query: &Query, cancel: &AtomicBool) -> Result
     let mut steam_aux = HashMap::<_, Vec<_>>::new();
     let mut steam_users = HashMap::<_, Vec<_>>::new();
     for (position, game) in games.iter().enumerate() {
-        if let Install::Steam { steamapps, .. } = &game.record.install {
+        if let Some(steamapps) = game.record.steamapps {
             steam_aux
-                .entry((*steamapps, game.record.product.clone()))
+                .entry((steamapps, game.record.product.clone()))
                 .or_default()
                 .push(position);
-            if let Some(root) = index.entry(*steamapps)?.parent {
+            if let Some(root) = index.entry(steamapps)?.parent {
                 steam_users
                     .entry((root, game.record.product.clone()))
                     .or_default()
@@ -417,6 +495,7 @@ pub(super) fn query(index: &Index, query: &Query, cancel: &AtomicBool) -> Result
     Ok(Some(Report::Available {
         items,
         total,
+        recorded: index.snapshot_id.is_some(),
         shared_bytes: shared.to_string(),
         unattributed_bytes: unattributed.to_string(),
         omitted_manifests: omitted,
