@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Analyze with Voldiq in File Explorer
+
+The installed copy offers Explorer context menu under Settings → Window. The option starts off and applies to the current Windows user. On Windows 11 the command is in Show more options. Selecting Analizar con Voldiq opens the folder confirmation in a new window. Scan folder starts the existing scan after the native directory identity is rechecked. [Windows Shell verbs](https://learn.microsoft.com/en-us/windows/win32/shell/fa-verbs)
+
+A private Windows registry hive verified opt-in, a quoted Unicode path, single selection, persistence, removal, preservation of foreign data and strict folder arguments. The sign-in preference fixture and all six project checks passed. The production preview reached ready and page-finished. The 10,450,063-byte NSIS installer includes the cleanup hook for normal uninstall and preserves the opt-in on in-place update. Actual menu activation, uninstall, keyboard and scaling checks remain manual. [Source verification](../benchmarks/workbench-explorer-menu-source-20261113.json) · [Native startup](../benchmarks/native-explorer-menu-preview-20261113.json) · [Distribution](../benchmarks/distribution-explorer-menu-20261113.json)
+
+Cleanup removed 2,365,633,775 logical bytes of inactive release files, 54,747,136 bytes of closed preview copies and the two private fixture builds. The preview was still running after cleanup. The workspace measured 321,982,841 logical bytes. [Post-clean checks](../benchmarks/workspace-footprint-explorer-menu-20261113.json)
+
 ## Scan a dropped folder
 
 Drop one local folder onto the desktop window. Voldiq checks the folder and displays its full path in a compact row with Scan folder and Dismiss. The current analysis stays in place until confirmation. Confirming reopens the folder by native identity and holds its directory pins through the normal scan. Files, inaccessible folders and replaced identities are rejected. Scan profile, exclusions, progress and cancellation use the existing pipeline. [Tauri drag and drop](https://v2.tauri.app/reference/javascript/api/namespacewebview/#ondragdropevent)
