@@ -1,0 +1,90 @@
+{
+  "checkedUtc": "2026-11-13T13:31:15.2614166Z",
+  "startedUtc": "2026-11-13T13:11:49.8908548Z",
+  "checkoutCommit": "2abd084960560c2493d283ee1377a1332159d433",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 2.475
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 20.198
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1.091
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 18.63
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 958.754
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 164.089
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "58671C58B280667538CD5122CBD4A00DF259F6BCCEAA9A3B9F7DCA672F6AE975"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "C411F0D09A46985683CE124A782EE62CB0F65209CEC0883CC105FDB24763BD23"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "B2BAD5F36E28EC0B051A0EA8EFA77816323E03974BA0BE170F23F4860509A573"
+    },
+    {
+      "path": "frontend/components/WindowSettings.svelte",
+      "sha256": "E4BE0C36AB8195DE7DD13554CD50F46875931EF56871CA48897819006D05E431"
+    },
+    {
+      "path": "frontend/components/WindowsStartupSetting.svelte",
+      "sha256": "D0FF3C383194B43C18DB98004B563CA28FED19E4FB7F6A1E35DD18A9D9A94592"
+    },
+    {
+      "path": "src-tauri/Cargo.toml",
+      "sha256": "2DD50F1C3D32D930937DC7ED152F94235FCA3794AC1477DC5793620BA6CDD1D6"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "9ABE40145EC64422ECBAC0E8BEA661397B7141BC409378485824DC6B8218E710"
+    },
+    {
+      "path": "src-tauri/src/windows_explorer.rs",
+      "sha256": "A0CA70C6340957FC13479472916E6D5435CD5BAD0F397753564853D3A2F4B838"
+    },
+    {
+      "path": "src-tauri/src/windows_startup.rs",
+      "sha256": "5E5BCD6E37ECCF6AD9F72F07F7B6F6A7B5FC97034CE4A8778839236526C5DAC3"
+    },
+    {
+      "path": "src-tauri/tauri.conf.json",
+      "sha256": "84DF064EF96CFCDFCF67F349C6CC1940A42B108AD09F39D9F71FC55D90633F94"
+    },
+    {
+      "path": "src-tauri/windows/explorer-hooks.nsh",
+      "sha256": "E10A9FF3C01D825F7E2B5DFCD6A2099CC209398B8AADE9A548280D987CA94BA7"
+    }
+  ],
+  "explorerFixture": "Private Windows hive verified opt-in, quoted Unicode command, single selection, persistence, foreign-data protection, removal, and strict native folder arguments.",
+  "startupFixture": "Private Windows app hive passed installed admission, preview refusal, default without writes, exact Unicode registration, restart, reset, conflict preservation, bounded data and path limits."
+}

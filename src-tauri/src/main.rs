@@ -36,6 +36,8 @@ mod snapshot_commands;
 mod window_close_preference;
 mod window_tray;
 #[cfg(windows)]
+mod windows_explorer;
+#[cfg(windows)]
 mod windows_startup;
 mod workbench_commands;
 use analysis_status::IndexId;
@@ -818,6 +820,34 @@ fn windows_startup(registered: Option<bool>) -> Result<windows_startup::Status, 
     windows_startup::preference(&user, &executable, registered).map_err(|error| error.to_string())
 }
 
+#[cfg(windows)]
+#[tauri::command]
+fn windows_explorer(registered: Option<bool>) -> Result<windows_startup::Status, String> {
+    let user = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER);
+    let executable = std::env::current_exe().map_err(|error| error.to_string())?;
+    let status = windows_explorer::preference(&user, &executable, registered)
+        .map_err(|error| error.to_string())?;
+    if registered.is_some() && matches!(status, windows_startup::Status::Ready { .. }) {
+        windows_explorer::notify_explorer();
+    }
+    Ok(status)
+}
+
+#[cfg(windows)]
+struct ExplorerFolder(Mutex<Option<Result<PathBuf, String>>>);
+
+#[cfg(windows)]
+#[tauri::command]
+async fn take_explorer_folder(
+    folder: State<'_, ExplorerFolder>,
+) -> Result<Option<scanner::ScanFolder>, String> {
+    let pending = folder.0.lock().map_err(|error| error.to_string())?.take();
+    match pending.transpose()? {
+        Some(path) => prepare_dropped_folder(path).await.map(Some),
+        None => Ok(None),
+    }
+}
+
 fn main() {
     #[cfg(windows)]
     if let Some(code) = voldiq_core::cleanup::helper::run_cli() {
@@ -844,9 +874,14 @@ fn main() {
     trace.record("process-start", None);
     let setup_trace = trace.clone();
     let page_trace = trace.clone();
+    #[cfg(windows)]
+    let explorer_folder = windows_explorer::folder_argument(std::env::args_os().skip(1))
+        .map_err(|error| error.to_string());
     tauri::Builder::default()
         .setup(move |app| {
             setup_trace.record("setup-start", Some(app.handle()));
+            #[cfg(windows)]
+            app.manage(ExplorerFolder(Mutex::new(explorer_folder.transpose())));
             let directory = app.path().app_local_data_dir()?;
             std::fs::create_dir_all(&directory)?;
             app.manage(Arc::new(Engine::new(&directory)?));
@@ -973,6 +1008,10 @@ fn main() {
             window_tray::set_window_close_behavior,
             #[cfg(windows)]
             windows_startup,
+            #[cfg(windows)]
+            windows_explorer,
+            #[cfg(windows)]
+            take_explorer_folder,
             budget_commands::save_folder_budget,
             budget_commands::remove_folder_budget,
             query_commands::translate_search,

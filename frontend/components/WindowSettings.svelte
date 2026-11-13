@@ -77,4 +77,5 @@
     </div>
   {/if}
   <WindowsStartupSetting />
+  <WindowsStartupSetting integration="explorer" />
 </section>

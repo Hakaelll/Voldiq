@@ -1266,6 +1266,18 @@
   }
   onMount(() => {
     let mounted = true;
+    if (isTauri()) {
+      const owner = folderDropRequest;
+      void invoke<ScanFolder | null>('take_explorer_folder')
+        .then((folder) => {
+          if (mounted && owner === folderDropRequest && folder)
+            folderDrop = { kind: 'ready', folder };
+        })
+        .catch((problem) => {
+          if (mounted && owner === folderDropRequest)
+            folderDrop = { kind: 'error', message: String(problem) };
+        });
+    }
     const dropEvents = isTauri()
       ? getCurrentWebview()
           .onDragDropEvent(({ payload }) => {

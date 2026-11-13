@@ -2,6 +2,11 @@
   import { invoke, isTauri } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
 
+  let { integration = 'startup' }: { integration?: 'startup' | 'explorer' } = $props();
+  const explorer = $derived(integration === 'explorer');
+  const command = $derived(explorer ? 'windows_explorer' : 'windows_startup');
+  const helpId = $derived(`windows-${integration}-help`);
+
   type StartupStatus =
     | { kind: 'ready'; registered: boolean }
     | { kind: 'not_installed' }
@@ -20,7 +25,7 @@
     pending = true;
     error = '';
     try {
-      status = await invoke<StartupStatus>('windows_startup', { registered: null });
+      status = await invoke<StartupStatus>(command, { registered: null });
     } catch (failure) {
       error = String(failure);
     } finally {
@@ -36,7 +41,7 @@
     pending = true;
     error = '';
     try {
-      status = await invoke<StartupStatus>('windows_startup', { registered });
+      status = await invoke<StartupStatus>(command, { registered });
     } catch (failure) {
       error = String(failure);
     } finally {
@@ -47,20 +52,24 @@
 
 <label>
   <span>
-    Start with Windows
-    <small id="windows-startup-help">
+    {explorer ? 'Explorer context menu' : 'Start with Windows'}
+    <small id={helpId}>
       {#if status?.kind === 'ready'}
-        Register Voldiq to open when you sign in. Windows Startup apps can disable this entry.
+        {explorer
+          ? 'Adds “Analizar con Voldiq” to the classic folder menu (Show more options on Windows 11).'
+          : 'Register Voldiq to open when you sign in. Windows Startup apps can disable this entry.'}
       {:else if status?.kind === 'not_installed'}
         Available from the installed copy of Voldiq.
       {:else if status?.kind === 'unsupported_path'}
-        Startup needs a local fixed drive and a command within Windows' length limit.
+        {explorer
+          ? 'Requires a supported install path on a local fixed drive.'
+          : "Startup needs a local fixed drive and a command within Windows' length limit."}
       {:else if status?.kind === 'conflict'}
-        A conflicting Windows startup entry needs to be resolved first.
+        A conflicting Windows entry needs to be resolved first.
       {:else if pending}
-        Reading Windows startup settings…
+        Reading Windows settings…
       {:else}
-        Windows startup settings are unavailable.
+        Windows settings are unavailable.
       {/if}
     </small>
   </span>
@@ -69,7 +78,7 @@
     checked={status?.kind === 'ready' && status.registered}
     disabled={status?.kind !== 'ready'}
     aria-disabled={pending}
-    aria-describedby="windows-startup-help"
+    aria-describedby={helpId}
     onchange={change}
   />
 </label>

@@ -31,7 +31,7 @@ pub(crate) enum Status {
     Conflict,
 }
 
-enum Entry {
+pub(crate) enum Entry {
     Missing,
     Text(OsString),
     Foreign,
@@ -42,8 +42,9 @@ pub(crate) fn preference(
     executable: &Path,
     change: Option<bool>,
 ) -> io::Result<Status> {
-    let command = match installed_command(user, executable)? {
-        Ok(command) => command,
+    let command = match installed_target(user, executable)? {
+        Ok(command) if command.encode_wide().count() <= 260 => command,
+        Ok(_) => return Ok(Status::UnsupportedPath),
         Err(status) => return Ok(status),
     };
     let access = if change.is_some() {
@@ -72,7 +73,10 @@ pub(crate) fn preference(
     read_status(&key, &command)
 }
 
-fn installed_command(user: &RegKey, executable: &Path) -> io::Result<Result<OsString, Status>> {
+pub(crate) fn installed_target(
+    user: &RegKey,
+    executable: &Path,
+) -> io::Result<Result<OsString, Status>> {
     let Some(key) = open_key(user, INSTALL_KEY, KEY_QUERY_VALUE)? else {
         return Ok(Err(Status::NotInstalled));
     };
@@ -106,7 +110,6 @@ fn startup_command(executable: &Path, location: &OsStr) -> Result<OsString, Stat
         || executable
             .components()
             .any(|part| part == Component::ParentDir)
-        || units.len() + 2 > 260
         || units
             .iter()
             .any(|&unit| unit < 32 || unit == u16::from(b'"'))
@@ -134,7 +137,7 @@ fn read_status(key: &RegKey, command: &OsStr) -> io::Result<Status> {
     })
 }
 
-fn open_key(user: &RegKey, path: &str, access: u32) -> io::Result<Option<RegKey>> {
+pub(crate) fn open_key(user: &RegKey, path: &str, access: u32) -> io::Result<Option<RegKey>> {
     match user.open_subkey_with_options_flags(path, REG_OPTION_OPEN_LINK, access) {
         Ok(key) => Ok(Some(key)),
         Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(None),
@@ -142,7 +145,7 @@ fn open_key(user: &RegKey, path: &str, access: u32) -> io::Result<Option<RegKey>
     }
 }
 
-fn entry(key: &RegKey, name: &str) -> io::Result<Entry> {
+pub(crate) fn entry(key: &RegKey, name: &str) -> io::Result<Entry> {
     let name: Vec<_> = name.encode_utf16().chain([0]).collect();
     let mut buffer = [0u16; 1024];
     let mut bytes = std::mem::size_of_val(&buffer) as u32;
