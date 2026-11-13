@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Windows scan completion notifications
+
+The installed copy offers Scan completion notifications under Settings → Window. The preference starts off. A newly completed scan with a published result can send a native Windows notification with fixed text and no file names or paths. Windows controls delivery. The operation lease ends before the notification call. [Desktop toast identity](https://learn.microsoft.com/en-us/windows/win32/shell/enable-desktop-toast-with-appusermodelid)
+
+A disposable fixture checked preference persistence, malformed marker preservation, completion conditions and the XML returned by a real Windows toast object. The six project checks passed with eight routine tests and strict Clippy. The production preview reached ready and page-finished. The 10,454,547-byte installer retains the Start menu notification identity. Delivery from an installed copy, Windows suppression and native Settings interaction remain manual. [Source verification](../benchmarks/workbench-scan-notifications-source-20261113.json) · [Native startup](../benchmarks/native-scan-notifications-preview-20261113.json) · [Distribution](../benchmarks/distribution-scan-notifications-20261113.json)
+
+Cleanup removed 2,377,821,629 logical bytes of inactive release files and the disposable fixture build. The preview remained open and the workspace measured 349,824,510 logical bytes afterward. [Post-clean checks](../benchmarks/workspace-footprint-scan-notifications-20261113.json)
+
 ## Analyze with Voldiq in File Explorer
 
 The installed copy offers Explorer context menu under Settings → Window. The option starts off and applies to the current Windows user. On Windows 11 the command is in Show more options. Selecting Analizar con Voldiq opens the folder confirmation in a new window. Scan folder starts the existing scan after the native directory identity is rechecked. [Windows Shell verbs](https://learn.microsoft.com/en-us/windows/win32/shell/fa-verbs)
