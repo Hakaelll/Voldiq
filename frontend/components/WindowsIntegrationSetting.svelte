@@ -2,18 +2,37 @@
   import { invoke, isTauri } from '@tauri-apps/api/core';
   import { onMount } from 'svelte';
 
-  let { integration = 'startup' }: { integration?: 'startup' | 'explorer' } = $props();
-  const explorer = $derived(integration === 'explorer');
-  const command = $derived(explorer ? 'windows_explorer' : 'windows_startup');
+  const integrations = {
+    startup: {
+      command: 'windows_startup',
+      label: 'Start with Windows',
+      help: 'Register Voldiq to open when you sign in. Windows Startup apps can disable this entry.',
+      pathHelp: "Startup needs a local fixed drive and a command within Windows' length limit.",
+    },
+    explorer: {
+      command: 'windows_explorer',
+      label: 'Explorer context menu',
+      help: 'Adds “Analizar con Voldiq” to the classic folder menu (Show more options on Windows 11).',
+      pathHelp: 'Requires a supported install path on a local fixed drive.',
+    },
+    notifications: {
+      command: 'scan_notifications',
+      label: 'Scan completion notifications',
+      help: 'Show a Windows notification when a scan finishes. Windows can silence notifications.',
+      pathHelp: 'Requires a supported install path on a local fixed drive.',
+    },
+  };
+  let { integration }: { integration: keyof typeof integrations } = $props();
+  const setting = $derived(integrations[integration]);
   const helpId = $derived(`windows-${integration}-help`);
 
-  type StartupStatus =
+  type IntegrationStatus =
     | { kind: 'ready'; registered: boolean }
     | { kind: 'not_installed' }
     | { kind: 'unsupported_path' }
     | { kind: 'conflict' };
 
-  let status = $state<StartupStatus | null>(null),
+  let status = $state<IntegrationStatus | null>(null),
     pending = $state(false),
     error = $state('');
 
@@ -25,7 +44,7 @@
     pending = true;
     error = '';
     try {
-      status = await invoke<StartupStatus>(command, { registered: null });
+      status = await invoke<IntegrationStatus>(setting.command, { registered: null });
     } catch (failure) {
       error = String(failure);
     } finally {
@@ -41,7 +60,7 @@
     pending = true;
     error = '';
     try {
-      status = await invoke<StartupStatus>(command, { registered });
+      status = await invoke<IntegrationStatus>(setting.command, { registered });
     } catch (failure) {
       error = String(failure);
     } finally {
@@ -52,18 +71,14 @@
 
 <label>
   <span>
-    {explorer ? 'Explorer context menu' : 'Start with Windows'}
+    {setting.label}
     <small id={helpId}>
       {#if status?.kind === 'ready'}
-        {explorer
-          ? 'Adds “Analizar con Voldiq” to the classic folder menu (Show more options on Windows 11).'
-          : 'Register Voldiq to open when you sign in. Windows Startup apps can disable this entry.'}
+        {setting.help}
       {:else if status?.kind === 'not_installed'}
         Available from the installed copy of Voldiq.
       {:else if status?.kind === 'unsupported_path'}
-        {explorer
-          ? 'Requires a supported install path on a local fixed drive.'
-          : "Startup needs a local fixed drive and a command within Windows' length limit."}
+        {setting.pathHelp}
       {:else if status?.kind === 'conflict'}
         A conflicting Windows entry needs to be resolved first.
       {:else if pending}

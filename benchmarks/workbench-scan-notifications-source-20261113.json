@@ -1,0 +1,88 @@
+{
+  "checkedUtc": "2026-11-13T14:22:20.051817Z",
+  "startedUtc": "2026-11-13T13:53:59.2304307Z",
+  "checkoutCommit": "704e08ba8844fa150caef27a8c165b7b9558c2a4",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.232
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 11.612
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.873
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 8.806
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1546.072
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 132.199
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "55454B46851336064C9A6B1E246DC592ED806E8F98F0CA52BB92F34AB96FAA33"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "669C4C61D33B0A5DE9DE2CC992C45D64577EDD89E84E1631FAF64CBF7D12BF73"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "2A1C798CA75353CFFA895D5F3CD27FFEC5A7C58585E2AFFC346E0FCA6DB58DC8"
+    },
+    {
+      "path": "frontend/components/WindowSettings.svelte",
+      "sha256": "0BE65A53AC2791DB3D87480654524479512E041A72653FD7A175AED732B0E20D"
+    },
+    {
+      "path": "frontend/components/WindowsIntegrationSetting.svelte",
+      "sha256": "A9E69E38999D158CF36757CE75159592C43295BC776D10BB0481B200F363A5D5"
+    },
+    {
+      "path": "scripts/verify_distribution.ps1",
+      "sha256": "870683427FEF993D5DA9894711D56657BCF734ACA67E95C80A6733E982885CB2"
+    },
+    {
+      "path": "src-tauri/Cargo.toml",
+      "sha256": "0C60EA7DC3DC6D8D7C241CC12EBCEBC0193C7431F25A233F38812E01E8366422"
+    },
+    {
+      "path": "src-tauri/src/config_file.rs",
+      "sha256": "52BE4350B8F7C52F7D3EF084C4422894462AE6992B437E4D064E50BBA429EDB4"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "75F7580673DA8322C6F07046E9FE8036014224784A93308797BA3CC01964A115"
+    },
+    {
+      "path": "src-tauri/src/window_close_preference.rs",
+      "sha256": "098585991FD8231B3E2BCC09800D387509F8F1ADAFBC268D8FA27B8E4F5A9828"
+    },
+    {
+      "path": "src-tauri/src/windows_notifications.rs",
+      "sha256": "0ADAD982F269EBB3CD7221A2692F2D0DE1A63D08AA18D1B114BA8C716F5D63EB"
+    }
+  ]
+}

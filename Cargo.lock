@@ -4757,6 +4757,7 @@ dependencies = [
  "tempfile",
  "tokio",
  "voldiq-core",
+ "windows",
  "windows-sys 0.61.2",
  "winreg",
  "yaml-rust2",

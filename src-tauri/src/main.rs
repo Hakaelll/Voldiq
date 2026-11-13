@@ -38,6 +38,8 @@ mod window_tray;
 #[cfg(windows)]
 mod windows_explorer;
 #[cfg(windows)]
+mod windows_notifications;
+#[cfg(windows)]
 mod windows_startup;
 mod workbench_commands;
 use analysis_status::IndexId;
@@ -403,11 +405,19 @@ fn launch_scan(
                 analyzed_at,
             });
         } else if let Some(update) = final_progress {
+            #[cfg(windows)]
+            let notify =
+                windows_notifications::should_notify(&update, cancel.load(Ordering::Relaxed));
             let _ = progress.send(analysis_status::ScanProgress {
                 index_id,
                 progress: update,
                 analyzed_at,
             });
+            #[cfg(windows)]
+            if notify {
+                drop(_operation);
+                windows_notifications::scan_finished(engine.operations.directory());
+            }
         }
     });
     Ok(id)
@@ -822,6 +832,15 @@ fn windows_startup(registered: Option<bool>) -> Result<windows_startup::Status, 
 
 #[cfg(windows)]
 #[tauri::command]
+fn scan_notifications(
+    registered: Option<bool>,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<windows_startup::Status, String> {
+    windows_notifications::preference(engine.operations.directory(), registered)
+}
+
+#[cfg(windows)]
+#[tauri::command]
 fn windows_explorer(registered: Option<bool>) -> Result<windows_startup::Status, String> {
     let user = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER);
     let executable = std::env::current_exe().map_err(|error| error.to_string())?;
@@ -1008,6 +1027,8 @@ fn main() {
             window_tray::set_window_close_behavior,
             #[cfg(windows)]
             windows_startup,
+            #[cfg(windows)]
+            scan_notifications,
             #[cfg(windows)]
             windows_explorer,
             #[cfg(windows)]

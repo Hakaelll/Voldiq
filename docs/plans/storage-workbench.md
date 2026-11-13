@@ -228,6 +228,8 @@ Destination implementation reference: Microsoft's [FILE_RENAME_INFO contract](ht
 
   Explorer menu unit. Allow the installed copy to register the current-user classic folder verb from Settings. Quote the executable and shell argument, accept one native path, and deliver it once to the existing folder confirmation. Refuse conflicting registry entries. Preserve the opt-in on an in-place installer update and remove matching values on normal uninstall. Verify in a private registry hive and with generated NSIS source. Actual Explorer interaction and uninstall remain manual.
 
+  Notification unit. Add an off-by-default scan completion preference to Settings in the installed copy. Publish the scan result before calling the Windows notification API with the existing Start menu identity and fixed text. Skip failed, cancelled and previous results. The operation lease ends before notification delivery. Verify native toast construction and the generated installer identity. Delivery and notification suppression remain installed Windows acceptance checks.
+
 - [ ] Run final source/behavior gates and real synthetic/headless measurements. Record hardware-dependent and manual acceptance limits. Review the whole diff inline, update all coverage rows, commit and push.
 
 ## Decisions

@@ -2,6 +2,31 @@ use std::{fs::OpenOptions, io::Read, path::Path};
 
 const MAX_CONFIG_BYTES: u64 = 65_536;
 
+pub(crate) fn read_marker(path: &Path) -> Result<bool, ()> {
+    match read(path)? {
+        None => Ok(false),
+        Some(marker) if marker.is_empty() => Ok(true),
+        Some(_) => Err(()),
+    }
+}
+
+pub(crate) fn set_marker(path: &Path, enabled: bool) -> Result<bool, ()> {
+    if read_marker(path)? == enabled {
+        return Ok(enabled);
+    }
+    let result = if enabled {
+        std::fs::File::create_new(path).map(drop)
+    } else {
+        std::fs::remove_file(path)
+    };
+    // A second Voldiq window may already have applied the same choice.
+    if result.is_ok() || read_marker(path) == Ok(enabled) {
+        Ok(enabled)
+    } else {
+        Err(())
+    }
+}
+
 pub(crate) fn read(path: &Path) -> Result<Option<String>, ()> {
     let mut options = OpenOptions::new();
     options.read(true);

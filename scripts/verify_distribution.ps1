@@ -61,6 +61,10 @@ if ((Read-Define 'INSTALLMODE') -ne 'currentUser' -or (Read-Define 'INSTALLWEBVI
 if ([IO.Path]::GetFullPath((Read-Define 'MAINBINARYSRCPATH')) -ne $nativePath) {
     throw 'Generated installer references another native executable.'
 }
+if ((Read-Define 'BUNDLEID') -cne 'io.voldiq.desktop' -or
+    $nsis -notmatch '(?m)^\s*!insertmacro SetLnkAppUserModelId "\$SMPROGRAMS\\') {
+    throw 'Generated installer lacks the Start menu notification identity.'
+}
 $startupCleanup = @'
   ${If} $UpdateMode <> 1
     DeleteRegValue HKCU "Software\Microsoft\Windows\CurrentVersion\Run" "${PRODUCTNAME}"
@@ -134,6 +138,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Could not identify the current checkout commit
     installer = $setup
     runtime = $runtime
     installMode = 'currentUser'
+    startMenuNotificationIdentity = 'io.voldiq.desktop'
     startupEntryRemovedOnUninstall = $true
     webviewMode = $webviewMode
     runtimeDownloadIfMissing = ($webviewMode -eq 'embedBootstrapper')
