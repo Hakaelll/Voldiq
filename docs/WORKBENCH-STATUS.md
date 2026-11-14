@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## First-scan tips and contextual help
+
+The first-scan view presents a short guide below the scan controls. Skip tips saves dismissal for the active profile. A completed scan also dismisses the guide. F1 and Help & shortcuts in Settings and the command palette open help for the active page. Explorer shows chart shortcuts while its chart is active.
+
+The six project checks passed with eight routine tests. The retained frontend check found help through `ayuda` before a scan. A separate Svelte markup check exercised the initial, dismissed and active-scan welcome states, browser preview, and help for the first scan, Explorer and Settings. The Windows preview reached ready and page-finished. Its embedded assets matched the build and the unsigned installer is 10,494,320 bytes. Native focus, keyboard, visual layout, scaling and dismiss-on-restart interaction remain manual. [Project checks](../benchmarks/workbench-contextual-help-source-20261114.json) · [Production startup](../benchmarks/native-contextual-help-preview-20261114.json) · [Distribution](../benchmarks/distribution-contextual-help-20261114.json)
+
 ## Command palette usability
 
 Ctrl+K opens a compact dialog with one search field, left-aligned command rows and an Enter hint on the highlighted result. The initial list groups actions, pages, charts, saved views and favorite folders. Search results keep their relevance order across groups. Chart commands open the selected visualization in expanded Explorer when scan data is available. Settings stays in the sidebar footer and appears in search for `ajustes`.
