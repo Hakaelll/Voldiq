@@ -352,6 +352,8 @@ Settings shows Updates below Window. It uses the shared settings rows and button
 
 History → Trends uses the full workspace width. The scope and interval sit above a time-scaled logical-size chart, with a range control for the visible start date. A solid blue segment joins comparable observations. Gaps preserve partial coverage and accounting changes. A dashed violet extension marks a qualified projection and its text reports the observed-rate range and confidence. A separate signed change chart and measurement selector lead to the largest increases and decreases among immediate folders. Text labels and exact byte titles complement the chart colors. The projection covers this indexed scope. Native composition, keyboard interaction and Windows scaling remain manual.
 
+The Trends toolbar switches between Folder size and Volume free space. The volume chart uses separate save-time measurements for the device recorded with the selected scope and has its own zoom. Changes in capacity break the line. A fill estimate uses a dashed extension to zero with a date range and a label that describes the stability of recent measured rates. The latest free bytes and measurement date stay visible when a forecast is unavailable.
+
 Scheduled scans uses the existing Settings rows. A folder picker, cadence and exclusions define a capture. The list gives each schedule its folder, frequency and next due time or current state. A run history disclosure keeps outcomes and snapshot references available without expanding every schedule.
 
 A schedule can set a growth alert in MiB. The schedule list shows the latest alert with its comparison date. The run history preserves individual alerts, and the live workspace notice opens the schedule section.

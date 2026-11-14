@@ -2480,7 +2480,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     drop(store);
     let connection = rusqlite::Connection::open(&db).unwrap();
     connection
-        .execute_batch("DROP TABLE scheduled_runs; DROP TABLE scan_schedules;")
+        .execute_batch("DROP TABLE snapshot_volume_samples; DROP TABLE scheduled_runs; DROP TABLE scan_schedules;")
         .unwrap();
     connection
         .execute_batch("DROP TABLE snapshot_library_nodes; DROP TABLE snapshot_libraries; DROP TABLE snapshot_application_roots; DROP TABLE snapshot_applications; DROP TABLE snapshot_retention; DROP TRIGGER history_snapshot_insert; DROP TRIGGER history_snapshot_update; DROP TRIGGER history_snapshot_delete; DROP TABLE snapshot_history_revision; DROP INDEX snapshots_observed; ALTER TABLE snapshots DROP COLUMN observed_at; ALTER TABLE snapshots DROP COLUMN observed_complete; ALTER TABLE snapshots DROP COLUMN engine_version; ALTER TABLE snapshots DROP COLUMN accounting_version; ALTER TABLE snapshot_versions DROP COLUMN cloud; DROP TABLE duplicate_hashes; PRAGMA user_version=4;")
@@ -4631,6 +4631,55 @@ fn budget_history_uses_measurements_and_real_scoped_image_samples() {
         .unwrap();
     assert_eq!(later.points.last().unwrap().delta.as_deref(), Some("-1"));
     assert!(later.forecast.is_none());
+    {
+        let connection = rusqlite::Connection::open(state.path().join("snapshots.db")).unwrap();
+        for (day, id) in ids.iter().chain([&regressed]).enumerate() {
+            let age = 8 - day as i64;
+            connection.execute(
+                "INSERT OR REPLACE INTO snapshot_volume_samples(snapshot_id,guid,serial,measured_at,capacity,free) VALUES(?1,'fixture-volume','0',?2,10000,?3)",
+                rusqlite::params![id, now as i64 - age * 86400, 1000 + age * 100],
+            ).unwrap();
+        }
+        let read = || {
+            history
+                .trend(
+                    voldiq_core::snapshots::TrendRequest {
+                        snapshot: ids[0],
+                        days: 30,
+                    },
+                    &cancel,
+                )
+                .unwrap()
+                .unwrap()
+                .volume
+        };
+        let volume = read();
+        assert_eq!(volume.points.len(), 9);
+        assert_eq!(volume.points.last().unwrap().free, "1000");
+        let forecast = volume.forecast.unwrap();
+        assert_eq!((forecast.at, forecast.samples), (now + 10 * 86400, 9));
+        connection
+            .execute(
+                "UPDATE snapshot_volume_samples SET free=2000 WHERE snapshot_id=?1",
+                [regressed],
+            )
+            .unwrap();
+        assert!(read().forecast.is_none());
+        connection
+            .execute(
+                "UPDATE snapshot_volume_samples SET capacity=20000, free=1000 WHERE snapshot_id=?1",
+                [regressed],
+            )
+            .unwrap();
+        assert!(read().forecast.is_none());
+        connection
+            .execute(
+                "DELETE FROM snapshot_volume_samples WHERE snapshot_id=?1",
+                [regressed],
+            )
+            .unwrap();
+        assert!(read().points.is_empty());
+    }
     std::fs::write(folder.join("growth.bin"), [3; 800]).unwrap();
     let mut index = history.load(*ids.last().unwrap(), &cancel).unwrap();
     let node = index

@@ -23,6 +23,7 @@
   let root = $state(initialGroup ?? untrack(() => groups.at(-1)?.root_key ?? 0));
   const anchor = $derived(groups.find((item) => item.root_key === root)?.id ?? 0);
   let days = $state(30);
+  let metric = $state<'folder' | 'volume'>('folder');
   let report = $state.raw<TrendReport | null>(null);
   let changes = $state.raw<TrendChanges | null>(null);
   let retry = $state(0),
@@ -39,6 +40,25 @@
   const first = $derived(zoomed[0]);
   const last = $derived(zoomed.at(-1));
   const forecast = $derived(report?.forecast ?? null);
+  const volume = $derived(report?.volume);
+  const volumeLatest = $derived(volume?.points.at(-1));
+  let volumeWidth = $state(680);
+  let volumeZoom = $state(0);
+  const volumePoints = $derived(volume?.points.slice(volumeZoom) ?? []);
+  const volumeChart = $derived(
+    historyTrend(
+      [
+        ...volumePoints.map((point) => ({
+          captured: point.at,
+          logical: Number(point.free),
+          capacity: point.capacity,
+        })),
+        ...(volume?.forecast ? [{ captured: volume.forecast.at, logical: 0, capacity: null }] : []),
+      ],
+      Math.max(volumeWidth, 260),
+      128,
+    ),
+  );
   const chart = $derived(
     historyTrend(
       [
@@ -79,6 +99,7 @@
     report = null;
     error = '';
     zoom = 0;
+    volumeZoom = 0;
     selected = 0;
     if (disabled || !anchor) return;
     let current = true;
@@ -102,7 +123,7 @@
     void changeRetry;
     changes = null;
     changeError = '';
-    if (disabled || !route) return;
+    if (disabled || metric !== 'folder' || !route) return;
     let current = true;
     const request = route;
     void trendChangeQueries.request(request).result.then(
@@ -138,7 +159,111 @@
       <option value={365}>1 year</option>
     </select></label
   >
+  <div class="section-navigation" role="group" aria-label="Trend measurement">
+    <button type="button" aria-pressed={metric === 'folder'} onclick={() => (metric = 'folder')}
+      >Folder size</button
+    >
+    <button type="button" aria-pressed={metric === 'volume'} onclick={() => (metric = 'volume')}
+      >Volume free space</button
+    >
+  </div>
 </div>
+
+{#snippet volumeTrend()}
+  <section class="panel history-extended-trend" aria-labelledby="volume-trend-heading">
+    <div class="panel-heading">
+      <h3 id="volume-trend-heading">Volume free space</h3>
+      {#if volumeLatest}
+        <span title={`${volumeLatest.free} bytes`}>{bytes(Number(volumeLatest.free))} free</span>
+      {/if}
+    </div>
+    {#if volumeLatest && volume}
+      <p class="activity-help">
+        {volume.points.length} measurements · last measured {utcDate(volumeLatest.at)}
+      </p>
+      {#if volumeChart}
+        <div class="history-plot" bind:clientWidth={volumeWidth}>
+          <svg
+            viewBox={`0 0 ${Math.max(volumeWidth, 260)} 160`}
+            role="img"
+            aria-label="Observed volume free space and conditional fill projection"
+          >
+            {#each volumeChart.ticks as mark (mark.value)}
+              <line
+                x1="60"
+                x2={Math.max(volumeWidth, 260) - 16}
+                y1={mark.y}
+                y2={mark.y}
+                stroke="var(--border)"
+              />
+              <text x="52" y={mark.y + 4} text-anchor="end" class="trend-axis"
+                >{bytes(mark.value)}</text
+              >
+            {/each}
+            {#each volumeChart.points as point, i (point.captured)}
+              {@const previous = volumeChart.points[i - 1]}
+              {#if previous && (point.capacity === null || point.capacity === previous.capacity)}
+                <line
+                  x1={previous.x}
+                  x2={point.x}
+                  y1={previous.y}
+                  y2={point.y}
+                  stroke={point.capacity === null ? 'var(--chart-violet)' : 'var(--chart-blue)'}
+                  stroke-dasharray={point.capacity === null ? '5 5' : undefined}
+                  stroke-width="2"
+                />
+              {/if}
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r="3"
+                fill={point.capacity === null ? 'var(--chart-violet)' : 'var(--chart-blue)'}
+              >
+                <title>{utcDate(point.captured)} · {bytes(point.logical)}</title>
+              </circle>
+              {#if i === 0 || i === volumeChart.points.length - 1}
+                <text x={point.x} y="150" class="trend-axis" text-anchor={i === 0 ? 'start' : 'end'}
+                  >{short(point.captured)}</text
+                >
+              {/if}
+            {/each}
+          </svg>
+        </div>
+      {/if}
+      {#if volume.points.length > 2 && volumePoints[0]}
+        <label class="trend-zoom">
+          Zoom start
+          <input
+            type="range"
+            min="0"
+            max={volume.points.length - 2}
+            bind:value={volumeZoom}
+            aria-valuetext={utcDate(volumePoints[0].at)}
+          />
+          <span>{short(volumePoints[0].at)} UTC</span>
+        </label>
+      {/if}
+      {#if volume.forecast}
+        <p><strong>Estimated to fill around {short(volume.forecast.at)} UTC</strong></p>
+        <p class="activity-help">
+          {short(volume.forecast.earliest_at)} to {short(volume.forecast.latest_at)} UTC ·
+          {volume.forecast.confidence === 'higher' ? 'Higher' : 'Moderate'} confidence from
+          {volume.forecast.samples} measured days.
+        </p>
+      {:else if volumeLatest.free === '0'}
+        <p>No free space at the last measurement.</p>
+      {:else}
+        <p class="activity-help">
+          A fill date needs recent measurements with sustained, steady loss of free space.
+        </p>
+      {/if}
+    {:else}
+      <p class="activity-help">
+        No volume measurement is available for the latest capture in this scope.
+      </p>
+    {/if}
+  </section>
+{/snippet}
 
 {#if disabled}
   <p role="status">Trends will resume when the active operation finishes.</p>
@@ -146,6 +271,8 @@
   <p role="alert">{error} <button onclick={() => retry++}>Retry trends</button></p>
 {:else if !report}
   <p role="status">Loading measured trends…</p>
+{:else if metric === 'volume'}
+  {@render volumeTrend()}
 {:else if !last || !first}
   <p>No captures in this scope have a known measurement date.</p>
 {:else}

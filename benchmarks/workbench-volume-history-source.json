@@ -1,0 +1,100 @@
+{
+  "checkedUtc": "2026-11-14T17:37:13.0804559Z",
+  "startedUtc": "2026-11-14T17:23:38.5979295Z",
+  "checkoutCommit": "d8ff5d16c00918b3174ace54ec3a6f1d2fa3fd96",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.054
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.396
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.852
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.185
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 712.355
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 85.612
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "DF8C088148D7F08D1C947B34E1928F7BDB3C9D01EAB79133C70C038D6357A352"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "403FC95997D07D6A231CC764A187B7224EB0250664C20954F02842C629A2F1A1"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "6000810D6766597334B7470C7E48FB579755D74C6A1F1E8D7CBA6C9CB1FEC485"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots.rs",
+      "sha256": "1789FCAE8EBE365B70F3D94EE5A2C7FC867DEE673E4D0F8FFEBF9C4E15E4F75B"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/trends.rs",
+      "sha256": "8513C14F3859A43BDD0D790A30E8C588BFE8593FE0F0811019CBB03FC7985EE7"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/volume_history.rs",
+      "sha256": "B3799F0349F59A97A6EFCB92EB6153C99DE5AC26580AC660AC67EE65E88C76E8"
+    },
+    {
+      "path": "crates/voldiq-core/src/space.rs",
+      "sha256": "19746462DCE6429F56AA84DB8DAFD18650912F27042831ACF37E6C012E983320"
+    },
+    {
+      "path": "crates/voldiq-core/src/space/native.rs",
+      "sha256": "149CDC19F15611276CD8BC130847D31DDE262CA7CB2AC10434E1431A7E436F8F"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "81FDB9A7A709051E2A65588259257D65674F788240E1DD64192A0D788D0418AB"
+    },
+    {
+      "path": "frontend/components/HistoryTrends.svelte",
+      "sha256": "29811D182D03BBDE998635300FF9E62BDA726F93746CE8E3A44FD7722D9A7283"
+    },
+    {
+      "path": "frontend/lib/history-trend.ts",
+      "sha256": "11873CF86B5C52F6A957BA14D6E51349076BDCA1BDE90EE92E5D0C243EFC99C5"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "volumeFixture": [
+    "nine measured-day fixture",
+    "exact fill date",
+    "growth reversal refused",
+    "capacity change refused",
+    "no fallback when latest is missing"
+  ]
+}

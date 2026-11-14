@@ -122,7 +122,7 @@ pub enum Observation {
 pub fn observe_volume(path: &Path) -> Observation {
     #[cfg(windows)]
     {
-        native::observe(path).unwrap_or(Observation::Unavailable {
+        native::observe(path, None).unwrap_or(Observation::Unavailable {
             reason: Unavailable::MetadataUnavailable,
             caller: None,
         })
@@ -134,5 +134,13 @@ pub fn observe_volume(path: &Path) -> Observation {
             reason: Unavailable::Unsupported,
             caller: None,
         }
+    }
+}
+
+#[cfg(windows)]
+pub(crate) fn measure_index_volume(path: &Path, identity: (u64, u64)) -> Option<Measurement> {
+    match native::observe(path, Some(identity)).ok()? {
+        Observation::Measured { measurement } => Some(measurement),
+        Observation::Unavailable { .. } => None,
     }
 }

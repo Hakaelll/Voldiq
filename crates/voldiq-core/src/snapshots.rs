@@ -9,6 +9,7 @@ mod retention;
 pub mod schedule;
 mod trends;
 mod visual;
+mod volume_history;
 pub use activity::{
     ActivityCapture, CalendarDay, CalendarEntry, CalendarPage, CalendarRead, CalendarReport,
     CalendarRequest, CalendarTotals, CaptureAccounting, DiaryDetail, DiaryEvent, DiaryPage,
@@ -256,12 +257,12 @@ impl Store {
         let mut connection = Connection::open(path)?;
         crate::database::configure(&connection)?;
         let version: u32 = connection.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version < 13 {
+        if version < 14 {
             let transaction =
                 connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
             let version: u32 =
                 transaction.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-            if version > 13 {
+            if version > 14 {
                 return Err(Error::Invalid(
                     "Unsupported snapshot database version.".into(),
                 ));
@@ -305,8 +306,11 @@ impl Store {
             if version <= 12 {
                 transaction.execute_batch(schedule::POLICY_SCHEMA)?;
             }
+            if version <= 13 {
+                transaction.execute_batch(volume_history::SCHEMA)?;
+            }
             transaction.commit()?;
-        } else if version != 13 {
+        } else if version != 14 {
             return Err(Error::Invalid(
                 "Unsupported snapshot database version.".into(),
             ));
@@ -367,6 +371,8 @@ impl Store {
         let identity = index
             .root_identity
             .ok_or_else(|| Error::Invalid("The scan has no verified volume identity.".into()))?;
+        #[cfg(windows)]
+        let volume = crate::space::measure_index_volume(&index.root, identity);
         if let Some(checkpoint) = index.ntfs_checkpoint
             && (checkpoint.volume != identity.0
                 || checkpoint.next < 0
@@ -402,6 +408,10 @@ impl Store {
                 integer(root.files)?, position_integer(index.entries.len())?, !root.incomplete && index.error_count == 0, integer(index.error_count)?,
                 observation.map(|o| integer(o.completed_at)).transpose()?, observation.map(|o| o.complete), observation.map(|o| &o.engine_version), observation.map(|o| i64::from(o.accounting_version))])?;
         let snapshot_id = transaction.last_insert_rowid();
+        #[cfg(windows)]
+        if let Some(volume) = volume {
+            volume_history::record(&transaction, snapshot_id, &volume)?;
+        }
         let mut paths = Vec::<i64>::with_capacity(index.entries.len());
         {
             let mut lookup_path = transaction.prepare(

@@ -13,8 +13,11 @@ use windows_sys::Win32::{
 
 type QuerySpace = unsafe extern "system" fn(*const u16, *mut DISK_SPACE_INFORMATION) -> i32;
 
-pub(super) fn observe(path: &Path) -> Result<Observation> {
+pub(super) fn observe(path: &Path, expected: Option<(u64, u64)>) -> Result<Observation> {
     let pin = pin_directory(path)?;
+    if expected.is_some_and(|identity| identity != pin.identity()) {
+        return Err(Error::Invalid("Volume scope changed.".into()));
+    }
     let file = windows::open_metadata(pin.path())?;
     let metadata = file.metadata()?;
     if windows::is_reparse(&metadata)

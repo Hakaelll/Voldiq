@@ -26,6 +26,16 @@ export interface TrendReport {
   limited: boolean;
   missing_dates: boolean;
   forecast: TrendForecast | null;
+  volume: {
+    points: { at: number; free: string; capacity: string }[];
+    forecast: {
+      at: number;
+      earliest_at: number;
+      latest_at: number;
+      samples: number;
+      confidence: 'higher' | 'moderate';
+    } | null;
+  };
 }
 
 export interface TrendChanges {

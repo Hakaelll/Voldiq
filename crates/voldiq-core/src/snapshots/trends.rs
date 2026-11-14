@@ -25,6 +25,7 @@ pub struct TrendReport {
     pub limited: bool,
     pub missing_dates: bool,
     pub forecast: Option<TrendForecast>,
+    pub volume: super::volume_history::VolumeTrend,
 }
 
 #[derive(Serialize)]
@@ -117,6 +118,7 @@ impl Store {
                 ))
             },
         )?;
+        let volume = super::volume_history::trend(&tx, root, request.days, cancel)?;
         let mut report = TrendReport {
             anchor: request.snapshot,
             root: decode(&path)?.to_string_lossy().into_owned(),
@@ -124,6 +126,7 @@ impl Store {
             limited: false,
             missing_dates,
             forecast: None,
+            volume,
         };
         if cancel.load(Ordering::Relaxed) {
             return Ok(None);
