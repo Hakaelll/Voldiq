@@ -36,6 +36,178 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     std::fs::write(fixture.path().join("Résumé.txt"), [6; 7]).unwrap();
     let first = capture(fixture.path());
     {
+        use voldiq_core::{operations::Lease, snapshots::schedule::time_now};
+        let owned = tempfile::tempdir().unwrap();
+        let root = owned.path().join("Scheduled folder");
+        let excluded = root.join("excluded");
+        std::fs::create_dir_all(&excluded).unwrap();
+        let state = tempfile::tempdir_in(&root).unwrap();
+        std::fs::write(root.join("included"), [1; 17]).unwrap();
+        std::fs::write(excluded.join("ignored"), [2; 73]).unwrap();
+        let db = state.path().join("snapshots.db");
+        let mut storage = Store::open(&db).unwrap();
+        let other = Lease::acquire(database.path()).unwrap();
+        let mut lease = Lease::acquire(state.path()).unwrap();
+        let now = time_now().unwrap();
+        assert!(
+            storage
+                .add_scan_schedule(&lease, state.path(), 1, &[], now)
+                .is_err()
+        );
+        assert!(
+            storage
+                .add_scan_schedule(&other, &root, 1, &[], now)
+                .is_err()
+        );
+        assert!(
+            storage
+                .add_scan_schedule(
+                    &lease,
+                    &root,
+                    1,
+                    &[root.to_string_lossy().into_owned()],
+                    now
+                )
+                .is_err()
+        );
+        let id = storage
+            .add_scan_schedule(
+                &lease,
+                &root,
+                1,
+                &[excluded.to_string_lossy().into_owned()],
+                now,
+            )
+            .unwrap();
+        assert!(!storage.scan_schedule_due(now + 3599).unwrap());
+        assert!(
+            storage
+                .claim_scheduled_scan(&mut lease, now + 3599)
+                .unwrap()
+                .is_none()
+        );
+        assert!(Lease::acquire(state.path()).is_err());
+        let run = storage
+            .claim_scheduled_scan(&mut lease, now + 3600)
+            .unwrap()
+            .unwrap();
+        let measured = run.measure(&loading);
+        let snapshot = storage
+            .finish_scheduled_scan(run, measured, &loading)
+            .unwrap()
+            .unwrap();
+        let [saved] = storage.list(0, 10).unwrap().try_into().unwrap();
+        assert_eq!(
+            (saved.id, saved.files, saved.logical, saved.complete),
+            (snapshot, 1, 17, true)
+        );
+        drop(storage);
+        let mut storage = Store::open(&db).unwrap();
+        let [record] = storage.scan_schedules().unwrap().try_into().ok().unwrap();
+        assert_eq!(record.runs[0].outcome, "saved");
+        assert_eq!(record.runs[0].snapshot, Some(snapshot));
+        assert!(record.next_due.unwrap() >= now + 7200);
+        assert!(
+            storage
+                .edit_scan_schedule(&lease, id, record.revision - 1, 24, &[], now)
+                .is_err()
+        );
+        storage
+            .edit_scan_schedule(
+                &lease,
+                id,
+                record.revision,
+                24,
+                &[excluded.to_string_lossy().into_owned()],
+                now,
+            )
+            .unwrap();
+        let edited = storage.scan_schedules().unwrap().remove(0);
+        assert_eq!((edited.hours, edited.next_due), (24, Some(now + 86400)));
+        storage
+            .set_scan_schedule_enabled(&lease, id, edited.revision, false, now)
+            .unwrap();
+        assert!(
+            storage
+                .claim_scheduled_scan(&mut lease, now + 200000)
+                .unwrap()
+                .is_none()
+        );
+        let disabled = storage.scan_schedules().unwrap().remove(0);
+        storage
+            .set_scan_schedule_enabled(&lease, id, disabled.revision, true, now)
+            .unwrap();
+        {
+            let _abandoned = storage
+                .claim_scheduled_scan(&mut lease, now + 86400)
+                .unwrap()
+                .unwrap();
+        }
+        drop(lease);
+        drop(storage);
+        let mut lease = Lease::acquire(state.path()).unwrap();
+        let mut storage = Store::open(&db).unwrap();
+        assert!(
+            storage
+                .claim_scheduled_scan(&mut lease, now + 172801)
+                .unwrap()
+                .is_none()
+        );
+        let recovered = storage.scan_schedules().unwrap().remove(0);
+        assert_eq!(recovered.runs[0].outcome, "interrupted");
+        assert_eq!(recovered.runs[0].finished, None);
+        let due = recovered.next_due.unwrap();
+        std::fs::rename(&excluded, root.join("formerly excluded")).unwrap();
+        let run = storage
+            .claim_scheduled_scan(&mut lease, due)
+            .unwrap()
+            .unwrap();
+        let measured = run.measure(&loading);
+        assert!(measured.is_err());
+        assert!(
+            storage
+                .finish_scheduled_scan(run, measured, &loading)
+                .unwrap()
+                .is_none()
+        );
+        let failed = storage.scan_schedules().unwrap().remove(0);
+        assert_eq!(failed.runs[0].outcome, "failed");
+        assert_eq!(storage.list(0, 10).unwrap().len(), 1);
+        let replaced = owned.path().join("Replaced folder");
+        std::fs::create_dir(&replaced).unwrap();
+        let replaced_id = storage
+            .add_scan_schedule(&lease, &replaced, 1, &[], now)
+            .unwrap();
+        std::fs::rename(&replaced, owned.path().join("Original identity")).unwrap();
+        std::fs::create_dir(&replaced).unwrap();
+        let replacement_run = storage
+            .claim_scheduled_scan(&mut lease, now + 3600)
+            .unwrap()
+            .unwrap();
+        let measured = replacement_run.measure(&loading);
+        assert!(measured.is_err());
+        assert!(
+            storage
+                .finish_scheduled_scan(replacement_run, measured, &loading)
+                .unwrap()
+                .is_none()
+        );
+        let replacement = storage
+            .scan_schedules()
+            .unwrap()
+            .into_iter()
+            .find(|row| row.id == replaced_id)
+            .unwrap();
+        storage
+            .remove_scan_schedule(&lease, replaced_id, replacement.revision)
+            .unwrap();
+        storage
+            .remove_scan_schedule(&lease, id, failed.revision)
+            .unwrap();
+        assert!(storage.scan_schedules().unwrap().is_empty());
+        assert_eq!(storage.list(0, 10).unwrap()[0].id, snapshot);
+    }
+    {
         use voldiq_core::scanner::ScanFolder;
         let owned = tempfile::tempdir().unwrap();
         let path = owned.path().join("Datos de análisis");
@@ -2179,10 +2351,14 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     drop(store);
     let connection = rusqlite::Connection::open(&db).unwrap();
     connection
+        .execute_batch("DROP TABLE scheduled_runs; DROP TABLE scan_schedules;")
+        .unwrap();
+    connection
         .execute_batch("DROP TABLE snapshot_library_nodes; DROP TABLE snapshot_libraries; DROP TABLE snapshot_application_roots; DROP TABLE snapshot_applications; DROP TABLE snapshot_retention; DROP TRIGGER history_snapshot_insert; DROP TRIGGER history_snapshot_update; DROP TRIGGER history_snapshot_delete; DROP TABLE snapshot_history_revision; DROP INDEX snapshots_observed; ALTER TABLE snapshots DROP COLUMN observed_at; ALTER TABLE snapshots DROP COLUMN observed_complete; ALTER TABLE snapshots DROP COLUMN engine_version; ALTER TABLE snapshots DROP COLUMN accounting_version; ALTER TABLE snapshot_versions DROP COLUMN cloud; DROP TABLE duplicate_hashes; PRAGMA user_version=4;")
         .unwrap();
     drop(connection);
     let mut store = Store::open(&db).unwrap();
+    assert!(store.scan_schedules().unwrap().is_empty());
     assert_eq!(store.list(0, 10).unwrap().len(), 2);
     assert_eq!(store.load(after, &loading).unwrap().entries[0].logical, 61);
     assert_eq!(store.load(after, &loading).unwrap().observation, None);

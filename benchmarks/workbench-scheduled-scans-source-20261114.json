@@ -1,0 +1,111 @@
+{
+  "checkedUtc": "2026-11-14T14:40:52.4683886Z",
+  "startedUtc": "2026-11-14T14:09:41.7022445Z",
+  "checkoutCommit": "b10a620bcae71bd7f9313e06fc288b7aed3d2839",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 3.766
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 24.902
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 2.583
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 19.446
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1020.416
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 799.545
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "288D86DFE257518D8E3B3C09D8D296C98256892DF1525CF0807097C80D0DBFE4"
+    },
+    {
+      "path": "crates/voldiq-core/src/operations.rs",
+      "sha256": "F7BE077C9D5671FB2BAAFBCB2C89AF7C35612D8F760433CB5A4DD9C1386A0B9D"
+    },
+    {
+      "path": "crates/voldiq-core/src/scanner/folder.rs",
+      "sha256": "B811E43ED5B50B3EAE52B1744E18E4F27DE913292D8DD67283B973E20DBAD867"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots.rs",
+      "sha256": "7CE55AE16741C0DF649F92B28517F7D535FDE9EFCEAEAC9C969D3A924286CA91"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/schedule.rs",
+      "sha256": "B3D92C89C47B18482C1459EC3A247CF48EF41D4E041C027DFA87F992A7D5BAE1"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "2819A0933E4D289408C737C6BAA0D064511C71F4CE13037361655C085C4B3136"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "655DD31811E2D3703194C71A0CDDA6DB340F23223218D0986337BEC1D377B43F"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "4CCDE7EBC62363C55AE3B71485A1956AAC7A6A9B237C3FCEE5DEBA39AE498D4D"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "B9285A35C1ABBF9286B70B66F3BA42647C1F5D6137F249288D19214D142711F5"
+    },
+    {
+      "path": "frontend/components/ScanSchedules.svelte",
+      "sha256": "A1710ECDD015945E7B8CEC2F02E0080F65F5DDB6B73C07925F649F5EED4A46C8"
+    },
+    {
+      "path": "frontend/components/WorkspaceHelp.svelte",
+      "sha256": "3263C68406FF385D67993CCD62F654C84540348B938AB5D45D71BD504D969CE4"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "99B6B7E3CDB058CDA587288F756C921BF383C409AD35D815F268E961959D7AEB"
+    },
+    {
+      "path": "src-tauri/src/schedule_commands.rs",
+      "sha256": "6038456C0C9B35857CB3019C311C10314C0ED4A71C8A0489C512DB7D5797C978"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "scheduledFixture": [
+    "real scan, one file and 17 logical bytes",
+    "private profile and configured folder excluded",
+    "foreign lease and stale revisions rejected",
+    "disabled and re-enabled schedule",
+    "interrupted run and cooldown on restart",
+    "missing exclusion and replaced native root denied",
+    "remove schedule while retaining snapshot",
+    "older snapshot schema migration"
+  ]
+}

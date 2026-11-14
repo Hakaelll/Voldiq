@@ -6,6 +6,7 @@ mod budget_history;
 mod cache_evidence;
 mod library_evidence;
 mod retention;
+pub mod schedule;
 mod visual;
 pub use activity::{
     ActivityCapture, CalendarDay, CalendarEntry, CalendarPage, CalendarRead, CalendarReport,
@@ -253,12 +254,12 @@ impl Store {
         let mut connection = Connection::open(path)?;
         crate::database::configure(&connection)?;
         let version: u32 = connection.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version < 10 {
+        if version < 11 {
             let transaction =
                 connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
             let version: u32 =
                 transaction.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-            if version > 10 {
+            if version > 11 {
                 return Err(Error::Invalid(
                     "Unsupported snapshot database version.".into(),
                 ));
@@ -293,8 +294,11 @@ impl Store {
             if version <= 9 {
                 transaction.execute_batch(library_evidence::SCHEMA)?;
             }
+            if version <= 10 {
+                transaction.execute_batch(schedule::SCHEMA)?;
+            }
             transaction.commit()?;
-        } else if version != 10 {
+        } else if version != 11 {
             return Err(Error::Invalid(
                 "Unsupported snapshot database version.".into(),
             ));
@@ -332,6 +336,17 @@ impl Store {
         cancel: &AtomicBool,
         caches: &[crate::developer::CacheLocation],
         libraries: Option<&crate::libraries::Capture>,
+    ) -> Result<i64> {
+        self.save_capture(index, cancel, caches, libraries, None)
+    }
+
+    fn save_capture(
+        &mut self,
+        index: &Index,
+        cancel: &AtomicBool,
+        caches: &[crate::developer::CacheLocation],
+        libraries: Option<&crate::libraries::Capture>,
+        scheduled: Option<&schedule::Claim>,
     ) -> Result<i64> {
         if index.snapshot_id.is_some() {
             return Err(Error::Invalid(
@@ -485,9 +500,11 @@ impl Store {
         if cancel.load(Ordering::Relaxed) {
             return Err(Error::Invalid("Snapshot capture cancelled.".into()));
         }
+        if let Some(claim) = scheduled {
+            claim.publish(&transaction, snapshot_id, schedule::time_now()?)?;
+        }
+        transaction.execute_batch("DROP TABLE captured_paths;")?;
         transaction.commit()?;
-        self.connection
-            .execute_batch("DROP TABLE captured_paths;")?;
         Ok(snapshot_id)
     }
 

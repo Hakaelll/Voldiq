@@ -11,6 +11,10 @@ pub struct ScanFolder {
 }
 
 impl ScanFolder {
+    pub fn path(&self) -> &Path {
+        Path::new(&self.path)
+    }
+
     pub fn prepare(path: &Path) -> Result<Self> {
         let directory = pin(path)?;
         let path = directory
@@ -24,10 +28,10 @@ impl ScanFolder {
     }
 
     pub fn reopen(&self) -> Result<AuthorizedPath> {
-        let directory = pin(Path::new(&self.path))?;
+        let directory = pin(self.path())?;
         if identity(&directory) != self.identity {
             return Err(Error::Invalid(
-                "The folder changed. Drop it again to scan its current contents.".into(),
+                "The folder changed. Select it again to scan its current contents.".into(),
             ));
         }
         Ok(directory)

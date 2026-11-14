@@ -42,7 +42,7 @@
     },
     settings: {
       title: 'Settings',
-      hint: 'Set the theme in Appearance. Window contains desktop integration options. Scanning contains exclusions and scan defaults.',
+      hint: 'Set the theme in Appearance. Window contains desktop integration options. Use Scheduled scans to capture storage changes while Voldiq is running.',
     },
   };
 

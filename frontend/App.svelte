@@ -9,6 +9,7 @@
   import Overview from './components/Overview.svelte';
   import StorageMap from './components/StorageMap.svelte';
   import ScanWelcome from './components/ScanWelcome.svelte';
+  import ScanSchedules from './components/ScanSchedules.svelte';
   import ScanPauseControl from './components/ScanPauseControl.svelte';
   import type { ScanControlView } from './lib/scan-control';
   import BrandMark from './components/BrandMark.svelte';
@@ -2050,6 +2051,7 @@
               >
             </div>
           </section>
+          {#if storageMode !== null}<ScanSchedules available={storageMode !== 'ephemeral'} />{/if}
           <div class="settings-action">
             <button disabled={analysisBusy} onclick={() => void reviewAgentPlans()}
               >Review agent plans in Cleanup</button

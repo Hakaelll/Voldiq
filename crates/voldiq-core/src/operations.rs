@@ -81,7 +81,6 @@ impl Coordinator {
 }
 
 impl Lease {
-    #[cfg(windows)]
     pub(crate) fn directory(&self) -> &Path {
         self.directory.path()
     }

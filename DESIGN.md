@@ -344,6 +344,8 @@ Commands and Ctrl+K open a native dialog with one search field and compact, icon
 
 The empty scan view places a short guide below the active scan controls. Skip tips dismisses it for the current profile. F1 and Help & shortcuts open a compact native dialog with guidance for the current screen. Explorer chart controls have their own shortcut rows when the chart is visible. Escape closes help and returns focus to its opener when possible.
 
+Scheduled scans uses the existing Settings rows. A folder picker, cadence and exclusions define a capture. The list gives each schedule its folder, frequency and next due time or current state. A run history disclosure keeps outcomes and snapshot references available without expanding every schedule.
+
 ### Large-item filters
 
 Large files adds an Items selector beside its existing filters, with Files and Folders choices. It defaults to Files, and Reset filters restores that choice. The same virtual list and details panel display folders without another explanatory paragraph or management action. Folder rows open their indexed scope through the existing navigation handler.

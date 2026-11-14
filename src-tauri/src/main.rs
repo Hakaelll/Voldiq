@@ -33,6 +33,7 @@ mod profile;
 mod query_commands;
 mod restore_commands;
 mod scan_control;
+mod schedule_commands;
 mod snapshot_commands;
 mod window_close_preference;
 mod window_tray;
@@ -964,6 +965,7 @@ fn main() {
             let ephemeral = profile.mode == profile::Mode::Ephemeral;
             app.manage(Arc::new(engine));
             app.manage(database);
+            app.manage(schedule_commands::Scheduler::default());
             setup_trace.record("snapshot-open-end", Some(app.handle()));
             if ephemeral {
                 app.manage(CleanupJournal::unavailable());
@@ -972,6 +974,7 @@ fn main() {
                 app.manage(CleanupJournal::open(&directory.join("cleanup.db")));
                 app.manage(plan_commands::PlanReviews::open(&directory));
                 plan_commands::start_dispatcher(app.handle())?;
+                schedule_commands::start(app.handle())?;
             }
             tauri::WebviewWindowBuilder::from_config(app, &window)?
                 .data_directory(directory)
@@ -1045,6 +1048,8 @@ fn main() {
             plan_commands::cancel_agent_plan,
             get_volumes,
             choose_folder,
+            schedule_commands::list_scan_schedules,
+            schedule_commands::change_scan_schedule,
             choose_docker_disk,
             export_commands::save_report,
             export_commands::save_svg,
@@ -1163,6 +1168,9 @@ fn main() {
                 _ => return,
             };
             if name == "exit-requested" {
+                if let Some(scheduler) = app.try_state::<schedule_commands::Scheduler>() {
+                    scheduler.stop();
+                }
                 if let Some(engine) = app.try_state::<Arc<Engine>>() {
                     scan_control::cancel_on_close(&engine);
                     let _ = engine.live.stop(None);
