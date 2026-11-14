@@ -71,7 +71,7 @@ pub(super) fn copy_all<T>(
 }
 
 impl Store {
-    /// Copies the exact manifest, never a caller-provided subset. Admission remains hard-disabled.
+    /// Copies the exact manifest under its consumed desktop approval.
     pub fn copy_transfer_batch<'a>(
         &mut self,
         context: &PlanContext<'_>,

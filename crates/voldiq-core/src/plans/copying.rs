@@ -301,7 +301,6 @@ pub(super) fn copy_verified(
 
 impl Store {
     /// Requires an existing consumed copy grant. This does not approve, finish or modify originals.
-    /// Offload/restore admission remains disabled pending native dispatch and acceptance.
     pub fn copy_transfer_file<'a>(
         &mut self,
         context: &PlanContext<'_>,

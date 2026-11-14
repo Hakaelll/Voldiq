@@ -154,7 +154,6 @@ impl PreparedOffloadRecycling<'_> {
 
 impl Store {
     /// Requires the complete sealed copy set and the explicit recycle-originals policy.
-    /// Offload approval remains unavailable until restore and desktop integration are ready.
     pub fn prepare_offload_recycling<'a>(
         &mut self,
         context: &PlanContext<'_>,

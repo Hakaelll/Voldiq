@@ -39,6 +39,9 @@ impl Store {
         if view.state.terminal() || view.state == State::Executing {
             return Ok(Enqueue::Existing(view.state));
         }
+        if !view.execution_available {
+            return Err(invalid());
+        }
         if view.state != State::Approved {
             return Err(Error::NeedsHumanApproval);
         }

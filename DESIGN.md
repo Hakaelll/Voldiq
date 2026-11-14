@@ -554,6 +554,8 @@ The Recovery vault disclosure also shows the configured review period. Each publ
 
 The exact restore review shows the original path and the planned output name for each file. For a keep-both proposal it also shows the selected conflict policy above the file table. The recorded transfer table labels the original path beneath the recorded output name. The copy must use the reviewed name in the original parent.
 
+The exact plan review uses the core execution-profile state for its approval button. The separate Windows confirmation names the action, source, destination and manifest hash. It describes the selected original handling and the two-minute window for the connection to request the start. Historical planning-only proposals show a request for a fresh plan.
+
 ## Reading and control hierarchy
 
 The storage workbench uses open sections, aligned rows and separators instead of a framed card for every information group. Overview and application sections use plain secondary navigation with an active underline. Summary headings use sentence case and existing title sizes; list text uses 13px and supporting metadata generally 12px. The black theme, chart palette, original artwork and main sidebar behavior remain in place.

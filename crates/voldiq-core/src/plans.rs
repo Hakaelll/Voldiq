@@ -122,8 +122,37 @@ impl Action {
         }
     }
     pub fn execution_available(&self) -> bool {
-        matches!(self, Self::Recycle)
+        match self {
+            Self::Recycle => true,
+            #[cfg(windows)]
+            Self::Offload(plan) => plan.has_current_execution_profile(),
+            #[cfg(windows)]
+            Self::Restore(plan) => plan.has_current_execution_profile(),
+            #[cfg(not(windows))]
+            Self::Offload(_) | Self::Restore(_) => false,
+        }
     }
+
+    pub fn approval_description(&self) -> &'static str {
+        match self {
+            Self::Recycle => "Send the selected files to the Recycle Bin.",
+            Self::Offload(plan) => match plan.originals {
+                Originals::Keep => {
+                    "Copy to the reviewed destination and verify the copies. Keep the originals."
+                }
+                Originals::RecycleAfterVerification => {
+                    "Copy to the reviewed destination and verify every copy. Then send the revalidated originals to the Recycle Bin."
+                }
+            },
+            Self::Restore(_) => {
+                "Restore verified files to the reviewed names. Keep the archive copies and any existing files."
+            }
+        }
+    }
+    pub fn approval_destinations(&self) -> &[Offload] {
+        self.transfer_groups().unwrap_or_default()
+    }
+
     fn transfer_groups(&self) -> Result<&[Offload]> {
         match self {
             Self::Offload(plan) => Ok(std::slice::from_ref(plan.as_ref())),
@@ -153,6 +182,7 @@ pub struct View {
     pub state: State,
     pub approval_expires: Option<i64>,
     pub result: Option<serde_json::Value>,
+    pub execution_available: bool,
 }
 
 #[derive(Serialize)]

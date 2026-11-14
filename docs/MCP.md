@@ -1,6 +1,6 @@
 # Local agent analysis and plans
 
-The adapter implements authenticated analysis, exact recycling plans and execution/cancellation requests to the open Windows desktop. Humans review and approve each exact plan in Voldiq. No arbitrary delete, shell, approval-granting or bin-purge tool is registered. Full elevated/Shell acceptance through this new agent route remains manual.
+The adapter implements authenticated analysis, exact recycling, cross-volume transfer and restoration plans, and execution/cancellation requests to the open Windows desktop. Humans review and approve each exact plan in Voldiq. Agent tools can request execution and cancellation. Full elevated/Shell acceptance through the agent route remains manual.
 
 ## Transfer proposals
 
@@ -8,7 +8,7 @@ The adapter implements authenticated analysis, exact recycling plans and executi
 
 This call records a proposal in Voldiq state. It does not copy or modify source/destination files. Recycle manifests retain schema 2 and their string action. New transfers use schema 5 with exact flat names, native folder/volume identity, capacity estimate/reserve, an explicit NTFS basic metadata profile and a bounded four-hour active lifetime, separate from the two-minute approval start deadline. Schema-3/4 proposals remain readable without silently acquiring new evidence. The current copy profile requires NTFS and rejects unsupported streams, extended attributes and special file profiles. Basic creation/modification dates and DOS flags do not establish full restoration or preserve security/link relationships. No overwrite, original deletion or immediate free-space claim is implied.
 
-Transfer proposals can be reviewed/rejected in the desktop. The retained copy, catalogue and original-handling source are present, but admission remains unavailable until approved dispatch, restoration and their real verification are integrated. Core rejects granting/starting an unsupported transfer and refuses routing it to the recycling-only worker. There is no same-volume bypass, agent approval flag, shell or copy executor in this endpoint. Actual cross-volume, approved/elevated, disconnect/recovery and restore acceptance remain pending.
+In Cleanup → Agent plans, review the exact destination and what happens to the originals. Windows shows a separate confirmation containing the action and manifest hash. The approving desktop grants one start within two minutes. The connection must submit an execution request with the same hash before expiry. The worker checks current credentials, policy, material evidence and capacity and consumes the grant once. Historical planning-only proposals remain readable and require a fresh proposal to execute. Actual cross-volume, elevation and device disconnect/reconnect acceptance remain pending.
 
 ## Restore proposals
 
@@ -16,7 +16,7 @@ Transfer proposals can be reviewed/rejected in the desktop. The retained copy, c
 
 Restore proposals bind the transfer hash, confirmed publication, each archive's full identity, recorded BLAKE3 and bytes, original basic metadata and exact destinations. The default `on_collision: "fail"` returns `restore_collision` when an original name is occupied and retains schema 6. Set `on_collision: "keep_both"` in the MCP call or CLI JSON for a schema-7 proposal. Voldiq chooses a free name such as `report (restored 1).pdf` in the existing original parent and records it in `groups[].outputs`. It preserves the original path in `files[].original_path`. Review the actual output before approving any future copy. A later collision requires a fresh proposal.
 
-Restoration keeps the archive and uses only existing original parents whose current identities and ancestry match the record. Required capacity covers all folder groups on the original volume with one shared 16 MiB reserve. An unknown original creation date is shown explicitly, with the observed archive creation date used for the new copy. Preparing updates the proposal catalogue and checks file metadata. Approval, execution and positive cross-volume copying remain pending.
+Restoration keeps the archive and uses only existing original parents whose current identities and ancestry match the record. Required capacity covers all folder groups on the original volume with one shared 16 MiB reserve. An unknown original creation date is shown explicitly, with the observed archive creation date used for the new copy. Preparing updates the proposal catalogue and checks file metadata. A restore plan must obtain its own approval before execution. Positive cross-volume restoration remains pending.
 
 On Windows, the name check uses `OPEN_EXISTING` with metadata access and reparse-point processing disabled. It regards an occupied file or directory as a conflict and propagates lookup errors other than `ERROR_FILE_NOT_FOUND`. [CreateFileW](https://learn.microsoft.com/en-us/windows/desktop/api/fileapi/nf-fileapi-createfilew)
 

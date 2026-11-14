@@ -255,9 +255,21 @@ pub async fn approve_agent_plan(
     let desktop = reviews.desktop()?;
     tauri::async_runtime::spawn_blocking(move || {
         let review = desktop.review(&id).map_err(|error| error.to_string())?;
-        if review.plan.hash != hash || review.plan.state != State::AwaitingApproval { return Err("Plan changed or is no longer awaiting approval. Refresh its review.".into()); }
+        if review.plan.hash != hash || review.plan.state != State::AwaitingApproval || !review.plan.execution_available {
+            return Err("This plan is no longer available for approval. Refresh its review.".into());
+        }
         let manifest = &review.plan.manifest;
-        let message = format!("Approve this exact recycling plan?\n\nConnection: {} (#{})\nFolder: {}\nFiles: {}\nLogical bytes: {}\nAction: send to Recycle Bin\nRisk: manual review required\n\nManifest hash:\n{}\n\nReview the full selection in Voldiq before approving. This grants one attempt within at most two minutes. Approval does not start execution or guarantee recovered space.",review.connection,manifest.connection_id,manifest.root,manifest.entries.len(),manifest.logical_bytes,hash);
+        let destinations = manifest.action.approval_destinations();
+        let destination = match destinations {
+            [] => String::new(),
+            [one] => format!("\nDestination: {}", one.destination_path().display()),
+            [first, rest @ ..] => format!("\nDestinations: {} and {} more reviewed folders", first.destination_path().display(), rest.len()),
+        };
+        let message = format!(
+            "Approve this exact plan?\n\nConnection: {} (#{})\nSource: {}{}\nFiles: {}\nLogical bytes: {}\n\n{}\n\nManifest hash:\n{}\n\nReview the full selection in Voldiq before approving. This grants one attempt within two minutes. The connection must request execution separately.",
+            review.connection, manifest.connection_id, manifest.root, destination, manifest.entries.len(),
+            manifest.logical_bytes, manifest.action.approval_description(), hash,
+        );
         let confirmed = rfd::MessageDialog::new().set_title("Voldiq · Approve exact plan").set_description(&message).set_buttons(rfd::MessageButtons::YesNo).set_level(rfd::MessageLevel::Warning).show();
         if confirmed != rfd::MessageDialogResult::Yes { return Ok(None); }
         desktop.approve(&id,&hash).map(Some).map_err(|error| error.to_string())

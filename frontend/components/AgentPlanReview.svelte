@@ -31,6 +31,7 @@
   }
   interface Plan {
     result: unknown;
+    execution_available: boolean;
     hash: string;
     state: PlanState;
     approval_expires: number | null;
@@ -561,13 +562,11 @@
             </p>{/if}
         </section>{/if}
       <div class="decisions">
-        {#if restore}<p role="note">
-            This is a restore proposal. Approval and execution are not available yet. Preparing it
-            changes no source or destination file.
-          </p>{/if}
-        {#if transfer}<p role="note">
-            This is a transfer proposal. Copying, verification and original handling are not
-            available yet; it cannot be approved or executed.
+        {#if !plan.execution_available}<p role="note">
+            Prepare a new plan with current transfer evidence to approve execution.
+          </p>{:else if (restore || transfer) && plan.state === 'awaiting_approval'}<p role="note">
+            Review the exact destination names and original handling above. The connection has up
+            to two minutes to start an approved plan.
           </p>{/if}
         <button
           disabled={busy ||
@@ -582,7 +581,7 @@
         <button
           class="primary"
           disabled={busy ||
-            manifest.action !== 'recycle' ||
+            !plan.execution_available ||
             plan.state !== 'awaiting_approval' ||
             now >= manifest.expires}
           onclick={() => decide('approve')}>{busy ? 'Working…' : 'Review and approve plan'}</button

@@ -365,7 +365,7 @@
             <p>
               Restoration requires a freshly scanned archive and a separately reviewed exact plan.
               These records do not prove that a file is currently available or that all metadata can
-              be restored. Transfer and restoration approval is not enabled yet.
+              be restored. Review the exact plan for its current approval state.
             </p>
             <p>{record.limitations}</p>
             <dl>

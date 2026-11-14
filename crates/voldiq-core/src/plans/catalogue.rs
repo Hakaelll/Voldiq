@@ -462,7 +462,7 @@ impl Store {
             next_after,
             currently_connected: None,
             restore_available: false,
-            limitations: "Recorded observations, not current content or connection evidence. Interruption retains the last recorded phase; pending publication or original handling may have occurred. No automatic retry, pathname cleanup, restoration or file-operation authority. Metadata preservation depends on the captured profile; restoration is not available yet.",
+            limitations: "This catalogue shows the last recorded file phase. After an interruption, a pending publication or original action may have occurred. Restoration requires fresh archive evidence and its own approved plan. Metadata preservation depends on the recorded profile.",
         })
     }
 }

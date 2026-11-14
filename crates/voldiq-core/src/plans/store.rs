@@ -291,6 +291,7 @@ impl Store {
         audit(&tx, &manifest.id, now, "draft")?;
         tx.commit()?;
         Ok(View {
+            execution_available: manifest.action.execution_available(),
             manifest,
             hash,
             state: State::Draft,
@@ -339,7 +340,7 @@ impl Store {
         }
         if !stored.view.manifest.action.execution_available() {
             return Err(crate::Error::Invalid(
-                "Transfer approval and execution are not available yet.".into(),
+                "This plan cannot be executed. Prepare a plan with the current transfer evidence on Windows.".into(),
             ));
         }
         self.validate_material(context, &stored, now)?;
@@ -367,6 +368,7 @@ impl Store {
         &mut self,
         context: &PlanContext<'_>,
         id: &str,
+        expected_hash: &str,
         human: &HumanAuthority,
         now: i64,
     ) -> Result<Begin> {
@@ -374,13 +376,14 @@ impl Store {
         human.check_directory(self.directory.identity())?;
         let stored = self.load(context, id, now)?;
         let view = &stored.view;
-        if !view.manifest.action.execution_available() {
-            return Err(crate::Error::Invalid(
-                "Transfer approval and execution are not available yet.".into(),
-            ));
+        if view.hash != expected_hash {
+            return Err(invalid());
         }
         if view.state.terminal() || view.state == State::Executing {
             return Ok(Begin::Existing(view.state));
+        }
+        if !view.manifest.action.execution_available() {
+            return Err(invalid());
         }
         if view.state != State::Approved {
             return Err(Error::NeedsHumanApproval);
@@ -417,9 +420,16 @@ impl Store {
             view.approval_expires.ok_or_else(invalid)?,
             started_at,
         )?;
+        if tx.execute("UPDATE agent_plans SET state='executing',execution_nonce=?1
+            WHERE id=?2 AND owner=?3 AND hash=?4 AND state='approved' AND approval_issuer=?5 AND approval_expires>?6 AND binding=?8
+              AND EXISTS(SELECT 1 FROM execution_requests r WHERE r.plan_id=?2 AND r.owner=?3
+                AND r.hash=?4 AND r.issuer=?5 AND r.cancel_requested=0 AND r.requested BETWEEN ?7 AND ?6
+                AND r.requested < agent_plans.approval_expires)",
+            params![nonce, id, context.owner(), view.hash, human.issuer(), started_at, view.manifest.created, stored.binding])? != 1 { return Err(Error::NeedsHumanApproval); }
+        if context.binding()? != stored.binding {
+            return Err(invalid());
+        }
         human.consume(id, &view.hash, context.owner(), &stored.binding, started_at)?;
-        if tx.execute("UPDATE agent_plans SET state='executing',execution_nonce=?1 WHERE id=?2 AND owner=?3 AND hash=?4 AND state='approved' AND approval_issuer=?5 AND approval_expires>?6",
-            params![nonce, id, context.owner(), view.hash, human.issuer(), started_at])? != 1 { return Err(Error::NeedsHumanApproval); }
         audit(&tx, id, started_at, "executing")?;
         tx.commit()?;
         Ok(Begin::Started(ExecutionLease {
@@ -678,6 +688,7 @@ impl Store {
             .transpose()?;
         Ok(Stored {
             view: View {
+                execution_available: manifest.action.execution_available(),
                 manifest,
                 hash,
                 state,

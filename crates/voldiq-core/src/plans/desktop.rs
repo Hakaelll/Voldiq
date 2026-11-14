@@ -169,7 +169,7 @@ impl Desktop {
             return Err(invalid());
         }
         let context = registry.plan_context(&principal, Capability::ExecuteApproved)?;
-        match store.begin(&context, id, &self.human, now()?)? {
+        match store.begin(&context, id, hash, &self.human, now()?)? {
             super::Begin::Existing(_) => {}
             super::Begin::Started(lease) => match view.manifest.action {
                 Action::Recycle => {

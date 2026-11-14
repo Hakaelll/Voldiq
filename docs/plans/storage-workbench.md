@@ -189,6 +189,7 @@ Native catalogue/workspace unit: expose the existing human-only catalogue throug
 
 - [ ] Add bounded recovery catalogue, quotas, retention and collision recovery. No agent purge.
   Restore proposal conflicts stop by default. CLI and MCP can explicitly request Keep both. The bounded name search checks the pinned original parent, reserves the other batch names and freezes the chosen output in schema 7. Review shows both names. A new conflict requires a new plan. Positive cross-volume restoration and desktop admission remain open.
+  Transfer admission unit. Allow newly prepared Windows proposals with the current execution and metadata profile through the existing exact human confirmation. Retain planning-only history. Atomically match an uncancelled execution request by owner, issuer, hash and time before consuming the one-time grant. The existing dispatcher selects verified copy and retained-original actions. Positive approved copies, elevation and reconnect checks across two volumes remain deferred.
 
   Catalogue search unit. Search recorded names and paths in the existing human-only Transfers workspace. Validate each manifest and file receipt before matching. Apply the same literal search and published-only selection to the operation list and file pages. Scan bounded batches and preserve an older-record cursor even when a batch has no matches. Keep the current archive, device and restoration status explicit.
 

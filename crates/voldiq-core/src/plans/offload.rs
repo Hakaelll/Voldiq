@@ -165,9 +165,19 @@ pub struct Offload {
 }
 
 pub(super) const RESERVE: u64 = 16 * 1024 * 1024;
-pub(super) const LIMITATIONS: &str = "Planning only; transfer execution and approval are unavailable until the copy/readback/catalogue pipeline is implemented. Exact flat output names; no replacement. Caller-available capacity includes a conservative allocation/entry estimate and a 16 MiB reserve, not a reservation or proof of future space. Source payload, streams, encryption, metadata preservation and destination disconnect behavior require execution preflight. No copy or original modification has occurred. Recycling originals does not imply immediate free space.";
+pub(super) const LEGACY_LIMITATIONS: &str = "Planning only; transfer execution and approval are unavailable until the copy/readback/catalogue pipeline is implemented. Exact flat output names; no replacement. Caller-available capacity includes a conservative allocation/entry estimate and a 16 MiB reserve, not a reservation or proof of future space. Source payload, streams, encryption, metadata preservation and destination disconnect behavior require execution preflight. No copy or original modification has occurred. Recycling originals does not imply immediate free space.";
+pub(super) const LIMITATIONS: &str = "Exact flat output names. Capacity is a measured estimate with a 16 MiB reserve. The worker rechecks source metadata and destination identity and verifies the content before handling originals. Recycling originals does not imply immediate free space.";
 
 impl Offload {
+    pub fn destination_path(&self) -> &Path {
+        &self.destination.path
+    }
+
+    #[cfg(windows)]
+    pub(super) fn has_current_execution_profile(&self) -> bool {
+        self.limitations == LIMITATIONS && self.execution_limit().is_ok()
+    }
+
     pub(super) fn schema_version(&self) -> u32 {
         if self.execution.is_some() {
             5
@@ -349,7 +359,7 @@ impl Offload {
         let required = required_capacity(entries, &self.destination, &self.outputs)?;
         if self.required_available_bytes != required.to_string()
             || self.reserve_bytes != RESERVE.to_string()
-            || self.limitations != LIMITATIONS
+            || !matches!(self.limitations.as_str(), LIMITATIONS | LEGACY_LIMITATIONS)
             || self.source_volume.guid_root == self.destination.volume.guid_root
             || self.source_volume.serial == self.destination.volume.serial
             || self

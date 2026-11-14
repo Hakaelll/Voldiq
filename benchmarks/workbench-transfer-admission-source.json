@@ -1,0 +1,134 @@
+{
+  "checkedUtc": "2026-11-14T20:36:28.5015126Z",
+  "startedUtc": "2026-11-14T20:17:21.9413329Z",
+  "checkoutCommit": "b8fed4bde5630f0705bfb06221167f72becfcf01",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 3.445
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 22.904
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 2.298
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 15.95
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 946.384
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 155.494
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "D65EB9A796C49C4FEDBA96B1F455E6A26F8D33C20501D7EB9495BE5410F11F20"
+    },
+    {
+      "path": "docs/MCP.md",
+      "sha256": "D24286EC5216F4DAE3FFF0A1AE1076D7DCA088C1C105660239DE36E1114461F2"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "52158D3C3C7AEECADDA3A1F45C9C437EE5CF07CF5E8C95491CBF3CC98655C38A"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "8D9EBF90E4CD907C51E2C7E61A93826425C570648D4ACAC555F34FA99EBDA26F"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans.rs",
+      "sha256": "B550124E47D4D529124F876112FF7024CF0C803E212463247D165C42806F287A"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/batch.rs",
+      "sha256": "C9ADDE22D7CD30C10C928A3539F24F4FAE91362B4C4B9F14328D573785E6D6F0"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/catalogue.rs",
+      "sha256": "C85DD42273078EC76CED126294D9DBF118DFAD42ABA0E3C6DF986D4376C80422"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/copying.rs",
+      "sha256": "2DFD3B209894D6E125F78B37BC37688A84BCF0A718D6BBDFA924635AEB291518"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/desktop.rs",
+      "sha256": "D4FA561002FE7939940B469322648EA5EBE332F1FBEDC17CCE737AC54768168B"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/desktop/tests.rs",
+      "sha256": "CC75C24B4905FED38F2BF76945449AF999D9D932213E8A419A3DFA3EFB85CA06"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/offload.rs",
+      "sha256": "463D2547DB0E12D59FA2B37B269669F6E19F26FFD9778FB20A16A31A7A207574"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/originals.rs",
+      "sha256": "18F8475EDEE3F27268847941EEF3A0ED62D88BCA06F5A9B898C7EF16316DC15B"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/restoration.rs",
+      "sha256": "92BCBA9280C9E32466C5D2E8C6982E71E049E2FF0345158B47333360C8DE1A24"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/store.rs",
+      "sha256": "EE6122B8403808876674D6BB36EFF43D5286F4FDCE5F2F6FB9BCB7C07035CCDE"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/store/requests.rs",
+      "sha256": "A75EEB93C49AA7B9BA5F8E9E3C490E554CB62DA6D7454B024AA4F83859657FA7"
+    },
+    {
+      "path": "crates/voldiq-headless/src/mcp.rs",
+      "sha256": "FB73FBAD5F18B69A4A564A3A7A6D9D974BB5D71A8D3847A1840F35CF000FAEF8"
+    },
+    {
+      "path": "frontend/components/AgentPlanReview.svelte",
+      "sha256": "0B31166D2C2BD50E8AE1B1A50F93A41DA0AF93BFC22F1615A6777411CD11BA3C"
+    },
+    {
+      "path": "frontend/components/TransferCatalogue.svelte",
+      "sha256": "364175EB80B7058186772456F97E557FDB52859ABFC89DB76C3C03AC6E8B487B"
+    },
+    {
+      "path": "src-tauri/src/plan_commands.rs",
+      "sha256": "230BBC8C552B5B78D1D55EE301C8E09EFDB563FB327A2B60ABEAE50BD71F06E1"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "admissionFixture": [
+    "current and legacy execution profiles",
+    "real single-use recycling approval requires execution request before start",
+    "wrong hash rejected without consuming approval",
+    "queued request starts with live approval",
+    "expired approval rejected after writer wait",
+    "native copy and retained-source fixtures",
+    "physical cross-volume fixture deferred"
+  ]
+}

@@ -13,7 +13,8 @@ use crate::{
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, path::Path};
 
-pub(super) const LIMITATIONS: &str = "Planning only; restoration approval and execution are unavailable. Keep archive copies. Existing original parent folders only; no replacement, directory recreation or inferred relocation. Verify every archive's recorded BLAKE3 before publication. Basic NTFS metadata only; original unknown creation remains disclosed, with the archive's observed creation date used for the new copy. Permissions, access/change dates and link relationships are not restored. No full-restoration or freed-space guarantee.";
+pub(super) const LEGACY_LIMITATIONS: &str = "Planning only; restoration approval and execution are unavailable. Keep archive copies. Existing original parent folders only; no replacement, directory recreation or inferred relocation. Verify every archive's recorded BLAKE3 before publication. Basic NTFS metadata only; original unknown creation remains disclosed, with the archive's observed creation date used for the new copy. Permissions, access/change dates and link relationships are not restored. No full-restoration or freed-space guarantee.";
+pub(super) const LIMITATIONS: &str = "Keep archive copies. Restore to exact names in existing original folders and preserve any existing files. Verify every archive's recorded BLAKE3 before publication. Preserve basic NTFS metadata. Use the observed archive creation date where the original creation date was unknown. Permissions, access/change dates and link relationships are not restored.";
 const ALTERNATE_NAMES: u8 = 32;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
@@ -72,6 +73,16 @@ struct Archive {
 }
 
 impl Restore {
+    #[cfg(windows)]
+    pub(super) fn has_current_execution_profile(&self) -> bool {
+        self.limitations == LIMITATIONS
+            && self
+                .groups
+                .iter()
+                .all(Offload::has_current_execution_profile)
+            && self.execution_limit().is_ok()
+    }
+
     pub(super) fn schema_version(&self) -> u32 {
         match self.on_collision {
             RestoreCollisionPolicy::Fail => 6,
@@ -95,7 +106,7 @@ impl Restore {
             || self.files.len() != entries.len()
             || self.groups.is_empty()
             || self.groups.len() > entries.len()
-            || self.limitations != LIMITATIONS
+            || !matches!(self.limitations.as_str(), LIMITATIONS | LEGACY_LIMITATIONS)
         {
             return Err(invalid());
         }

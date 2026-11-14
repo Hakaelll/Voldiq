@@ -435,7 +435,24 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                     .transfer_catalogue(&human, &bounded.id, None, 10, &Default::default())
                     .unwrap();
                 assert_eq!(recorded.manifest_hash, bounded_hash);
-                assert!(!recorded.manifest.action.execution_available());
+                assert!(recorded.manifest.action.execution_available());
+                let mut legacy = serde_json::to_value(&bounded.action).unwrap();
+                legacy["offload"]["limitations"] =
+                    serde_json::json!(super::super::offload::LEGACY_LIMITATIONS);
+                let legacy: Action = serde_json::from_value(legacy).unwrap();
+                let Action::Offload(legacy_transfer) = &legacy else {
+                    unreachable!()
+                };
+                legacy_transfer.check_shape(&bounded.entries).unwrap();
+                assert!(!legacy.execution_available());
+                assert_eq!(
+                    bounded.action.approval_destinations()[0].destination_path(),
+                    pin.path()
+                );
+                assert_eq!(
+                    bounded.action.approval_description(),
+                    "Copy to the reviewed destination and verify the copies. Keep the originals."
+                );
                 // Clock-policy model only; no synthetic execution ticket or offload grant.
                 use super::super::ExecutionWindow;
                 let at = bounded.created;
@@ -534,7 +551,13 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                     restore.check_shape(&bounded.entries).unwrap();
                     let action = Action::Restore(Box::new(restore));
                     assert_eq!(action.schema_version(), 6);
-                    assert!(!action.execution_available());
+                    assert!(action.execution_available());
+                    let mut legacy = proposed.clone();
+                    legacy["limitations"] =
+                        serde_json::json!(super::super::restoration::LEGACY_LIMITATIONS);
+                    let legacy: crate::plans::Restore = serde_json::from_value(legacy).unwrap();
+                    legacy.check_shape(&bounded.entries).unwrap();
+                    assert!(!Action::Restore(Box::new(legacy)).execution_available());
                     let encoded = serde_json::to_string(&action).unwrap();
                     assert!(!encoded.contains("on_collision"));
                     assert_eq!(
@@ -564,7 +587,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                     renamed.check_shape(&bounded.entries).unwrap();
                     let action = Action::Restore(Box::new(renamed));
                     assert_eq!(action.schema_version(), 7);
-                    assert!(!action.execution_available());
+                    assert!(action.execution_available());
                     keep_both["groups"][0]["outputs"][0]["name"] =
                         serde_json::json!("..\\elsewhere.data");
                     assert!(
@@ -1373,7 +1396,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             sync::atomic::Ordering,
         };
         use windows_sys::Win32::Storage::FileSystem::*;
-        // Internal producer fixtures only; public offload admission and original handling remain closed.
+        // The producer fixture exercises only owned files on this volume.
         let destination = tempfile::tempdir().unwrap();
         let input = source.path().join("copy-fixture.data");
         let payload: Vec<u8> = (0..262_177).map(|i| (i % 251) as u8).collect();
@@ -2206,18 +2229,40 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         desktop
             .approve(&recycle_only.manifest.id, &recycle_only.hash)
             .unwrap();
-        service
-            .plan_execute(&recycle_only.manifest.id, &recycle_only.hash)
-            .unwrap();
         let principal = registry.authenticate(issued.credential.expose()).unwrap();
         let context = registry
             .plan_context(&principal, Capability::ExecuteApproved)
             .unwrap();
         let mut plans = Store::open(state.path()).unwrap();
+        assert!(matches!(
+            plans.begin(
+                &context,
+                &recycle_only.manifest.id,
+                &recycle_only.hash,
+                &desktop.human,
+                super::super::now().unwrap()
+            ),
+            Err(crate::Error::NeedsHumanApproval)
+        ));
+        service
+            .plan_execute(&recycle_only.manifest.id, &recycle_only.hash)
+            .unwrap();
+        assert!(
+            plans
+                .begin(
+                    &context,
+                    &recycle_only.manifest.id,
+                    &"0".repeat(64),
+                    &desktop.human,
+                    super::super::now().unwrap()
+                )
+                .is_err()
+        );
         let crate::plans::Begin::Started(lease) = plans
             .begin(
                 &context,
                 &recycle_only.manifest.id,
+                &recycle_only.hash,
                 &desktop.human,
                 super::super::now().unwrap(),
             )
@@ -2330,7 +2375,13 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             blocker.execute_batch("ROLLBACK").unwrap();
         });
         blocked.recv().unwrap();
-        let started = plans.begin(&context, &delayed.manifest.id, &desktop.human, requested_at);
+        let started = plans.begin(
+            &context,
+            &delayed.manifest.id,
+            &delayed.hash,
+            &desktop.human,
+            requested_at,
+        );
         release.join().unwrap();
         assert!(matches!(started, Err(crate::Error::Invalid(_))));
         let stored: (String, Option<String>) = plans
