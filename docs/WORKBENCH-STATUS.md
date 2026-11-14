@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Portable and temporary desktop profiles
+
+Run Voldiq with `--portable` to keep its databases and WebView2 data beside the executable in `.voldiq-data`. Run with `--ephemeral` to start with a fresh temporary profile. A supported write failure in the selected profile triggers the same temporary mode. The footer shows the active mode. Temporary sessions support analysis and session-local history. Cleanup execution, restoration and agents require durable state. [WebView2 user data folders](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/user-data-folder)
+
+The production executable opened a portable profile, reopened it with the same state, fell back when its snapshot database was marked read-only, and opened a separate explicit temporary session. The read-only database hash stayed the same. Both temporary profiles were removed after graceful exit. WebView2 and SQLite had retained handles during earlier probes. The final close sequence releases the app-owned handles and allows a bounded wait for WebView2. Forced termination and Windows activity outside the profile can leave traces. [Native mode checks](../benchmarks/desktop-profile-native-modes-20261113.json)
+
+The six project checks passed with eight routine tests and strict Clippy. Source commit `7d01974` was pushed to `main`. The normal production preview reached ready and page-finished. Static checks verified the 27,607,040-byte executable and 10,494,358-byte unsigned NSIS installer. Native mode layout, focus, Windows scaling and clean-machine installation remain manual. [Project checks](../benchmarks/workbench-desktop-profiles-source-20261113.json) · [Production startup](../benchmarks/native-desktop-profiles-preview-20261113.json) · [Distribution](../benchmarks/distribution-desktop-profiles-20261113.json)
+
 ## Windows scan completion notifications
 
 The installed copy offers Scan completion notifications under Settings → Window. The preference starts off. A newly completed scan with a published result can send a native Windows notification with fixed text and no file names or paths. Windows controls delivery. The operation lease ends before the notification call. [Desktop toast identity](https://learn.microsoft.com/en-us/windows/win32/shell/enable-desktop-toast-with-appusermodelid)
