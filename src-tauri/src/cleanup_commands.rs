@@ -1,17 +1,21 @@
 use crate::{Engine, analysis_status::IndexId, snapshot_commands::SnapshotDatabase};
 use serde::Serialize;
 use std::sync::{Arc, Mutex};
-use tauri::State;
+use tauri::{Manager, State};
 use voldiq_core::{
     cleanup::{Plan, Preview},
     scanner::SharedIndex,
+    snapshots::schedule::DraftRef,
 };
 
 struct Session {
     id: u64,
-    index_id: IndexId,
-    _index: SharedIndex,
+    owner: Owner,
     _plan: Plan,
+}
+enum Owner {
+    Analysis(IndexId, SharedIndex),
+    Scheduled(DraftRef, String),
 }
 #[derive(Default)]
 pub struct CleanupPlans(Arc<Mutex<Option<Session>>>);
@@ -88,8 +92,7 @@ enum CleanupAction {
 
 fn consume_plan(
     plans: &Mutex<Option<Session>>,
-    current: &SharedIndex,
-    current_id: IndexId,
+    engine: &Engine,
     id: u64,
     confirmation: &str,
     action: CleanupAction,
@@ -105,16 +108,25 @@ fn consume_plan(
         }
         .into());
     }
-    let mut slot = plans.lock().map_err(|error| error.to_string())?;
-    let session = slot
-        .as_ref()
-        .ok_or("Cleanup preview is no longer available.")?;
-    if session.id != id || session.index_id != current_id || !Arc::ptr_eq(&session._index, current)
-    {
-        return Err("Cleanup preview belongs to a previous analysis. Review again.".into());
+    let session = {
+        let mut slot = plans.lock().map_err(|error| error.to_string())?;
+        if !slot.as_ref().is_some_and(|session| session.id == id) {
+            return Err("Cleanup preview is no longer available. Review again.".into());
+        }
+        slot.take()
+            .ok_or("Cleanup preview is no longer available.")?
+    };
+    match &session.owner {
+        Owner::Analysis(current_id, current)
+            if engine.index_is_current(*current_id, current)? => {}
+        Owner::Scheduled(..) if matches!(action, CleanupAction::Recycle) => {}
+        _ => {
+            return Err(
+                "This cleanup preview or action is no longer available. Review again.".into(),
+            );
+        }
     }
-    slot.take()
-        .ok_or_else(|| "Cleanup preview is no longer available.".into())
+    Ok(session)
 }
 
 #[tauri::command]
@@ -131,14 +143,9 @@ pub async fn execute_permanent_cleanup(
     let operation = engine.begin()?;
     let operation_id = operation.id;
     let cancel = operation.cancel.clone();
-    let current_id = engine
-        .index_id()?
-        .ok_or("Analyze a drive or folder first.")?;
-    let current = engine.index_for(current_id)?;
     let session = consume_plan(
         &plans.0,
-        &current,
-        current_id,
+        &engine,
         id,
         &confirmation,
         CleanupAction::Permanent,
@@ -197,25 +204,16 @@ pub async fn execute_recycling_cleanup(
     engine: State<'_, Arc<Engine>>,
     plans: State<'_, CleanupPlans>,
     journal: State<'_, CleanupJournal>,
+    app: tauri::AppHandle,
 ) -> Result<voldiq_core::cleanup::recycle::batch::Report, String> {
     engine.require_durable_state()?;
     let engine = engine.inner().clone();
     let operation = engine.begin()?;
     let operation_id = operation.id;
     let cancel = operation.cancel.clone();
-    let current_id = engine
-        .index_id()?
-        .ok_or("Analyze a drive or folder first.")?;
-    let current = engine.index_for(current_id)?;
-    let session = consume_plan(
-        &plans.0,
-        &current,
-        current_id,
-        id,
-        &confirmation,
-        CleanupAction::Recycle,
-    )?;
+    let session = consume_plan(&plans.0, &engine, id, &confirmation, CleanupAction::Recycle)?;
     let journal = journal.0.clone();
+    let database = app.state::<SnapshotDatabase>().0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = operation;
         let mut journal = journal.lock().map_err(|error| error.to_string())?;
@@ -228,6 +226,18 @@ pub async fn execute_recycling_cleanup(
                 total,
             })
             .map_err(|error| error.to_string())?;
+        if let Owner::Scheduled(reference, hash) = &session.owner {
+            use tauri::Emitter;
+            session
+                ._plan
+                .validate_protections()
+                .map_err(|error| error.to_string())?;
+            database
+                .lock()?
+                .consume_scheduled_cleanup(&_operation._lease, *reference, hash)
+                .map_err(|error| error.to_string())?;
+            let _ = app.emit("scheduled-scans-changed", ());
+        }
         *engine.index.lock().map_err(|error| error.to_string())? = None;
         *engine
             .duplicates
@@ -276,6 +286,46 @@ pub struct CleanupPreview {
     id: u64,
     preview: Preview,
     origins: Vec<voldiq_core::cleanup::tray::Origin>,
+    scheduled: bool,
+}
+
+#[tauri::command]
+pub async fn review_scheduled_cleanup(
+    reference: DraftRef,
+    engine: State<'_, Arc<Engine>>,
+    database: State<'_, SnapshotDatabase>,
+    plans: State<'_, CleanupPlans>,
+) -> Result<CleanupPreview, String> {
+    engine.require_durable_state()?;
+    let operation = engine.inner().begin()?;
+    let plans = plans.0.clone();
+    let database = database.0.clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let id = operation.id;
+        let (plan, hash) = database
+            .lock()?
+            .review_scheduled_cleanup(&operation._lease, reference)
+            .map_err(|error| error.to_string())?;
+        let preview = plan.preview().clone();
+        *plans.lock().map_err(|error| error.to_string())? = Some(Session {
+            id,
+            owner: Owner::Scheduled(reference, hash),
+            _plan: plan,
+        });
+        Ok(CleanupPreview {
+            id,
+            preview,
+            scheduled: true,
+            origins: vec![voldiq_core::cleanup::tray::Origin {
+                id: "scheduled-cleanup",
+                label: "Scheduled cleanup",
+                description: "Files prepared by a supervised policy.",
+                risk: "review",
+            }],
+        })
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
@@ -411,14 +461,14 @@ pub async fn preview_cleanup_tray(
         let preview = prepared.plan.preview().clone();
         *plans.lock().map_err(|error| error.to_string())? = Some(Session {
             id,
-            index_id,
-            _index: index,
+            owner: Owner::Analysis(index_id, index),
             _plan: prepared.plan,
         });
         Ok(CleanupPreview {
             id,
             preview,
             origins: prepared.origins,
+            scheduled: false,
         })
     })
     .await

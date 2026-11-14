@@ -2,7 +2,7 @@
   import { invoke, isTauri } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
   import { onMount } from 'svelte';
-  import { bytes, date } from '../lib/types';
+  import { bytes, date, type CleanupPreview } from '../lib/types';
 
   type Run = {
     started: number;
@@ -11,6 +11,7 @@
     partial: boolean | null;
     problem: string | null;
     growth: { bytes: string; baseline_observed: number } | null;
+    cleanup: { run: number; status: string; files: number | null; logical: string | null } | null;
   };
   type Schedule = {
     id: number;
@@ -19,17 +20,30 @@
     exclusions: string[];
     hours: number;
     growth_mib: number | null;
+    cleanup: CleanupPolicy | null;
     enabled: boolean;
     next_due: number | null;
     runs: Run[];
   };
-  type ScanSettings = { hours: number; exclusions: string[]; growth_mib: number | null };
+  type CleanupPolicy = {
+    expression: string;
+    max_files: number;
+    max_size: string;
+    cooldown_hours: number;
+  };
+  type ScanSettings = {
+    hours: number;
+    exclusions: string[];
+    growth_mib: number | null;
+    cleanup: CleanupPolicy | null;
+  };
   type Change =
     | { kind: 'add'; path: string; settings: ScanSettings }
     | { kind: 'edit'; id: number; revision: number; settings: ScanSettings }
     | { kind: 'enable'; id: number; revision: number; enabled: boolean }
     | { kind: 'remove'; id: number; revision: number };
-  let { available }: { available: boolean } = $props();
+  let { available, onreview }: { available: boolean; onreview: (plan: CleanupPreview) => void } =
+    $props();
   let schedules = $state<Schedule[] | null>(null),
     pending = $state(false),
     error = $state(''),
@@ -39,6 +53,11 @@
     hours = $state(24),
     exclusions = $state(''),
     growthMiB = $state<number | undefined>();
+  let prepareCleanup = $state(false),
+    expression = $state(''),
+    maxFiles = $state<number | undefined>(50),
+    maxSize = $state('1GiB'),
+    cooldown = $state<number | undefined>(24);
   let request = 0;
   let alive = false;
   let refreshAfterChange = false;
@@ -96,6 +115,11 @@
     hours = 24;
     exclusions = '';
     growthMiB = undefined;
+    prepareCleanup = false;
+    expression = '';
+    maxFiles = 50;
+    maxSize = '1GiB';
+    cooldown = 24;
   }
 
   async function change(command: Change): Promise<void> {
@@ -124,7 +148,21 @@
       .split(/\r?\n/u)
       .map((line) => line.trim())
       .filter(Boolean);
-    const settings = { hours, exclusions: ignored, growth_mib: growthMiB ?? null };
+    if (
+      prepareCleanup &&
+      (!expression.trim() || maxFiles === undefined || cooldown === undefined || !maxSize.trim())
+    )
+      return;
+    const cleanup =
+      prepareCleanup && maxFiles !== undefined && cooldown !== undefined
+        ? {
+            expression: expression.trim(),
+            max_files: maxFiles,
+            max_size: maxSize.trim(),
+            cooldown_hours: cooldown,
+          }
+        : null;
+    const settings = { hours, exclusions: ignored, growth_mib: growthMiB ?? null, cleanup };
     void change(editing ? { kind: 'edit', ...editing, settings } : { kind: 'add', path, settings });
   }
 
@@ -134,7 +172,41 @@
     hours = schedule.hours;
     exclusions = schedule.exclusions.join('\n');
     growthMiB = schedule.growth_mib ?? undefined;
+    prepareCleanup = schedule.cleanup !== null;
+    expression = schedule.cleanup?.expression ?? '';
+    maxFiles = schedule.cleanup?.max_files ?? 50;
+    maxSize = schedule.cleanup?.max_size ?? '1GiB';
+    cooldown = schedule.cleanup?.cooldown_hours ?? 24;
   }
+
+  async function review(schedule: Schedule, run: number): Promise<void> {
+    if (pending) return;
+    pending = true;
+    error = '';
+    try {
+      const plan = await invoke<CleanupPreview>('review_scheduled_cleanup', {
+        reference: { schedule: schedule.id, revision: schedule.revision, run },
+      });
+      if (alive) onreview(plan);
+      else await invoke('discard_cleanup', { id: plan.id });
+    } catch (failure) {
+      error = String(failure);
+    } finally {
+      pending = false;
+      refreshAfterChange = false;
+      void load();
+    }
+  }
+
+  const draftLabels: Record<string, string> = {
+    ready: 'Ready for review',
+    empty: 'No eligible files',
+    unavailable: 'Review unavailable',
+    cooldown: 'Cooldown',
+    submitted: 'Submitted for recycling',
+    expired: 'Review expired',
+    invalidated: 'Review invalidated',
+  };
 
   function outcome(run: Run): string {
     if (run.outcome === 'saved') {
@@ -217,6 +289,59 @@
             placeholder="Off"
           />
         </label>
+        <label class="settings-row">
+          <span>Prepare cleanup for review</span>
+          <input type="checkbox" bind:checked={prepareCleanup} disabled={pending} />
+        </label>
+        {#if prepareCleanup}
+          <label class="settings-row">
+            <span
+              >Candidate query<small
+                >Include a restriction such as ext:tmp or modified&lt;2025-01-01.</small
+              ></span
+            >
+            <input
+              type="text"
+              bind:value={expression}
+              maxlength="4096"
+              required
+              disabled={pending}
+              placeholder="ext:tmp size&gt;1MiB"
+            />
+          </label>
+          <label class="settings-row">
+            <span>File limit</span><input
+              type="number"
+              min="1"
+              max="500"
+              step="1"
+              bind:value={maxFiles}
+              required
+              disabled={pending}
+            />
+          </label>
+          <label class="settings-row">
+            <span>Logical size limit</span><input
+              type="text"
+              bind:value={maxSize}
+              maxlength="128"
+              required
+              disabled={pending}
+            />
+          </label>
+          <label class="settings-row">
+            <span>Cooldown (hours)<small>Minimum time between prepared reviews.</small></span>
+            <input
+              type="number"
+              min="1"
+              max="168"
+              step="1"
+              bind:value={cooldown}
+              required
+              disabled={pending}
+            />
+          </label>
+        {/if}
         <div class="actions">
           <button class="primary" disabled={pending || !path}
             >{editing ? 'Save changes' : 'Add schedule'}</button
@@ -228,6 +353,9 @@
       </form>
       {#each schedules as schedule (schedule.id)}
         {@const latestAlert = schedule.runs.find((run) => run.growth)}
+        {@const pendingReview = schedule.runs.find(
+          (run) => run.cleanup?.status === 'ready',
+        )?.cleanup}
         <article>
           <h3 class="schedule-path">{schedule.path}</h3>
           <p>
@@ -247,6 +375,12 @@
             </p>
           {/if}
           <div class="actions">
+            {#if pendingReview}<button
+                class="primary"
+                disabled={pending}
+                onclick={() => review(schedule, pendingReview.run)}
+                >Review {pendingReview.files} files</button
+              >{/if}
             <button disabled={pending} onclick={() => edit(schedule)}>Edit</button>
             <button
               disabled={pending}
@@ -281,6 +415,11 @@
                           run.growth.baseline_observed,
                         )}</small
                       >{/if}
+                    {#if run.cleanup}<small>
+                        {draftLabels[run.cleanup.status] ?? 'Review unavailable'}
+                        {#if run.cleanup.files !== null && run.cleanup.logical !== null}
+                          · {run.cleanup.files} files · {bytes(Number(run.cleanup.logical))} logical{/if}
+                      </small>{/if}
                   </li>
                 {/each}
               </ul>

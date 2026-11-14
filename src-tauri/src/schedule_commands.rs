@@ -63,11 +63,20 @@ pub fn start(app: &AppHandle) -> Result<(), String> {
                     };
                     drop(operation);
                     let _ = app.emit("scheduled-scans-changed", ());
-                    if let Some(saved) = saved.filter(|saved| saved.growth_alert) {
+                    if let Some(saved) = saved.as_ref().filter(|saved| saved.growth_alert) {
                         let _ = app.emit("scheduled-growth-alert", saved.snapshot);
                         #[cfg(windows)]
                         if engine.mode == Mode::Installed {
                             crate::windows_notifications::scheduled_growth(
+                                engine.operations.directory(),
+                            );
+                        }
+                    }
+                    if let Some(saved) = saved.filter(|saved| saved.cleanup_review) {
+                        let _ = app.emit("scheduled-cleanup-ready", saved.snapshot);
+                        #[cfg(windows)]
+                        if engine.mode == Mode::Installed {
+                            crate::windows_notifications::scheduled_cleanup(
                                 engine.operations.directory(),
                             );
                         }

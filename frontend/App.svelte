@@ -200,6 +200,14 @@
   let agentOperation = $state<number | null>(null);
   let agentNotice = $state('');
   let growthNotice = $state<number | null>(null);
+  let scheduledCleanupNotice = $state<number | null>(null);
+  async function openScheduledScans(): Promise<void> {
+    navigate('settings');
+    await tick();
+    const heading = document.getElementById('scheduled-scans-title');
+    heading?.focus({ preventScroll: true });
+    heading?.scrollIntoView({ block: 'start', behavior: 'auto' });
+  }
   let reviewWeights = $state.raw<ReviewWeights>(defaultReviewWeights);
   let applicationCleanup = $state<{ indexId: IndexId; context: ApplicationCleanupContext } | null>(
     null,
@@ -1348,6 +1356,11 @@
           if (mounted && Number.isSafeInteger(payload) && payload > 0) growthNotice = payload;
         }).catch(() => null)
       : null;
+    const scheduledCleanupEvents = isTauri()
+      ? listen<number>('scheduled-cleanup-ready', ({ payload }) => {
+          if (mounted && Number.isSafeInteger(payload) && payload > 0) scheduledCleanupNotice = payload;
+        }).catch(() => null)
+      : null;
     const agentEvents = isTauri()
       ? listen<unknown>('agent-operation', ({ payload }) => {
           if (
@@ -1486,6 +1499,7 @@
       workspaceLoadToken += 1;
       if (agentEvents) void agentEvents.then((unlisten) => unlisten?.());
       if (growthEvents) void growthEvents.then((unlisten) => unlisten?.());
+      if (scheduledCleanupEvents) void scheduledCleanupEvents.then((unlisten) => unlisten?.());
       invalidateInteraction();
       invalidateRefresh();
       window.removeEventListener('keydown', keyboard);
@@ -1874,14 +1888,13 @@
         </div>{/if}
       {#if growthNotice !== null}<div class="scan-status" role="status">
           <span>Scheduled scan detected storage growth · Snapshot #{growthNotice}</span>
-          <button disabled={analysisBusy} onclick={async () => {
-            navigate('settings');
-            await tick();
-            const heading = document.getElementById('scheduled-scans-title');
-            heading?.focus({ preventScroll: true });
-            heading?.scrollIntoView({ block: 'start', behavior: 'auto' });
-          }}>Review scheduled scans</button>
+          <button disabled={analysisBusy} onclick={openScheduledScans}>Review scheduled scans</button>
           <button onclick={() => { growthNotice = null; }}>Dismiss</button>
+        </div>{/if}
+      {#if scheduledCleanupNotice !== null}<div class="scan-status" role="status">
+          <span>Scheduled cleanup ready for review · Snapshot #{scheduledCleanupNotice}</span>
+          <button disabled={analysisBusy} onclick={openScheduledScans}>Review scheduled scans</button>
+          <button onclick={() => { scheduledCleanupNotice = null; }}>Dismiss</button>
         </div>{/if}
       {#if agentNotice}<div class="scan-status" role="status">
           <span>{agentNotice}</span>
@@ -2069,7 +2082,11 @@
               >
             </div>
           </section>
-          {#if storageMode !== null}<ScanSchedules available={storageMode !== 'ephemeral'} />{/if}
+          {#if storageMode !== null}<ScanSchedules available={storageMode !== 'ephemeral'} onreview={(plan) => {
+            if (!cleanupPreview && restoreReceipt === null && !showIssues && !helpOpen && !paletteOpen)
+              cleanupPreview = plan;
+            else void invoke('discard_cleanup', { id: plan.id }).catch(report);
+          }} />{/if}
           <div class="settings-action">
             <button disabled={analysisBusy} onclick={() => void reviewAgentPlans()}
               >Review agent plans in Cleanup</button

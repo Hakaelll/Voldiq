@@ -27,6 +27,10 @@ pub struct FileEvidence {
 }
 
 impl Record {
+    pub(crate) fn has_shared_files(&self) -> bool {
+        self.files.iter().any(|file| file.links != 1)
+    }
+
     pub(crate) fn check_restore_ancestry(
         &self,
         id: NodeId,

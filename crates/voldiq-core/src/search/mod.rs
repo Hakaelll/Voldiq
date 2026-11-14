@@ -150,6 +150,15 @@ pub fn storage_limit(source: &str) -> Result<u64, QueryError> {
 }
 
 impl Query {
+    pub(crate) fn cleanup_policy_is_restrictive(&self) -> Result<bool, QueryError> {
+        Ok(self.compile()?.search.terms.iter().any(|term| match term {
+            Predicate::Name(text) | Predicate::Path(text) => !text.trim().is_empty(),
+            Predicate::Extension(_) | Predicate::Extensionless | Predicate::Category(_) => true,
+            Predicate::Modified(Compare::Less | Compare::AtMost, _) => true,
+            _ => false,
+        }))
+    }
+
     pub fn inspect(&self) -> SearchInspection {
         match self.compile() {
             Ok(compiled) => SearchInspection::Valid {

@@ -348,6 +348,8 @@ Scheduled scans uses the existing Settings rows. A folder picker, cadence and ex
 
 A schedule can set a growth alert in MiB. The schedule list shows the latest alert with its comparison date. The run history preserves individual alerts, and the live workspace notice opens the schedule section.
 
+Scheduled scans includes an optional cleanup policy. The form reveals the query and limits only when review preparation is enabled. Each schedule shows its latest available review beside its regular actions. The existing cleanup dialog lists the exact paths and offers recycling after explicit confirmation. Run history shows unavailable, expired and invalidated reviews.
+
 ### Large-item filters
 
 Large files adds an Items selector beside its existing filters, with Files and Folders choices. It defaults to Files, and Reset filters restores that choice. The same virtual list and details panel display folders without another explanatory paragraph or management action. Folder rows open their indexed scope through the existing navigation handler.

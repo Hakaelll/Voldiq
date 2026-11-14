@@ -17,8 +17,8 @@
     },
     notifications: {
       command: 'scan_notifications',
-      label: 'Scan and growth notifications',
-      help: 'Show Windows notifications for completed manual scans and scheduled growth alerts. Windows can silence notifications.',
+      label: 'Scan and scheduled notifications',
+      help: 'Show Windows notifications for completed manual scans, growth alerts and scheduled cleanup reviews. Windows can silence notifications.',
       pathHelp: 'Requires a supported install path on a local fixed drive.',
     },
   };

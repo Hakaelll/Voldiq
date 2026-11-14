@@ -1,0 +1,137 @@
+{
+  "checkedUtc": "2026-11-14T15:59:43.9530248Z",
+  "startedUtc": "2026-11-14T15:56:46.9825612Z",
+  "checkoutCommit": "f8610cc8ea158dcb29af1ec0212c78fa6f8f9027",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.185
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.116
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.804
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.993
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 156.227
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 4.62
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "F832F37D76C336C76FECF4CFEBB5D2B983BEC1BC238A224B9CBAA3E2BA349004"
+    },
+    {
+      "path": "crates/voldiq-core/src/cleanup/record.rs",
+      "sha256": "E11DF4F2312792BB3FF6349170A84F5FE1E361F6F633C87E238EBBF039352C88"
+    },
+    {
+      "path": "crates/voldiq-core/src/search/mod.rs",
+      "sha256": "012D681F654879DAE5C59A99FE94D2FC29068554289DEF9CB47CE930D9E2AC62"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots.rs",
+      "sha256": "BDB485B90E87788D200B1454CE9E6EAEA832456166F8A3F95921C40104236EE2"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/schedule.rs",
+      "sha256": "B63698E779ECF4911CF58E76D20B1D631602A44587DDFC0E6A2B66F52AC4DC0F"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/schedule/policy.rs",
+      "sha256": "D1516658F94E5CAE60FDE0EA09EE9067771B824E2F3954811E52099DBE8A85CD"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "E524D39CF3F0437FB7201772BA501EBC0B77CF496239116FA447292F718DE65C"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "668136CA8F56A5E968DB100494139BB3CE6750B78925C325812D9784846A48A0"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "CFD72A84DDFD2EF73A7F5405B3202AC88C2620F1BE4CDD06EC83ECCEB9442E93"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "DB9F43016A5D5B52A2CACD4A9386BA1A467E154984ED0FEA60B9249FD62B7C9B"
+    },
+    {
+      "path": "frontend/components/CleanupPreview.svelte",
+      "sha256": "944C0E205DCB977D6D477226ED208A09B03BB23969456A75E81DE6A19EF02347"
+    },
+    {
+      "path": "frontend/components/ScanSchedules.svelte",
+      "sha256": "6E6FB8D2A767B915C8DBA8317A300BE3764532FF152E9C1172848DA7CD633D0F"
+    },
+    {
+      "path": "frontend/components/WindowsIntegrationSetting.svelte",
+      "sha256": "09EB835D9BE56E7A29567FD2972F220ABD795E11AC95164F48F26727E32F6409"
+    },
+    {
+      "path": "frontend/lib/types.ts",
+      "sha256": "CFFBC4F62391F05EC31EC78198A1C2290A3B0D27436697F5905B9F700571259E"
+    },
+    {
+      "path": "src-tauri/src/cleanup_commands.rs",
+      "sha256": "BF957DACEE6A23309FDC5F02C8ADB5EEFAEEE494FB77036EEB0CB918A54F1B75"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "5E9787A1880E3917234F87912F499471352F5472C1C42504FB2C94BAC55888B5"
+    },
+    {
+      "path": "src-tauri/src/schedule_commands.rs",
+      "sha256": "D074A25CB7913D192955DAED89D6329579F458ECFC26C0FB31108FFCA33D1A16"
+    },
+    {
+      "path": "src-tauri/src/windows_notifications.rs",
+      "sha256": "AA2C43BECFF0453F571B0390833B887761F669BA7FA67F855265230B3F51D606"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "cleanupPolicyFixture": [
+    "restrictive query required",
+    "exact 17-byte draft from a real capture",
+    "review under native identity",
+    "cooldown enforced",
+    "changed policy rejects prior review",
+    "candidate remains unmodified"
+  ],
+  "nativeFixture": {
+    "outcome": "saved",
+    "logical": 137,
+    "files": 1,
+    "complete": true,
+    "draftFiles": 1,
+    "draftLogical": "137"
+  }
+}

@@ -32,14 +32,24 @@ pub(crate) fn preference(
 }
 
 pub(crate) fn scan_finished(directory: &Path) {
-    send(directory, false);
+    send(directory, Notice::Scan);
 }
 
 pub(crate) fn scheduled_growth(directory: &Path) {
-    send(directory, true);
+    send(directory, Notice::Growth);
 }
 
-fn send(directory: &Path, growth: bool) {
+pub(crate) fn scheduled_cleanup(directory: &Path) {
+    send(directory, Notice::Cleanup);
+}
+
+enum Notice {
+    Scan,
+    Growth,
+    Cleanup,
+}
+
+fn send(directory: &Path, notice: Notice) {
     if config_file::read_marker(&directory.join(PREFERENCE)) != Ok(true) {
         return;
     }
@@ -48,7 +58,7 @@ fn send(directory: &Path, growth: bool) {
         preference(directory, None),
         Ok(Status::Ready { registered: true })
     ) {
-        let _ = show(growth);
+        let _ = show(notice);
     }
 }
 
@@ -60,25 +70,27 @@ pub(crate) fn should_notify(progress: &voldiq_core::Progress, cancelled: bool) -
 }
 
 pub(crate) fn notification() -> Result<ToastNotification> {
-    toast(false)
+    toast(Notice::Scan)
 }
 
-fn toast(growth: bool) -> Result<ToastNotification> {
+fn toast(notice: Notice) -> Result<ToastNotification> {
     let xml = XmlDocument::new()?;
-    let content = if growth {
-        h!(
+    let content = match notice {
+        Notice::Growth => h!(
             "<toast><visual><binding template=\"ToastGeneric\"><text>Voldiq found storage growth</text><text>Open Scheduled scans for the measured change.</text></binding></visual></toast>"
-        )
-    } else {
-        h!(
+        ),
+        Notice::Cleanup => h!(
+            "<toast><visual><binding template=\"ToastGeneric\"><text>Voldiq cleanup review ready</text><text>Open Scheduled scans to review the proposed files.</text></binding></visual></toast>"
+        ),
+        Notice::Scan => h!(
             "<toast><visual><binding template=\"ToastGeneric\"><text>Voldiq scan finished</text><text>Open Voldiq to review the results.</text></binding></visual></toast>"
-        )
+        ),
     };
     xml.LoadXml(content)?;
     ToastNotification::CreateToastNotification(&xml)
 }
 
-fn show(growth: bool) -> Result<()> {
+fn show(notice: Notice) -> Result<()> {
     struct Apartment;
     impl Drop for Apartment {
         fn drop(&mut self) {
@@ -90,10 +102,9 @@ fn show(growth: bool) -> Result<()> {
     let _apartment = Apartment;
     let notifier = ToastNotificationManager::CreateToastNotifierWithId(h!("io.voldiq.desktop"))?;
     if notifier.Setting()? == NotificationSetting::Enabled {
-        let notification = if growth {
-            toast(true)?
-        } else {
-            notification()?
+        let notification = match notice {
+            Notice::Scan => notification()?,
+            _ => toast(notice)?,
         };
         notifier.Show(&notification)?;
     }

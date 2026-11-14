@@ -33,6 +33,7 @@ export interface RecyclingReport {
 }
 export interface CleanupPreview {
   id: number;
+  scheduled?: boolean;
   origins: TrayOrigin[];
   preview: {
     rule: string;

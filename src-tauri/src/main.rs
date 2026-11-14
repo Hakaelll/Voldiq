@@ -1050,6 +1050,7 @@ fn main() {
             choose_folder,
             schedule_commands::list_scan_schedules,
             schedule_commands::change_scan_schedule,
+            review_scheduled_cleanup,
             choose_docker_disk,
             export_commands::save_report,
             export_commands::save_svg,

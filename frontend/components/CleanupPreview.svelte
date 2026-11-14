@@ -27,7 +27,7 @@
   let confirmation = $state('');
   let recyclingAvailable = $state(false);
   async function execute(mode: 'recycle' | 'permanent'): Promise<void> {
-    if (mode === 'permanent' && (execution.kind !== 'confirm' || confirmation !== 'DELETE')) return;
+    if (mode === 'permanent' && (plan.scheduled || execution.kind !== 'confirm' || confirmation !== 'DELETE')) return;
     if (mode === 'recycle' && (execution.kind !== 'idle' || !recyclingAvailable)) return;
     execution = { kind: 'running', mode, id: null, completed: 0, total: plan.preview.items.length };
     onbusy(true);
@@ -140,11 +140,11 @@
   <div class="execution-actions" aria-live="polite">
     {#if execution.kind === 'idle'}
       <button class="primary" disabled={!recyclingAvailable} title={recyclingAvailable ? undefined : 'Unavailable'} onclick={() => execute('recycle')}>Move to Recycle Bin</button>
-      <button
+      {#if !plan.scheduled}<button
         onclick={() => {
           execution = { kind: 'confirm' };
         }}>Permanently delete…</button
-      >
+      >{/if}
     {:else if execution.kind === 'confirm'}
       <span>Permanent · cannot be undone.</span>
       <label

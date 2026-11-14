@@ -38,7 +38,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     {
         use voldiq_core::{
             operations::Lease,
-            snapshots::schedule::{ScanSettings, time_now},
+            snapshots::schedule::{CleanupPolicy, ScanSettings, time_now},
         };
         let owned = tempfile::tempdir().unwrap();
         let root = owned.path().join("Scheduled folder");
@@ -56,17 +56,37 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             hours: 1,
             exclusions: vec![],
             growth_mib: None,
+            cleanup: None,
         };
         let mut settings = ScanSettings {
             hours: 1,
             exclusions: vec![excluded.to_string_lossy().into_owned()],
             growth_mib: Some(1),
+            cleanup: None,
         };
         let invalid_threshold = ScanSettings {
             hours: 1,
             exclusions: vec![],
             growth_mib: Some(0),
+            cleanup: None,
         };
+        let policy = |query: &str| CleanupPolicy {
+            expression: query.into(),
+            max_files: 1,
+            max_size: "17B".into(),
+            cooldown_hours: 24,
+        };
+        let overly_broad = ScanSettings {
+            cleanup: Some(policy("type:file glob:*")),
+            hours: 1,
+            exclusions: vec![],
+            growth_mib: None,
+        };
+        assert!(
+            storage
+                .add_scan_schedule(&lease, &root, &overly_broad, now)
+                .is_err()
+        );
         assert!(
             storage
                 .add_scan_schedule(&lease, &root, &invalid_threshold, now)
@@ -89,12 +109,17 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                     &root,
                     &ScanSettings {
                         exclusions: vec![root.to_string_lossy().into_owned()],
-                        ..defaults
+                        hours: 1,
+                        growth_mib: None,
+                        cleanup: None,
                     },
                     now
                 )
                 .is_err()
         );
+        settings.cleanup = Some(policy("ext:tmp"));
+        let candidate = root.join("included.tmp");
+        std::fs::rename(root.join("included"), &candidate).unwrap();
         let id = storage
             .add_scan_schedule(&lease, &root, &settings, now)
             .unwrap();
@@ -116,6 +141,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             .unwrap()
             .unwrap();
         assert!(!first.growth_alert);
+        assert!(first.cleanup_review);
         let snapshot = first.snapshot;
         let [saved] = storage.list(0, 10).unwrap().try_into().unwrap();
         assert_eq!(
@@ -127,9 +153,27 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         let [record] = storage.scan_schedules().unwrap().try_into().ok().unwrap();
         assert_eq!(record.runs[0].outcome, "saved");
         assert_eq!(record.runs[0].snapshot, Some(snapshot));
+        let draft = record.runs[0].cleanup.as_ref().unwrap();
+        assert_eq!(
+            (draft.status.as_str(), draft.files, draft.logical.as_deref()),
+            ("ready", Some(1), Some("17"))
+        );
+        let sql = rusqlite::Connection::open(&db).unwrap();
+        sql.execute(
+            "UPDATE scheduled_runs SET finished=?1 WHERE id=?2",
+            (now, draft.run),
+        )
+        .unwrap();
+        #[cfg(windows)]
+        let reference = voldiq_core::snapshots::schedule::DraftRef {
+            schedule: id,
+            run: draft.run,
+            revision: record.revision,
+        };
+        #[cfg(windows)]
+        let (_, hash) = storage.review_scheduled_cleanup(&lease, reference).unwrap();
         assert!(record.next_due.unwrap() >= now + 7200);
         let due = record.next_due.unwrap();
-        let sql = rusqlite::Connection::open(&db).unwrap();
         sql.execute(
             "UPDATE snapshots SET observed_at=?1 WHERE id=?2",
             (now - 60, snapshot),
@@ -149,7 +193,9 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             .unwrap()
             .unwrap();
         assert!(second.growth_alert);
+        assert!(!second.cleanup_review);
         let grown = storage.scan_schedules().unwrap().remove(0);
+        assert_eq!(grown.runs[0].cleanup.as_ref().unwrap().status, "cooldown");
         let growth = grown.runs[0].growth.as_ref().unwrap();
         assert_eq!(
             (growth.bytes.as_str(), growth.baseline_observed),
@@ -164,6 +210,13 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         storage
             .edit_scan_schedule(&lease, id, grown.revision, &settings, due)
             .unwrap();
+        #[cfg(windows)]
+        assert!(
+            storage
+                .consume_scheduled_cleanup(&lease, reference, &hash)
+                .is_err()
+        );
+        assert_eq!(std::fs::read(&candidate).unwrap(), vec![1; 17]);
         std::fs::File::create(excluded.join("large"))
             .unwrap()
             .set_len(2_097_152)
