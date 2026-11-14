@@ -4,7 +4,14 @@ import { CHART_PAINTS as paints, SIZE_PAINTS, AGE_PAINTS } from './chart-colors.
 
 export type HeightMode = 'modified' | 'files' | 'depth';
 export type ColorMode = 'type' | 'size' | 'age';
-export type StorageView = 'treemap' | 'city' | 'sunburst' | 'circles' | 'voronoi';
+export const STORAGE_VIEWS = [
+  { id: 'treemap', label: 'Treemap' },
+  { id: 'sunburst', label: 'Sunburst' },
+  { id: 'circles', label: 'Circles' },
+  { id: 'voronoi', label: 'Voronoi' },
+  { id: 'city', label: 'Skyline' },
+] as const;
+export type StorageView = (typeof STORAGE_VIEWS)[number]['id'];
 export const STORAGE_DEPTHS = [1, 2, 3, 4, 5, 6] as const;
 export type StorageDepth = (typeof STORAGE_DEPTHS)[number];
 export function parseStorageDepth(value: string): StorageDepth | null {

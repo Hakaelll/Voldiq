@@ -383,6 +383,7 @@
       expected = indexId;
     scope = 0;
     view = 'explorer';
+    chartExpanded = false;
     details = null;
     void refresh(0);
     await tick();
@@ -396,11 +397,18 @@
     closePalette(false);
     const action = command.action;
     switch (action.kind) {
-      case 'navigate': {
-        navigate(action.view);
+      case 'navigate':
+      case 'chart': {
+        const target = action.kind === 'chart' ? 'explorer' : action.view;
+        navigate(target);
+        if (action.kind === 'chart') {
+          mapMode = action.view;
+          explorerMap = true;
+          chartExpanded = true;
+        }
         const owner = interactionToken;
         void tick().then(() => {
-          if (owner === interactionToken && view === action.view)
+          if (owner === interactionToken && view === target)
             document.getElementById('workspace-title')?.focus({ preventScroll: true });
         });
         return;
@@ -412,8 +420,8 @@
         void choose();
         return;
       case 'saved':
-        savedOpen = true;
-        advancedOpen = false;
+        chartExpanded = false;
+        if (!savedOpen) openSaved();
         return;
       case 'load':
         void loadWorkspace(action.reference);

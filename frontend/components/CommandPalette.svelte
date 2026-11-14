@@ -26,8 +26,9 @@
   let text = $state(''),
     preferred = $state<string | null>(null);
   const matches = $derived(filterCommands(commands, text));
-  const groups = $derived(groupCommands(matches.slice(0, 50)));
-  const visible = $derived(groups.flatMap((group) => group.commands));
+  const searching = $derived(text.trim().length > 0);
+  const visible = $derived(matches.slice(0, 50));
+  const groups = $derived(searching ? [] : groupCommands(visible));
   const active = $derived(
     visible.find((command) => command.id === preferred && !command.disabled) ??
       visible.find((command) => !command.disabled),
@@ -68,6 +69,29 @@
   });
 </script>
 
+{#snippet commandRow(command: PaletteCommand)}
+  <button
+    type="button"
+    role="option"
+    id={optionId(command)}
+    tabindex="-1"
+    aria-selected={active === command}
+    disabled={command.disabled}
+    onpointerdown={(event) => {
+      if (event.button === 0) event.preventDefault();
+    }}
+    onclick={() => choose(command)}
+  >
+    <Icon name={command.icon} size={16} />
+    <span class="palette-label">
+      <strong title={command.label}>{command.label}</strong>
+      {#if command.detail}<span class="palette-detail" title={command.detail}>{command.detail}</span
+        >{/if}
+    </span>
+    {#if active === command}<kbd class="palette-enter" aria-hidden="true">Enter</kbd>{/if}
+  </button>
+{/snippet}
+
 <dialog
   class="command-palette"
   bind:this={dialog}
@@ -96,61 +120,59 @@
     }
   }}
 >
-  <header>
-    <h2 id="palette-title">Commands</h2>
-    <button onclick={onclose} aria-label="Close command palette">Esc</button>
+  <h2 id="palette-title" class="sr-only">Commands</h2>
+  <header class="palette-search">
+    <div class="palette-field">
+      <Icon name="search" />
+      <input
+        bind:this={input}
+        bind:value={text}
+        oninput={() => {
+          preferred = null;
+          results.scrollTop = 0;
+        }}
+        onkeydown={handleSearchKey}
+        type="search"
+        role="combobox"
+        aria-label="Find a command, saved view or favorite"
+        aria-autocomplete="list"
+        aria-expanded={visible.length > 0}
+        aria-controls="palette-options"
+        aria-activedescendant={active ? optionId(active) : undefined}
+        placeholder="Find a command, view or folder…"
+        autocomplete="off"
+        maxlength="200"
+      />
+    </div>
+    <button class="quiet-action" onclick={onclose} aria-label="Close command palette">
+      <kbd>Esc</kbd>
+    </button>
   </header>
-  <div class="palette-search">
-    <Icon name="search" />
-    <input
-      bind:this={input}
-      bind:value={text}
-      oninput={() => {
-        preferred = null;
-        results.scrollTop = 0;
-      }}
-      onkeydown={handleSearchKey}
-      type="search"
-      role="combobox"
-      aria-label="Find a command, saved view or favorite"
-      aria-autocomplete="list"
-      aria-expanded="true"
-      aria-controls="palette-options"
-      aria-activedescendant={active ? optionId(active) : undefined}
-      placeholder="Search commands, views and favorites…"
-      autocomplete="off"
-      maxlength="200"
-    />
-  </div>
   {#if catalog.kind === 'loading'}<p role="status">Loading saved workspaces…</p>
   {:else if catalog.kind === 'failed'}<p role="alert">
       {catalog.message} <button onclick={onreload}>Reload</button>
     </p>{/if}
   <div class="palette-results" bind:this={results}>
-    <div id="palette-options" role="listbox" aria-label="Matching commands">
-      {#each groups as { group, commands: options } (group)}
-        <div role="group" aria-label={paletteGroups[group]}>
-          <div class="palette-group-name" aria-hidden="true">{paletteGroups[group]}</div>
-          {#each options as command (command.id)}
-            <button
-              type="button"
-              role="option"
-              id={optionId(command)}
-              tabindex="-1"
-              aria-selected={active === command}
-              disabled={command.disabled}
-              onpointerdown={(event) => {
-                if (event.button === 0) event.preventDefault();
-              }}
-              onclick={() => choose(command)}
-            >
-              <Icon name={command.icon} size={17} />
-              <strong title={command.label}>{command.label}</strong>
-              {#if command.detail}<span title={command.detail}>{command.detail}</span>{/if}
-            </button>
-          {/each}
-        </div>
-      {/each}
+    <div
+      id="palette-options"
+      role="listbox"
+      aria-label="Matching commands"
+      hidden={!visible.length}
+    >
+      {#if searching}
+        {#each visible as command (command.id)}
+          {@render commandRow(command)}
+        {/each}
+      {:else}
+        {#each groups as { group, commands: options } (group)}
+          <div role="group" aria-label={paletteGroups[group]}>
+            <div class="palette-group-name" aria-hidden="true">{paletteGroups[group]}</div>
+            {#each options as command (command.id)}
+              {@render commandRow(command)}
+            {/each}
+          </div>
+        {/each}
+      {/if}
     </div>
     {#if matches.length === 0}<p class="palette-empty">No matching commands.</p>{/if}
   </div>
@@ -159,6 +181,6 @@
       {#if matches.length > visible.length}{visible.length} of {matches.length} results
       {:else}{matches.length} {matches.length === 1 ? 'result' : 'results'}{/if}
     </span>
-    <span><kbd>↑</kbd> <kbd>↓</kbd> Move <kbd>Enter</kbd> Open</span>
+    <span><kbd>↑</kbd> <kbd>↓</kbd> Move</span>
   </footer>
 </dialog>

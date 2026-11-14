@@ -25,6 +25,7 @@
     STORAGE_DEPTHS,
     STORAGE_HEIGHT,
     STORAGE_INSET,
+    STORAGE_VIEWS,
     parseStorageDepth,
     storagePlotWidth,
   } from '../lib/storage-map';
@@ -145,13 +146,6 @@
     exportDisabled?: boolean;
   } = $props();
   const rendererGroup = $props.id();
-  const renderers = [
-    { id: 'treemap', label: 'Treemap' },
-    { id: 'sunburst', label: 'Sunburst' },
-    { id: 'circles', label: 'Circles' },
-    { id: 'voronoi', label: 'Voronoi' },
-    { id: 'city', label: 'Skyline' },
-  ] as const satisfies ReadonlyArray<{ id: StorageView; label: string }>;
   let fileOptionsOpen = $state(false);
   let filesSummary = $state<HTMLElement>();
   let canvas: HTMLCanvasElement;
@@ -875,7 +869,7 @@
   <div class="storage-map-controls">
     <div class="storage-map-toolbar">
       <div class="map-renderer-switch" role="radiogroup" aria-label="Chart type">
-        {#each renderers as renderer (renderer.id)}
+        {#each STORAGE_VIEWS as renderer (renderer.id)}
           <label class="map-renderer-option">
             <input
               type="radio"

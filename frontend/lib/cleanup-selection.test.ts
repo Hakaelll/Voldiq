@@ -78,6 +78,11 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
   assert.equal(paletteFocusIndex('ArrowDown', settingsIndex, commands), 1);
   assert.equal(paletteFocusIndex('ArrowUp', 1, commands), settingsIndex);
   assert.equal(filterCommands(commands, 'unknown command').length, 0);
+  assert.deepEqual(filterCommands(commands, 'sunburst'), []);
+  const chartCommands = paletteCommands(null, true, false);
+  assert.deepEqual(filterCommands(chartCommands, 'sunburst').map(({ action }) => action), [
+    { kind: 'chart', view: 'sunburst' },
+  ]);
   const pauseViews: ScanControlView[] = [];
   let rejectLate: (error: Error) => void = () => {};
   let nativePauseState = 'running';

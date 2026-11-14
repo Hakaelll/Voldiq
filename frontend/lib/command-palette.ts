@@ -1,7 +1,9 @@
 import type { Destination, RecordRef, Workspaces } from './workbench.ts';
+import { STORAGE_VIEWS, type StorageView } from './storage-map.ts';
 
 export type PaletteAction =
   | { kind: 'navigate'; view: Destination }
+  | { kind: 'chart'; view: StorageView }
   | { kind: 'search' }
   | { kind: 'choose' }
   | { kind: 'saved' }
@@ -20,7 +22,8 @@ export interface PaletteCommand {
 
 export const paletteGroups = {
   actions: 'Actions',
-  views: 'Views',
+  views: 'Go to',
+  charts: 'Storage charts',
   saved: 'Saved views',
   favorites: 'Favorite folders',
 };
@@ -29,7 +32,7 @@ type PaletteGroup = keyof typeof paletteGroups;
 
 export const destinations: { id: Destination; label: string; icon: string; keywords?: string }[] = [
   { id: 'overview', label: 'Overview', icon: 'overview', keywords: 'dashboard drive space' },
-  { id: 'explorer', label: 'Explorer', icon: 'folder', keywords: 'map treemap grid list' },
+  { id: 'explorer', label: 'Explorer', icon: 'folder', keywords: 'browse grid list' },
   { id: 'large', label: 'Large files', icon: 'large', keywords: 'largest folders size' },
   { id: 'duplicates', label: 'Duplicates', icon: 'duplicate', keywords: 'similar images copies' },
   { id: 'cleanup', label: 'Cleanup', icon: 'trash', keywords: 'recycle review tray' },
@@ -88,6 +91,18 @@ export function paletteCommands(
       action: { kind: 'navigate', view },
     })),
   ];
+  if (ready)
+    for (const view of STORAGE_VIEWS)
+      commands.push({
+        id: `chart:${view.id}`,
+        label: view.label,
+        detail: 'Expanded chart',
+        group: 'charts',
+        icon: 'overview',
+        keywords: 'map chart visualization gráfica',
+        disabled: false,
+        action: { kind: 'chart', view: view.id },
+      });
   if (catalog) {
     for (const view of catalog.views)
       commands.push({

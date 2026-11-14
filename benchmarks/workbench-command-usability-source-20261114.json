@@ -1,0 +1,86 @@
+{
+  "checkedUtc": "2026-11-14T04:59:21.5124194Z",
+  "startedUtc": "2026-11-14T04:54:57.1188156Z",
+  "checkoutCommit": "ac0bb7fc1de39c08b529a87384521964181c4906",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 3.25
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 12.094
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 2.504
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 12.876
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 224.515
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 9.113
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "80B817B0E7C62DFD2BA8B2B58008F8148D8012F92DA850CD5798288BB7E4A866"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "925B1DAA57E68EAE2AD85AC663D3A63679AC4D1FAD1A210E9CC7DCA29D188E63"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "6178ED45A4EFFD15F289E1D99D70EBBD1C7D498B38DBB8A0860EAEAB78682CF5"
+    },
+    {
+      "path": "frontend/components/CommandPalette.svelte",
+      "sha256": "C811A4B344D7F53C2860EFD70F7B51A7053296F5A0A396EB2CE2DE513DB7D467"
+    },
+    {
+      "path": "frontend/components/StorageMap.svelte",
+      "sha256": "9B75C60577E6B3DBB15169CA5E68D0B48237F8A01EAC6177C8CB2CE93D8E7742"
+    },
+    {
+      "path": "frontend/lib/cleanup-selection.test.ts",
+      "sha256": "DE9F2B1D26112817E0F462672F3F8354CEEB960C5CC46C53D80A736460A10CB4"
+    },
+    {
+      "path": "frontend/lib/command-palette.ts",
+      "sha256": "C9E6787A3AA3CC0CD120C2E14C9708E9E774D220F55C2C3A899C0587CA604483"
+    },
+    {
+      "path": "frontend/lib/storage-map.ts",
+      "sha256": "55438F33DAF9A8CBC73D0A004D0225048BBE72D9FCE6CE91AA423365739EE9AD"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "FC256B492E9AA4F5A72576960C55B83F0B6C30B2D3F81474527BB6F57DB8B4D8"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "minimumMeasuredPaletteContrast": 5.19
+}
