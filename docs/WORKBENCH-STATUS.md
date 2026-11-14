@@ -1,5 +1,15 @@
 # Storage workbench status
 
+## Settings, commands and recovery vault retention
+
+Settings has a labeled slot in the sidebar footer beside the compact collapse control. The gear stays available in the collapsed rail. Ctrl+, opens Settings from the workspace or command palette. The palette uses compact left-aligned rows, one search focus outline and a return key hint on the selected row. Secondary text appears for paths and prerequisites. Search, chart commands, favorites and saved views reuse their existing handlers.
+
+Cleanup → Transfers lets the desktop user set a 1–3650 day period for retention review. Clearing it keeps copies indefinitely. The review date uses the verified publication time. A filter and review counts identify published offload copies at or past their cutoff. The preference schedules review only. It preserves archived files and the existing quota charge.
+
+The six integration checks passed with eight routine tests and strict Clippy. The retained desktop flow exercised migration, the exact cutoff, exclusion of a pending copy and preference persistence. Svelte server markup and search checks covered Settings, selection, favorites, chart commands and the empty state. The Windows preview reached ready, and 10 embedded non-HTML resources matched the production frontend. Windows layout, keyboard and pointer interaction, and scaling remain manual. The positive transfer across two NTFS volumes remains deferred. [Project checks](../benchmarks/workbench-vault-retention-source.json) · [Production startup](../benchmarks/native-vault-retention-preview.json)
+
+The unsigned NSIS installer measures 11,093,690 bytes. Cleanup removed 3,303,988,377 logical bytes of inactive release files and 59,926,016 bytes of closed previews. The workspace measured 326,221,115 logical bytes afterward, and the verified installer and open preview remained available. [Distribution](../benchmarks/distribution-vault-retention.json) · [Post-clean checks](../benchmarks/workspace-footprint-vault-retention.json)
+
 ## Recovery vault quota
 
 Cleanup → Transfers shows the estimated charge and lets the desktop user set or clear one global archive limit. The charge counts planned allocation for started offloads, including interrupted outcomes. The existing independent capacity reserve and native checks still apply. New offload drafts and admission check the limit inside a write transaction. Restore and recycle actions do not draw from this archive quota. Changes to the limit preserve existing files and records.
