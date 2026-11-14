@@ -56,6 +56,7 @@
   }
   interface Review {
     connection: string;
+    desktop_owned: boolean;
     plan: Plan;
   }
   type Summary = { id: string; connection_id: number; connection: string } & (
@@ -136,7 +137,7 @@
       if (alive && current === request) selection = { kind: 'error', message: String(problem) };
     }
   }
-  async function decide(action: 'approve' | 'reject' | 'cancel'): Promise<void> {
+  async function decide(action: 'approve' | 'reject' | 'cancel' | 'start'): Promise<void> {
     if (selection.kind !== 'ready' || busy) return;
     const review = selection.review;
     ++request;
@@ -144,6 +145,11 @@
     error = '';
     notice = '';
     try {
+      if (action === 'start') {
+        await invoke('start_desktop_transfer', { id: review.plan.manifest.id, hash: review.plan.hash });
+        if (alive) notice = 'Transfer queued. Voldiq will recheck the plan before starting.';
+        return;
+      }
       const plan = await invoke<Plan | null>(
         action === 'approve'
           ? 'approve_agent_plan'
@@ -157,7 +163,9 @@
         selection = { kind: 'ready', review: { ...review, plan } };
         notice =
           action === 'approve'
-            ? 'Plan approved for at most two minutes. The connection may now request execution if permitted.'
+            ? review.desktop_owned
+              ? 'Plan approved. Select Start transfer within two minutes.'
+              : 'Plan approved for at most two minutes. The connection may now request execution if permitted.'
             : action === 'cancel'
               ? 'Stop requested. Review the final result for partial or unknown outcomes.'
               : 'Plan rejected. No execution will start from this plan.';
@@ -195,11 +203,11 @@
 
 <section class="plan-review" aria-labelledby="plan-review-heading">
   <div class="review-heading">
-    <h2 id="plan-review-heading" tabindex="-1">Agent plan review</h2>
+    <h2 id="plan-review-heading" tabindex="-1">Plan review</h2>
     <button onclick={refresh} disabled={!native || loading || busy}>Refresh requests</button>
   </div>
   <p class="description">
-    Review exact file selections requested by local connections. Approval is separate from execution
+    Review exact file selections from this device and local connections. Approval is separate from execution
     and lasts at most two minutes.
   </p>
   <p class="description">
@@ -469,8 +477,8 @@
         <summary>Scope and evidence</summary>
         <dl>
           <div>
-            <dt>Snapshot</dt>
-            <dd>{manifest.source_snapshot}</dd>
+            <dt>Source analysis</dt>
+            <dd>{manifest.source_snapshot === 0 ? 'Live desktop analysis' : `Snapshot #${manifest.source_snapshot}`}</dd>
           </div>
           <div>
             <dt>Captured exclusions</dt>
@@ -565,8 +573,8 @@
         {#if !plan.execution_available}<p role="note">
             Prepare a new plan with current transfer evidence to approve execution.
           </p>{:else if (restore || transfer) && plan.state === 'awaiting_approval'}<p role="note">
-            Review the exact destination names and original handling above. The connection has up
-            to two minutes to start an approved plan.
+            Review the exact destination names and original handling above. An approved plan can
+            start within two minutes.
           </p>{/if}
         <button
           disabled={busy ||
@@ -578,14 +586,17 @@
             disabled={busy}
             onclick={() => decide('cancel')}>Request stop</button
           >{/if}
-        <button
+        {#if review.desktop_owned && plan.state === 'approved'}
+          <button class="primary" disabled={busy || now >= (plan.approval_expires ?? 0)}
+            onclick={() => decide('start')}>Start transfer</button>
+        {:else}<button
           class="primary"
           disabled={busy ||
             !plan.execution_available ||
             plan.state !== 'awaiting_approval' ||
             now >= manifest.expires}
           onclick={() => decide('approve')}>{busy ? 'Working…' : 'Review and approve plan'}</button
-        >
+        >{/if}
       </div>
     </article>
   {/if}

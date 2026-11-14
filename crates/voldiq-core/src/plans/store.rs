@@ -217,8 +217,9 @@ impl Store {
     ) -> Result<View> {
         let policy = context.check(Capability::PreparePlans)?;
         context.check_directory(self.directory.identity())?;
-        if snapshot <= 0
-            || index.snapshot_id.is_some_and(|id| id != snapshot)
+        if (snapshot == 0 && (!context.is_desktop() || index.snapshot_id.is_some()))
+            || snapshot < 0
+            || (snapshot > 0 && index.snapshot_id.is_some_and(|id| id != snapshot))
             || selection.is_empty()
             || selection.len() > policy.limits().plan_files
             || now < 0
@@ -285,16 +286,24 @@ impl Store {
             return Err(Error::Invalid("Plan retention limit reached.".into()));
         }
         super::catalogue::vault::admit(&tx, &manifest.action)?;
-        tx.execute("INSERT INTO agent_plans(id,owner,manifest,hash,native_record,binding,state) VALUES(?1,?2,?3,?4,?5,?6,'draft')",
-            params![manifest.id, context.owner(), json, hash, native_record, context.binding()?])?;
+        let state = if context.is_desktop() {
+            State::AwaitingApproval
+        } else {
+            State::Draft
+        };
+        tx.execute("INSERT INTO agent_plans(id,owner,manifest,hash,native_record,binding,state) VALUES(?1,?2,?3,?4,?5,?6,?7)",
+            params![manifest.id, context.owner(), json, hash, native_record, context.binding()?, state.as_str()])?;
         super::catalogue::prepare(&tx, &manifest, &hash)?;
         audit(&tx, &manifest.id, now, "draft")?;
+        if state == State::AwaitingApproval {
+            audit(&tx, &manifest.id, now, "awaiting_approval")?;
+        }
         tx.commit()?;
         Ok(View {
             execution_available: manifest.action.execution_available(),
             manifest,
             hash,
-            state: State::Draft,
+            state,
             approval_expires: None,
             result: None,
         })
@@ -628,7 +637,8 @@ impl Store {
             || manifest.risk != "review"
             || manifest.created < 0
             || manifest.expires != manifest.created.checked_add(PLAN_TTL).ok_or_else(invalid)?
-            || manifest.source_snapshot <= 0
+            || manifest.source_snapshot < 0
+            || (manifest.source_snapshot == 0 && !context.is_desktop())
         {
             return Err(invalid());
         }

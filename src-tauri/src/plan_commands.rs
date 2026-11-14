@@ -141,6 +141,108 @@ pub async fn cancel_agent_plan(
 }
 
 #[tauri::command]
+pub async fn transfer_destinations(
+    engine: tauri::State<'_, Arc<crate::Engine>>,
+    index_id: crate::analysis_status::IndexId,
+) -> Result<Vec<voldiq_core::windows::Volume>, String> {
+    let index = engine.index_for(index_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        use voldiq_core::space::Observation;
+        let root = {
+            let index = index.read().map_err(|error| error.to_string())?;
+            if index.snapshot_id.is_some() {
+                return Err("Scan the source again before preparing a transfer from historical results.".into());
+            }
+            index.root.clone()
+        };
+        let source = match voldiq_core::space::observe_volume(&root) {
+            Observation::Measured { measurement } => measurement.volume,
+            Observation::Unavailable { caller: Some(caller), .. } => caller.volume,
+            _ => return Err("The analysis volume could not be identified. Scan again before choosing a destination.".into()),
+        };
+        Ok(voldiq_core::windows::volumes().into_iter().filter(|drive| {
+            drive.accessible && drive.filesystem.eq_ignore_ascii_case("NTFS") && matches!(drive.drive_type.as_str(), "Local" | "Removable")
+                && match &drive.space {
+                    Observation::Measured { measurement } => Some(&measurement.volume),
+                    Observation::Unavailable { caller, .. } => caller.as_ref().map(|space| &space.volume),
+                }.is_some_and(|volume| !volume.guid_root.eq_ignore_ascii_case(&source.guid_root) && volume.serial != source.serial)
+        }).collect())
+    }).await.map_err(|error| error.to_string())?
+}
+
+#[cfg(windows)]
+#[tauri::command]
+pub async fn prepare_desktop_transfer(
+    reviews: tauri::State<'_, PlanReviews>,
+    engine: tauri::State<'_, Arc<crate::Engine>>,
+    index_id: crate::analysis_status::IndexId,
+    nodes: Vec<voldiq_core::NodeId>,
+    drive: String,
+    expected_volume: voldiq_core::space::VolumeIdentity,
+    originals: voldiq_core::plans::Originals,
+) -> Result<Option<String>, String> {
+    engine.require_durable_state()?;
+    if nodes.is_empty() || nodes.len() > 500 {
+        return Err("Select 1–500 files for this transfer.".into());
+    }
+    let [letter, b':', b'\\'] = drive.as_bytes() else {
+        return Err("Choose a listed destination drive.".into());
+    };
+    if !letter.is_ascii_uppercase() {
+        return Err("Choose a listed destination drive.".into());
+    }
+    let desktop = reviews.desktop()?;
+    let index = engine.index_for(index_id)?;
+    if index
+        .read()
+        .map_err(|error| error.to_string())?
+        .snapshot_id
+        .is_some()
+    {
+        return Err(
+            "Scan the source again before preparing a transfer from historical results.".into(),
+        );
+    }
+    let engine = engine.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(target) = rfd::FileDialog::new()
+            .set_title("Choose an existing transfer destination folder")
+            .set_directory(&drive)
+            .pick_folder()
+        else {
+            return Ok(None);
+        };
+        let _operation = engine.begin()?;
+        if !engine.index_is_current(index_id, &index)? {
+            return Err("Analysis changed. Select the files again.".into());
+        }
+        let index = index.read().map_err(|error| error.to_string())?;
+        desktop
+            .prepare_offload(&index, &nodes, &target, &expected_volume, originals)
+            .map(|plan| Some(plan.manifest.id))
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn start_desktop_transfer(
+    reviews: tauri::State<'_, PlanReviews>,
+    id: String,
+    hash: String,
+) -> Result<(), String> {
+    let desktop = reviews.desktop()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        desktop
+            .queue_desktop_execution(&id, &hash)
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
 pub async fn get_recovery_vault_quota(
     reviews: tauri::State<'_, PlanReviews>,
 ) -> Result<voldiq_core::plans::VaultQuota, String> {
@@ -265,8 +367,9 @@ pub async fn approve_agent_plan(
             [one] => format!("\nDestination: {}", one.destination_path().display()),
             [first, rest @ ..] => format!("\nDestinations: {} and {} more reviewed folders", first.destination_path().display(), rest.len()),
         };
+        let next = if review.desktop_owned { "Select Start transfer in Voldiq to request execution." } else { "The connection must request execution separately." };
         let message = format!(
-            "Approve this exact plan?\n\nConnection: {} (#{})\nSource: {}{}\nFiles: {}\nLogical bytes: {}\n\n{}\n\nManifest hash:\n{}\n\nReview the full selection in Voldiq before approving. This grants one attempt within two minutes. The connection must request execution separately.",
+            "Approve this exact plan?\n\nConnection: {} (#{})\nSource: {}{}\nFiles: {}\nLogical bytes: {}\n\n{}\n\nManifest hash:\n{}\n\nReview the full selection in Voldiq before approving. This grants one attempt within two minutes. {next}",
             review.connection, manifest.connection_id, manifest.root, destination, manifest.entries.len(),
             manifest.logical_bytes, manifest.action.approval_description(), hash,
         );

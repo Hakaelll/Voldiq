@@ -55,6 +55,86 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
     .unwrap();
     let plan = service.plan_prepare(snapshot, &[selected]).unwrap();
     {
+        let human = HumanAuthority::acquire(state.path()).unwrap();
+        let destination = tempfile::tempdir().unwrap();
+        let desktop = Desktop {
+            directory: state.path().to_owned(),
+            human,
+        };
+        let source_volume = super::super::offload::VolumeBinding::observe(source.path()).unwrap();
+        let expected = crate::space::VolumeIdentity {
+            guid_root: source_volume.guid_root,
+            serial: source_volume.serial,
+        };
+        assert!(
+            desktop
+                .prepare_offload(
+                    &index,
+                    &[selected],
+                    destination.path(),
+                    &expected,
+                    Originals::Keep
+                )
+                .err()
+                .unwrap()
+                .to_string()
+                .contains("different volume")
+        );
+        let changed = crate::space::VolumeIdentity {
+            serial: "0".repeat(16),
+            ..expected
+        };
+        assert!(
+            desktop
+                .prepare_offload(
+                    &index,
+                    &[selected],
+                    destination.path(),
+                    &changed,
+                    Originals::Keep
+                )
+                .err()
+                .unwrap()
+                .to_string()
+                .contains("volume changed")
+        );
+        assert!(
+            desktop
+                .queue_desktop_execution(&plan.manifest.id, &plan.hash)
+                .is_err()
+        );
+        let connection_count = registry.list().unwrap().len();
+        let owner = registry
+            .desktop_transfer_principal(&desktop.human, source.path(), destination.path())
+            .unwrap();
+        assert_eq!(
+            registry
+                .desktop_transfer_principal(&desktop.human, source.path(), destination.path())
+                .unwrap()
+                .id(),
+            owner.id()
+        );
+        assert_eq!(registry.list().unwrap().len(), connection_count);
+        assert!(registry.rotate(owner.id()).is_err());
+        assert!(registry.revoke(owner.id()).is_err());
+        let state_db = rusqlite::Connection::open(state.path().join("agents.db")).unwrap();
+        let inaccessible_token = "1".repeat(64);
+        state_db
+            .execute(
+                "UPDATE agents SET credential_hash=?1 WHERE id=?2",
+                rusqlite::params![
+                    blake3::hash(inaccessible_token.as_bytes())
+                        .to_hex()
+                        .to_string(),
+                    owner.id()
+                ],
+            )
+            .unwrap();
+        assert!(registry.authenticate(&inaccessible_token).is_err());
+        assert_eq!(std::fs::read_dir(destination.path()).unwrap().count(), 0);
+        desktop.close();
+    }
+    {
         use crate::plans::{
             Action, OffloadRequest, Originals,
             offload::{Destination, layout},

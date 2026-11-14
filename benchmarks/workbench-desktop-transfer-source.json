@@ -1,0 +1,116 @@
+{
+  "checkedUtc": "2026-11-14T21:43:30.8606449Z",
+  "startedUtc": "2026-11-14T21:36:59.3985783Z",
+  "checkoutCommit": "5f4489ad7b6993ceb42a920e8bbeebee06f1a79d",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 3.373
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 21.782
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 2.402
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 15.433
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 333.182
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 15.203
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "F9F1E6F97E9E301103BD7453A8EAE821B9FEE92859D45ADDFC9984DA9D26F415"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "2D257BAF7E105A6CF5C60F19BDB16EB84F9076498EAC7721361ACBBB94727AC5"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "7B143953D92D16D6494959FB414352EB125C656B19B07D89CBE94725CE8D386A"
+    },
+    {
+      "path": "crates/voldiq-core/src/agents.rs",
+      "sha256": "DA543FFAD8B0B684A5215A83176B297BEF43775248201E0CC3CC5007592F0BB8"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/desktop.rs",
+      "sha256": "09C667D8232F4E7AE6ECD6D913BBD80500E87B93184B5083EF9890CFEBAD46F7"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/desktop/tests.rs",
+      "sha256": "89F6E3C13EBB3EAF4EC5AF3A4B6D036944A922FFCA8E7F2EDAF4203BE7193578"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/human.rs",
+      "sha256": "7F9634B73820EA0A1FFA3056B7409362FCABDFBD8CE3CE820427F0DEE318041C"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/offload.rs",
+      "sha256": "D2EF5CA2D5E160C7839C17A1459FE306A763E24155C38927F6099969F8C26749"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/store.rs",
+      "sha256": "5CCE5D471F2B89D2946A4824DE8C882F233D1BF61903C709EEA3074D5A324D1D"
+    },
+    {
+      "path": "crates/voldiq-core/src/space.rs",
+      "sha256": "692743B099D640DAD9FAE15E19B1B51A9717AB052FAE8ABEBDA4CE26C7EB4780"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "E082D5D613B51B4EB42414453F87FFE986F8B003D39B7A24CB2FF8A6A210C4C4"
+    },
+    {
+      "path": "frontend/components/AgentPlanReview.svelte",
+      "sha256": "CFC30186AC3B40E150FB2D1D5504826954D8C0F8D49035DB87DA35C7E05A1EC1"
+    },
+    {
+      "path": "frontend/components/TransferSelection.svelte",
+      "sha256": "90210C61804FC0AA30BA87B88B3CF03A0DBEDCD34DCB9BB9CF46EECD5B8871AB"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "145796829AE0DA12CA3685A174CD7787B9FB4A84C43FA701FB5910803E0B3E59"
+    },
+    {
+      "path": "src-tauri/src/plan_commands.rs",
+      "sha256": "6DAA5EAB353832349BB3D9D9AB7B4BB3F463A05691AC770E6B3B56B7A1D0EB00"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "desktopTransferFixture": [
+    "same-volume denied",
+    "changed volume denied",
+    "agent plan cannot start through desktop-owned path",
+    "desktop owner cannot authenticate or obtain CLI credential",
+    "owned destination unchanged"
+  ]
+}

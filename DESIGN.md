@@ -556,6 +556,10 @@ The exact restore review shows the original path and the planned output name for
 
 The exact plan review uses the core execution-profile state for its approval button. The separate Windows confirmation names the action, source, destination and manifest hash. It describes the selected original handling and the two-minute window for the connection to request the start. Historical planning-only proposals show a request for a fresh plan.
 
+The inspection selection exposes Transfer with the selected count. Its inline disclosure lists connected NTFS destinations on other volumes and the measured caller availability when known. The same control acts as the drag handle. Clicking or dropping on a drive opens the native folder picker and then the exact plan review. Keeping originals is the default. Recycling originals requires an explicit choice and stays behind verified copying. The desktop-owned review offers a separate start action after approval.
+
+The selection drag uses pointer capture in the current window. Tauri's native Explorer drop handler remains enabled for folder scanning. [Tauri drag and drop configuration](https://v2.tauri.app/reference/config/#dragdropenabled)
+
 ## Reading and control hierarchy
 
 The storage workbench uses open sections, aligned rows and separators instead of a framed card for every information group. Overview and application sections use plain secondary navigation with an active underline. Summary headings use sentence case and existing title sizes; list text uses 13px and supporting metadata generally 12px. The black theme, chart palette, original artwork and main sidebar behavior remain in place.

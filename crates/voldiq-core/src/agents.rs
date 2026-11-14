@@ -143,6 +143,7 @@ pub struct Principal {
     id: i64,
     credential_hash: String,
     record_activity: bool,
+    desktop: bool,
 }
 
 impl Principal {
@@ -194,9 +195,11 @@ impl Registry {
         if version == 0 {
             tx.execute_batch("CREATE TABLE agents(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
                 credential_hash TEXT NOT NULL UNIQUE, policy TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0,
-                created INTEGER NOT NULL, last_used INTEGER);
-                PRAGMA user_version=1;")?;
-        } else if version != 1 {
+                created INTEGER NOT NULL, last_used INTEGER, desktop INTEGER NOT NULL DEFAULT 0);
+                PRAGMA user_version=2;")?;
+        } else if version == 1 {
+            tx.execute_batch("ALTER TABLE agents ADD COLUMN desktop INTEGER NOT NULL DEFAULT 0; PRAGMA user_version=2;")?;
+        } else if version != 2 {
             return Err(Error::Invalid("Unsupported agent registry schema.".into()));
         }
         tx.commit()?;
@@ -219,7 +222,10 @@ impl Registry {
         let tx = self
             .connection
             .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-        let count: i64 = tx.query_row("SELECT count(*) FROM agents", [], |row| row.get(0))?;
+        let count: i64 =
+            tx.query_row("SELECT count(*) FROM agents WHERE desktop=0", [], |row| {
+                row.get(0)
+            })?;
         if count >= 500 {
             return Err(Error::Invalid("Connection registry limit reached.".into()));
         }
@@ -245,7 +251,7 @@ impl Registry {
         let id = self
             .connection
             .query_row(
-                "SELECT id FROM agents WHERE credential_hash=?1 AND revoked=0",
+                "SELECT id FROM agents WHERE credential_hash=?1 AND revoked=0 AND desktop=0",
                 [&hash],
                 |row| row.get(0),
             )
@@ -259,6 +265,7 @@ impl Registry {
             id,
             credential_hash: hash,
             record_activity: true,
+            desktop: false,
         })
     }
 
@@ -267,8 +274,8 @@ impl Registry {
         let json: String = self
             .connection
             .query_row(
-                "SELECT policy FROM agents WHERE id=?1 AND credential_hash=?2 AND revoked=0",
-                params![principal.id, principal.credential_hash],
+                "SELECT policy FROM agents WHERE id=?1 AND credential_hash=?2 AND revoked=0 AND desktop=?3",
+                params![principal.id, principal.credential_hash, principal.desktop],
                 |row| row.get(0),
             )
             .optional()?
@@ -291,12 +298,12 @@ impl Registry {
     }
 
     pub(crate) fn human_principal(&self, id: i64) -> Result<Principal> {
-        let hash = self
+        let (hash, desktop) = self
             .connection
             .query_row(
-                "SELECT credential_hash FROM agents WHERE id=?1 AND revoked=0",
+                "SELECT credential_hash,desktop FROM agents WHERE id=?1 AND revoked=0",
                 [id],
-                |row| row.get(0),
+                |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .optional()?
             .ok_or_else(denied)?;
@@ -304,7 +311,72 @@ impl Registry {
             id,
             credential_hash: hash,
             record_activity: false,
+            desktop,
         })
+    }
+
+    #[cfg(windows)]
+    pub(crate) fn desktop_transfer_principal(
+        &mut self,
+        human: &crate::plans::HumanAuthority,
+        source: &Path,
+        target: &Path,
+    ) -> Result<Principal> {
+        human.check_directory(self.directory.identity())?;
+        let policy = Policy::new(
+            vec![ordinary_path(source)?, ordinary_path(target)?],
+            vec![],
+            vec![
+                Capability::Metadata,
+                Capability::PreparePlans,
+                Capability::RequestApproval,
+                Capability::ExecuteApproved,
+            ],
+            Limits {
+                plan_files: 500,
+                plan_bytes: u64::MAX,
+                ..Limits::default()
+            },
+        )?;
+        let json = serde_json::to_string(&policy).map_err(|_| denied())?;
+        let tx = self
+            .connection
+            .transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
+        let existing = tx
+            .query_row(
+                "SELECT id FROM agents WHERE desktop=1 AND revoked=0 AND policy=?1",
+                [&json],
+                |row| row.get(0),
+            )
+            .optional()?;
+        let id = if let Some(id) = existing {
+            id
+        } else {
+            let count: i64 =
+                tx.query_row("SELECT count(*) FROM agents WHERE desktop=1", [], |row| {
+                    row.get(0)
+                })?;
+            if count >= 10_000 {
+                return Err(Error::Invalid(
+                    "Desktop transfer scope limit reached.".into(),
+                ));
+            }
+            tx.execute("INSERT INTO agents(name,credential_hash,policy,created,desktop) VALUES('This device',?1,?2,?3,1)",
+                params![digest(credential()?.expose()),json,now()?])?;
+            tx.last_insert_rowid()
+        };
+        human.check_directory(self.directory.identity())?;
+        tx.commit()?;
+        self.human_principal(id)
+    }
+
+    pub(crate) fn review_identity(&self, principal: &Principal) -> Result<(String, bool)> {
+        let name = self.connection.query_row(
+            "SELECT name FROM agents WHERE id=?1 AND desktop=?2",
+            params![principal.id, principal.desktop],
+            |row| row.get(0),
+        )?;
+        Ok((name, principal.desktop))
     }
 
     pub fn authorize(
@@ -416,10 +488,10 @@ impl Registry {
     }
 
     pub fn revoke(&mut self, id: i64) -> Result<()> {
-        if self
-            .connection
-            .execute("UPDATE agents SET revoked=1 WHERE id=?1", [id])?
-            != 1
+        if self.connection.execute(
+            "UPDATE agents SET revoked=1 WHERE id=?1 AND desktop=0",
+            [id],
+        )? != 1
         {
             return Err(denied());
         }
@@ -429,7 +501,7 @@ impl Registry {
     pub fn rotate(&mut self, id: i64) -> Result<Credential> {
         let credential = credential()?;
         if self.connection.execute(
-            "UPDATE agents SET credential_hash=?1 WHERE id=?2 AND revoked=0",
+            "UPDATE agents SET credential_hash=?1 WHERE id=?2 AND revoked=0 AND desktop=0",
             params![digest(credential.expose()), id],
         )? != 1
         {
@@ -441,7 +513,7 @@ impl Registry {
     /// Human management listing. Never expose complete policies through an agent tool.
     pub fn list(&self) -> Result<Vec<ConnectionInfo>> {
         let mut statement = self.connection.prepare(
-            "SELECT id,name,policy,revoked,created,last_used FROM agents ORDER BY id LIMIT 501",
+            "SELECT id,name,policy,revoked,created,last_used FROM agents WHERE desktop=0 ORDER BY id LIMIT 501",
         )?;
         let mut rows = statement.query([])?;
         let mut items = Vec::new();
@@ -486,6 +558,10 @@ impl PlanContext<'_> {
 
     pub(crate) fn owner(&self) -> i64 {
         self.principal.id
+    }
+
+    pub(crate) fn is_desktop(&self) -> bool {
+        self.principal.desktop
     }
 
     pub(crate) fn binding(&self) -> Result<String> {

@@ -1050,6 +1050,10 @@ fn main() {
             plan_commands::list_agent_plans,
             plan_commands::get_agent_plan,
             plan_commands::list_transfer_records,
+            plan_commands::transfer_destinations,
+            #[cfg(windows)]
+            plan_commands::prepare_desktop_transfer,
+            plan_commands::start_desktop_transfer,
             plan_commands::get_recovery_vault_quota,
             plan_commands::set_recovery_vault_quota,
             plan_commands::set_recovery_vault_retention,

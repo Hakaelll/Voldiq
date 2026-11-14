@@ -10,7 +10,7 @@ pub use reconcile::{
     Accounting, Allocation, AllocationReason, Coverage, Indexed, Report, Residual, ResidualReason,
     VolumeContext, read_desktop, summarize,
 };
-use serde::{Serialize, Serializer};
+use serde::{Deserialize, Serialize, Serializer};
 use std::path::Path;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -21,7 +21,8 @@ impl Serialize for Bytes {
     }
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
 pub struct VolumeIdentity {
     pub guid_root: String,
     pub serial: String,

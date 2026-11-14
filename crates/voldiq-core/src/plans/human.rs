@@ -99,7 +99,7 @@ impl HumanAuthority {
         &self.issuer
     }
 
-    pub(super) fn check_directory(&self, expected: (u64, u64)) -> Result<()> {
+    pub(crate) fn check_directory(&self, expected: (u64, u64)) -> Result<()> {
         if self.closed.load(Ordering::Acquire) || self.directory.identity() != expected {
             return Err(invalid());
         }

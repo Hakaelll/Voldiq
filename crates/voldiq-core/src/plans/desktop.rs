@@ -15,6 +15,7 @@ pub struct Desktop {
 #[derive(Serialize)]
 pub struct Review {
     pub connection: String,
+    pub desktop_owned: bool,
     pub plan: View,
 }
 
@@ -74,6 +75,59 @@ pub enum ReviewStatus {
 }
 
 impl Desktop {
+    #[cfg(windows)]
+    pub fn prepare_offload(
+        &self,
+        index: &crate::index::Index,
+        nodes: &[crate::NodeId],
+        target: &Path,
+        expected_volume: &crate::space::VolumeIdentity,
+        originals: Originals,
+    ) -> Result<View> {
+        use super::offload::{OffloadRequest, VolumeBinding};
+        let target = crate::agents::pin_directory(target)?;
+        let volume = VolumeBinding::observe(target.path())?;
+        if !volume.matches(expected_volume) {
+            return Err(crate::Error::Invalid(
+                "The destination volume changed. Refresh destinations and choose again.".into(),
+            ));
+        }
+        let source_volume = VolumeBinding::observe(&index.root)?;
+        if source_volume.guid_root == volume.guid_root || source_volume.serial == volume.serial {
+            return Err(crate::Error::Invalid(
+                "Select a destination on a different volume.".into(),
+            ));
+        }
+        let root = target.path().ancestors().last().ok_or_else(invalid)?;
+        let mut registry = Registry::open(&self.directory.join("agents.db"))?;
+        let principal = registry.desktop_transfer_principal(&self.human, &index.root, root)?;
+        let mut store = Store::open(&self.directory)?;
+        store.create_offload(
+            &registry.plan_context(&principal, Capability::PreparePlans)?,
+            index.snapshot_id.unwrap_or(0),
+            index,
+            nodes,
+            &OffloadRequest {
+                destination: target.path().to_owned(),
+                originals,
+            },
+            now()?,
+        )
+    }
+
+    pub fn queue_desktop_execution(&self, id: &str, hash: &str) -> Result<()> {
+        let registry = Registry::open(&self.directory.join("agents.db"))?;
+        let mut store = Store::open(&self.directory)?;
+        let owner = store.review_owner(&self.human, id)?;
+        let principal = registry.human_principal(owner)?;
+        let execute = registry.plan_context(&principal, Capability::ExecuteApproved)?;
+        if !execute.is_desktop() {
+            return Err(invalid());
+        }
+        store.request_execution(&execute, id, hash, now()?)?;
+        Ok(())
+    }
+
     pub fn vault_quota(&self) -> Result<super::VaultQuota> {
         Store::open(&self.directory)?.vault_quota(&self.human)
     }
@@ -260,18 +314,15 @@ impl Desktop {
 
     pub fn list(&self, offset: usize, limit: usize) -> Result<ReviewPage> {
         let registry = Registry::open(&self.directory.join("agents.db"))?;
-        let names = registry
-            .list()?
-            .into_iter()
-            .map(|connection| (connection.id, connection.name))
-            .collect::<std::collections::HashMap<_, _>>();
         let mut store = Store::open(&self.directory)?;
         let refs = store.review_refs(&self.human, offset, limit)?;
         let next_offset = (refs.len() > limit).then_some(offset + limit);
         let mut items = Vec::new();
         for (id, owner) in refs.into_iter().take(limit) {
+            let mut connection = format!("Connection #{owner}");
             let view = (|| {
                 let principal = registry.human_principal(owner)?;
+                (connection, _) = registry.review_identity(&principal)?;
                 let context = registry.plan_context(&principal, Capability::Metadata)?;
                 store.get(&context, &id, now()?)
             })();
@@ -287,10 +338,7 @@ impl Desktop {
                 },
             };
             items.push(ReviewSummary {
-                connection: names
-                    .get(&owner)
-                    .cloned()
-                    .unwrap_or_else(|| format!("Connection #{owner}")),
+                connection,
                 id,
                 connection_id: owner,
                 status,
@@ -306,13 +354,12 @@ impl Desktop {
         let principal = registry.human_principal(owner)?;
         let context = registry.plan_context(&principal, Capability::Metadata)?;
         let plan = store.get(&context, id, now()?)?;
-        let connection = registry
-            .list()?
-            .into_iter()
-            .find(|connection| connection.id == owner)
-            .ok_or_else(invalid)?
-            .name;
-        Ok(Review { connection, plan })
+        let (connection, desktop_owned) = registry.review_identity(&principal)?;
+        Ok(Review {
+            connection,
+            desktop_owned,
+            plan,
+        })
     }
 
     /// Caller must obtain a separate human confirmation for the exact displayed hash.

@@ -54,6 +54,7 @@
   import AgentConnections from './components/AgentConnections.svelte';
   import AgentPlanReview from './components/AgentPlanReview.svelte';
   import TransferCatalogue from './components/TransferCatalogue.svelte';
+  import TransferSelection from './components/TransferSelection.svelte';
   import FolderNotes from './components/FolderNotes.svelte';
   import FileInspection from './components/FileInspection.svelte';
   import FolderBudget from './components/FolderBudget.svelte';
@@ -2255,6 +2256,11 @@
                     item.
                   </p>
                 </details>
+                {#if indexId !== null && explored.size && ready && storageMode !== null && storageMode !== 'ephemeral' && isTauri()}
+                  {#key indexId}
+                    <TransferSelection {indexId} nodes={explored} disabled={busy} onreview={(id) => void reviewAgentPlans(id)} />
+                  {/key}
+                {/if}
               </div>
             {/if}
             <div

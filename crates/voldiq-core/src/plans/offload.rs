@@ -85,6 +85,15 @@ pub struct VolumeBinding {
 }
 
 impl VolumeBinding {
+    #[cfg(windows)]
+    pub(super) fn observe(path: &Path) -> Result<Self> {
+        volume(&crate::agents::pin_directory(path)?)
+    }
+
+    pub fn matches(&self, volume: &crate::space::VolumeIdentity) -> bool {
+        self.guid_root.eq_ignore_ascii_case(&volume.guid_root) && self.serial == volume.serial
+    }
+
     pub(super) fn restore_parent_path(&self, recorded: &Path) -> Result<PathBuf> {
         #[cfg(windows)]
         {
