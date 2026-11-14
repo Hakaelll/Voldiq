@@ -29,6 +29,7 @@ mod live_commands;
 mod metadata_commands;
 mod overview;
 mod plan_commands;
+mod profile;
 mod query_commands;
 mod restore_commands;
 mod scan_control;
@@ -53,7 +54,8 @@ use voldiq_core::{
 };
 
 struct Engine {
-    operations: voldiq_core::operations::Coordinator,
+    mode: profile::Mode,
+    operations: profile::Operations,
     queries: query_commands::Queries,
     live: live_commands::Sessions,
     exports: export_commands::Sessions,
@@ -88,14 +90,22 @@ impl Drop for Operation {
 }
 
 impl Engine {
+    fn require_durable_state(&self) -> Result<(), String> {
+        if self.mode == profile::Mode::Ephemeral {
+            return Err("This operation needs durable Voldiq storage. It is unavailable in a temporary session.".into());
+        }
+        Ok(())
+    }
+
     fn protections(&self) -> Result<voldiq_core::metadata::Protections, String> {
         voldiq_core::metadata::Store::open(self.operations.directory())
             .and_then(|mut store| store.protections())
             .map_err(|error| error.to_string())
     }
-    fn new(directory: &std::path::Path) -> voldiq_core::Result<Self> {
+    fn new(profile: &profile::Profile) -> voldiq_core::Result<Self> {
         Ok(Self {
-            operations: voldiq_core::operations::Coordinator::open(directory)?,
+            mode: profile.mode,
+            operations: profile::Operations::open(&profile.path)?,
             queries: Default::default(),
             live: Default::default(),
             exports: Default::default(),
@@ -112,10 +122,7 @@ impl Engine {
         if active.is_some() {
             return Err("Another analysis is running.".into());
         }
-        let lease = self
-            .operations
-            .acquire()
-            .map_err(|error| error.to_string())?;
+        let lease = self.operations.acquire()?;
         let id = self.sequence.fetch_add(1, Ordering::Relaxed) + 1;
         let cancel = Arc::new(AtomicBool::new(false));
         *active = Some((id, cancel.clone()));
@@ -416,7 +423,9 @@ fn launch_scan(
             #[cfg(windows)]
             if notify {
                 drop(_operation);
-                windows_notifications::scan_finished(engine.operations.directory());
+                if engine.mode == profile::Mode::Installed {
+                    windows_notifications::scan_finished(engine.operations.directory());
+                }
             }
         }
     });
@@ -824,7 +833,13 @@ async fn query_developer_storage(
 
 #[cfg(windows)]
 #[tauri::command]
-fn windows_startup(registered: Option<bool>) -> Result<windows_startup::Status, String> {
+fn windows_startup(
+    registered: Option<bool>,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<windows_startup::Status, String> {
+    if engine.mode != profile::Mode::Installed {
+        return Ok(windows_startup::Status::NotInstalled);
+    }
     let user = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER);
     let executable = std::env::current_exe().map_err(|error| error.to_string())?;
     windows_startup::preference(&user, &executable, registered).map_err(|error| error.to_string())
@@ -836,12 +851,21 @@ fn scan_notifications(
     registered: Option<bool>,
     engine: State<'_, Arc<Engine>>,
 ) -> Result<windows_startup::Status, String> {
+    if engine.mode != profile::Mode::Installed {
+        return Ok(windows_startup::Status::NotInstalled);
+    }
     windows_notifications::preference(engine.operations.directory(), registered)
 }
 
 #[cfg(windows)]
 #[tauri::command]
-fn windows_explorer(registered: Option<bool>) -> Result<windows_startup::Status, String> {
+fn windows_explorer(
+    registered: Option<bool>,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<windows_startup::Status, String> {
+    if engine.mode != profile::Mode::Installed {
+        return Ok(windows_startup::Status::NotInstalled);
+    }
     let user = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER);
     let executable = std::env::current_exe().map_err(|error| error.to_string())?;
     let status = windows_explorer::preference(&user, &executable, registered)
@@ -867,12 +891,17 @@ async fn take_explorer_folder(
     }
 }
 
+#[tauri::command]
+fn storage_mode(engine: State<'_, Arc<Engine>>) -> profile::Mode {
+    engine.mode
+}
+
 fn main() {
     #[cfg(windows)]
     if let Some(code) = voldiq_core::cleanup::helper::run_cli() {
         std::process::exit(code);
     }
-    let context = tauri::generate_context!();
+    let mut context = tauri::generate_context!();
     if std::env::args_os().nth(1).as_deref() == Some(std::ffi::OsStr::new("--verify-embedded-ui")) {
         match embedded_ui::verify(&context) {
             Ok(report) => println!(
@@ -893,23 +922,68 @@ fn main() {
     trace.record("process-start", None);
     let setup_trace = trace.clone();
     let page_trace = trace.clone();
+    let requested_mode = profile::requested(std::env::args_os().skip(1)).unwrap_or_else(|error| {
+        eprintln!("{error}");
+        std::process::exit(2);
+    });
+    let window = context.config_mut().app.windows.remove(0);
+    let temporary = Arc::new(Mutex::new(None));
+    let setup_temporary = temporary.clone();
     #[cfg(windows)]
     let explorer_folder = windows_explorer::folder_argument(std::env::args_os().skip(1))
         .map_err(|error| error.to_string());
-    tauri::Builder::default()
+    let code = tauri::Builder::default()
         .setup(move |app| {
             setup_trace.record("setup-start", Some(app.handle()));
             #[cfg(windows)]
             app.manage(ExplorerFolder(Mutex::new(explorer_folder.transpose())));
-            let directory = app.path().app_local_data_dir()?;
-            std::fs::create_dir_all(&directory)?;
-            app.manage(Arc::new(Engine::new(&directory)?));
+            let installed = app.path().app_local_data_dir()?;
+            let executable = std::env::current_exe()?;
+            let mut profile = profile::Profile::resolve(requested_mode, &installed, &executable)?;
             setup_trace.record("snapshot-open-start", Some(app.handle()));
-            app.manage(SnapshotDatabase::open(&directory.join("snapshots.db"))?);
+            let mut engine = Engine::new(&profile)?;
+            let database =
+                match SnapshotDatabase::open(&engine.operations.directory().join("snapshots.db")) {
+                    Err(error)
+                        if profile.mode != profile::Mode::Ephemeral
+                            && profile::snapshot_unwritable(&error) =>
+                    {
+                        profile = profile::Profile::ephemeral()?;
+                        engine = Engine::new(&profile)?;
+                        SnapshotDatabase::open(&engine.operations.directory().join("snapshots.db"))?
+                    }
+                    result => result?,
+                };
+            if let Some(temporary) = profile.temporary.take() {
+                *setup_temporary
+                    .lock()
+                    .map_err(|_| std::io::Error::other("Temporary profile unavailable."))? =
+                    Some((temporary, engine.operations.clone(), database.clone()));
+            }
+            let directory = engine.operations.directory().to_owned();
+            let ephemeral = profile.mode == profile::Mode::Ephemeral;
+            app.manage(Arc::new(engine));
+            app.manage(database);
             setup_trace.record("snapshot-open-end", Some(app.handle()));
-            app.manage(CleanupJournal::open(&directory.join("cleanup.db")));
-            app.manage(plan_commands::PlanReviews::open(&directory));
-            plan_commands::start_dispatcher(app.handle())?;
+            if ephemeral {
+                app.manage(CleanupJournal::unavailable());
+                app.manage(plan_commands::PlanReviews::disabled(&directory));
+            } else {
+                app.manage(CleanupJournal::open(&directory.join("cleanup.db")));
+                app.manage(plan_commands::PlanReviews::open(&directory));
+                plan_commands::start_dispatcher(app.handle())?;
+            }
+            tauri::WebviewWindowBuilder::from_config(app, &window)?
+                .data_directory(directory)
+                .build()?;
+            setup_trace.record(
+                match profile.mode {
+                    profile::Mode::Installed => "profile-installed",
+                    profile::Mode::Portable => "profile-portable",
+                    profile::Mode::Ephemeral => "profile-ephemeral",
+                },
+                Some(app.handle()),
+            );
             setup_trace.record("setup-end", Some(app.handle()));
             Ok(())
         })
@@ -951,6 +1025,7 @@ fn main() {
         .manage(CleanupPlans::default())
         .manage(restore_commands::RestorationReviews::default())
         .invoke_handler(tauri::generate_handler![
+            storage_mode,
             metadata_commands::get_folder_metadata,
             metadata_commands::get_indexed_folder_metadata,
             metadata_commands::save_folder_note,
@@ -1075,7 +1150,7 @@ fn main() {
         ])
         .build(context)
         .expect("Voldiq could not start")
-        .run(move |app, event| {
+        .run_return(move |app, event| {
             let name = match event {
                 tauri::RunEvent::Ready => "ready",
                 tauri::RunEvent::WindowEvent { event, .. } => match event {
@@ -1098,4 +1173,11 @@ fn main() {
             }
             trace.record(name, Some(app));
         });
+    if let Some((temporary, operations, database)) =
+        temporary.lock().ok().and_then(|mut owner| owner.take())
+    {
+        operations.close();
+        profile::close_temporary(temporary, &database);
+    }
+    std::process::exit(code);
 }

@@ -389,7 +389,7 @@ async fn run_stored_query<T: Send + 'static>(
     family: QueryFamily,
     request_id: u64,
     engine: Arc<Engine>,
-    store: Arc<Mutex<voldiq_core::snapshots::Store>>,
+    store: Arc<crate::snapshot_commands::SnapshotStore>,
     execute: impl FnOnce(&voldiq_core::snapshots::Store, &AtomicBool) -> voldiq_core::Result<Option<T>>
     + Send
     + 'static,

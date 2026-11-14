@@ -19,7 +19,7 @@ pub struct CleanupPlans(Arc<Mutex<Option<Session>>>);
 fn clear_loaded_analysis(
     engine: Arc<Engine>,
     plans: &Mutex<Option<Session>>,
-    database: &Mutex<voldiq_core::snapshots::Store>,
+    database: &crate::snapshot_commands::SnapshotStore,
 ) -> Result<(), String> {
     let _operation = engine.begin()?;
     let mut index = engine.index.lock().map_err(|error| error.to_string())?;
@@ -60,6 +60,12 @@ pub struct CleanupJournal(
     pub(crate) Arc<Mutex<Result<voldiq_core::cleanup::journal::Journal, String>>>,
 );
 impl CleanupJournal {
+    pub fn unavailable() -> Self {
+        Self(Arc::new(Mutex::new(Err(
+            "Cleanup history is unavailable in a temporary session.".into(),
+        ))))
+    }
+
     pub fn open(path: &std::path::Path) -> Self {
         Self(Arc::new(Mutex::new(
             voldiq_core::cleanup::journal::Journal::open(path).map_err(|error| error.to_string()),
@@ -120,6 +126,7 @@ pub async fn execute_permanent_cleanup(
     plans: State<'_, CleanupPlans>,
     journal: State<'_, CleanupJournal>,
 ) -> Result<voldiq_core::cleanup::execute::Report, String> {
+    engine.require_durable_state()?;
     let engine = engine.inner().clone();
     let operation = engine.begin()?;
     let operation_id = operation.id;
@@ -191,6 +198,7 @@ pub async fn execute_recycling_cleanup(
     plans: State<'_, CleanupPlans>,
     journal: State<'_, CleanupJournal>,
 ) -> Result<voldiq_core::cleanup::recycle::batch::Report, String> {
+    engine.require_durable_state()?;
     let engine = engine.inner().clone();
     let operation = engine.begin()?;
     let operation_id = operation.id;
@@ -356,6 +364,7 @@ pub async fn preview_cleanup_tray(
 ) -> Result<CleanupPreview, String> {
     let caches = crate::developer_commands::cache_locations(&app);
     let engine = engine.inner().clone();
+    engine.require_durable_state()?;
     let operation = engine.begin()?;
     let id = operation.id;
     let index = engine.index_for(index_id)?;

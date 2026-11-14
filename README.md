@@ -1,5 +1,11 @@
 # Voldiq
 
+### Desktop storage modes
+
+Run `voldiq.exe --portable` to keep Voldiq's databases and WebView2 profile in `.voldiq-data` beside the executable. Use `voldiq.exe --ephemeral` for a fresh temporary session. Voldiq also uses a temporary session if its selected data directory or snapshot database is read-only or the drive is full. The footer shows the active mode.
+
+Temporary sessions allow scanning and analysis. Cleanup execution, restoration and agent connections require durable state. Voldiq attempts to remove its temporary profile when it exits. An interruption or files still held by Windows can leave temporary files. Windows can keep its own system records in either mode.
+
 <p align="center"><img src="frontend/public/wordmark.png" width="420" alt="Voldiq" /></p>
 <p align="center">Understand your storage.</p>
 <p align="center">Windows 10 / 11 · Rust · Tauri · Svelte · Local and offline</p>

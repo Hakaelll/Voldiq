@@ -2,14 +2,43 @@ use crate::{Engine, analysis_status::IndexId};
 use std::{
     path::Path,
     sync::{
-        Arc, Mutex, RwLock,
+        Arc, Mutex, MutexGuard, RwLock,
         atomic::{AtomicBool, Ordering},
     },
 };
 use tauri::{State, ipc::Channel};
 use voldiq_core::snapshots::{Snapshot, Store};
 
-pub struct SnapshotDatabase(pub(super) Arc<Mutex<Store>>);
+#[derive(Clone)]
+pub struct SnapshotDatabase(pub(super) Arc<SnapshotStore>);
+
+pub(super) struct SnapshotStore(Mutex<Option<Store>>);
+
+pub(super) struct OpenSnapshotStore<'a>(MutexGuard<'a, Option<Store>>);
+
+impl std::ops::Deref for OpenSnapshotStore<'_> {
+    type Target = Store;
+
+    fn deref(&self) -> &Store {
+        self.0.as_ref().expect("Open snapshot store guard")
+    }
+}
+
+impl std::ops::DerefMut for OpenSnapshotStore<'_> {
+    fn deref_mut(&mut self) -> &mut Store {
+        self.0.as_mut().expect("Open snapshot store guard")
+    }
+}
+
+impl SnapshotStore {
+    pub(super) fn lock(&self) -> Result<OpenSnapshotStore<'_>, String> {
+        let slot = self.0.lock().map_err(|error| error.to_string())?;
+        if slot.is_none() {
+            return Err("Snapshot storage is closing.".into());
+        }
+        Ok(OpenSnapshotStore(slot))
+    }
+}
 
 #[tauri::command]
 pub async fn get_snapshot_retention(
@@ -75,7 +104,24 @@ pub async fn apply_snapshot_retention(
 
 impl SnapshotDatabase {
     pub fn open(path: &Path) -> voldiq_core::Result<Self> {
-        Ok(Self(Arc::new(Mutex::new(Store::open(path)?))))
+        Ok(Self(Arc::new(SnapshotStore(Mutex::new(Some(
+            Store::open(path)?,
+        ))))))
+    }
+
+    pub(super) fn close(&self) {
+        if let Ok(mut slot) = self.0.0.try_lock() {
+            slot.take();
+        }
+    }
+
+    pub(super) fn lock_state(&self) -> &'static str {
+        match self.0.0.try_lock() {
+            Ok(slot) if slot.is_some() => "available",
+            Ok(_) => "closed",
+            Err(std::sync::TryLockError::WouldBlock) => "busy",
+            Err(std::sync::TryLockError::Poisoned(_)) => "poisoned",
+        }
     }
 }
 

@@ -230,6 +230,8 @@ Destination implementation reference: Microsoft's [FILE_RENAME_INFO contract](ht
 
   Notification unit. Add an off-by-default scan completion preference to Settings in the installed copy. Publish the scan result before calling the Windows notification API with the existing Start menu identity and fixed text. Skip failed, cancelled and previous results. The operation lease ends before notification delivery. Verify native toast construction and the generated installer identity. Delivery and notification suppression remain installed Windows acceptance checks.
 
+  Desktop profile unit. Resolve the state and WebView2 data directory before creating the window. Keep the installed profile location and use an adjacent .voldiq-data directory when launched with --portable. Create a unique temporary profile for --ephemeral or when durable storage denies writes. Keep invalid paths and corrupt databases visible as startup failures. Use the resolved profile for local preferences, databases and agent state. Disable destructive operations and agent connections in temporary mode. Show the mode in the footer and test with isolated directories and a read-only snapshot.
+
 - [ ] Run final source/behavior gates and real synthetic/headless measurements. Record hardware-dependent and manual acceptance limits. Review the whole diff inline, update all coverage rows, commit and push.
 
 ## Decisions

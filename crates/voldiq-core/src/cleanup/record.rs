@@ -237,6 +237,7 @@ pub(crate) fn sensitive(path: &std::path::Path) -> bool {
             matches!(
                 name.as_str(),
                 ".git"
+                    | "io.voldiq.desktop"
                     | "$recycle.bin"
                     | "system volume information"
                     | "windows.old"

@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::{path::PathBuf, sync::Arc};
 use tauri::Manager;
 use voldiq_core::agents::{Capability, ConnectionInfo, Limits, Policy, Registry};
 
@@ -30,13 +30,10 @@ pub struct RevealedCredential {
 }
 
 fn registry(app: &tauri::AppHandle) -> Result<Registry, String> {
-    Registry::open(
-        &app.path()
-            .app_local_data_dir()
-            .map_err(|error| error.to_string())?
-            .join("agents.db"),
-    )
-    .map_err(|error| error.to_string())
+    let engine = app.state::<Arc<crate::Engine>>();
+    engine.require_durable_state()?;
+    Registry::open(&engine.operations.directory().join("agents.db"))
+        .map_err(|error| error.to_string())
 }
 
 fn confirm(message: &str) -> bool {
@@ -63,6 +60,7 @@ pub async fn create_agent_connection(
     app: tauri::AppHandle,
     request: ConnectionRequest,
 ) -> Result<Option<RevealedCredential>, String> {
+    app.state::<Arc<crate::Engine>>().require_durable_state()?;
     tauri::async_runtime::spawn_blocking(move || {
         if request.roots.is_empty() || request.roots.len() > 32 || request.exclusions.len() > 256 || request.name.trim().is_empty() || request.name.len() > 128 || request.name.chars().any(char::is_control) {
             return Err("Enter a connection name and 1–32 allowed folders.".into());

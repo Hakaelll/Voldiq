@@ -1,0 +1,79 @@
+{
+  "sourceCommit": "867cfd51ebdac55b230b2365e3d5d410b77da45d",
+  "executableSha256": "04A57BFD4A4540AB7BBF71E1EFEDADAA9AE55E2A74DB22AB00687AE01897A7B9",
+  "portable": {
+    "mode": "profile-portable",
+    "events": [
+      "process-start",
+      "setup-start",
+      "snapshot-open-start",
+      "snapshot-open-end",
+      "profile-portable",
+      "setup-end",
+      "ready",
+      "page-finished",
+      "close-requested",
+      "window-destroyed",
+      "exit-requested",
+      "exit"
+    ],
+    "exitCode": 0
+  },
+  "portableRestart": {
+    "mode": "profile-portable",
+    "events": [
+      "process-start",
+      "setup-start",
+      "snapshot-open-start",
+      "snapshot-open-end",
+      "profile-portable",
+      "setup-end",
+      "ready",
+      "page-finished",
+      "close-requested",
+      "window-destroyed",
+      "exit-requested",
+      "exit"
+    ],
+    "exitCode": 0
+  },
+  "readOnlyFallback": {
+    "mode": "profile-ephemeral",
+    "events": [
+      "process-start",
+      "setup-start",
+      "snapshot-open-start",
+      "snapshot-open-end",
+      "profile-ephemeral",
+      "setup-end",
+      "ready",
+      "page-finished",
+      "close-requested",
+      "window-destroyed",
+      "exit-requested",
+      "exit"
+    ],
+    "exitCode": 0
+  },
+  "explicitEphemeral": {
+    "mode": "profile-ephemeral",
+    "events": [
+      "process-start",
+      "setup-start",
+      "snapshot-open-start",
+      "snapshot-open-end",
+      "profile-ephemeral",
+      "setup-end",
+      "ready",
+      "page-finished",
+      "close-requested",
+      "window-destroyed",
+      "exit-requested",
+      "exit"
+    ],
+    "exitCode": 0
+  },
+  "readOnlySnapshotPreserved": true,
+  "remainingTemporaryProfiles": 0,
+  "scope": "Native lifecycle and owned files only. No pointer, keyboard, visual or scaling acceptance."
+}

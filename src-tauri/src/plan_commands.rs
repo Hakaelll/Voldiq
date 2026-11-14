@@ -21,6 +21,14 @@ enum ReviewSession {
 }
 
 impl PlanReviews {
+    pub fn disabled(directory: &Path) -> Self {
+        Self {
+            desktop: Arc::new(Mutex::new(ReviewSession::Closed)),
+            directory: directory.to_owned(),
+            closed: Arc::new(AtomicBool::new(true)),
+        }
+    }
+
     pub fn open(directory: &Path) -> Self {
         Self {
             desktop: Arc::new(Mutex::new(match Desktop::open(directory) {

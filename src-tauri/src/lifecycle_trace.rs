@@ -14,7 +14,13 @@ pub(crate) struct Trace(Option<Arc<File>>);
 
 impl Trace {
     pub fn from_args() -> io::Result<Self> {
-        let mut arguments = std::env::args_os().skip(1);
+        let mut arguments = std::env::args_os().skip(1).peekable();
+        if arguments
+            .peek()
+            .is_some_and(|value| value == "--portable" || value == "--ephemeral")
+        {
+            arguments.next();
+        }
         if arguments.next().as_deref() != Some(OsStr::new("--trace-lifecycle")) {
             return Ok(Self::default());
         }
@@ -48,7 +54,7 @@ impl Trace {
                 "operation": app.try_state::<Arc<Engine>>()
                     .map(|engine| operation_state(&engine)).unwrap_or("unavailable"),
                 "snapshots": app.try_state::<SnapshotDatabase>()
-                    .map(|database| lock_state(&database.0)).unwrap_or("unavailable"),
+                    .map(|database| database.lock_state()).unwrap_or("unavailable"),
                 "cleanupJournal": app.try_state::<CleanupJournal>()
                     .map(|journal| lock_state(&journal.0)).unwrap_or("unavailable"),
             })

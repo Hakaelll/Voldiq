@@ -39,6 +39,7 @@ pub async fn preview_restoration(
     reviews: State<'_, RestorationReviews>,
     journal: State<'_, CleanupJournal>,
 ) -> Result<RestorePreview, String> {
+    engine.require_durable_state()?;
     let engine = engine.inner().clone();
     let operation = engine.begin()?;
     let id = operation.id;

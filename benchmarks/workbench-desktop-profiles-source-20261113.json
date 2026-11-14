@@ -1,0 +1,108 @@
+{
+  "checkedUtc": "2026-11-14T04:34:21.7978656Z",
+  "startedUtc": "2026-11-14T04:28:58.510351Z",
+  "checkoutCommit": "867cfd51ebdac55b230b2365e3d5d410b77da45d",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 2.539
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 47.792
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 2.168
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 11.651
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 248.079
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 11.025
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "414EAC96246C56A98A6EA3780713241D3F73B0EF68D100949AEF66D08900FEFE"
+    },
+    {
+      "path": "README.md",
+      "sha256": "51BAACCC3FCA6A8B6FBF684EAFD77B56FCEEB8105D9D9AC3945F5E8BBF9AAB21"
+    },
+    {
+      "path": "crates/voldiq-core/src/cleanup/record.rs",
+      "sha256": "4CB9FFAE32AC137C34B6DF9DA5CA9BA9AB9CA004DFED8C34262D473BA8588498"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "6FA8913CE230400DB886BDF440A1B07D7850EF780A152F2E28E057E3AD002A7E"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "184D3D6AD15AA4D1494E79DC736F40D3BB2DE64CC3C46C6D775D69B88FEC24E5"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "C85063702CC17E4E09F80F3F06DC2108A5ECEB2B094C3A0BCF2219C2F0AADB9C"
+    },
+    {
+      "path": "src-tauri/Cargo.toml",
+      "sha256": "3199F045E137999752AD44E195958B62707BD86FEA5C4892DFC01676E22805D2"
+    },
+    {
+      "path": "src-tauri/src/agent_commands.rs",
+      "sha256": "36E2F211A5E6AA2B2DCDEAE86376C49F91BE29FBB62607AC0AEC81C3985A0315"
+    },
+    {
+      "path": "src-tauri/src/cleanup_commands.rs",
+      "sha256": "833F5AD5242936D0C3891497DBBBE1DBB06C319B85E771318DC3318DC8C19B50"
+    },
+    {
+      "path": "src-tauri/src/lifecycle_trace.rs",
+      "sha256": "CD510CEE68E1EA8E4EFBEED524977734EC794B176CA8386E8B54EBF2FE2A9700"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "D97B89904D0651616534D5F3E3EC79246447337727750D73988B8D95A961BAF4"
+    },
+    {
+      "path": "src-tauri/src/plan_commands.rs",
+      "sha256": "FB6ACDFF439A8B3C2BAAEFB8504AB50DE1F2C96E0D4EA3820FE8E8831AEA4541"
+    },
+    {
+      "path": "src-tauri/src/profile.rs",
+      "sha256": "9A16537F3F0A8C09D812888F8FD13C3C7A1342341A60EF478BCF4C489210EBCD"
+    },
+    {
+      "path": "src-tauri/src/query_commands.rs",
+      "sha256": "D321985A08360AEACB5A24D3D0BB149BFE861DC9C40A9365F8D163DFDBAEE614"
+    },
+    {
+      "path": "src-tauri/src/restore_commands.rs",
+      "sha256": "CEA64F5B80232605B1B1185192C21F1EA0CB0E114D0328FD4A9815A6AA6037B9"
+    },
+    {
+      "path": "src-tauri/src/snapshot_commands.rs",
+      "sha256": "1188DB82AAA6EF91B545C86C561AB33959FE4ACA1A8DE6D60EE92DA8BE67D6EE"
+    }
+  ]
+}

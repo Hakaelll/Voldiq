@@ -114,6 +114,7 @@
     if (!indexedView) advancedOpen = false;
   });
   let expanded = $state(true);
+  let storageMode = $state<'installed' | 'portable' | 'ephemeral' | null>(null);
   let volumes = $state<Volume[]>([]),
     volumePath = $state(''),
     scanPath = $state('');
@@ -501,6 +502,10 @@
     return true;
   }
   async function prepareTray(): Promise<void> {
+    if (storageMode === 'ephemeral') {
+      trayProblem = 'Cleanup requires durable storage.';
+      return;
+    }
     if (busy || historical !== null || !ready || indexId === null || !trayGroups.length) return;
     const index = indexId,
       groups = trayGroups,
@@ -1267,6 +1272,11 @@
   onMount(() => {
     let mounted = true;
     if (isTauri()) {
+      void invoke<'installed' | 'portable' | 'ephemeral'>('storage_mode')
+        .then((mode) => {
+          if (mounted) storageMode = mode;
+        })
+        .catch(report);
       const owner = folderDropRequest;
       void invoke<ScanFolder | null>('take_explorer_folder')
         .then((folder) => {
@@ -1984,7 +1994,11 @@
               >Review agent plans in Cleanup</button
             >
           </div>
-          <AgentConnections />
+          {#if storageMode === 'ephemeral'}
+            <p>Agent connections require durable storage.</p>
+          {:else}
+            <AgentConnections />
+          {/if}
         </section>
       {:else if view === 'cleanup'}
         <section class="cleanup-workbench" aria-label="Cleanup and operations">
@@ -2578,7 +2592,10 @@
         oncancel={() => void cancelTrayPreparation()}
       />{/if}
     <footer class="app-footer">
-      <span>{isTauri() ? 'Voldiq 0.2.0' : 'Browser preview'}</span><span
+      <span>{isTauri() ? 'Voldiq 0.2.0' : 'Browser preview'}
+        {#if storageMode === 'ephemeral'} · Temporary session · Changes last until you exit
+        {:else if storageMode === 'portable'} · Portable{/if}
+      </span><span
         >{ready && entryCount !== null ? `${entryCount.toLocaleString()} entries` : ''}</span
       >
     </footer>
