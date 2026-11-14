@@ -1,0 +1,8 @@
+{
+  "schema": 14,
+  "scheduledSnapshot": true,
+  "volumeIdentity": true,
+  "countersBounded": true,
+  "observationFresh": true,
+  "sourceUntouched": true
+}

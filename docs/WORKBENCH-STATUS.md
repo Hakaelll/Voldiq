@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Volume free-space trends
+
+History → Trends can switch between indexed folder size and measured volume free space. Saving a manual or scheduled snapshot records the current volume sample when Voldiq can verify the native root identity. Existing captures remain readable and have no retroactive readings. The volume series uses the GUID and serial recorded with the latest capture in the selected scope. A capacity change breaks the line. Only recent compatible samples with sustained, stable free-space loss produce a forecast. The dashed extension ends at the estimated fill date and includes an observed-rate range.
+
+The six project checks passed with eight routine tests. The retained history flow exercised an exact forecast, reversal, capacity change, missing latest sample and migration from an older database. A disposable portable Windows profile saved an actual scheduled capture with a fresh native device reading and preserved the fixture file. The new app reached ready. Pointer, keyboard, scaling and multi-device acceptance remain manual. [Project checks](../benchmarks/workbench-volume-history-source.json) · [Windows fixture](../benchmarks/volume-history-native-fixture.json)
+
+The unsigned installer is 11,061,668 bytes. Cleanup removed 3,303,373,479 logical bytes of inactive release files. The installer's executable and the running preview matched, and ten non-HTML embedded resources matched the production build. [Distribution](../benchmarks/distribution-volume-history.json) · [Post-clean checks](../benchmarks/workspace-footprint-volume-history.json)
+
 ## Storage trends
 
 History → Trends reads measured snapshots for the selected scope across capture pages. The interval and zoom control the displayed series. Comparable measurements are joined in blue, changes use a signed chart and the selected pair gives the largest increases and decreases in immediate folders. A dashed line and an observed-rate range appear after qualifying growth. The estimate covers logical path size in the scan scope. Whole-volume forecasts need independent usage history.
