@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Transfer and restore approval
+
+Windows can approve a newly prepared transfer or restore from Cleanup → Agent plans. The native confirmation names the action, destination and manifest hash. The connection must separately request execution within the two-minute grant. Start atomically checks the request, its issuer, its owner and its hash before consuming the grant. Earlier planning-only proposals still appear in the catalogue and require a fresh proposal for execution.
+
+All six project checks passed with eight routine tests. The retained desktop test verifies current and historical profiles and exercises the admission checks with a genuine recycling grant in an owned temporary directory. Start refused a missing request, a wrong hash and an approval that expired while waiting for the SQLite writer. The existing Windows copy fixtures verified content readback and partial outcomes. Positive approval and transfer or restoration across two NTFS volumes, elevation and device reconnect remain pending. [Project checks](../benchmarks/workbench-transfer-admission-source.json)
+
+The Windows preview reached ready, and 10 embedded non-HTML assets matched the production frontend. The unsigned NSIS installer measures 11,092,191 bytes. Cleanup removed 3,304,682,726 logical bytes of inactive builds and tests and 30,072,832 bytes of closed previews. The installer and open preview were preserved. Native confirmation interaction, rendering, keyboard and scaling remain manual. [Startup](../benchmarks/native-transfer-admission-preview.json) · [Distribution](../benchmarks/distribution-transfer-admission.json) · [Post-clean checks](../benchmarks/workspace-footprint-transfer-admission.json)
+
 ## Restore name conflicts
 
 An occupied original filename returns a restore collision by default. CLI and MCP can request Keep both. Voldiq searches up to 32 alternate names in the existing original parent, preserves other planned names and freezes the exact output in a schema-7 proposal. The review displays the original path and planned filename. A new conflict requires a fresh plan.
