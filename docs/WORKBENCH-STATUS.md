@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Transfer catalogue search
+
+Cleanup → Transfers searches recorded file names and source or destination paths. Published copies only selects files with validated publication receipts. The selected operation applies the same filter to its file pages. Bounded search batches can continue into older records, including from a batch with no matches. These reads use the catalogue without opening an archive or changing its contents.
+
+All six project checks passed with eight routine tests. The retained desktop flow checked a case-insensitive path with alternate slashes, a matching publication and exclusion of a prepared copy. The frontend flow checked filter ownership and stale responses. Server-rendered markup confirmed the search controls, and the Windows preview started with its embedded assets. Native search interaction, keyboard and scaling remain manual. [Project checks](../benchmarks/workbench-catalogue-search-source.json) · [Production startup](../benchmarks/native-catalogue-search-preview.json)
+
+The installer is 11,068,918 bytes. Cleanup removed 3,303,556,279 logical bytes of inactive builds and 89,551,872 bytes of closed previews. The new app and installer remained available. [Distribution](../benchmarks/distribution-catalogue-search.json) · [Post-clean checks](../benchmarks/workspace-footprint-catalogue-search.json)
+
 ## Volume free-space trends
 
 History → Trends can switch between indexed folder size and measured volume free space. Saving a manual or scheduled snapshot records the current volume sample when Voldiq can verify the native root identity. Existing captures remain readable and have no retroactive readings. The volume series uses the GUID and serial recorded with the latest capture in the selected scope. A capacity change breaks the line. Only recent compatible samples with sustained, stable free-space loss produce a forecast. The dashed extension ends at the estimated fill date and includes an observed-rate range.
