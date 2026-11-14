@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Recovery vault quota
+
+Cleanup → Transfers shows the estimated charge and lets the desktop user set or clear one global archive limit. The charge counts planned allocation for started offloads, including interrupted outcomes. The existing independent capacity reserve and native checks still apply. New offload drafts and admission check the limit inside a write transaction. Restore and recycle actions do not draw from this archive quota. Changes to the limit preserve existing files and records.
+
+All six source checks passed with eight routine tests. The retained desktop flow exercised migration, unset and persisted limits, exact-fit admission, over-limit denial and charging a started transfer. The Windows preview reached ready and ten non-HTML embedded assets matched the frontend build. Actual offload across volumes remains deferred. Native quota interaction, keyboard and scaling remain manual. [Project checks](../benchmarks/workbench-vault-quota-source.json) · [Production startup](../benchmarks/native-vault-quota-preview.json)
+
+The unsigned installer is 11,087,724 bytes. Cleanup removed 3,304,033,595 logical bytes of inactive release files, preserving the installer and open preview. [Distribution](../benchmarks/distribution-vault-quota.json) · [Post-clean checks](../benchmarks/workspace-footprint-vault-quota.json)
+
 ## Transfer catalogue search
 
 Cleanup → Transfers searches recorded file names and source or destination paths. Published copies only selects files with validated publication receipts. The selected operation applies the same filter to its file pages. Bounded search batches can continue into older records, including from a batch with no matches. These reads use the catalogue without opening an archive or changing its contents.
