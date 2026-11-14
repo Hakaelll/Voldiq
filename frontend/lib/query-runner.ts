@@ -12,6 +12,8 @@ export type QueryFamily =
   | 'snapshot_calendar'
   | 'snapshot_calendar_entries'
   | 'snapshot_diary'
+  | 'snapshot_trend'
+  | 'snapshot_trend_changes'
   | 'space_account'
   | 'recovery_copies'
   | 'history_clip'

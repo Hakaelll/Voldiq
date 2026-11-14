@@ -40,6 +40,8 @@ pub(crate) enum QueryFamily {
     MediaLibraries,
     SimilarImages,
     SystemStorage,
+    SnapshotTrend,
+    SnapshotTrendChanges,
 }
 
 #[derive(Default)]
@@ -56,7 +58,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 23],
+    slots: [Slot; 25],
 }
 
 impl QueryFamily {
@@ -85,6 +87,8 @@ impl QueryFamily {
             Self::MediaLibraries => 20,
             Self::SimilarImages => 21,
             Self::SystemStorage => 22,
+            Self::SnapshotTrend => 23,
+            Self::SnapshotTrendChanges => 24,
         }
     }
 }
@@ -255,6 +259,45 @@ pub(crate) async fn query_snapshot_diary(
         engine.inner().clone(),
         database.0.clone(),
         move |store, cancel| store.diary(query.snapshot, query.offset, query.limit, 5, cancel),
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn query_snapshot_trend(
+    query: voldiq_core::snapshots::TrendRequest,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+    database: State<'_, crate::snapshot_commands::SnapshotDatabase>,
+) -> Result<Option<voldiq_core::snapshots::TrendReport>, String> {
+    run_stored_query(
+        epoch,
+        QueryFamily::SnapshotTrend,
+        request_id,
+        engine.inner().clone(),
+        database.0.clone(),
+        move |store, cancel| store.trend(query, cancel),
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn query_snapshot_trend_changes(
+    before: i64,
+    after: i64,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+    database: State<'_, crate::snapshot_commands::SnapshotDatabase>,
+) -> Result<Option<voldiq_core::snapshots::TrendChanges>, String> {
+    run_stored_query(
+        epoch,
+        QueryFamily::SnapshotTrendChanges,
+        request_id,
+        engine.inner().clone(),
+        database.0.clone(),
+        move |store, cancel| store.trend_changes(before, after, cancel),
     )
     .await
 }

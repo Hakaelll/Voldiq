@@ -1109,6 +1109,8 @@ fn main() {
             query_commands::query_snapshot_calendar,
             query_commands::query_snapshot_calendar_entries,
             query_commands::query_snapshot_diary,
+            query_commands::query_snapshot_trend,
+            query_commands::query_snapshot_trend_changes,
             snapshot_commands::get_snapshot_retention,
             snapshot_commands::set_snapshot_retention,
             snapshot_commands::apply_snapshot_retention,

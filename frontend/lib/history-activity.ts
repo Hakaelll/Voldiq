@@ -13,6 +13,7 @@ export type HistoryWorkspace =
   | ({ kind: 'comparison' } & HistoricalComparison)
   | { kind: 'playback' }
   | { kind: 'calendar' }
+  | { kind: 'trends' }
   | { kind: 'diary'; location: DiaryLocation };
 
 export function utcDate(value: number | null): string {

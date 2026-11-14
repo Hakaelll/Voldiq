@@ -1,0 +1,117 @@
+{
+  "checkedUtc": "2026-11-14T17:11:32.0000026Z",
+  "startedUtc": "2026-11-14T16:58:29.4296485Z",
+  "checkoutCommit": "4e34a8799fb8d38936919a8991c6a41ab96f9825",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.027
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 7.367
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.898
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.166
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 692.563
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 74.523
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "67F62257AAF507F48032B7691CBDC643D4E8E71E26CC8D5FFF94FEF36A5CFF29"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "08034E0CBF8F0D78D16A096CA76840F661ACED0C69536029F59D6FA8E5811534"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "B7A6FEA5F4F123F77A2FD77ECC20F687B5E6B70940FDAEAB39392EDFD954CDB2"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots.rs",
+      "sha256": "9DFF220107F14479F0973AB12B9282F18B51ADADBFA0ED9B72C8917408BC05EF"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/trends.rs",
+      "sha256": "6D8A4934331EFF4D14693E3278430928E5BDEEE3F2F757309B169880467C6533"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "3DFB482B3DF785929498196617A9EF9C4E31536BBA7B33647ACC5E5358BA6F84"
+    },
+    {
+      "path": "frontend/components/History.svelte",
+      "sha256": "D2368D50EFE716FEF9B8FE0BFC7BFD57614C78A8E5B5CA323F5C852987564C42"
+    },
+    {
+      "path": "frontend/components/HistoryTrends.svelte",
+      "sha256": "771A7AA2D32E1C4946AA4A73BCE7E83D072294969914957CED94463E5E4E8D27"
+    },
+    {
+      "path": "frontend/lib/history-activity.ts",
+      "sha256": "417C715A73A047716BC9C4774A8A398A5C96B173A4D111F8EF559ED769CF11EE"
+    },
+    {
+      "path": "frontend/lib/history-trend.ts",
+      "sha256": "288C124660E560669297A88530ADA9E7C409318A1087E3A34758AB05AD8E92D9"
+    },
+    {
+      "path": "frontend/lib/queries.ts",
+      "sha256": "28CAFCC0B878D646909FF5AE702355C6EB7A94D5FB7227B1940B97267639437D"
+    },
+    {
+      "path": "frontend/lib/query-runner.ts",
+      "sha256": "4DD31FE64F13C3A1BF9092262F063065B1820153C3343E3DFFFC50270F1DFA6C"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "13B93B843A5B5F96FDF968E3DA73219275E42A7E8D8D96E885962AF98407B60F"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "5AADADBDF3A9C7D56F5AB5C3152291B517ACC3C919EFFC7F660376B8154B0E79"
+    },
+    {
+      "path": "src-tauri/src/query_commands.rs",
+      "sha256": "6234A0005A0E0FBBB522847D6B5DA2870447AF16D5C623584555F0254957E2A0"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "trendFixture": [
+    "eight real compatible observations",
+    "100-byte adjacent net change",
+    "one ranked folder",
+    "steady 1816-byte projection",
+    "skipped predecessor refused",
+    "one-byte shrink suppresses forecast"
+  ]
+}

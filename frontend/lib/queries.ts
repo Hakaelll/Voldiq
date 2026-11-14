@@ -1,4 +1,5 @@
 import type { HistoryClip, HistoryClipRequest } from './history-clip';
+import type { TrendChanges, TrendReport } from './history-trend';
 import type { IndexId } from './index-context';
 import type { SpaceReport } from './space-account';
 import type { SystemStorageReport } from './system-storage';
@@ -380,6 +381,34 @@ export const diaryQueries = createQueryRunner<
   cancel: async (family, requestId) =>
     invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
 });
+
+export const trendQueries = createQueryRunner<TrendReport, { snapshot: number; days: number }>(
+  'snapshot_trend',
+  {
+    run: async (_family, requestId, query) =>
+      invoke<TrendReport | null>('query_snapshot_trend', {
+        query,
+        epoch: await querySession(),
+        requestId,
+      }),
+    cancel: async (family, requestId) =>
+      invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+  },
+);
+
+export const trendChangeQueries = createQueryRunner<TrendChanges, { before: number; after: number }>(
+  'snapshot_trend_changes',
+  {
+    run: async (_family, requestId, pair) =>
+      invoke<TrendChanges | null>('query_snapshot_trend_changes', {
+        ...pair,
+        epoch: await querySession(),
+        requestId,
+      }),
+    cancel: async (family, requestId) =>
+      invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+  },
+);
 
 export const retentionQueries = createQueryRunner<SnapshotRetentionPreview, { snapshot: number }>(
   'snapshot_retention',

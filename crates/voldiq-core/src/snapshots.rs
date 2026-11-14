@@ -7,6 +7,7 @@ mod cache_evidence;
 mod library_evidence;
 mod retention;
 pub mod schedule;
+mod trends;
 mod visual;
 pub use activity::{
     ActivityCapture, CalendarDay, CalendarEntry, CalendarPage, CalendarRead, CalendarReport,
@@ -14,6 +15,7 @@ pub use activity::{
 };
 pub(crate) use budget_history::HistoryPoint;
 pub use retention::{RetentionPreview, RetentionResult, RetentionSettings};
+pub use trends::{TrendChanges, TrendReport, TrendRequest};
 pub use visual::{Accounting, VisualFrame, VisualPair};
 #[cfg(windows)]
 mod resume;

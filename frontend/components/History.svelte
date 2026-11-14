@@ -9,6 +9,7 @@
   import SnapshotRetention from './SnapshotRetention.svelte';
   import HistoryCalendar from './HistoryCalendar.svelte';
   import HistoryDiary from './HistoryDiary.svelte';
+  import HistoryTrends from './HistoryTrends.svelte';
   import type {
     HistoryWorkspace,
     HistoricalComparison,
@@ -317,7 +318,7 @@
     if (alive)
       (region.querySelector<HTMLInputElement>('.snapshot-row input:checked') ?? region).focus();
   }
-  async function enterActivity(kind: 'playback' | 'calendar' | 'diary'): Promise<void> {
+  async function enterActivity(kind: 'playback' | 'calendar' | 'diary' | 'trends'): Promise<void> {
     if (locked || !compatible.length) return;
     resetComparison();
     workspace =
@@ -381,6 +382,11 @@
           aria-pressed={workspace.kind === 'captures' || focusedComparison}
           onclick={showCaptures}
           disabled={locked}>Snapshots & compare</button
+        >
+        <button
+          aria-pressed={workspace.kind === 'trends'}
+          onclick={() => enterActivity('trends')}
+          disabled={locked || !compatible.length}>Trends</button
         >
         <button
           aria-pressed={workspace.kind === 'calendar'}
@@ -624,7 +630,9 @@
               ? 'Modification calendar'
               : workspace.kind === 'diary'
                 ? 'Observed diary'
-                : playback
+                : workspace.kind === 'trends'
+                  ? 'Storage trends'
+                  : playback
                   ? 'History playback'
                   : 'Compare snapshots'}
           </h2>
@@ -634,7 +642,9 @@
           {#if workspace.kind !== 'captures'}<button onclick={showCaptures}>Back to captures</button
             >{/if}
         </div>
-        {#if workspace.kind === 'calendar'}
+        {#if workspace.kind === 'trends'}
+          <HistoryTrends captures={snapshots} initialSnapshot={after} disabled={locked} />
+        {:else if workspace.kind === 'calendar'}
           {#key compatible.map((capture) => capture.id).join(':')}<HistoryCalendar
               captures={compatible}
               initialSnapshot={after}

@@ -4582,6 +4582,56 @@ fn budget_history_uses_measurements_and_real_scoped_image_samples() {
         index.observation.as_mut().unwrap().completed_at = now - (7 - day as u64) * 86400;
         ids.push(history.save(&index, &cancel, &[]).unwrap());
     }
+    let trend = history
+        .trend(
+            voldiq_core::snapshots::TrendRequest {
+                snapshot: ids[0],
+                days: 30,
+            },
+            &cancel,
+        )
+        .unwrap()
+        .unwrap();
+    assert_eq!(trend.points.len(), 8);
+    assert_eq!(trend.points[7].snapshot, ids[7]);
+    assert_eq!(trend.points[7].delta.as_deref(), Some("100"));
+    assert_eq!(trend.points[7].previous, Some(ids[6]));
+    let forecast = trend.forecast.unwrap();
+    assert_eq!(
+        (forecast.at, forecast.samples, forecast.logical.as_str()),
+        (now + 7 * 86400, 8, "1816")
+    );
+    let changes = history
+        .trend_changes(ids[6], ids[7], &cancel)
+        .unwrap()
+        .unwrap();
+    assert_eq!(changes.grew.len(), 1);
+    assert_eq!(
+        (
+            changes.grew[0].name.as_str(),
+            changes.grew[0].delta.as_str()
+        ),
+        ("photos", "100")
+    );
+    assert!(changes.shrank.is_empty());
+    assert!(history.trend_changes(ids[0], ids[7], &cancel).is_err());
+    std::fs::write(folder.join("growth.bin"), [3; 799]).unwrap();
+    let mut regressed = capture(source.path());
+    regressed.observation.as_mut().unwrap().completed_at = now + 1;
+    let regressed = history.save(&regressed, &cancel, &[]).unwrap();
+    let later = history
+        .trend(
+            voldiq_core::snapshots::TrendRequest {
+                snapshot: regressed,
+                days: 30,
+            },
+            &cancel,
+        )
+        .unwrap()
+        .unwrap();
+    assert_eq!(later.points.last().unwrap().delta.as_deref(), Some("-1"));
+    assert!(later.forecast.is_none());
+    std::fs::write(folder.join("growth.bin"), [3; 800]).unwrap();
     let mut index = history.load(*ids.last().unwrap(), &cancel).unwrap();
     let node = index
         .entries
