@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Restore name conflicts
+
+An occupied original filename returns a restore collision by default. CLI and MCP can request Keep both. Voldiq searches up to 32 alternate names in the existing original parent, preserves other planned names and freezes the exact output in a schema-7 proposal. The review displays the original path and planned filename. A new conflict requires a fresh plan.
+
+The six integration checks passed with eight routine tests. The retained Windows flow used owned files to check a case-insensitive conflict, an occupied alternate directory, another original name in the batch and a collision at publication. It verified that the existing file and archive bytes survived. The same flow checked old and new manifest validation. The official SDK flow checked the MCP option and existing authorization. Approval and positive restoration across two NTFS volumes remain pending. [Project checks](../benchmarks/workbench-restore-conflicts-source.json)
+
+The Windows preview reached ready. 10 embedded non-HTML files matched the production frontend. The unsigned NSIS installer measures 11,097,215 bytes. Cache cleanup removed 3,031,219,543 logical bytes of inactive builds and tests and 30,062,080 bytes of closed previews. The current window and installer were preserved. Native layout, interaction and scaling remain manual. [Startup](../benchmarks/native-restore-conflicts-preview.json) · [Distribution](../benchmarks/distribution-restore-conflicts.json) · [Post-clean checks](../benchmarks/workspace-footprint-restore-conflicts.json)
+
 ## Settings, commands and recovery vault retention
 
 Settings has a labeled slot in the sidebar footer beside the compact collapse control. The gear stays available in the collapsed rail. Ctrl+, opens Settings from the workspace or command palette. The palette uses compact left-aligned rows, one search focus outline and a return key hint on the selected row. Secondary text appears for paths and prerequisites. Search, chart commands, favorites and saved views reuse their existing handlers.
