@@ -141,6 +141,33 @@ pub async fn cancel_agent_plan(
 }
 
 #[tauri::command]
+pub async fn get_recovery_vault_quota(
+    reviews: tauri::State<'_, PlanReviews>,
+) -> Result<voldiq_core::plans::VaultQuota, String> {
+    let desktop = reviews.desktop()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        desktop.vault_quota().map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn set_recovery_vault_quota(
+    reviews: tauri::State<'_, PlanReviews>,
+    bytes: Option<String>,
+) -> Result<voldiq_core::plans::VaultQuota, String> {
+    let desktop = reviews.desktop()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        desktop
+            .set_vault_quota(bytes.as_deref())
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
 pub async fn list_transfer_records(
     reviews: tauri::State<'_, PlanReviews>,
     before: Option<String>,

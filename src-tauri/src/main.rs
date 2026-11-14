@@ -1050,6 +1050,8 @@ fn main() {
             plan_commands::list_agent_plans,
             plan_commands::get_agent_plan,
             plan_commands::list_transfer_records,
+            plan_commands::get_recovery_vault_quota,
+            plan_commands::set_recovery_vault_quota,
             plan_commands::get_transfer_record,
             plan_commands::approve_agent_plan,
             plan_commands::reject_agent_plan,

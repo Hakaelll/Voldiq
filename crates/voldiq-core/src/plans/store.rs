@@ -149,13 +149,16 @@ impl Store {
                 CREATE INDEX execution_requests_session ON execution_requests(issuer,requested);
                 PRAGMA user_version=2;",
             )?;
-        } else if version > 4 {
+        } else if version > 5 {
             return Err(invalid());
         }
         if version <= 2 {
             super::catalogue::migrate(&tx)?;
         } else if version == 3 {
             super::catalogue::migrate_restores(&tx)?;
+        }
+        if version <= 4 {
+            tx.execute_batch(super::catalogue::vault::SCHEMA)?;
         }
         tx.commit()?;
         Ok(Self {
@@ -278,6 +281,7 @@ impl Store {
         if count >= 10_000 {
             return Err(Error::Invalid("Plan retention limit reached.".into()));
         }
+        super::catalogue::vault::admit(&tx, &manifest.action)?;
         tx.execute("INSERT INTO agent_plans(id,owner,manifest,hash,native_record,binding,state) VALUES(?1,?2,?3,?4,?5,?6,'draft')",
             params![manifest.id, context.owner(), json, hash, native_record, context.binding()?])?;
         super::catalogue::prepare(&tx, &manifest, &hash)?;
@@ -343,6 +347,7 @@ impl Store {
         let tx = self
             .connection
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        super::catalogue::vault::admit(&tx, &stored.view.manifest.action)?;
         if tx.execute("UPDATE agent_plans SET state='approved',approval_issuer=?1,approval_expires=?2 WHERE id=?3 AND owner=?4 AND hash=?5 AND state='awaiting_approval'",
             params![human.issuer(), expires, id, context.owner(), hash])? != 1 { return Err(invalid()); }
         audit(&tx, id, now, "approved")?;
@@ -398,6 +403,7 @@ impl Store {
         if current_state != State::Approved {
             return Err(Error::NeedsHumanApproval);
         }
+        super::catalogue::vault::admit(&tx, &view.manifest.action)?;
         let started_at = super::now()?;
         if started_at < now {
             return Err(invalid());

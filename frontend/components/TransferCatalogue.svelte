@@ -10,6 +10,7 @@
     type TransferFilter,
   } from '../lib/transfer-catalogue';
   import Icon from './Icon.svelte';
+  import VaultQuota from './VaultQuota.svelte';
   let { onreview }: { onreview: (id: string) => void } = $props();
   const native = isTauri();
   let catalogueState = $state.raw<CatalogueState>({
@@ -101,6 +102,7 @@
     >
   </div>
   {#if native}
+    <VaultQuota />
     <form class="transfer-search" onsubmit={searchRecords}>
       <label>
         Find a file or path

@@ -548,6 +548,8 @@ Transfers uses a bounded list/detail composition with existing 20px spacing, 8px
 
 A single search field above the lists matches recorded file names and source or destination paths. Published copies only applies the same filter inside each operation. Each search examines up to 100 operations, with a continuation when older records remain. An empty batch offers that continuation. Paging returns displaced focus to the workspace heading. Search operates on catalogue records and leaves the archive disconnected if it was disconnected.
 
+Transfers shows a collapsed Recovery vault quota row with estimated usage and the configured limit. Expand it to set a positive byte limit or clear the limit. Interrupted copies remain in the estimate. Reaching the limit blocks new archive plans and the separate Windows capacity check still applies.
+
 ## Reading and control hierarchy
 
 The storage workbench uses open sections, aligned rows and separators instead of a framed card for every information group. Overview and application sections use plain secondary navigation with an active underline. Summary headings use sentence case and existing title sizes; list text uses 13px and supporting metadata generally 12px. The black theme, chart palette, original artwork and main sidebar behavior remain in place.

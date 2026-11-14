@@ -4,9 +4,11 @@ use crate::{NodeId, Result};
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::Serialize;
 mod listing;
+pub(super) mod vault;
 pub use listing::{
     TransferFilter, TransferKind, TransferPage, TransferSummary, TransferSummaryStatus,
 };
+pub use vault::VaultQuota;
 
 const MANIFEST_LIMIT: usize = 440 * 1024;
 const FILE_COLUMNS: &str =

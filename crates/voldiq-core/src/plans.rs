@@ -19,7 +19,7 @@ use crate::{Error, Result};
 pub use batch::{CopiedTransfer, TransferFailure};
 pub use catalogue::{
     TransferCatalogue, TransferFile, TransferFilter, TransferKind, TransferPage, TransferPhase,
-    TransferSummary, TransferSummaryStatus, TransferUpdate,
+    TransferSummary, TransferSummaryStatus, TransferUpdate, VaultQuota,
 };
 #[cfg(windows)]
 pub use copying::{CopyFailure, CopyPublication, PublishedContent, TransferWorker};

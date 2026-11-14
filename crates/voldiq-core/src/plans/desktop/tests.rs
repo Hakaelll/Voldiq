@@ -208,7 +208,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                 SELECT ?1,owner,?2,?3,native_record,binding,'executing','prior catalogue fixture','fixture nonce' FROM agent_plans WHERE id=?4",
                 rusqlite::params![historical.id,json,hash,plan.manifest.id]).unwrap();
             // Model a version-2 database with a pre-existing proposal, then run the real migration.
-            ledger.connection.execute_batch("DROP TABLE transfer_files; DROP TABLE transfer_operations; PRAGMA user_version=2;").unwrap();
+            ledger.connection.execute_batch("DROP TABLE recovery_vault_quota; DROP TABLE transfer_files; DROP TABLE transfer_operations; PRAGMA user_version=2;").unwrap();
             drop(ledger);
             let mut ledger = Store::open(state.path()).unwrap();
             assert_eq!(
@@ -216,9 +216,53 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                     .connection
                     .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
                     .unwrap(),
-                4
+                5
             );
             let human = HumanAuthority::acquire(state.path()).unwrap();
+            {
+                ledger
+                    .connection
+                    .execute(
+                        "UPDATE agent_plans SET state='draft' WHERE id=?1",
+                        [&historical.id],
+                    )
+                    .unwrap();
+                let quota = ledger.vault_quota(&human).unwrap();
+                assert_eq!(quota.limit_bytes, None);
+                assert_eq!(quota.charged_bytes, "0");
+                assert!(ledger.set_vault_quota(&human, Some("00")).is_err());
+                ledger.set_vault_quota(&human, Some("1")).unwrap();
+                let tx = ledger.connection.unchecked_transaction().unwrap();
+                assert!(catalogue::vault::admit(&tx, &historical.action).is_err());
+                assert!(catalogue::vault::admit(&tx, &Action::Recycle).is_ok());
+                drop(tx);
+                ledger
+                    .connection
+                    .execute(
+                        "UPDATE agent_plans SET state='executing' WHERE id=?1",
+                        [&historical.id],
+                    )
+                    .unwrap();
+                let quota = ledger.vault_quota(&human).unwrap();
+                assert_eq!(quota.limit_bytes.as_deref(), Some("1"));
+                let Action::Offload(ref transfer) = historical.action else {
+                    panic!("Expected transfer")
+                };
+                let expected = transfer.required_available_bytes.parse::<u64>().unwrap()
+                    - crate::plans::offload::RESERVE;
+                assert_eq!(quota.charged_bytes, expected.to_string());
+                assert_eq!(quota.charged_plans, 1);
+                drop(ledger);
+                ledger = Store::open(state.path()).unwrap();
+                assert_eq!(ledger.vault_quota(&human).unwrap().charged_plans, 1);
+                let combined = (2 * expected).to_string();
+                ledger.set_vault_quota(&human, Some(&combined)).unwrap();
+                let tx = ledger.connection.unchecked_transaction().unwrap();
+                assert!(catalogue::vault::admit(&tx, &historical.action).is_ok());
+                drop(tx);
+                ledger.set_vault_quota(&human, None).unwrap();
+                assert_eq!(ledger.vault_quota(&human).unwrap().limit_bytes, None);
+            }
             let operations = ledger
                 .transfer_operations(&human, None, 1, &Default::default())
                 .unwrap();
@@ -490,7 +534,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                         rusqlite::params![restored.id,restored.connection_id,json,hash]).unwrap();
                     database
                         .connection
-                        .execute_batch("PRAGMA user_version=3;")
+                        .execute_batch("DROP TABLE recovery_vault_quota; PRAGMA user_version=3;")
                         .unwrap();
                     drop(database);
                     let mut database = Store::open(migration_state.path()).unwrap();
@@ -510,7 +554,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                             .connection
                             .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
                             .unwrap(),
-                        4
+                        5
                     );
                     let tx = database.connection.transaction().unwrap();
                     for node in [entries[0].id, entries[1].id] {

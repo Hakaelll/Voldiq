@@ -74,6 +74,16 @@ pub enum ReviewStatus {
 }
 
 impl Desktop {
+    pub fn vault_quota(&self) -> Result<super::VaultQuota> {
+        Store::open(&self.directory)?.vault_quota(&self.human)
+    }
+
+    pub fn set_vault_quota(&self, limit: Option<&str>) -> Result<super::VaultQuota> {
+        let mut store = Store::open(&self.directory)?;
+        store.set_vault_quota(&self.human, limit)?;
+        store.vault_quota(&self.human)
+    }
+
     pub fn transfer_operations(
         &self,
         before: Option<&str>,
