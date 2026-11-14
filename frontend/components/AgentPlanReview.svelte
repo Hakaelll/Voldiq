@@ -386,6 +386,10 @@
             <dt>Execution time limit</dt>
             <dd>4 hours from the one-time start · approval is separate</dd>
           </div>
+          {#if restore.on_collision === 'keep_both'}<div>
+              <dt>On a name conflict</dt>
+              <dd>Keep both · review the planned names below</dd>
+            </div>{/if}
           <div class="wide">
             <dt>Restore limits</dt>
             <dd>
@@ -443,7 +447,10 @@
                     >{/if}
                   {#if restore}{@const restored = restore.files.find(
                       (file) => file.source_id === entry.id,
-                    )}{#if restored}<small>Restore to: {restored.original_path}</small><small
+                    )}{@const output = restore.groups.flatMap((group) => group.outputs).find(
+                      (candidate) => candidate.id === entry.id,
+                    )}{#if restored && output}<small>Original path: {restored.original_path}</small>
+                      <small>Restore as: {output.name}</small><small
                         >Expected BLAKE3: <code>{restored.content_blake3}</code></small
                       >{/if}{/if}
                 </td><td>{exactBytes(entry.logical_bytes)}</td><td

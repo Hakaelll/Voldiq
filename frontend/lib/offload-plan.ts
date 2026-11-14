@@ -35,6 +35,7 @@ export type PlanAction =
         transfer_manifest_hash: string;
         required_available_bytes: string;
         limitations: string;
+        on_collision?: 'keep_both';
         groups: OffloadPlan[];
         files: {
           source_id: number;

@@ -1,27 +1,42 @@
 //! Read-only restore proposals use fresh archive scan evidence and current scope, never catalogue authority.
 use super::{
     Action, FileEvidence, Manifest, Offload, Originals, Store, TransferFile, View, invalid,
+    offload::{Output, TransferLayout, occupied, output_path},
 };
 use crate::{
     Error, NodeId, Result,
-    agents::{Capability, PlanContext},
+    agents::{AuthorizedPath, Capability, PlanContext},
     cleanup::record::Record,
     index::Index,
     transfer::metadata::BasicMetadata,
 };
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashSet,
-    path::{Path, PathBuf},
-};
+use std::{collections::HashSet, path::Path};
 
 pub(super) const LIMITATIONS: &str = "Planning only; restoration approval and execution are unavailable. Keep archive copies. Existing original parent folders only; no replacement, directory recreation or inferred relocation. Verify every archive's recorded BLAKE3 before publication. Basic NTFS metadata only; original unknown creation remains disclosed, with the archive's observed creation date used for the new copy. Permissions, access/change dates and link relationships are not restored. No full-restoration or freed-space guarantee.";
+const ALTERNATE_NAMES: u8 = 32;
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RestoreCollisionPolicy {
+    #[default]
+    Fail,
+    KeepBoth,
+}
+
+impl RestoreCollisionPolicy {
+    fn is_fail(&self) -> bool {
+        *self == Self::Fail
+    }
+}
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RestoreRequest {
     pub transfer_plan_id: String,
     pub node_ids: Vec<NodeId>,
+    #[serde(default)]
+    pub on_collision: RestoreCollisionPolicy,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
@@ -45,6 +60,8 @@ pub struct Restore {
     pub(super) groups: Vec<Offload>,
     required_available_bytes: String,
     limitations: String,
+    #[serde(default, skip_serializing_if = "RestoreCollisionPolicy::is_fail")]
+    on_collision: RestoreCollisionPolicy,
 }
 
 struct Archive {
@@ -55,6 +72,13 @@ struct Archive {
 }
 
 impl Restore {
+    pub(super) fn schema_version(&self) -> u32 {
+        match self.on_collision {
+            RestoreCollisionPolicy::Fail => 6,
+            RestoreCollisionPolicy::KeepBoth => 7,
+        }
+    }
+
     pub(super) fn expected_content(&self, node: NodeId) -> Result<blake3::Hash> {
         let file = self
             .files
@@ -94,7 +118,7 @@ impl Restore {
                 .filter(|entry| group.outputs.iter().any(|output| output.id == entry.id))
                 .cloned()
                 .collect::<Vec<_>>();
-            group.check_shape(&selected)?;
+            group.check_output_shape(&selected)?;
             let needed = group
                 .required_available_bytes
                 .parse::<u64>()
@@ -132,6 +156,15 @@ impl Restore {
                 .find(|group| group.outputs.iter().any(|output| output.id == entry.id))
                 .ok_or_else(invalid)?;
             let copy = group.file_metadata(entry.id)?;
+            let output = group
+                .outputs
+                .iter()
+                .find(|output| output.id == entry.id)
+                .ok_or_else(invalid)?;
+            let original_name = Path::new(&file.original_path)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .ok_or_else(invalid)?;
             file.original_metadata
                 .check_shape(&entry.modified_unix_ns)?;
             if file.source_id != entry.id
@@ -143,6 +176,10 @@ impl Restore {
                 || file.bytes != entry.logical_bytes
                 || Path::new(&file.original_path).parent() != Some(group.destination.path.as_path())
                 || Path::new(&file.original_path).file_name() != Path::new(&entry.path).file_name()
+                || (output.name != original_name
+                    && (self.on_collision.is_fail()
+                        || !(1..=ALTERNATE_NAMES)
+                            .any(|n| alternate_name(original_name, n) == output.name)))
                 || file.original_metadata.modified_windows_100ns() != copy.modified_windows_100ns()
                 || file.original_metadata.dos_attributes() != copy.dos_attributes()
                 || file
@@ -214,12 +251,13 @@ impl Restore {
         index: &Index,
         entries: &[FileEvidence],
         archive: &Archive,
+        on_collision: RestoreCollisionPolicy,
     ) -> Result<Self> {
         let Action::Offload(old) = &archive.manifest.action else {
             return Err(invalid());
         };
         let mut files = Vec::with_capacity(entries.len());
-        let mut parents: Vec<(PathBuf, Vec<FileEvidence>)> = Vec::new();
+        let mut parents: Vec<(AuthorizedPath, Vec<FileEvidence>)> = Vec::new();
         for entry in entries {
             let name = Path::new(&entry.path)
                 .file_name()
@@ -248,13 +286,16 @@ impl Restore {
             archive
                 .record
                 .check_restore_ancestry(original.id, &current)?;
-            let parent = current.path().to_owned();
-            let restored_path =
-                parent.join(Path::new(&original.path).file_name().ok_or_else(invalid)?);
-            if let Some((_, group)) = parents.iter_mut().find(|(path, _)| path == &parent) {
+            let restored_path = current
+                .path()
+                .join(Path::new(&original.path).file_name().ok_or_else(invalid)?);
+            if let Some((_, group)) = parents
+                .iter_mut()
+                .find(|(parent, _)| parent.path() == current.path())
+            {
                 group.push(entry.clone());
             } else {
-                parents.push((parent, vec![entry.clone()]));
+                parents.push((current, vec![entry.clone()]));
             }
             files.push(RestoreFile {
                 source_id: entry.id,
@@ -268,14 +309,16 @@ impl Restore {
         }
         let mut groups = Vec::with_capacity(parents.len());
         let mut required = super::offload::RESERVE;
+        let protections = crate::metadata::Store::open(state)?.protections()?;
         for (parent, entries) in parents {
+            let outputs = restore_outputs(context, &parent, &protections, &entries, on_collision)?;
             let group = Offload::capture(
                 context,
                 state,
                 &index.root,
                 &entries,
-                &parent,
-                Originals::Keep,
+                parent.path(),
+                TransferLayout::Restore(&outputs),
             )?;
             if group.destination.volume != old.source_volume
                 || group.source_volume != old.destination.volume
@@ -301,6 +344,7 @@ impl Restore {
             groups,
             required_available_bytes: required.to_string(),
             limitations: LIMITATIONS.into(),
+            on_collision,
         };
         restore.check(context, state, &index.root, entries)?;
         Ok(restore)
@@ -378,9 +422,105 @@ impl Store {
         tx.commit()?;
         let state = self.directory.path().to_owned();
         self.create_using(context, snapshot, index, &selection, now, |entries| {
-            Restore::capture(context, &state, index, entries, &archive)
-                .map(|plan| Action::Restore(Box::new(plan)))
+            Restore::capture(
+                context,
+                &state,
+                index,
+                entries,
+                &archive,
+                request.on_collision,
+            )
+            .map(|plan| Action::Restore(Box::new(plan)))
         })
+    }
+}
+
+pub(super) fn restore_outputs(
+    context: &PlanContext<'_>,
+    parent: &AuthorizedPath,
+    protections: &crate::metadata::Protections,
+    entries: &[FileEvidence],
+    on_collision: RestoreCollisionPolicy,
+) -> Result<Vec<Output>> {
+    let names = entries
+        .iter()
+        .map(|entry| {
+            Path::new(&entry.path)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .ok_or_else(invalid)
+        })
+        .collect::<Result<Vec<_>>>()?;
+    // A renamed file cannot claim another file's original destination in this batch.
+    let mut reserved = names
+        .iter()
+        .map(|name| name.to_uppercase())
+        .collect::<HashSet<_>>();
+    if reserved.len() != names.len() {
+        return Err(invalid());
+    }
+    let mut outputs = Vec::with_capacity(entries.len());
+    for (entry, name) in entries.iter().zip(names) {
+        let original = output_path(context, parent, protections, name)?;
+        let name = if occupied(&original)? {
+            if on_collision.is_fail() {
+                return Err(Error::RestoreCollision);
+            }
+            let mut available = None;
+            for number in 1..=ALTERNATE_NAMES {
+                let candidate = alternate_name(name, number);
+                let key = candidate.to_uppercase();
+                if reserved.contains(&key) {
+                    continue;
+                }
+                let path = output_path(context, parent, protections, &candidate)?;
+                if !occupied(&path)? {
+                    reserved.insert(key);
+                    available = Some(candidate);
+                    break;
+                }
+            }
+            available.ok_or_else(|| {
+                Error::Invalid(
+                    "The original name and 32 alternate restore names are occupied. Select other files or free a name before preparing a new plan.".into(),
+                )
+            })?
+        } else {
+            name.to_owned()
+        };
+        outputs.push(Output { id: entry.id, name });
+    }
+    Ok(outputs)
+}
+
+fn alternate_name(original: &str, number: u8) -> String {
+    let path = Path::new(original);
+    let stem = path
+        .file_stem()
+        .and_then(|stem| stem.to_str())
+        .unwrap_or(original);
+    let suffix = format!(" (restored {number})");
+    let suffix_units = suffix.len();
+    let extension = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .filter(|extension| extension.encode_utf16().count() + suffix_units + 2 <= 255);
+    let mut available =
+        255 - suffix_units - extension.map_or(0, |extension| 1 + extension.encode_utf16().count());
+    let stem = stem
+        .chars()
+        .take_while(|character| {
+            let units = character.len_utf16();
+            if units > available {
+                return false;
+            }
+            available -= units;
+            true
+        })
+        .collect::<String>();
+    match extension {
+        Some(extension) => format!("{stem}{suffix}.{extension}"),
+        None => format!("{stem}{suffix}"),
     }
 }
 

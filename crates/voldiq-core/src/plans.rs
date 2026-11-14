@@ -33,7 +33,7 @@ pub use offload::{
 pub use originals::{OriginalTransferResult, PreparedOffloadRecycling};
 #[cfg(windows)]
 pub use recycling::{PreparedRecycling, RecyclingWorker};
-pub use restoration::{Restore, RestoreRequest};
+pub use restoration::{Restore, RestoreCollisionPolicy, RestoreRequest};
 use serde::{Deserialize, Serialize};
 pub use store::{Enqueue, ExecutionRequest, Store};
 
@@ -118,7 +118,7 @@ impl Action {
         match self {
             Self::Recycle => 2,
             Self::Offload(plan) => plan.schema_version(),
-            Self::Restore(_) => 6,
+            Self::Restore(plan) => plan.schema_version(),
         }
     }
     pub fn execution_available(&self) -> bool {

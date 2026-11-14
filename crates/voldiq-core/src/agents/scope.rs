@@ -45,6 +45,16 @@ impl Root {
     pub(super) fn contains(&self, path: &Path) -> bool {
         path.starts_with(&self.path)
     }
+
+    pub(super) fn covers_output(&self, path: &Path) -> bool {
+        #[cfg(windows)]
+        {
+            let uppercase = |path: &Path| PathBuf::from(path.to_string_lossy().to_uppercase());
+            uppercase(path).starts_with(uppercase(&self.path))
+        }
+        #[cfg(not(windows))]
+        self.contains(path)
+    }
 }
 
 /// Metadata authorization with pinned ancestors. It does not grant mutation authority.

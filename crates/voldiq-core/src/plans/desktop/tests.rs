@@ -133,6 +133,59 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             .to_owned();
         collision.push(second);
         assert!(layout(&collision, &model).is_err());
+        {
+            use crate::plans::{RestoreCollisionPolicy, restoration::restore_outputs};
+            let principal = registry
+                .authenticate(volume_reader.credential.expose())
+                .unwrap();
+            let context = registry
+                .plan_context(&principal, Capability::PreparePlans)
+                .unwrap();
+            let parent = context.path(destination.path()).unwrap();
+            let protections = crate::metadata::Store::open(state.path())
+                .unwrap()
+                .protections()
+                .unwrap();
+            let original_path = destination.path().join("SELECTED.DATA");
+            let occupied_name = destination.path().join("selected (restored 1).data");
+            std::fs::write(&original_path, b"existing original").unwrap();
+            std::fs::create_dir(&occupied_name).unwrap();
+            let mut other = plan.manifest.entries[0].clone();
+            other.id = crate::NodeId(u32::MAX - 7);
+            other.path = source
+                .path()
+                .join("selected (restored 2).data")
+                .to_str()
+                .unwrap()
+                .into();
+            let batch = [plan.manifest.entries[0].clone(), other];
+            assert!(matches!(
+                restore_outputs(
+                    &context,
+                    &parent,
+                    &protections,
+                    &batch,
+                    RestoreCollisionPolicy::Fail
+                ),
+                Err(crate::Error::RestoreCollision)
+            ));
+            let outputs = restore_outputs(
+                &context,
+                &parent,
+                &protections,
+                &batch,
+                RestoreCollisionPolicy::KeepBoth,
+            )
+            .unwrap();
+            assert_eq!(outputs[0].name, "selected (restored 3).data");
+            assert_eq!(outputs[1].name, "selected (restored 2).data");
+            assert_eq!(std::fs::read(&original_path).unwrap(), b"existing original");
+            assert!(occupied_name.is_dir());
+            assert!(!destination.path().join(&outputs[0].name).exists());
+            assert!(!destination.path().join(&outputs[1].name).exists());
+            std::fs::remove_file(&original_path).unwrap();
+            std::fs::remove_dir(&occupied_name).unwrap();
+        }
         shape["filesystem"] = serde_json::json!("FAT32");
         let fat: Destination = serde_json::from_value(shape.clone()).unwrap();
         let mut large = plan.manifest.entries.clone();
@@ -483,10 +536,42 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                     assert_eq!(action.schema_version(), 6);
                     assert!(!action.execution_available());
                     let encoded = serde_json::to_string(&action).unwrap();
+                    assert!(!encoded.contains("on_collision"));
                     assert_eq!(
                         serde_json::to_string(&serde_json::from_str::<Action>(&encoded).unwrap())
                             .unwrap(),
                         encoded
+                    );
+                    let mut keep_both = proposed.clone();
+                    let renamed = format!(
+                        "{} (restored 3).data",
+                        std::path::Path::new(name)
+                            .file_stem()
+                            .unwrap()
+                            .to_str()
+                            .unwrap()
+                    );
+                    keep_both["groups"][0]["outputs"][0]["name"] = serde_json::json!(renamed);
+                    assert!(
+                        serde_json::from_value::<crate::plans::Restore>(keep_both.clone())
+                            .unwrap()
+                            .check_shape(&bounded.entries)
+                            .is_err()
+                    );
+                    keep_both["on_collision"] = serde_json::json!("keep_both");
+                    let renamed =
+                        serde_json::from_value::<crate::plans::Restore>(keep_both.clone()).unwrap();
+                    renamed.check_shape(&bounded.entries).unwrap();
+                    let action = Action::Restore(Box::new(renamed));
+                    assert_eq!(action.schema_version(), 7);
+                    assert!(!action.execution_available());
+                    keep_both["groups"][0]["outputs"][0]["name"] =
+                        serde_json::json!("..\\elsewhere.data");
+                    assert!(
+                        serde_json::from_value::<crate::plans::Restore>(keep_both)
+                            .unwrap()
+                            .check_shape(&bounded.entries)
+                            .is_err()
                     );
                     let mut second = bounded.entries[0].clone();
                     second.id = crate::NodeId(u32::MAX - 2);
@@ -787,6 +872,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                             &crate::plans::RestoreRequest {
                                 transfer_plan_id: bounded.id.clone(),
                                 node_ids: vec![selected],
+                                on_collision: Default::default(),
                             },
                             super::super::now().unwrap(),
                         )
@@ -1540,6 +1626,31 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
         assert_eq!(failure.publication(), CopyPublication::Uncertain);
         assert!(failure.cleanup_error().is_none());
         assert_eq!(std::fs::read(&output).unwrap(), payload);
+        let late_path = destination.path().join("copy (restored 1).data");
+        let late_conflict = copy_verified(
+            copy_plan.copy_source(copy_id).unwrap(),
+            CopyProfile::Restore {
+                metadata: metadata.clone(),
+                expected: blake3::hash(&payload),
+            },
+            OwnedFile::create(&parent).unwrap(),
+            OsStr::new("copy (restored 1).data"),
+            &cancelled,
+            |control| {
+                if matches!(control, Control::Record(TransferUpdate::PublishIntent)) {
+                    std::fs::write(&late_path, b"arrived after review")?;
+                }
+                Ok(())
+            },
+            |_| {},
+        )
+        .err()
+        .unwrap();
+        assert_eq!(late_conflict.publication(), CopyPublication::Uncertain);
+        assert!(late_conflict.cleanup_error().is_none());
+        assert_eq!(std::fs::read(&late_path).unwrap(), b"arrived after review");
+        assert_eq!(std::fs::read(&input).unwrap(), payload);
+        std::fs::remove_file(&late_path).unwrap();
         let failure = copy_verified(
             copy_plan.copy_source(copy_id).unwrap(),
             CopyProfile::Offload(metadata.clone()),

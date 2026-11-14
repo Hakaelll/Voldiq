@@ -1,0 +1,131 @@
+{
+  "checkedUtc": "2026-11-14T19:51:07.2392766Z",
+  "startedUtc": "2026-11-14T19:29:27.5586435Z",
+  "checkoutCommit": "93ee39aa539ce938a758da3b9adad5d0a33b096c",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 3.613
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 24.252
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 2.388
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 17.028
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1093.658
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 158.655
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "F890AA0EF776BDEED2DB6CFB9EFD5D18EE3F1FFA2574D3394D72F18504D366DE"
+    },
+    {
+      "path": "docs/MCP.md",
+      "sha256": "90C1005E517E04556A718ACD391A9A11651DDCB98851A64A0CF6C2B0EF30B363"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "3F92FB2BCCD6D3DA1FD6F7FF1D5458D7584FC9F81E81FBDE048F23C8F0CC70B8"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "EFE9B8ED9F510916A94847B553FC7DDA9391918A29042F598ABE5CB6CABB8B49"
+    },
+    {
+      "path": "crates/voldiq-core/src/agents.rs",
+      "sha256": "00FD42DF087D45774AF7BF2072F79998F1FFC6BEA14E2CE1323CA564C0AB71F4"
+    },
+    {
+      "path": "crates/voldiq-core/src/agents/scope.rs",
+      "sha256": "6774D7501E67CD7AECE9B48EE2FEE4F53B0F7988F14E19018181FDB18F6831E5"
+    },
+    {
+      "path": "crates/voldiq-core/src/lib.rs",
+      "sha256": "DA6A44EA7C60664B2D4369EC52C488D0588E0E84E1974B8060857F5C9783EF5F"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans.rs",
+      "sha256": "5CAFC485433B4CB9E5FA74C4D1F7DABFC7402E263987470113AA59EA9E4D32AF"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/desktop/tests.rs",
+      "sha256": "5746B628571C16A73E8019014EBA8BCDEBD47D66F23D9332282AF48B186BB779"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/offload.rs",
+      "sha256": "1B59BC9A3CF25B0B7F89EB94C63895DDA98B2220659F777D7C958A32352953AE"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/restoration.rs",
+      "sha256": "2D8A139988E1CDE407AFE645950A5D348149570CBAA2F9EE2E8231132F395251"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/store.rs",
+      "sha256": "5FEEC77A79834B2953E7304CF8034FFA066D905C31EAFE7874BEA8EB48C54D6D"
+    },
+    {
+      "path": "crates/voldiq-headless/src/main.rs",
+      "sha256": "31A80D2AC4532D2D4A8D6A5517F7CC24710B5537C67A92502693DE3D05414462"
+    },
+    {
+      "path": "crates/voldiq-headless/src/mcp.rs",
+      "sha256": "EDCA0C44361D53F22CDE97B98A66CEF5BDEA1CC4724B18C6ADA6B36204424ACB"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/mcp.rs",
+      "sha256": "CDC5D81F9B3903E43FCD279334F071881F43AC197FE0237D32BD883E1F8052B4"
+    },
+    {
+      "path": "frontend/components/AgentPlanReview.svelte",
+      "sha256": "E4D9A9083DDEE004DD48C3F8524E8A66383FEAACC5CF77859F10C5A5F0FDEFB0"
+    },
+    {
+      "path": "frontend/components/TransferCatalogue.svelte",
+      "sha256": "4039360224082575FEB679B2E36B99D7CF0F09265D40F94866FBA40DC381E7E1"
+    },
+    {
+      "path": "frontend/lib/offload-plan.ts",
+      "sha256": "16C68F604BC88C64A0EDBFD47F4F6CD6E86CA2830FED785C906A9984BF401921"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "restoreFixture": [
+    "case-insensitive collision",
+    "occupied alternate directory",
+    "reserved batch name",
+    "original unchanged",
+    "late attempt kept competing output and archive",
+    "old schema unchanged",
+    "alternate manifest shape validated",
+    "MCP schema and authorization"
+  ]
+}

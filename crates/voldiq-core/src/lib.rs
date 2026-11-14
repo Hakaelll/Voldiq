@@ -38,6 +38,10 @@ pub enum Error {
     Query(#[from] search::QueryError),
     #[error("needs_human_approval")]
     NeedsHumanApproval,
+    #[error(
+        "A restore output already exists. Choose keep_both to prepare a plan with a different name, or select other files."
+    )]
+    RestoreCollision,
     #[error("{0}")]
     Invalid(String),
     #[error(transparent)]

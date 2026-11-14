@@ -135,6 +135,11 @@ pub struct Output {
     pub(super) name: String,
 }
 
+pub(super) enum TransferLayout<'a> {
+    Offload(Originals),
+    Restore(&'a [Output]),
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ExecutionPolicy {
@@ -217,7 +222,16 @@ impl Offload {
                 "Verified content copying requires the unchanged NTFS destination profile.".into(),
             ));
         }
-        let (_, required) = layout(std::slice::from_ref(entry), &current)?;
+        let output = self
+            .outputs
+            .iter()
+            .find(|output| output.id == entry.id)
+            .ok_or_else(invalid)?;
+        let required = required_capacity(
+            std::slice::from_ref(entry),
+            &current,
+            std::slice::from_ref(output),
+        )?;
         if current
             .caller_available_bytes
             .parse::<u64>()
@@ -229,12 +243,8 @@ impl Offload {
                     .into(),
             ));
         }
-        let output = self
-            .outputs
-            .iter()
-            .find(|output| output.id == entry.id)
-            .ok_or_else(invalid)?;
-        absent(&target.path().join(&output.name))?;
+        let protections = crate::metadata::Store::open(state)?.protections()?;
+        absent(&output_path(context, &target, &protections, &output.name)?)?;
         Ok(target)
     }
     pub(super) fn authorize(
@@ -274,7 +284,7 @@ impl Offload {
         source: &Path,
         entries: &[FileEvidence],
         destination: &Path,
-        originals: Originals,
+        layout: TransferLayout<'_>,
     ) -> Result<Self> {
         let target = context.path(destination)?;
         let _capacity_scope = capacity_scope(context, target.path())?;
@@ -288,7 +298,11 @@ impl Offload {
                 "Select a destination on a different volume.".into(),
             ));
         }
-        let (outputs, required) = layout(entries, &destination)?;
+        let (originals, outputs) = match layout {
+            TransferLayout::Offload(originals) => (originals, source_outputs(entries)?),
+            TransferLayout::Restore(outputs) => (Originals::Keep, outputs.to_vec()),
+        };
+        let required = required_capacity(entries, &destination, &outputs)?;
         if destination.filesystem != "NTFS" {
             return Err(crate::Error::Invalid(
                 "The basic metadata transfer profile currently requires an NTFS destination."
@@ -317,6 +331,13 @@ impl Offload {
     }
 
     pub(super) fn check_shape(&self, entries: &[FileEvidence]) -> Result<()> {
+        if self.outputs != source_outputs(entries)? {
+            return Err(invalid());
+        }
+        self.check_output_shape(entries)
+    }
+
+    pub(super) fn check_output_shape(&self, entries: &[FileEvidence]) -> Result<()> {
         if let Some(metadata) = &self.metadata {
             metadata.check_shape(entries)?;
         }
@@ -325,9 +346,8 @@ impl Offload {
         {
             return Err(invalid());
         }
-        let (outputs, required) = layout(entries, &self.destination)?;
-        if outputs != self.outputs
-            || self.required_available_bytes != required.to_string()
+        let required = required_capacity(entries, &self.destination, &self.outputs)?;
+        if self.required_available_bytes != required.to_string()
             || self.reserve_bytes != RESERVE.to_string()
             || self.limitations != LIMITATIONS
             || self.source_volume.guid_root == self.destination.volume.guid_root
@@ -356,7 +376,7 @@ impl Offload {
         source: &Path,
         entries: &[FileEvidence],
     ) -> Result<u64> {
-        self.check_shape(entries)?;
+        self.check_output_shape(entries)?;
         #[cfg(windows)]
         if let Some(expected) = &self.metadata
             && MetadataPlan::capture(context, entries)? != *expected
@@ -385,9 +405,9 @@ impl Offload {
         {
             return Err(invalid());
         }
+        let protections = crate::metadata::Store::open(state)?.protections()?;
         for output in &self.outputs {
-            let path = current.path.join(&output.name);
-            absent(&path)?;
+            absent(&output_path(context, &target, &protections, &output.name)?)?;
         }
         current
             .caller_available_bytes
@@ -397,6 +417,15 @@ impl Offload {
 }
 
 fn absent(path: &Path) -> Result<()> {
+    if occupied(path)? {
+        return Err(crate::Error::Invalid(
+            "A transfer output already exists.".into(),
+        ));
+    }
+    Ok(())
+}
+
+pub(super) fn occupied(path: &Path) -> Result<bool> {
     // An inaccessible, reparse or placeholder entry is never treated as absent.
     #[cfg(windows)]
     let observed = crate::windows::open_metadata(path).map(|_| ());
@@ -405,12 +434,42 @@ fn absent(path: &Path) -> Result<()> {
         .map(|_| ())
         .map_err(crate::Error::from);
     match observed {
-        Ok(()) => Err(crate::Error::Invalid(
-            "A transfer output already exists.".into(),
-        )),
-        Err(crate::Error::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Ok(()) => Ok(true),
+        #[cfg(windows)]
+        Err(crate::Error::Io(error))
+            if error.raw_os_error()
+                == Some(windows_sys::Win32::Foundation::ERROR_FILE_NOT_FOUND as i32) =>
+        {
+            Ok(false)
+        }
+        #[cfg(not(windows))]
+        Err(crate::Error::Io(error)) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
         Err(error) => Err(error),
     }
+}
+
+pub(super) fn output_path(
+    context: &PlanContext<'_>,
+    parent: &AuthorizedPath,
+    protections: &crate::metadata::Protections,
+    name: &str,
+) -> Result<PathBuf> {
+    let path = child_path(parent.path(), name)?;
+    if crate::cleanup::record::sensitive(&path) {
+        return Err(invalid());
+    }
+    context.check_output_exclusions(&path)?;
+    protections.check_evidence(&path, parent.identity(), &parent.ancestor_identities()?)?;
+    Ok(path)
+}
+
+fn child_path(parent: &Path, name: &str) -> Result<PathBuf> {
+    if Path::new(name).file_name() != Some(std::ffi::OsStr::new(name)) {
+        return Err(invalid());
+    }
+    let path = parent.join(name);
+    crate::agents::ordinary_path(&path)?;
+    Ok(path)
 }
 
 fn identity(value: (u64, u64)) -> String {
@@ -422,12 +481,40 @@ fn capacity_scope(context: &PlanContext<'_>, path: &Path) -> Result<AuthorizedPa
     context.path(path.ancestors().last().ok_or_else(invalid)?)
 }
 
+#[cfg(test)]
 pub(super) fn layout(
     entries: &[FileEvidence],
     destination: &Destination,
 ) -> Result<(Vec<Output>, u64)> {
+    let outputs = source_outputs(entries)?;
+    let required = required_capacity(entries, destination, &outputs)?;
+    Ok((outputs, required))
+}
+
+fn source_outputs(entries: &[FileEvidence]) -> Result<Vec<Output>> {
+    entries
+        .iter()
+        .map(|file| {
+            let name = Path::new(&file.path)
+                .file_name()
+                .and_then(|name| name.to_str())
+                .ok_or_else(invalid)?;
+            Ok(Output {
+                id: file.id,
+                name: name.into(),
+            })
+        })
+        .collect()
+}
+
+fn required_capacity(
+    entries: &[FileEvidence],
+    destination: &Destination,
+    outputs: &[Output],
+) -> Result<u64> {
     if entries.is_empty()
         || entries.len() > 500
+        || entries.len() != outputs.len()
         || destination.allocation_unit_bytes == 0
         || destination.allocation_unit_bytes > 16 * 1024 * 1024
         || destination.maximum_name_units == 0
@@ -435,19 +522,18 @@ pub(super) fn layout(
     {
         return Err(invalid());
     }
-    let mut outputs: Vec<Output> = Vec::with_capacity(entries.len());
     let mut ids = std::collections::HashSet::new();
     let mut names = std::collections::HashSet::new();
     let mut required = RESERVE;
-    for file in entries {
-        let name = Path::new(&file.path)
-            .file_name()
-            .and_then(|name| name.to_str())
-            .ok_or_else(invalid)?;
+    for (file, output) in entries.iter().zip(outputs) {
+        let name = &output.name;
+        if output.id != file.id {
+            return Err(invalid());
+        }
         if name.encode_utf16().count() > destination.maximum_name_units as usize {
             return Err(invalid());
         }
-        crate::agents::ordinary_path(&destination.path.join(name))?;
+        child_path(&destination.path, name)?;
         if !ids.insert(file.id) || !names.insert(name.to_uppercase()) {
             return Err(crate::Error::Invalid(
                 "Transfer output names collide. Select distinct names.".into(),
@@ -466,12 +552,8 @@ pub(super) fn layout(
             .checked_add(allocated)
             .and_then(|n| n.checked_add(unit))
             .ok_or_else(invalid)?;
-        outputs.push(Output {
-            id: file.id,
-            name: name.into(),
-        });
     }
-    Ok((outputs, required))
+    Ok(required)
 }
 
 #[cfg(windows)]

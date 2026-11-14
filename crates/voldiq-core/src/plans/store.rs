@@ -200,7 +200,7 @@ impl Store {
                 &index.root,
                 entries,
                 &request.destination,
-                request.originals,
+                super::offload::TransferLayout::Offload(request.originals),
             )
             .map(|action| Action::Offload(Box::new(action)))
         })

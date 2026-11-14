@@ -320,7 +320,7 @@
                   <tr
                     ><td
                       ><strong>{file.output_name}</strong>{#if restored}<small class="original-path"
-                          >{restored.original_path}</small
+                          >Original path: {restored.original_path}</small
                         >{/if}
                       <details>
                         <summary>Verification evidence</summary>

@@ -508,6 +508,19 @@ impl PlanContext<'_> {
             &scope::ordinary_path(path)?,
         )
     }
+
+    /// The caller retains an authorized parent handle. Check exclusions on its proposed child.
+    pub(crate) fn check_output_exclusions(&self, path: &Path) -> Result<()> {
+        let policy = self.registry.policy(self.principal, self.capability)?;
+        if policy
+            .exclusions
+            .iter()
+            .any(|root| root.covers_output(path))
+        {
+            return Err(denied());
+        }
+        Ok(())
+    }
 }
 
 pub struct ScanPermit {

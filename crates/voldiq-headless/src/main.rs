@@ -468,6 +468,7 @@ fn query_operation(error: voldiq_core::Error) -> CliError {
 fn plan_operation(error: voldiq_core::Error) -> CliError {
     match error {
         voldiq_core::Error::NeedsHumanApproval => ("needs_human_approval", "Independent human review in Voldiq is required. Use plan get to inspect status. This request did not start file execution.".into(), 5),
+        error @ voldiq_core::Error::RestoreCollision => ("restore_collision", error.to_string(), 5),
         _ => operation(),
     }
 }
