@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Storage trends
+
+History → Trends reads measured snapshots for the selected scope across capture pages. The interval and zoom control the displayed series. Comparable measurements are joined in blue, changes use a signed chart and the selected pair gives the largest increases and decreases in immediate folders. A dashed line and an observed-rate range appear after qualifying growth. The estimate covers logical path size in the scan scope. Whole-volume forecasts need independent usage history.
+
+All six project checks passed with eight routine tests. The retained snapshot flow checked the eight compatible measurements, a 100-byte change, ranked folder, exact 1,816-byte projection, refusal of a skipped predecessor and loss of the forecast after a decline. Svelte markup and pure geometry checks covered controls, proportional time and the shared vertical scale. The native window opened with ten matching non-HTML asset hashes. Windows chart rendering, keyboard, pointer and scaling remain manual. [Project checks](../benchmarks/workbench-storage-trends-source.json) · [Production startup](../benchmarks/native-storage-trends-preview.json)
+
+The unsigned installer is 11,055,145 bytes. Cleanup removed 3,303,024,240 logical bytes of inactive release files and preserved the installer and running previews. [Distribution](../benchmarks/distribution-storage-trends.json) · [Post-clean checks](../benchmarks/workspace-footprint-storage-trends.json)
+
 ## Signed Windows updates
 
 Settings → Updates checks GitHub Releases on request from an installed build with an embedded maintainer key. A newer offer points to the exact versioned x64 installer. Download and review verifies the package and its signed version through Tauri before asking for native confirmation. The Windows installer opens only after confirmation and the shared operation lease excludes an active scan, export or cleanup.
