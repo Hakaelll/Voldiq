@@ -1,0 +1,202 @@
+{
+  "checkedUtc": "2026-11-14T14:42:46.5639403Z",
+  "sourceCommit": "88ecc56827b7016fa7c6cc86a943f6fbfe05ef5d",
+  "scope": "Logical regular-file workspace bytes; reparse points skipped. No physical-allocation or observed volume-free-space claim. Native startup/resources, static distribution and CLI help are checked; Scheduled scan settings layout, schedule interaction, keyboard navigation, focus, scaling and clean-machine installation remain manual.",
+  "before": {
+    "checkedUnix": 1794667330.4803867,
+    "elapsedSeconds": 0.218,
+    "scope": "Logical regular-file bytes inside the workspace; reparse points skipped. No files were modified. These are not measured physical allocated bytes.",
+    "totalBytes": 3852129211,
+    "skippedReparsePoints": 119,
+    "directories": [
+      {
+        "path": "target",
+        "bytes": 3671241156,
+        "files": 7763
+      },
+      {
+        "path": "node_modules",
+        "bytes": 89278482,
+        "files": 1858
+      },
+      {
+        "path": ".git",
+        "bytes": 39893070,
+        "files": 155
+      },
+      {
+        "path": "output",
+        "bytes": 16801568,
+        "files": 16
+      },
+      {
+        "path": "interface",
+        "bytes": 12841789,
+        "files": 11
+      },
+      {
+        "path": "assets",
+        "bytes": 7903038,
+        "files": 5
+      },
+      {
+        "path": "benchmarks",
+        "bytes": 6499195,
+        "files": 615
+      },
+      {
+        "path": "crates",
+        "bytes": 2400411,
+        "files": 185
+      },
+      {
+        "path": "frontend",
+        "bytes": 1383801,
+        "files": 131
+      },
+      {
+        "path": "dist",
+        "bytes": 1179363,
+        "files": 11
+      },
+      {
+        "path": "docs",
+        "bytes": 1002410,
+        "files": 38
+      },
+      {
+        "path": "src-tauri",
+        "bytes": 759252,
+        "files": 48
+      },
+      {
+        "path": ".impeccable",
+        "bytes": 501734,
+        "files": 17
+      },
+      {
+        "path": ".",
+        "bytes": 323291,
+        "files": 18
+      },
+      {
+        "path": "scripts",
+        "bytes": 97555,
+        "files": 18
+      },
+      {
+        "path": "vscode-extension",
+        "bytes": 23096,
+        "files": 6
+      }
+    ]
+  },
+  "after": {
+    "checkedUnix": 1794667360.1470778,
+    "elapsedSeconds": 0.063,
+    "scope": "Logical regular-file bytes inside the workspace; reparse points skipped. No files were modified. These are not measured physical allocated bytes.",
+    "totalBytes": 321047623,
+    "skippedReparsePoints": 119,
+    "directories": [
+      {
+        "path": "target",
+        "bytes": 140157827,
+        "files": 1085
+      },
+      {
+        "path": "node_modules",
+        "bytes": 89278482,
+        "files": 1858
+      },
+      {
+        "path": ".git",
+        "bytes": 39893070,
+        "files": 155
+      },
+      {
+        "path": "output",
+        "bytes": 16801568,
+        "files": 16
+      },
+      {
+        "path": "interface",
+        "bytes": 12841789,
+        "files": 11
+      },
+      {
+        "path": "assets",
+        "bytes": 7903038,
+        "files": 5
+      },
+      {
+        "path": "benchmarks",
+        "bytes": 6500936,
+        "files": 617
+      },
+      {
+        "path": "crates",
+        "bytes": 2400411,
+        "files": 185
+      },
+      {
+        "path": "frontend",
+        "bytes": 1383801,
+        "files": 131
+      },
+      {
+        "path": "dist",
+        "bytes": 1179363,
+        "files": 11
+      },
+      {
+        "path": "docs",
+        "bytes": 1002410,
+        "files": 38
+      },
+      {
+        "path": "src-tauri",
+        "bytes": 759252,
+        "files": 48
+      },
+      {
+        "path": ".impeccable",
+        "bytes": 501734,
+        "files": 17
+      },
+      {
+        "path": ".",
+        "bytes": 323291,
+        "files": 18
+      },
+      {
+        "path": "scripts",
+        "bytes": 97555,
+        "files": 18
+      },
+      {
+        "path": "vscode-extension",
+        "bytes": 23096,
+        "files": 6
+      }
+    ]
+  },
+  "sourceInputsVerified": 13,
+  "preservedDeliverablesVerified": 4,
+  "nativeResourceCount": 11,
+  "exactPayloadHashMatches": 10,
+  "htmlVerification": "Tauri-processed HTML references pass the native probe; raw dist HTML byte identity is not claimed.",
+  "cliHelpExitCode": 0,
+  "debugArtifactsPresent": false,
+  "preview": {
+    "processId": 17472,
+    "running": true,
+    "mainWindowHandle": 1310996,
+    "sha256": "A3676DE0B2E4B622EE05853811F17631FE5D815714D71139C172019FA6E0507A",
+    "closeObserved": false,
+    "exitObserved": false
+  },
+  "cleanup": {
+    "release": 3503474896,
+    "previews": 27609088
+  }
+}

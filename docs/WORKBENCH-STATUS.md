@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Scheduled scans
+
+Settings can schedule a selected local folder hourly, daily or weekly. Voldiq runs due scans while open or in the tray and idle. Each schedule supports folder exclusions, cadence edits, disabling and the latest 20 run outcomes. Scheduled scans recheck the folder's native identity, exclude Voldiq's profile and save a capture in History without replacing the active analysis. Interrupted runs are recorded and wait another interval. Cleanup preparation and growth alerts remain pending.
+
+The six project checks passed with eight routine tests and strict Clippy. The retained fixture verified scan scope, exclusions, the saved 17-byte capture, revision checks and interruption recovery. The Windows executable started in an owned portable profile and its dispatcher published exactly one complete 137-byte snapshot from a due schedule. The visible production preview reached ready and remained open during cleanup. The unsigned installer is 10,558,373 bytes. Native Settings interaction, keyboard and scaling remain manual. [Project checks](../benchmarks/workbench-scheduled-scans-source-20261114.json) · [Production startup](../benchmarks/native-scheduled-scans-preview-20261114.json) · [Distribution](../benchmarks/distribution-scheduled-scans-20261114.json)
+
+Cleanup removed 3,503,474,896 logical bytes of inactive release files and 27,609,088 bytes from a closed preview. The preserved bin and installer checks passed. The workspace measured 321,047,623 logical bytes after cleanup. [Post-clean checks](../benchmarks/workspace-footprint-scheduled-scans-20261114.json)
+
 ## First-scan tips and contextual help
 
 The first-scan view presents a short guide below the scan controls. Skip tips saves dismissal for the active profile. A completed scan also dismisses the guide. F1 and Help & shortcuts in Settings and the command palette open help for the active page. Explorer shows chart shortcuts while its chart is active.
