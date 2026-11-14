@@ -6,6 +6,8 @@ Ctrl+K opens a compact dialog with one search field, left-aligned command rows a
 
 All six project checks passed with eight routine tests. The frontend flow exercised the Settings alias, ranking, grouping, disabled commands and chart availability. Seven text or accent color pairs checked in each theme measured at least 5.19:1. The Windows preview reached ready and page-finished with matching frontend assets. Its unsigned NSIS installer is 10,496,288 bytes. Visual layout, keyboard and scaling remain manual. [Project checks](../benchmarks/workbench-command-usability-source-20261114.json) · [Production startup](../benchmarks/native-command-usability-preview-20261114.json) · [Distribution](../benchmarks/distribution-command-usability-20261114.json)
 
+Cleanup removed 137,764,864 logical bytes from five closed preview copies. The current executable and installer retained their verified hashes.
+
 ## Portable and temporary desktop profiles
 
 Run Voldiq with `--portable` to keep its databases and WebView2 data beside the executable in `.voldiq-data`. Run with `--ephemeral` to start with a fresh temporary profile. A supported write failure in the selected profile triggers the same temporary mode. The footer shows the active mode. Temporary sessions support analysis and session-local history. Cleanup execution, restoration and agents require durable state. [WebView2 user data folders](https://learn.microsoft.com/en-us/microsoft-edge/webview2/concepts/user-data-folder)
