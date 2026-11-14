@@ -219,14 +219,24 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                 4
             );
             let human = HumanAuthority::acquire(state.path()).unwrap();
-            let operations = ledger.transfer_operations(&human, None, 1).unwrap();
+            let operations = ledger
+                .transfer_operations(&human, None, 1, &Default::default())
+                .unwrap();
             assert_eq!(operations.items.len(), 1);
             assert_eq!(operations.items[0].id, historical.id);
             assert!(operations.next_before.is_none());
-            assert!(ledger.transfer_operations(&human, Some("00"), 1).is_err());
-            assert!(ledger.transfer_operations(&human, None, 0).is_err());
+            assert!(
+                ledger
+                    .transfer_operations(&human, Some("00"), 1, &Default::default())
+                    .is_err()
+            );
+            assert!(
+                ledger
+                    .transfer_operations(&human, None, 0, &Default::default())
+                    .is_err()
+            );
             let first = ledger
-                .transfer_catalogue(&human, &historical.id, None, 1)
+                .transfer_catalogue(&human, &historical.id, None, 1, &Default::default())
                 .unwrap();
             assert_eq!(first.files.len(), 1);
             assert_eq!(first.files[0].node, selected);
@@ -236,23 +246,29 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             assert!(!first.restore_available);
             assert_eq!(first.last_observed_at, observed.observed_at);
             let second_page = ledger
-                .transfer_catalogue(&human, &historical.id, first.next_after, 1)
+                .transfer_catalogue(
+                    &human,
+                    &historical.id,
+                    first.next_after,
+                    1,
+                    &Default::default(),
+                )
                 .unwrap();
             assert_eq!(second_page.files[0].node, second_id);
             assert!(second_page.next_after.is_none());
             assert!(
                 ledger
-                    .transfer_catalogue(&human, &historical.id, None, 0)
+                    .transfer_catalogue(&human, &historical.id, None, 0, &Default::default())
                     .is_err()
             );
             assert!(
                 ledger
-                    .transfer_catalogue(&human, &historical.id, None, 101)
+                    .transfer_catalogue(&human, &historical.id, None, 101, &Default::default())
                     .is_err()
             );
             assert!(
                 ledger
-                    .transfer_catalogue(&human, &plan.manifest.id, None, 10)
+                    .transfer_catalogue(&human, &plan.manifest.id, None, 10, &Default::default())
                     .is_err()
             );
             {
@@ -292,7 +308,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                 catalogue::prepare(&tx, &profiled, &profiled_hash).unwrap();
                 tx.commit().unwrap();
                 let recorded = ledger
-                    .transfer_catalogue(&human, &profiled.id, None, 10)
+                    .transfer_catalogue(&human, &profiled.id, None, 10, &Default::default())
                     .unwrap();
                 assert_eq!(recorded.manifest.schema_version, 4);
                 assert_eq!(recorded.manifest_hash, profiled_hash);
@@ -319,7 +335,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                 catalogue::prepare(&tx, &bounded, &bounded_hash).unwrap();
                 tx.commit().unwrap();
                 let recorded = ledger
-                    .transfer_catalogue(&human, &bounded.id, None, 10)
+                    .transfer_catalogue(&human, &bounded.id, None, 10, &Default::default())
                     .unwrap();
                 assert_eq!(recorded.manifest_hash, bounded_hash);
                 assert!(!recorded.manifest.action.execution_available());
@@ -629,7 +645,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                     catalogue::prepare(&tx, &newer, &newer_hash).unwrap();
                     tx.commit().unwrap();
                     let page = database
-                        .transfer_operations(&history_reader, None, 1)
+                        .transfer_operations(&history_reader, None, 1, &Default::default())
                         .unwrap();
                     assert_eq!(page.items[0].id, newer.id);
                     assert!(matches!(
@@ -641,13 +657,41 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                         }
                     ));
                     let older = database
-                        .transfer_operations(&history_reader, page.next_before.as_deref(), 1)
+                        .transfer_operations(
+                            &history_reader,
+                            page.next_before.as_deref(),
+                            1,
+                            &Default::default(),
+                        )
                         .unwrap();
                     assert_eq!(older.items[0].id, restored.id);
                     assert!(
                         matches!(&older.items[0].status, crate::plans::TransferSummaryStatus::Ready { files:2,published_files:2,published_bytes,.. } if published_bytes=="44")
                     );
                     assert!(older.next_before.is_none());
+                    let copied = crate::plans::TransferFilter {
+                        text: restored.entries[0].path.to_uppercase().replace('\\', "/"),
+                        published_only: true,
+                    };
+                    let filtered = database
+                        .transfer_operations(&history_reader, None, 1, &copied)
+                        .unwrap();
+                    assert_eq!(filtered.items.len(), 1);
+                    assert_eq!(filtered.items[0].id, restored.id);
+                    assert!(filtered.next_before.is_none());
+                    let detail = database
+                        .transfer_catalogue(&history_reader, &restored.id, None, 50, &copied)
+                        .unwrap();
+                    assert_eq!(detail.files.len(), 1);
+                    assert_eq!(detail.files[0].node, restored.entries[0].id);
+                    assert!(detail.files[0].published_at.is_some());
+                    assert!(
+                        database
+                            .transfer_catalogue(&history_reader, &newer.id, None, 50, &copied)
+                            .unwrap()
+                            .files
+                            .is_empty()
+                    );
                     database
                         .connection
                         .execute(
@@ -656,7 +700,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                         )
                         .unwrap();
                     let unavailable = database
-                        .transfer_operations(&history_reader, None, 1)
+                        .transfer_operations(&history_reader, None, 1, &Default::default())
                         .unwrap();
                     assert!(matches!(
                         unavailable.items[0].status,
@@ -666,7 +710,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                     history_reader.close();
                     assert!(
                         database
-                            .transfer_operations(&history_reader, None, 1)
+                            .transfer_operations(&history_reader, None, 1, &Default::default())
                             .is_err()
                     );
                     proposed["groups"][1]["destination"]["caller_available_bytes"] =
@@ -772,7 +816,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             }
             assert_eq!(
                 ledger
-                    .transfer_catalogue(&human, &historical.id, None, 1)
+                    .transfer_catalogue(&human, &historical.id, None, 1, &Default::default())
                     .unwrap()
                     .files[0]
                     .phase,
@@ -1064,7 +1108,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             drop(ledger);
             let mut ledger = Store::open(state.path()).unwrap();
             let saved = ledger
-                .transfer_catalogue(&human, &historical.id, None, 100)
+                .transfer_catalogue(&human, &historical.id, None, 100, &Default::default())
                 .unwrap();
             assert_eq!(saved.state, State::PartiallyCompleted);
             assert_eq!(saved.files[0].phase, TransferPhase::Kept);
@@ -1091,7 +1135,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                 );
             }
             let recycled_model = ledger
-                .transfer_catalogue(&human, &recycling.id, None, 100)
+                .transfer_catalogue(&human, &recycling.id, None, 100, &Default::default())
                 .unwrap();
             assert_eq!(recycled_model.state, State::PartiallyCompleted);
             assert_eq!(recycled_model.files[0].phase, TransferPhase::Recycled);
@@ -1107,7 +1151,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             destination.close().unwrap();
             assert_eq!(
                 ledger
-                    .transfer_catalogue(&human, &historical.id, None, 100)
+                    .transfer_catalogue(&human, &historical.id, None, 100, &Default::default())
                     .unwrap()
                     .files
                     .len(),
@@ -1116,7 +1160,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             human.close();
             assert!(
                 ledger
-                    .transfer_catalogue(&human, &historical.id, None, 100)
+                    .transfer_catalogue(&human, &historical.id, None, 100, &Default::default())
                     .is_err()
             );
             println!(

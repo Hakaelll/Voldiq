@@ -4,7 +4,9 @@ use crate::{NodeId, Result};
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::Serialize;
 mod listing;
-pub use listing::{TransferKind, TransferPage, TransferSummary, TransferSummaryStatus};
+pub use listing::{
+    TransferFilter, TransferKind, TransferPage, TransferSummary, TransferSummaryStatus,
+};
 
 const MANIFEST_LIMIT: usize = 440 * 1024;
 const FILE_COLUMNS: &str =
@@ -387,11 +389,18 @@ impl Store {
         id: &str,
         after: Option<NodeId>,
         limit: usize,
+        filter: &TransferFilter,
     ) -> Result<TransferCatalogue> {
         human.check_directory(self.directory.identity())?;
         if !hex(id, 64) || !(1..=100).contains(&limit) {
             return Err(invalid());
         }
+        let needle = filter.needle()?;
+        let read_limit = if needle.is_empty() && !filter.published_only {
+            limit + 1
+        } else {
+            501
+        };
         let tx = self.connection.unchecked_transaction()?;
         let RecordedManifest {
             manifest,
@@ -411,21 +420,27 @@ impl Store {
             "SELECT {FILE_COLUMNS} FROM transfer_files
             WHERE plan_id=?1 AND (?2 IS NULL OR node>?2) ORDER BY node LIMIT ?3"
         ))?;
-        let mut files = statement
-            .query_map(
-                params![id, after.map(|node| node.0), (limit + 1) as i64],
-                read_file,
-            )?
-            .collect::<std::result::Result<Vec<_>, _>>()?;
-        let next_after = if files.len() > limit {
-            files.truncate(limit);
-            files.last().map(|file| file.node)
+        let files = statement.query_map(
+            params![id, after.map(|node| node.0), read_limit as i64],
+            read_file,
+        )?;
+        let mut selected = Vec::new();
+        for file in files {
+            let file = file?;
+            validate_file(&file, &manifest)?;
+            if listing::matches_file(&manifest, &file, &needle, filter.published_only)? {
+                selected.push(file);
+                if selected.len() > limit {
+                    break;
+                }
+            }
+        }
+        let next_after = if selected.len() > limit {
+            selected.truncate(limit);
+            selected.last().map(|file| file.node)
         } else {
             None
         };
-        for file in &files {
-            validate_file(file, &manifest)?;
-        }
         drop(statement);
         tx.commit()?;
         human.check_directory(self.directory.identity())?;
@@ -434,7 +449,7 @@ impl Store {
             manifest_hash: hash,
             state,
             last_observed_at: observed,
-            files,
+            files: selected,
             next_after,
             currently_connected: None,
             restore_available: false,

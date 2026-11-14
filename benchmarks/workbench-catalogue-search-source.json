@@ -1,0 +1,104 @@
+{
+  "checkedUtc": "2026-11-14T18:05:16.4751818Z",
+  "startedUtc": "2026-11-14T17:51:53.5611186Z",
+  "checkoutCommit": "3b8122936e5614a3c2beed6be3d06e9e4899f0f2",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.069
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.326
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.786
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.133
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 710.365
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 76.206
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "94800207ACCF5D3763932ECA6CEAE2AFB56339D1EB92914626F3D0571E4398A3"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "FF880F635DCE55EDCA9EEADBDC0AACD43F1ACC9F69701798CD52024A290BA7C4"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "437578566558277BC30AC583A2E83268A7BF84EDE3D36BDA600A971D726B0305"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans.rs",
+      "sha256": "DC3F043F2E1CE36FCA60335525218F8289049234B53DD8F058483B3FE62B1702"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/catalogue.rs",
+      "sha256": "FEFA283F2AD8FF5DC9D3BDD0A59657F95D0F627997572A87E484999677740FA0"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/catalogue/listing.rs",
+      "sha256": "3CE06C8D06853908E86CC819D7C5F6413EE4E2D001653B98ED043F216E2B6901"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/desktop.rs",
+      "sha256": "FE109FB906B987BC3004BC2820B101333CA4974EA2215E9C6DDBADA6D14435EA"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/desktop/tests.rs",
+      "sha256": "A41B764848805420E7C8C439D619CE7A60974E95A3521F1D40EA183C136CC6B9"
+    },
+    {
+      "path": "frontend/components/TransferCatalogue.svelte",
+      "sha256": "94626AD9EEADBAD9B75DFE44B310F48746325754BCBDC4DB12B2ADA58D5CF648"
+    },
+    {
+      "path": "frontend/lib/cleanup-selection.test.ts",
+      "sha256": "B1A6D28A6866CEA818034372CB059A001B5FD2C7AE34D06C8C75DC8DA3D2FBFC"
+    },
+    {
+      "path": "frontend/lib/transfer-catalogue.ts",
+      "sha256": "CAA57FC5FD4D492316AE6219EE6B09F8861CF0034EC140DBB3C51B7BE113DEA9"
+    },
+    {
+      "path": "src-tauri/src/plan_commands.rs",
+      "sha256": "DB62B153393484F97D574DE1E8BF7047A9EDCB94DC28C1C0D26B73D7AC41B8D1"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "transferSearchFixture": [
+    "case-insensitive recorded path and slash match",
+    "exact published receipt result",
+    "prepared files excluded",
+    "same filter for list and detail",
+    "stale frontend responses ignored"
+  ]
+}

@@ -17,6 +17,7 @@ export type TransferSummary = { id: string } & (
   | { availability: 'unavailable'; reason: string }
 );
 export type TransferPage = { items: TransferSummary[]; next_before: string | null };
+export type TransferFilter = { text: string; published_only: boolean };
 export type TransferRecord = {
   manifest: {
     id: string;
@@ -60,8 +61,8 @@ export type CatalogueState = {
 };
 
 export function createTransferCatalogue(source: {
-  list: (before: string | null) => Promise<TransferPage>;
-  read: (id: string, after: number | null) => Promise<TransferRecord>;
+  list: (before: string | null, filter: TransferFilter) => Promise<TransferPage>;
+  read: (id: string, after: number | null, filter: TransferFilter) => Promise<TransferRecord>;
   onstate: (value: CatalogueState) => void;
 }) {
   let state: CatalogueState = {
@@ -74,6 +75,7 @@ export function createTransferCatalogue(source: {
   let listRequest = 0,
     detailRequest = 0,
     disposed = false;
+  let filter: TransferFilter = { text: '', published_only: false };
   function publish(next: CatalogueState): void {
     if (!disposed) {
       state = next;
@@ -81,8 +83,9 @@ export function createTransferCatalogue(source: {
     }
   }
   return {
-    async load(before: string | null): Promise<void> {
+    async load(before: string | null, nextFilter = filter): Promise<void> {
       if (disposed) return;
+      filter = nextFilter;
       const request = ++listRequest;
       ++detailRequest;
       publish({
@@ -94,7 +97,7 @@ export function createTransferCatalogue(source: {
         selection: { kind: 'none' },
       });
       try {
-        const page = await source.list(before);
+        const page = await source.list(before, filter);
         if (!disposed && request === listRequest) publish({ ...state, page, loading: false });
       } catch (error) {
         if (!disposed && request === listRequest)
@@ -106,7 +109,7 @@ export function createTransferCatalogue(source: {
       const request = ++detailRequest;
       publish({ ...state, selection: { kind: 'loading', id, after } });
       try {
-        const record = await source.read(id, after);
+        const record = await source.read(id, after, filter);
         if (record.manifest.id !== id)
           throw new Error(
             'The returned operation does not match this selection. Reload its record.',

@@ -145,11 +145,12 @@ pub async fn list_transfer_records(
     reviews: tauri::State<'_, PlanReviews>,
     before: Option<String>,
     limit: usize,
+    filter: voldiq_core::plans::TransferFilter,
 ) -> Result<voldiq_core::plans::TransferPage, String> {
     let desktop = reviews.desktop()?;
     tauri::async_runtime::spawn_blocking(move || {
         desktop
-            .transfer_operations(before.as_deref(), limit)
+            .transfer_operations(before.as_deref(), limit, &filter)
             .map_err(|error| error.to_string())
     })
     .await
@@ -162,11 +163,12 @@ pub async fn get_transfer_record(
     id: String,
     after: Option<u32>,
     limit: usize,
+    filter: voldiq_core::plans::TransferFilter,
 ) -> Result<voldiq_core::plans::TransferCatalogue, String> {
     let desktop = reviews.desktop()?;
     tauri::async_runtime::spawn_blocking(move || {
         desktop
-            .transfer_catalogue(&id, after.map(voldiq_core::NodeId), limit)
+            .transfer_catalogue(&id, after.map(voldiq_core::NodeId), limit, &filter)
             .map_err(|error| error.to_string())
     })
     .await

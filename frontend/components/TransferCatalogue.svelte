@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, onDestroy, tick } from 'svelte';
   import { invoke, isTauri } from '@tauri-apps/api/core';
   import { date } from '../lib/types';
   import {
@@ -7,6 +7,7 @@
     type CatalogueState,
     type TransferPage,
     type TransferRecord,
+    type TransferFilter,
   } from '../lib/transfer-catalogue';
   import Icon from './Icon.svelte';
   let { onreview }: { onreview: (id: string) => void } = $props();
@@ -21,9 +22,15 @@
   let cursors = $state<(string | null)[]>([null]);
   let fileCursors = $state<(number | null)[]>([null]);
   let destinationsOpen = $state(false);
+  let search = $state('');
+  let copied = $state(false);
+  let filter = $state<TransferFilter>({ text: '', published_only: false });
+  let resultsHeading: HTMLHeadingElement;
   const catalogue = createTransferCatalogue({
-    list: (before) => invoke<TransferPage>('list_transfer_records', { before, limit: 20 }),
-    read: (id, after) => invoke<TransferRecord>('get_transfer_record', { id, after, limit: 50 }),
+    list: (before, filter) =>
+      invoke<TransferPage>('list_transfer_records', { before, limit: 20, filter }),
+    read: (id, after, filter) =>
+      invoke<TransferRecord>('get_transfer_record', { id, after, limit: 50, filter }),
     onstate: (next) => {
       catalogueState = next;
     },
@@ -46,17 +53,29 @@
   function reload(): void {
     cursors = [null];
     fileCursors = [null];
-    void catalogue.load(null);
+    void catalogue.load(null, filter);
+  }
+  function searchRecords(event: SubmitEvent): void {
+    event.preventDefault();
+    filter = { text: search.trim(), published_only: copied };
+    reload();
+  }
+  async function pageTo(before: string | null): Promise<void> {
+    await catalogue.load(before);
+    await tick();
+    if (document.activeElement === document.body && resultsHeading?.isConnected) {
+      resultsHeading.focus();
+    }
   }
   function older(): void {
     if (!catalogueState.page?.next_before || catalogueState.loading) return;
     cursors = [...cursors, catalogueState.page.next_before];
-    void catalogue.load(catalogueState.page.next_before);
+    void pageTo(catalogueState.page.next_before);
   }
   function newer(): void {
     if (cursors.length < 2 || catalogueState.loading) return;
     cursors = cursors.slice(0, -1);
-    void catalogue.load(cursors.at(-1) ?? null);
+    void pageTo(cursors.at(-1) ?? null);
   }
   function files(after: number | null, back = false): void {
     if (!selectedId || catalogueState.selection.kind !== 'ready') return;
@@ -72,13 +91,32 @@
 <section class="transfer-catalogue" aria-labelledby="transfer-catalogue-heading">
   <div class="heading">
     <div>
-      <h2 id="transfer-catalogue-heading">Transfers & restoration records</h2>
+      <h2 id="transfer-catalogue-heading" tabindex="-1" bind:this={resultsHeading}>
+        Transfers & restoration records
+      </h2>
       <p>Past observations. Device connection and current content have not been checked.</p>
     </div>
     <button disabled={!native || catalogueState.loading} onclick={reload}
       ><Icon name="scan" size={16} />Refresh records</button
     >
   </div>
+  {#if native}
+    <form class="transfer-search" onsubmit={searchRecords}>
+      <label>
+        Find a file or path
+        <input
+          type="search"
+          bind:value={search}
+          maxlength="200"
+          placeholder="Name or recorded path"
+        />
+      </label>
+      <label class="transfer-copy-filter"
+        ><input type="checkbox" bind:checked={copied} /> Published copies only</label
+      >
+      <button type="submit">Search records</button>
+    </form>
+  {/if}
   {#if !native}<p>Transfer records are available in the Windows application.</p>
   {:else if catalogueState.loading}<p role="status">Loading recorded operations…</p>
   {:else if catalogueState.error}<div class="error" role="alert">
@@ -88,11 +126,19 @@
     </div>
   {:else if catalogueState.page && catalogueState.page.items.length === 0}<div class="empty">
       <Icon name="disk" size={28} />
-      <h3>No transfer records yet</h3>
-      <p>
-        Prepared transfer and restoration plans will appear here. This is not a scan of connected
-        disks.
-      </p>
+      {#if filter.text || filter.published_only}
+        <h3>
+          {catalogueState.page.next_before || cursors.length > 1
+            ? 'No matches in this batch'
+            : 'No matching records'}
+        </h3>
+        {#if catalogueState.page.next_before}<button onclick={older}>Search older records</button
+          >{/if}
+        {#if cursors.length > 1}<button onclick={newer}>Previous batch</button>{/if}
+      {:else}
+        <h3>No transfer records yet</h3>
+        <p>Prepared transfers and restoration plans will appear here.</p>
+      {/if}
     </div>
   {:else if catalogueState.page}
     <div class="catalogue-grid">
@@ -130,7 +176,7 @@
         </ul>
         <div class="paging">
           <button disabled={cursors.length < 2} onclick={newer}>Newer</button><span
-            >Page {cursors.length}</span
+            >{filter.text || filter.published_only ? 'Batch' : 'Page'} {cursors.length}</span
           ><button disabled={!catalogueState.page.next_before} onclick={older}>Older</button>
         </div>
       </div>
@@ -238,6 +284,11 @@
                   </div>
                 </dl>{/each}{/if}
           </details>
+          {#if filter.text || filter.published_only}
+            <p class="matching-count">
+              {record.files.length} matching {record.files.length === 1 ? 'file' : 'files'} on this page
+            </p>
+          {/if}
           <!-- svelte-ignore a11y_no_noninteractive_tabindex (The named overflow region needs keyboard scrolling.) -->
           <div class="file-table" tabindex="0" role="region" aria-label="Recorded file table">
             <table>
@@ -324,6 +375,24 @@
   .heading p {
     font-size: 12px;
     margin-top: 6px;
+  }
+  .transfer-search {
+    display: flex;
+    align-items: end;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .transfer-search > label:first-child {
+    display: grid;
+    gap: 4px;
+    flex: 1 1 220px;
+    color: var(--secondary);
+  }
+  .transfer-copy-filter {
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
   .catalogue-grid {
     display: grid;

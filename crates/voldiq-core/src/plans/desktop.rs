@@ -78,16 +78,18 @@ impl Desktop {
         &self,
         before: Option<&str>,
         limit: usize,
+        filter: &super::TransferFilter,
     ) -> Result<super::TransferPage> {
-        Store::open(&self.directory)?.transfer_operations(&self.human, before, limit)
+        Store::open(&self.directory)?.transfer_operations(&self.human, before, limit, filter)
     }
     pub fn transfer_catalogue(
         &self,
         id: &str,
         after: Option<crate::NodeId>,
         limit: usize,
+        filter: &super::TransferFilter,
     ) -> Result<super::TransferCatalogue> {
-        Store::open(&self.directory)?.transfer_catalogue(&self.human, id, after, limit)
+        Store::open(&self.directory)?.transfer_catalogue(&self.human, id, after, limit, filter)
     }
 
     pub fn pending_execution(&self, limit: usize) -> Result<Vec<super::ExecutionRequest>> {
