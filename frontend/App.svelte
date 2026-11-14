@@ -1465,8 +1465,12 @@
       }
       if (
         !event.defaultPrevented &&
+        !event.isComposing &&
         !event.repeat &&
         event.ctrlKey &&
+        !event.altKey &&
+        !event.metaKey &&
+        !event.shiftKey &&
         event.key.toLowerCase() === 'k'
       ) {
         event.preventDefault();
@@ -1545,6 +1549,7 @@
       class="navigation-search"
       onclick={openPalette}
       aria-haspopup="dialog"
+      aria-keyshortcuts="Control+K"
       title="Commands · Ctrl+K"
       aria-label="Open command palette"
       ><Icon name="search" />{#if expanded}<span>Search & commands</span><kbd>Ctrl K</kbd

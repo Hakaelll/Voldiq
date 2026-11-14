@@ -23,7 +23,7 @@ export interface PaletteCommand {
 
 export const paletteGroups = {
   actions: 'Actions',
-  views: 'Go to',
+  views: 'Pages',
   charts: 'Storage charts',
   saved: 'Saved views',
   favorites: 'Favorite folders',
@@ -56,7 +56,7 @@ export function paletteCommands(
     {
       id: 'search',
       label: 'Search current analysis',
-      detail: ready ? 'At the scan root' : 'Run a scan first',
+      detail: ready ? '' : 'Run a scan first',
       group: 'actions',
       icon: 'search',
       keywords: 'find files analysis root',
@@ -66,7 +66,7 @@ export function paletteCommands(
     {
       id: 'saved',
       label: 'Saved views and favorites',
-      detail: 'Manage workspaces',
+      detail: '',
       group: 'actions',
       icon: 'history',
       disabled: false,
@@ -154,7 +154,7 @@ export function filterCommands(
   text: string,
 ): PaletteCommand[] {
   const query = normalized(text);
-  if (!query) return [...commands];
+  if (!query) return commands.filter((command) => !command.disabled);
   const words = query.split(' ');
   return commands
     .flatMap((command) => {
@@ -167,7 +167,10 @@ export function filterCommands(
       else if (words.every((word) => label.includes(word))) score = 1;
       return [{ command, score }];
     })
-    .sort((left, right) => right.score - left.score)
+    .sort(
+      (left, right) =>
+        Number(left.command.disabled) - Number(right.command.disabled) || right.score - left.score,
+    )
     .map(({ command }) => command);
 }
 

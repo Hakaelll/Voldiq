@@ -1,0 +1,90 @@
+{
+  "checkedUtc": "2026-11-14T16:11:00.6993359Z",
+  "startedUtc": "2026-11-14T16:08:00.5201031Z",
+  "checkoutCommit": "b89fc48ca75b09067b44d9704dc641f49147a619",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 0.996
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 7.1
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.777
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.448
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 161.197
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 4.635
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "80E5CF09B4BC9780FE38451CF279A7ADAA680DB5C63459CD3AD9AA8DF42B9F39"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "F247DFEF1422024D0909873C29FFA7155857F585385365690D795AE750EC5BA4"
+    },
+    {
+      "path": "frontend/components/CommandPalette.svelte",
+      "sha256": "E08E3694591C1D346A1F76678AE87CA0452DA6FE3ADC5192564EBCFC679F13C7"
+    },
+    {
+      "path": "frontend/lib/command-palette.ts",
+      "sha256": "9246A11A7C88856806729F6DD264BCDE8F019AB099F480EE7E17979D2EEE001A"
+    },
+    {
+      "path": "frontend/lib/cleanup-selection.test.ts",
+      "sha256": "96270C50FE51340548B6345D13A196D99982B4ACBBE549DAFB1DC5DE37F81C76"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "D67A9BA01834AD45753CA5678F7FFE09F2C72610DD1427C31B8634B09BA15ECA"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "markup": {
+    "markup": [
+      "pre-scan",
+      "indexed",
+      "catalog unavailable",
+      "empty"
+    ],
+    "checks": [
+      "active descendant",
+      "Settings route",
+      "groups",
+      "favorite path lookup",
+      "bounded scrolling source",
+      "encoding"
+    ],
+    "scope": "Svelte server markup and source. Layout and events were not run in a browser."
+  }
+}

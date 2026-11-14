@@ -23,10 +23,10 @@
     onreload: () => void;
   } = $props();
   let dialog: HTMLDialogElement, input: HTMLInputElement, results: HTMLDivElement;
-  let text = $state(''),
-    preferred = $state<string | null>(null);
-  const matches = $derived(filterCommands(commands, text));
+  let text = $state('');
+  let preferred = $state<string | null>(null);
   const searching = $derived(text.trim().length > 0);
+  const matches = $derived(filterCommands(commands, text));
   const visible = $derived(matches.slice(0, 50));
   const groups = $derived(searching ? [] : groupCommands(visible));
   const active = $derived(
@@ -40,6 +40,11 @@
 
   function choose(command: PaletteCommand): void {
     if (visible.includes(command) && !command.disabled) oncommand(command);
+  }
+
+  function resetSelection(): void {
+    preferred = null;
+    results.scrollTop = 0;
   }
 
   async function handleSearchKey(event: KeyboardEvent): Promise<void> {
@@ -77,18 +82,19 @@
     tabindex="-1"
     aria-selected={active === command}
     disabled={command.disabled}
-    onpointerdown={(event) => {
+    onmousedown={(event) => {
       if (event.button === 0) event.preventDefault();
+    }}
+    onpointermove={(event) => {
+      if (event.pointerType === 'mouse' && !command.disabled) preferred = command.id;
     }}
     onclick={() => choose(command)}
   >
     <Icon name={command.icon} size={16} />
-    <span class="palette-label">
-      <strong title={command.label}>{command.label}</strong>
-      {#if command.detail}<span class="palette-detail" title={command.detail}>{command.detail}</span
-        >{/if}
-    </span>
-    {#if active === command}<kbd class="palette-enter" aria-hidden="true">Enter</kbd>{/if}
+    <span class="palette-label" title={command.label}>{command.label}</span>
+    {#if command.detail}
+      <span class="palette-detail" title={command.detail}>{command.detail}</span>
+    {/if}
   </button>
 {/snippet}
 
@@ -123,14 +129,11 @@
   <h2 id="palette-title" class="sr-only">Commands</h2>
   <header class="palette-search">
     <div class="palette-field">
-      <Icon name="search" />
+      <Icon name="search" size={20} />
       <input
         bind:this={input}
         bind:value={text}
-        oninput={() => {
-          preferred = null;
-          results.scrollTop = 0;
-        }}
+        oninput={resetSelection}
         onkeydown={handleSearchKey}
         type="search"
         role="combobox"
@@ -139,19 +142,36 @@
         aria-expanded={visible.length > 0}
         aria-controls="palette-options"
         aria-activedescendant={active ? optionId(active) : undefined}
-        placeholder="Find a command, view or folder…"
+        placeholder="Search commands, views and favorites"
         autocomplete="off"
         maxlength="200"
       />
     </div>
-    <button class="quiet-action" onclick={onclose} aria-label="Close command palette">
-      <kbd>Esc</kbd>
+    <button
+      type="button"
+      class="quiet-action palette-close"
+      onclick={onclose}
+      aria-label="Close command palette"
+    >
+      <kbd aria-hidden="true">Esc</kbd>
     </button>
   </header>
-  {#if catalog.kind === 'loading'}<p role="status">Loading saved workspaces…</p>
-  {:else if catalog.kind === 'failed'}<p role="alert">
-      {catalog.message} <button onclick={onreload}>Reload</button>
-    </p>{/if}
+  {#if catalog.kind === 'loading'}
+    <div class="palette-catalog" role="status">Loading saved workspaces…</div>
+  {:else if catalog.kind === 'failed'}
+    <div class="palette-catalog">
+      <span role="status" title={catalog.message}>Saved workspaces unavailable</span>
+      <button
+        type="button"
+        class="quiet-action"
+        onclick={() => {
+          input.focus({ preventScroll: true });
+          resetSelection();
+          onreload();
+        }}>Retry</button
+      >
+    </div>
+  {/if}
   <div class="palette-results" bind:this={results}>
     <div
       id="palette-options"
@@ -174,13 +194,22 @@
         {/each}
       {/if}
     </div>
-    {#if matches.length === 0}<p class="palette-empty">No matching commands.</p>{/if}
+    {#if matches.length === 0}
+      <div class="palette-empty">
+        <strong>No matching commands</strong>
+        <p>Try a page name, an action or a favorite folder.</p>
+      </div>
+    {/if}
   </div>
   <footer>
-    <span role="status">
-      {#if matches.length > visible.length}{visible.length} of {matches.length} results
-      {:else}{matches.length} {matches.length === 1 ? 'result' : 'results'}{/if}
+    <span role="status" class:sr-only={matches.length <= visible.length}>
+      {#if matches.length > visible.length}Showing {visible.length} of {matches.length}. Keep typing
+        to narrow results.
+      {:else if searching}{matches.length} {matches.length === 1 ? 'result' : 'results'}{/if}
     </span>
-    <span><kbd>↑</kbd> <kbd>↓</kbd> Move</span>
+    <div class="palette-shortcuts">
+      <span><kbd>↑</kbd> <kbd>↓</kbd> Move</span>
+      <span><kbd>Enter</kbd> Run</span>
+    </div>
   </footer>
 </dialog>

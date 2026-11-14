@@ -74,6 +74,13 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
     ['navigate:large', 'search'],
   );
   assert.deepEqual(
+    filterCommands(paletteCommands(null, false, true), 'folder').map((command) => command.id),
+    ['navigate:large', 'choose'],
+  );
+  const startingCommands = filterCommands(commands, ' ');
+  assert.equal(startingCommands[0].id, 'saved');
+  assert.equal(startingCommands.some((command) => command.id === 'search'), false);
+  assert.deepEqual(
     groupCommands(commands).map(({ group }) => group),
     ['actions', 'views'],
   );
