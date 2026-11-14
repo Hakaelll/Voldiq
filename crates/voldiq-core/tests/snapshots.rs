@@ -36,7 +36,10 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     std::fs::write(fixture.path().join("Résumé.txt"), [6; 7]).unwrap();
     let first = capture(fixture.path());
     {
-        use voldiq_core::{operations::Lease, snapshots::schedule::time_now};
+        use voldiq_core::{
+            operations::Lease,
+            snapshots::schedule::{ScanSettings, time_now},
+        };
         let owned = tempfile::tempdir().unwrap();
         let root = owned.path().join("Scheduled folder");
         let excluded = root.join("excluded");
@@ -49,14 +52,34 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         let other = Lease::acquire(database.path()).unwrap();
         let mut lease = Lease::acquire(state.path()).unwrap();
         let now = time_now().unwrap();
+        let defaults = ScanSettings {
+            hours: 1,
+            exclusions: vec![],
+            growth_mib: None,
+        };
+        let mut settings = ScanSettings {
+            hours: 1,
+            exclusions: vec![excluded.to_string_lossy().into_owned()],
+            growth_mib: Some(1),
+        };
+        let invalid_threshold = ScanSettings {
+            hours: 1,
+            exclusions: vec![],
+            growth_mib: Some(0),
+        };
         assert!(
             storage
-                .add_scan_schedule(&lease, state.path(), 1, &[], now)
+                .add_scan_schedule(&lease, &root, &invalid_threshold, now)
                 .is_err()
         );
         assert!(
             storage
-                .add_scan_schedule(&other, &root, 1, &[], now)
+                .add_scan_schedule(&lease, state.path(), &defaults, now)
+                .is_err()
+        );
+        assert!(
+            storage
+                .add_scan_schedule(&other, &root, &defaults, now)
                 .is_err()
         );
         assert!(
@@ -64,20 +87,16 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
                 .add_scan_schedule(
                     &lease,
                     &root,
-                    1,
-                    &[root.to_string_lossy().into_owned()],
+                    &ScanSettings {
+                        exclusions: vec![root.to_string_lossy().into_owned()],
+                        ..defaults
+                    },
                     now
                 )
                 .is_err()
         );
         let id = storage
-            .add_scan_schedule(
-                &lease,
-                &root,
-                1,
-                &[excluded.to_string_lossy().into_owned()],
-                now,
-            )
+            .add_scan_schedule(&lease, &root, &settings, now)
             .unwrap();
         assert!(!storage.scan_schedule_due(now + 3599).unwrap());
         assert!(
@@ -92,10 +111,12 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             .unwrap()
             .unwrap();
         let measured = run.measure(&loading);
-        let snapshot = storage
+        let first = storage
             .finish_scheduled_scan(run, measured, &loading)
             .unwrap()
             .unwrap();
+        assert!(!first.growth_alert);
+        let snapshot = first.snapshot;
         let [saved] = storage.list(0, 10).unwrap().try_into().unwrap();
         assert_eq!(
             (saved.id, saved.files, saved.logical, saved.complete),
@@ -107,20 +128,75 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         assert_eq!(record.runs[0].outcome, "saved");
         assert_eq!(record.runs[0].snapshot, Some(snapshot));
         assert!(record.next_due.unwrap() >= now + 7200);
+        let due = record.next_due.unwrap();
+        let sql = rusqlite::Connection::open(&db).unwrap();
+        sql.execute(
+            "UPDATE snapshots SET observed_at=?1 WHERE id=?2",
+            (now - 60, snapshot),
+        )
+        .unwrap();
+        std::fs::File::create(root.join("growth"))
+            .unwrap()
+            .set_len(1_048_576)
+            .unwrap();
+        let run = storage
+            .claim_scheduled_scan(&mut lease, due)
+            .unwrap()
+            .unwrap();
+        let measured = run.measure(&loading);
+        let second = storage
+            .finish_scheduled_scan(run, measured, &loading)
+            .unwrap()
+            .unwrap();
+        assert!(second.growth_alert);
+        let grown = storage.scan_schedules().unwrap().remove(0);
+        let growth = grown.runs[0].growth.as_ref().unwrap();
+        assert_eq!(
+            (growth.bytes.as_str(), growth.baseline_observed),
+            ("1048576", now - 60)
+        );
+        sql.execute(
+            "UPDATE snapshots SET observed_at=?1 WHERE id=?2",
+            (now - 30, second.snapshot),
+        )
+        .unwrap();
+        settings.exclusions.clear();
+        storage
+            .edit_scan_schedule(&lease, id, grown.revision, &settings, due)
+            .unwrap();
+        std::fs::File::create(excluded.join("large"))
+            .unwrap()
+            .set_len(2_097_152)
+            .unwrap();
+        let coverage_changed = storage.scan_schedules().unwrap().remove(0);
+        let run = storage
+            .claim_scheduled_scan(&mut lease, coverage_changed.next_due.unwrap())
+            .unwrap()
+            .unwrap();
+        let measured = run.measure(&loading);
+        let third = storage
+            .finish_scheduled_scan(run, measured, &loading)
+            .unwrap()
+            .unwrap();
+        assert!(!third.growth_alert);
+        assert!(
+            storage.scan_schedules().unwrap()[0].runs[0]
+                .growth
+                .is_none()
+        );
+        drop(sql);
+        storage.delete(second.snapshot).unwrap();
+        storage.delete(third.snapshot).unwrap();
+        let record = storage.scan_schedules().unwrap().remove(0);
         assert!(
             storage
-                .edit_scan_schedule(&lease, id, record.revision - 1, 24, &[], now)
+                .edit_scan_schedule(&lease, id, record.revision - 1, &defaults, now)
                 .is_err()
         );
+        settings.hours = 24;
+        settings.exclusions = vec![excluded.to_string_lossy().into_owned()];
         storage
-            .edit_scan_schedule(
-                &lease,
-                id,
-                record.revision,
-                24,
-                &[excluded.to_string_lossy().into_owned()],
-                now,
-            )
+            .edit_scan_schedule(&lease, id, record.revision, &settings, now)
             .unwrap();
         let edited = storage.scan_schedules().unwrap().remove(0);
         assert_eq!((edited.hours, edited.next_due), (24, Some(now + 86400)));
@@ -176,7 +252,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         let replaced = owned.path().join("Replaced folder");
         std::fs::create_dir(&replaced).unwrap();
         let replaced_id = storage
-            .add_scan_schedule(&lease, &replaced, 1, &[], now)
+            .add_scan_schedule(&lease, &replaced, &defaults, now)
             .unwrap();
         std::fs::rename(&replaced, owned.path().join("Original identity")).unwrap();
         std::fs::create_dir(&replaced).unwrap();

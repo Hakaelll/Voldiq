@@ -1,0 +1,100 @@
+{
+  "checkedUtc": "2026-11-14T15:22:04.1703273Z",
+  "startedUtc": "2026-11-14T14:47:35.1380572Z",
+  "checkoutCommit": "5bf37e25140b6f13a76fa752a03a88317ea180e6",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.281
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 15.75
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.972
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 9.264
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1072.525
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 969.197
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "732B2C5D3397F4C3BE2D4E04A877C9EAF022AABE25D39A9B693FD496441A9E63"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots.rs",
+      "sha256": "6743EBA00AF013C37C7C5366356751B2AADD1736950A1DA381E07463D06591DD"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/schedule.rs",
+      "sha256": "8B32229400C96A3898DB5FA10BC21AB953B6ACB9AB82BABFC5F46EE40EF6DEEA"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "87F1A1D764A510DDB64E7E4A87D71CCA12A65EBA7A7B366F5127A4DD0DF6E4A4"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "2C233D9E23A80F8064735383C7A10DA4E66A16D3721BD433D502B22242F3829A"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "CB009CBB0D62583E25D3B8B9679966C1684BF4B2F3392B6E62C83D9314883B97"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "D0704B6596E82F4F22A1A8EBBBA02D9F4DAD9363C5A49A8CFE5169BBA0B49DD0"
+    },
+    {
+      "path": "frontend/components/ScanSchedules.svelte",
+      "sha256": "276EB96115D6A70C07F949410F3C93B0370A604D5D2AC0538D5507B5F1DA5ADA"
+    },
+    {
+      "path": "frontend/components/WindowsIntegrationSetting.svelte",
+      "sha256": "990203FB39AA8F322F181EFB42932BB85400B28E3311084EEEBD841E357DC8FC"
+    },
+    {
+      "path": "src-tauri/src/windows_notifications.rs",
+      "sha256": "4C00EA2AC3F7A7BE21868E720F7DAF3A97A76D51A10D21C216F07D4C044C41CF"
+    },
+    {
+      "path": "src-tauri/src/schedule_commands.rs",
+      "sha256": "6B9E6E412FD084CC970AA8F5D841B638C69866F02FDBE356881E872D11980930"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "growthFixture": [
+    "capture grows by exactly 1 MiB",
+    "threshold triggers once with exact baseline timestamp",
+    "coverage change is not growth",
+    "zero threshold is refused",
+    "existing schedule and snapshot fixtures retained"
+  ]
+}

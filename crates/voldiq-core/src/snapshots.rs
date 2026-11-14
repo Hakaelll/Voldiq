@@ -254,12 +254,12 @@ impl Store {
         let mut connection = Connection::open(path)?;
         crate::database::configure(&connection)?;
         let version: u32 = connection.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version < 11 {
+        if version < 12 {
             let transaction =
                 connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
             let version: u32 =
                 transaction.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-            if version > 11 {
+            if version > 12 {
                 return Err(Error::Invalid(
                     "Unsupported snapshot database version.".into(),
                 ));
@@ -297,8 +297,11 @@ impl Store {
             if version <= 10 {
                 transaction.execute_batch(schedule::SCHEMA)?;
             }
+            if version <= 11 {
+                transaction.execute_batch(schedule::GROWTH_SCHEMA)?;
+            }
             transaction.commit()?;
-        } else if version != 11 {
+        } else if version != 12 {
             return Err(Error::Invalid(
                 "Unsupported snapshot database version.".into(),
             ));
@@ -338,6 +341,7 @@ impl Store {
         libraries: Option<&crate::libraries::Capture>,
     ) -> Result<i64> {
         self.save_capture(index, cancel, caches, libraries, None)
+            .map(|(snapshot, _)| snapshot)
     }
 
     fn save_capture(
@@ -347,7 +351,7 @@ impl Store {
         caches: &[crate::developer::CacheLocation],
         libraries: Option<&crate::libraries::Capture>,
         scheduled: Option<&schedule::Claim>,
-    ) -> Result<i64> {
+    ) -> Result<(i64, bool)> {
         if index.snapshot_id.is_some() {
             return Err(Error::Invalid(
                 "Rescan before saving a new snapshot.".into(),
@@ -500,12 +504,14 @@ impl Store {
         if cancel.load(Ordering::Relaxed) {
             return Err(Error::Invalid("Snapshot capture cancelled.".into()));
         }
-        if let Some(claim) = scheduled {
-            claim.publish(&transaction, snapshot_id, schedule::time_now()?)?;
-        }
+        let growth_alert = if let Some(claim) = scheduled {
+            claim.publish(&transaction, snapshot_id, schedule::time_now()?)?
+        } else {
+            false
+        };
         transaction.execute_batch("DROP TABLE captured_paths;")?;
         transaction.commit()?;
-        Ok(snapshot_id)
+        Ok((snapshot_id, growth_alert))
     }
 
     pub fn checkpoint(&self, id: i64) -> Result<Option<crate::ntfs::Checkpoint>> {

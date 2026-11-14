@@ -2,7 +2,7 @@
   import { invoke, isTauri } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
   import { onMount } from 'svelte';
-  import { date } from '../lib/types';
+  import { bytes, date } from '../lib/types';
 
   type Run = {
     started: number;
@@ -10,6 +10,7 @@
     snapshot: number | null;
     partial: boolean | null;
     problem: string | null;
+    growth: { bytes: string; baseline_observed: number } | null;
   };
   type Schedule = {
     id: number;
@@ -17,13 +18,15 @@
     path: string;
     exclusions: string[];
     hours: number;
+    growth_mib: number | null;
     enabled: boolean;
     next_due: number | null;
     runs: Run[];
   };
+  type ScanSettings = { hours: number; exclusions: string[]; growth_mib: number | null };
   type Change =
-    | { kind: 'add'; path: string; hours: number; exclusions: string[] }
-    | { kind: 'edit'; id: number; revision: number; hours: number; exclusions: string[] }
+    | { kind: 'add'; path: string; settings: ScanSettings }
+    | { kind: 'edit'; id: number; revision: number; settings: ScanSettings }
     | { kind: 'enable'; id: number; revision: number; enabled: boolean }
     | { kind: 'remove'; id: number; revision: number };
   let { available }: { available: boolean } = $props();
@@ -34,7 +37,8 @@
   let editing = $state<Pick<Schedule, 'id' | 'revision'> | null>(null),
     path = $state(''),
     hours = $state(24),
-    exclusions = $state('');
+    exclusions = $state(''),
+    growthMiB = $state<number | undefined>();
   let request = 0;
   let alive = false;
   let refreshAfterChange = false;
@@ -91,6 +95,7 @@
     path = '';
     hours = 24;
     exclusions = '';
+    growthMiB = undefined;
   }
 
   async function change(command: Change): Promise<void> {
@@ -119,11 +124,8 @@
       .split(/\r?\n/u)
       .map((line) => line.trim())
       .filter(Boolean);
-    void change(
-      editing
-        ? { kind: 'edit', ...editing, hours, exclusions: ignored }
-        : { kind: 'add', path, hours, exclusions: ignored },
-    );
+    const settings = { hours, exclusions: ignored, growth_mib: growthMiB ?? null };
+    void change(editing ? { kind: 'edit', ...editing, settings } : { kind: 'add', path, settings });
   }
 
   function edit(schedule: Schedule): void {
@@ -131,6 +133,7 @@
     path = schedule.path;
     hours = schedule.hours;
     exclusions = schedule.exclusions.join('\n');
+    growthMiB = schedule.growth_mib ?? undefined;
   }
 
   function outcome(run: Run): string {
@@ -148,7 +151,7 @@
 </script>
 
 <section aria-labelledby="scheduled-scans-title">
-  <h2 id="scheduled-scans-title">Scheduled scans</h2>
+  <h2 id="scheduled-scans-title" tabindex="-1">Scheduled scans</h2>
   {#if !available || !isTauri()}
     <p>Scheduled scans require a persistent desktop profile.</p>
   {:else}
@@ -198,6 +201,22 @@
           <textarea bind:value={exclusions} rows="2" maxlength="32768" disabled={pending}
           ></textarea>
         </label>
+        <label class="settings-row">
+          <span
+            >Growth alert (MiB)<small
+              >Optional. Compare with the last compatible complete run.</small
+            ></span
+          >
+          <input
+            type="number"
+            min="1"
+            max="4294967295"
+            step="1"
+            bind:value={growthMiB}
+            disabled={pending}
+            placeholder="Off"
+          />
+        </label>
         <div class="actions">
           <button class="primary" disabled={pending || !path}
             >{editing ? 'Save changes' : 'Add schedule'}</button
@@ -208,6 +227,7 @@
         </div>
       </form>
       {#each schedules as schedule (schedule.id)}
+        {@const latestAlert = schedule.runs.find((run) => run.growth)}
         <article>
           <h3 class="schedule-path">{schedule.path}</h3>
           <p>
@@ -218,6 +238,14 @@
                 ? 'Disabled'
                 : `Due ${date(schedule.next_due)}`}
           </p>
+          {#if latestAlert?.growth}
+            <p class="growth-alert">
+              <strong>+{bytes(Number(latestAlert.growth.bytes))}</strong>
+              since {date(latestAlert.growth.baseline_observed)} · Alert on {date(
+                latestAlert.started,
+              )}
+            </p>
+          {/if}
           <div class="actions">
             <button disabled={pending} onclick={() => edit(schedule)}>Edit</button>
             <button
@@ -248,6 +276,11 @@
                   <li>
                     {date(run.started)} · {outcome(run)}{#if run.problem}<small>{run.problem}</small
                       >{/if}
+                    {#if run.growth}<small
+                        >Growth alert · +{bytes(Number(run.growth.bytes))} since {date(
+                          run.growth.baseline_observed,
+                        )}</small
+                      >{/if}
                   </li>
                 {/each}
               </ul>
@@ -275,6 +308,13 @@
   }
   .schedule-path {
     overflow-wrap: anywhere;
+  }
+  .growth-alert strong {
+    color: var(--chart-growth);
+  }
+  input[type='number'] {
+    width: 160px;
+    max-width: 100%;
   }
   h3 {
     margin: 0;

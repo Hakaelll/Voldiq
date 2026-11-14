@@ -28,6 +28,12 @@ CREATE TABLE scheduled_runs(
 CREATE INDEX scheduled_runs_by_schedule ON scheduled_runs(schedule_id,id DESC);
 PRAGMA user_version=11;";
 
+pub(super) const GROWTH_SCHEMA: &str = "
+ALTER TABLE scan_schedules ADD COLUMN growth_mib INTEGER CHECK(growth_mib BETWEEN 1 AND 4294967295);
+ALTER TABLE scheduled_runs ADD COLUMN growth_bytes INTEGER CHECK(growth_bytes > 0);
+ALTER TABLE scheduled_runs ADD COLUMN baseline_observed INTEGER CHECK(baseline_observed >= 0);
+PRAGMA user_version=12;";
+
 const MAX_SCHEDULES: usize = 16;
 const MAX_EXCLUSION_BYTES: usize = 32_768;
 
@@ -38,6 +44,7 @@ pub struct Schedule {
     pub path: String,
     pub exclusions: Vec<String>,
     pub hours: u32,
+    pub growth_mib: Option<u32>,
     pub enabled: bool,
     pub next_due: Option<i64>,
     pub runs: Vec<Run>,
@@ -51,6 +58,37 @@ pub struct Run {
     pub snapshot: Option<i64>,
     pub problem: Option<String>,
     pub partial: Option<bool>,
+    pub growth: Option<Growth>,
+}
+
+#[derive(Serialize)]
+pub struct Growth {
+    pub bytes: String,
+    pub baseline_observed: i64,
+}
+
+pub struct SavedScan {
+    pub snapshot: i64,
+    pub growth_alert: bool,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ScanSettings {
+    pub hours: u32,
+    pub exclusions: Vec<String>,
+    pub growth_mib: Option<u32>,
+}
+
+impl ScanSettings {
+    fn interval(&self) -> Result<i64> {
+        if self.growth_mib == Some(0) {
+            return Err(Error::Invalid(
+                "Use a positive growth threshold in MiB, or leave it blank.".into(),
+            ));
+        }
+        interval(self.hours)
+    }
 }
 
 pub struct ScheduledScan<'a> {
@@ -170,9 +208,9 @@ impl super::Store {
         let tx = self.connection.unchecked_transaction()?;
         let mut schedules = Vec::new();
         {
-            let mut statement = tx.prepare("SELECT id,revision,folder,exclusions,interval,enabled,due FROM scan_schedules ORDER BY id LIMIT 17")?;
+            let mut statement = tx.prepare("SELECT id,revision,folder,exclusions,interval,enabled,due,growth_mib FROM scan_schedules ORDER BY id LIMIT 17")?;
             let mut rows = statement.query([])?;
-            let mut history = tx.prepare("SELECT r.started,r.finished,r.outcome,r.snapshot,r.problem,NOT s.complete FROM scheduled_runs r LEFT JOIN snapshots s ON s.id=r.snapshot WHERE r.schedule_id=?1 ORDER BY r.id DESC LIMIT 20")?;
+            let mut history = tx.prepare("SELECT r.started,r.finished,r.outcome,r.snapshot,r.problem,NOT s.complete,r.growth_bytes,r.baseline_observed FROM scheduled_runs r LEFT JOIN snapshots s ON s.id=r.snapshot WHERE r.schedule_id=?1 ORDER BY r.id DESC LIMIT 20")?;
             while let Some(row) = rows.next()? {
                 let id = row.get(0)?;
                 let folder: ScanFolder =
@@ -183,6 +221,15 @@ impl super::Store {
                 interval(hours)?;
                 let runs = history
                     .query_map([id], |row| {
+                        let growth = row
+                            .get::<_, Option<i64>>(6)?
+                            .map(|bytes| -> rusqlite::Result<_> {
+                                Ok(Growth {
+                                    bytes: bytes.to_string(),
+                                    baseline_observed: row.get(7)?,
+                                })
+                            })
+                            .transpose()?;
                         Ok(Run {
                             started: row.get(0)?,
                             finished: row.get(1)?,
@@ -190,6 +237,7 @@ impl super::Store {
                             snapshot: row.get(3)?,
                             problem: row.get(4)?,
                             partial: row.get(5)?,
+                            growth,
                         })
                     })?
                     .collect::<rusqlite::Result<_>>()?;
@@ -199,6 +247,7 @@ impl super::Store {
                     path: folder.path().to_string_lossy().into_owned(),
                     exclusions: decode(row.get_ref(3)?.as_str().map_err(|_| invalid_schedule())?)?,
                     hours,
+                    growth_mib: row.get(7)?,
                     enabled,
                     next_due: enabled.then(|| row.get(6)).transpose()?,
                     runs,
@@ -216,12 +265,11 @@ impl super::Store {
         &mut self,
         lease: &Lease,
         path: &Path,
-        hours: u32,
-        exclusions: &[String],
+        settings: &ScanSettings,
         now: i64,
     ) -> Result<i64> {
         self.check_schedule_lease(lease)?;
-        let interval = interval(hours)?;
+        let interval = settings.interval()?;
         let folder = ScanFolder::prepare(path)?;
         let root = folder.reopen()?;
         if root
@@ -233,10 +281,10 @@ impl super::Store {
             ));
         }
         let folder = encode(&folder)?;
-        let exclusions = encode_exclusions(&root, exclusions)?;
+        let exclusions = encode_exclusions(&root, &settings.exclusions)?;
         if self.connection.execute(
-            "INSERT INTO scan_schedules(folder,exclusions,interval,enabled,due) SELECT ?1,?2,?3,1,?4 WHERE (SELECT count(*) FROM scan_schedules)<16",
-            params![folder, exclusions, interval, next_due(now, interval)?],
+            "INSERT INTO scan_schedules(folder,exclusions,interval,enabled,due,growth_mib) SELECT ?1,?2,?3,1,?4,?5 WHERE (SELECT count(*) FROM scan_schedules)<16",
+            params![folder, exclusions, interval, next_due(now, interval)?, settings.growth_mib],
         )? != 1 {
             return Err(Error::Invalid("Remove a schedule before adding another. The maximum is 16.".into()));
         }
@@ -273,12 +321,11 @@ impl super::Store {
         lease: &Lease,
         id: i64,
         revision: i64,
-        hours: u32,
-        exclusions: &[String],
+        settings: &ScanSettings,
         now: i64,
     ) -> Result<()> {
         self.check_schedule_lease(lease)?;
-        let interval = interval(hours)?;
+        let interval = settings.interval()?;
         let stored = self
             .connection
             .query_row(
@@ -290,9 +337,9 @@ impl super::Store {
             .ok_or_else(invalid_schedule)?;
         let folder: ScanFolder = decode(&stored)?;
         let root = folder.reopen()?;
-        let exclusions = encode_exclusions(&root, exclusions)?;
-        if self.connection.execute("UPDATE scan_schedules SET revision=revision+1,exclusions=?3,interval=?4,due=?5 WHERE id=?1 AND revision=?2",
-            params![id, revision, exclusions, interval, next_due(now, interval)?])? != 1 { return Err(invalid_schedule()); }
+        let exclusions = encode_exclusions(&root, &settings.exclusions)?;
+        if self.connection.execute("UPDATE scan_schedules SET revision=revision+1,exclusions=?3,interval=?4,due=?5,growth_mib=?6 WHERE id=?1 AND revision=?2",
+            params![id, revision, exclusions, interval, next_due(now, interval)?, settings.growth_mib])? != 1 { return Err(invalid_schedule()); }
         Ok(())
     }
 
@@ -374,13 +421,18 @@ impl super::Store {
         run: ScheduledScan<'_>,
         measured: Result<Measurement>,
         cancel: &AtomicBool,
-    ) -> Result<Option<i64>> {
+    ) -> Result<Option<SavedScan>> {
         self.check_schedule_lease(run.lease)?;
         let problem = match measured {
             Ok(measurement) if measurement.run != run.claim.id => return Err(invalid_schedule()),
             Ok(measurement) if !cancel.load(Ordering::Relaxed) => {
                 match self.save_capture(&measurement.index, cancel, &[], None, Some(&run.claim)) {
-                    Ok(snapshot) => return Ok(Some(snapshot)),
+                    Ok((snapshot, growth_alert)) => {
+                        return Ok(Some(SavedScan {
+                            snapshot,
+                            growth_alert,
+                        }));
+                    }
                     Err(problem) => problem.to_string(),
                 }
             }
@@ -455,8 +507,28 @@ impl ScheduledScan<'_> {
 }
 
 impl Claim {
-    pub(super) fn publish(&self, tx: &Connection, snapshot: i64, finished: i64) -> Result<()> {
-        self.finish(tx, finished, "saved", Some(snapshot), None)
+    pub(super) fn publish(&self, tx: &Connection, snapshot: i64, finished: i64) -> Result<bool> {
+        self.finish(tx, finished, "saved", Some(snapshot), None)?;
+        let growth = tx.query_row(
+            "SELECT cur.logical-prev.logical,prev.observed_at,(cur.logical-prev.logical)>=cfg.growth_mib*1048576
+             FROM snapshots cur JOIN scan_schedules cfg ON cfg.id=?2
+             JOIN scheduled_runs r ON r.schedule_id=cfg.id AND r.id<?3 AND r.outcome='saved'
+             JOIN snapshots prev ON prev.id=r.snapshot AND prev.root_id=cur.root_id
+             WHERE cur.id=?1 AND cfg.growth_mib IS NOT NULL AND cur.complete AND cur.observed_complete
+               AND prev.complete AND prev.observed_complete AND prev.observed_at<cur.observed_at
+               AND prev.accounting_version=cur.accounting_version AND prev.engine_version=cur.engine_version
+             ORDER BY r.id DESC LIMIT 1",
+            params![snapshot, self.schedule, self.id],
+            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?, row.get::<_, bool>(2)?)),
+        ).optional()?;
+        if let Some((bytes, baseline, true)) = growth {
+            tx.execute(
+                "UPDATE scheduled_runs SET growth_bytes=?2,baseline_observed=?3 WHERE id=?1",
+                params![self.id, bytes, baseline],
+            )?;
+            return Ok(true);
+        }
+        Ok(false)
     }
 
     fn finish(

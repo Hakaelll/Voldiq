@@ -189,6 +189,8 @@ Native catalogue/workspace unit: expose the existing human-only catalogue throug
 - [ ] Add scheduled authorized scans and prepare-only policies with limits/cooldowns/history; each modifying batch needs a new human approval.
 
   Scheduled capture unit. Settings accepts an explicitly chosen local folder and an hourly, daily or weekly cadence. Pin the root by native identity, validate exclusions within that root, and use the shared directory scanner and operation lease while Voldiq is running. Save captures to History without replacing foreground analysis. Commit a successful run and its snapshot together. A run interrupted by exit keeps its status and waits another interval. Allow editing cadence and exclusions, disabling and removing schedules. Prepare-only cleanup policies and growth alerts remain separate stages of the same automation work.
+
+  Growth alerts unit. A schedule can declare a positive MiB threshold. Compare each complete capture with its latest compatible scheduled observation for the same root identity, exclusions and accounting revisions. Record a threshold crossing and its baseline timestamp with snapshot publication, show it in the schedule's run history and use the existing opt-in desktop notification route. Keep the threshold off for existing schedules until explicitly set.
 - [ ] Verify partial copies, destination loss, changed originals, capacity, collisions and interrupted execution. Commit and push.
 
 ## H. Optional integrations and finish

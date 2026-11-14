@@ -9,7 +9,7 @@ use std::{
     time::Duration,
 };
 use tauri::{AppHandle, Emitter, Manager, State};
-use voldiq_core::snapshots::schedule::{Schedule, time_now};
+use voldiq_core::snapshots::schedule::{ScanSettings, Schedule, time_now};
 
 #[derive(Default, Clone)]
 pub struct Scheduler(Arc<AtomicBool>);
@@ -51,16 +51,27 @@ pub fn start(app: &AppHandle) -> Result<(), String> {
                         .claim_scheduled_scan(&mut operation._lease, now)
                         .map_err(|error| error.to_string())?;
                     let _ = app.emit("scheduled-scans-changed", ());
-                    if let Some(run) = run {
+                    let saved = if let Some(run) = run {
                         let measured = run.measure(&scheduler.0);
                         database
                             .0
                             .lock()?
                             .finish_scheduled_scan(run, measured, &scheduler.0)
-                            .map_err(|error| error.to_string())?;
-                    }
+                            .map_err(|error| error.to_string())?
+                    } else {
+                        None
+                    };
                     drop(operation);
                     let _ = app.emit("scheduled-scans-changed", ());
+                    if let Some(saved) = saved.filter(|saved| saved.growth_alert) {
+                        let _ = app.emit("scheduled-growth-alert", saved.snapshot);
+                        #[cfg(windows)]
+                        if engine.mode == Mode::Installed {
+                            crate::windows_notifications::scheduled_growth(
+                                engine.operations.directory(),
+                            );
+                        }
+                    }
                     Ok(())
                 })();
                 if let Err(error) = result {
@@ -93,14 +104,12 @@ pub async fn list_scan_schedules(
 pub enum ScheduleChange {
     Add {
         path: PathBuf,
-        hours: u32,
-        exclusions: Vec<String>,
+        settings: ScanSettings,
     },
     Edit {
         id: i64,
         revision: i64,
-        hours: u32,
-        exclusions: Vec<String>,
+        settings: ScanSettings,
     },
     Enable {
         id: i64,
@@ -130,19 +139,14 @@ pub async fn change_scan_schedule(
         let lease = &operation._lease;
         let now = time_now().map_err(|error| error.to_string())?;
         match change {
-            ScheduleChange::Add {
-                path,
-                hours,
-                exclusions,
-            } => store
-                .add_scan_schedule(lease, &path, hours, &exclusions, now)
+            ScheduleChange::Add { path, settings } => store
+                .add_scan_schedule(lease, &path, &settings, now)
                 .map(|_| ()),
             ScheduleChange::Edit {
                 id,
                 revision,
-                hours,
-                exclusions,
-            } => store.edit_scan_schedule(lease, id, revision, hours, &exclusions, now),
+                settings,
+            } => store.edit_scan_schedule(lease, id, revision, &settings, now),
             ScheduleChange::Enable {
                 id,
                 revision,

@@ -32,6 +32,14 @@ pub(crate) fn preference(
 }
 
 pub(crate) fn scan_finished(directory: &Path) {
+    send(directory, false);
+}
+
+pub(crate) fn scheduled_growth(directory: &Path) {
+    send(directory, true);
+}
+
+fn send(directory: &Path, growth: bool) {
     if config_file::read_marker(&directory.join(PREFERENCE)) != Ok(true) {
         return;
     }
@@ -40,7 +48,7 @@ pub(crate) fn scan_finished(directory: &Path) {
         preference(directory, None),
         Ok(Status::Ready { registered: true })
     ) {
-        let _ = show();
+        let _ = show(growth);
     }
 }
 
@@ -52,12 +60,25 @@ pub(crate) fn should_notify(progress: &voldiq_core::Progress, cancelled: bool) -
 }
 
 pub(crate) fn notification() -> Result<ToastNotification> {
+    toast(false)
+}
+
+fn toast(growth: bool) -> Result<ToastNotification> {
     let xml = XmlDocument::new()?;
-    xml.LoadXml(h!("<toast><visual><binding template=\"ToastGeneric\"><text>Voldiq scan finished</text><text>Open Voldiq to review the results.</text></binding></visual></toast>"))?;
+    let content = if growth {
+        h!(
+            "<toast><visual><binding template=\"ToastGeneric\"><text>Voldiq found storage growth</text><text>Open Scheduled scans for the measured change.</text></binding></visual></toast>"
+        )
+    } else {
+        h!(
+            "<toast><visual><binding template=\"ToastGeneric\"><text>Voldiq scan finished</text><text>Open Voldiq to review the results.</text></binding></visual></toast>"
+        )
+    };
+    xml.LoadXml(content)?;
     ToastNotification::CreateToastNotification(&xml)
 }
 
-fn show() -> Result<()> {
+fn show(growth: bool) -> Result<()> {
     struct Apartment;
     impl Drop for Apartment {
         fn drop(&mut self) {
@@ -69,7 +90,12 @@ fn show() -> Result<()> {
     let _apartment = Apartment;
     let notifier = ToastNotificationManager::CreateToastNotifierWithId(h!("io.voldiq.desktop"))?;
     if notifier.Setting()? == NotificationSetting::Enabled {
-        notifier.Show(&notification()?)?;
+        let notification = if growth {
+            toast(true)?
+        } else {
+            notification()?
+        };
+        notifier.Show(&notification)?;
     }
     Ok(())
 }
