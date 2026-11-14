@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Scheduled growth alerts
+
+Scheduled scans can set a positive MiB threshold for logical growth. Each alert compares complete observations from the same schedule with matching root identity, exclusions and accounting versions. The alert and its reference date are committed with the capture. Settings shows recent alerts and the open app offers a link back to Scheduled scans. The installed copy can also notify through the existing opt-in Windows preference.
+
+All six project checks passed with eight routine tests. The retained history flow crossed a 1 MiB threshold and refused to compare changed coverage. SQL checks covered migration defaults, partial observations, incompatible roots and accounting revisions, and shrinkage. A portable Windows fixture ran two actual scheduled captures and persisted one 1,048,576-byte alert. The unsigned installer is 10,560,477 bytes. Native window startup passed. Delivery through Windows notifications, pointer/keyboard interaction and scaling remain manual. [Project checks](../benchmarks/workbench-growth-alerts-source-20261114.json) · [Production startup](../benchmarks/native-growth-alerts-preview-20261114.json) · [Distribution](../benchmarks/distribution-growth-alerts-20261114.json)
+
+Cleanup removed 2,867,932,946 logical bytes of inactive release files and preserved the installer, executables and open preview. The workspace measured 349,390,905 logical bytes afterward. [Post-clean checks](../benchmarks/workspace-footprint-growth-alerts-20261114.json)
+
 ## Scheduled scans
 
 Settings can schedule a selected local folder hourly, daily or weekly. Voldiq runs due scans while open or in the tray and idle. Each schedule supports folder exclusions, cadence edits, disabling and the latest 20 run outcomes. Scheduled scans recheck the folder's native identity, exclude Voldiq's profile and save a capture in History without replacing the active analysis. Interrupted runs are recorded and wait another interval. Cleanup preparation and growth alerts remain pending.

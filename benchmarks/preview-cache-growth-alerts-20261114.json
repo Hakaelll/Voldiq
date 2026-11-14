@@ -1,0 +1,16 @@
+{
+  "applied": true,
+  "removedBytes": 0,
+  "previews": [
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\A3676DE0B2E4B622EE05853811F17631FE5D815714D71139C172019FA6E0507A",
+      "bytes": 27900416,
+      "status": "KeptRunning"
+    },
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\AEA51E23E87B27967EFDE9E3C6137E42EE4F24E110CEB16127A2BBCAA2D4D6A6",
+      "bytes": 27912192,
+      "status": "KeptCurrent"
+    }
+  ]
+}
