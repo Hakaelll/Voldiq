@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Signed Windows updates
+
+Settings → Updates checks GitHub Releases on request from an installed build with an embedded maintainer key. A newer offer points to the exact versioned x64 installer. Download and review verifies the package and its signed version through Tauri before asking for native confirmation. The Windows installer opens only after confirmation and the shared operation lease excludes an active scan, export or cleanup.
+
+All six project checks passed with eight routine tests. A disposable Tauri signing key accepted the exact inert package and rejected altered bytes, an altered version, a missing signed version, a malformed signature, a foreign URL, an older version and a missing Windows target. The ordinary production preview reached ready and the unsigned NSIS installer is 11,034,160 bytes. A maintainer public key and a newer signed GitHub release are needed for the installed end-to-end test. Native interaction and scaling remain manual. [Project checks](../benchmarks/workbench-signed-updates-source-20261114.json) · [Signature fixture](../benchmarks/signed-updates-fixture-20261114.json) · [Production startup](../benchmarks/native-signed-updates-preview-20261114.json) · [Distribution](../benchmarks/distribution-signed-updates-20261114.json)
+
+Cleanup removed 3,375,956,827 logical bytes of inactive release files and 83,874,816 bytes of closed preview binaries. The workspace measured 328,589,779 logical bytes afterward. The new window and verified installer remained available. [Post-clean checks](../benchmarks/workspace-footprint-signed-updates-20261114.json)
+
 ## Command palette
 
 Ctrl+K opens a compact dialog with available commands grouped by task. Icons and labels line up on the left. The search and shortcut hints stay visible while results scroll. Search puts executable matches first and accepts favorite paths. Arrow keys and the mouse highlight the result. Enter runs it, and Escape closes the palette. Settings is also available from the sidebar footer.

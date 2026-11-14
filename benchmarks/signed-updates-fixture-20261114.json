@@ -1,0 +1,15 @@
+{
+  "accepted": [
+    "exact version-signed package"
+  ],
+  "rejected": [
+    "changed payload",
+    "changed version",
+    "missing signed version",
+    "malformed signature",
+    "foreign URL",
+    "non-newer version",
+    "missing Windows target"
+  ],
+  "scope": "Actual Voldiq parser and Tauri cryptographic verification. No installation or production credential."
+}
