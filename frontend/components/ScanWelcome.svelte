@@ -8,17 +8,24 @@
     native,
     scanning,
     recent,
+    showGuide,
     onscan,
     onchoose,
+    onhelp,
+    onskip,
   }: {
     volume: Volume | null | undefined;
     busy: boolean;
     native: boolean;
     scanning: boolean;
     recent: string[];
+    showGuide: boolean;
     onscan: (path: string) => void;
     onchoose: () => void;
+    onhelp: () => void;
+    onskip: () => void;
   } = $props();
+  let heading: HTMLHeadingElement;
   const space = $derived(volumeMeasurement(volume));
   const callerSpace = $derived(volumeCaller(volume));
   const percent = $derived(
@@ -28,7 +35,9 @@
 
 <div class="scan-welcome">
   <section class="welcome-start">
-    <h2>{scanning ? 'Scanning…' : native ? 'Scan your storage' : 'Desktop preview'}</h2>
+    <h2 bind:this={heading} tabindex="-1">
+      {scanning ? 'Scanning…' : native ? 'Scan your storage' : 'Desktop preview'}
+    </h2>
     <p class="welcome-description">
       {scanning
         ? 'Your storage map will appear here when the scan finishes.'
@@ -48,6 +57,28 @@
         ><Icon name="folder" />Choose a folder</button
       >
     </div>
+    {#if showGuide && native && !busy && !scanning}
+      <section class="welcome-guide" aria-label="Getting started">
+        <p>
+          Start with a folder you know. After the scan, open Explorer to see what takes up space.
+        </p>
+        <div>
+          <button
+            class="quiet-action"
+            onclick={onhelp}
+            aria-haspopup="dialog"
+            aria-keyshortcuts="F1">Help & shortcuts</button
+          >
+          <button
+            class="quiet-action"
+            onclick={() => {
+              onskip();
+              heading.focus({ preventScroll: true });
+            }}>Skip tips</button
+          >
+        </div>
+      </section>
+    {/if}
     {#if recent.length}<div class="welcome-recent">
         <h3>Recent</h3>
         {#each recent.slice(0, 3) as path}<button
@@ -215,6 +246,21 @@
   .welcome-actions button {
     min-height: 42px;
     padding: 10px 16px;
+  }
+  .welcome-guide {
+    margin-top: 20px;
+    padding-top: 12px;
+    max-width: 46ch;
+    border-top: 1px solid var(--border);
+  }
+  .welcome-guide p {
+    color: var(--secondary);
+    margin-bottom: 4px;
+  }
+  .welcome-guide > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
   }
   .welcome-recent {
     width: 100%;

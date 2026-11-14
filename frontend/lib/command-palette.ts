@@ -7,6 +7,7 @@ export type PaletteAction =
   | { kind: 'search' }
   | { kind: 'choose' }
   | { kind: 'saved' }
+  | { kind: 'help' }
   | { kind: 'load'; reference: RecordRef }
   | { kind: 'scan'; reference: RecordRef; path: string };
 export interface PaletteCommand {
@@ -79,6 +80,16 @@ export function paletteCommands(
       icon: 'folder',
       disabled: scanDisabled,
       action: { kind: 'choose' },
+    },
+    {
+      id: 'help',
+      label: 'Help & shortcuts',
+      detail: 'F1',
+      group: 'actions',
+      icon: 'help',
+      keywords: 'getting started guide keyboard ayuda atajos',
+      disabled: false,
+      action: { kind: 'help' },
     },
     ...destinations.map(({ id: view, label, icon, keywords }): PaletteCommand => ({
       id: `navigate:${view}`,

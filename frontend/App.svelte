@@ -18,6 +18,7 @@
   import AdvancedSearch from './components/AdvancedSearch.svelte';
   import SavedWorkspaces from './components/SavedWorkspaces.svelte';
   import CommandPalette from './components/CommandPalette.svelte';
+  import WorkspaceHelp from './components/WorkspaceHelp.svelte';
   import {
     detachedQuery,
     restoreWorkspace,
@@ -154,10 +155,13 @@
   let savedOpen = $state(false),
     paletteOpen = $state(false),
     savedLoading = $state(false);
+  let helpOpen = $state(false);
+  let guideDismissed = $state(false);
   let catalog = $state.raw<CatalogState>({ kind: 'loading' });
   let catalogEpoch = 0,
     workspaceLoadToken = 0;
   let paletteOpener: HTMLElement | null = null;
+  let helpOpener: HTMLElement | null = null;
   let appliedSearchKey = $state<string | null>(null);
   let searchProblem = $state<{ key: string; message: string } | null>(null);
   let pendingSearchKey: string | null = null;
@@ -346,7 +350,7 @@
       });
   }
   function openPalette(): void {
-    if (analysisBusy || cleanupPreview || restoreReceipt !== null || showIssues) return;
+    if (analysisBusy || cleanupPreview || restoreReceipt !== null || showIssues || helpOpen) return;
     if (paletteOpen) {
       closePalette();
       return;
@@ -355,6 +359,31 @@
     paletteOpener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     paletteOpen = true;
     void loadWorkspaces();
+  }
+  function openHelp(): void {
+    if (
+      helpOpen ||
+      (!paletteOpen && document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]'))
+    )
+      return;
+    helpOpener = paletteOpen
+      ? paletteOpener
+      : document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    if (paletteOpen) closePalette(false);
+    helpOpen = true;
+  }
+  async function closeHelp(): Promise<void> {
+    helpOpen = false;
+    const opener = helpOpener;
+    helpOpener = null;
+    await tick();
+    if (helpOpen || document.activeElement !== document.body) return;
+    const target = opener?.isConnected && opener !== document.body
+      ? opener
+      : document.getElementById('workspace-title');
+    target?.focus({ preventScroll: true });
   }
   function navigate(next: Destination): void {
     if (analysisBusy) return;
@@ -394,8 +423,12 @@
   }
   function runCommand(command: PaletteCommand): void {
     if (!paletteOpen || !commands.includes(command) || command.disabled || analysisBusy) return;
-    closePalette(false);
     const action = command.action;
+    if (action.kind === 'help') {
+      openHelp();
+      return;
+    }
+    closePalette(false);
     switch (action.kind) {
       case 'navigate':
       case 'chart': {
@@ -1064,6 +1097,7 @@
         scanId = null;
       } else if (update.phase === 'complete' || update.phase === 'cancelled') {
         if (update.phase === 'complete' && update.entries > 0 && !update.previous) {
+          guideDismissed = true;
           recentPaths = rememberPath(recentPaths, path);
           savePreferences();
         }
@@ -1373,6 +1407,8 @@
         if ('reviewWeights' in value)
           reviewWeights = readReviewWeights(value.reviewWeights) ?? defaultReviewWeights;
         if ('recentPaths' in value) recentPaths = readRecentPaths(value.recentPaths);
+        guideDismissed =
+          ('guideDismissed' in value && value.guideDismissed === true) || recentPaths.length > 0;
         if ('scanProfile' in value) scanProfile = parseScanProfile(value.scanProfile) ?? 'auto';
         if ('scanMode' in value && (value.scanMode === 'auto' || value.scanMode === 'directory'))
           scanMode = value.scanMode;
@@ -1399,6 +1435,14 @@
         .catch(report);
     const keyboard = (event: KeyboardEvent): void => {
       if (exportBusy) return;
+      if (
+        !event.defaultPrevented && !event.isComposing && !event.repeat &&
+        !event.ctrlKey && !event.altKey && !event.metaKey && !event.shiftKey && event.key === 'F1'
+      ) {
+        event.preventDefault();
+        openHelp();
+        return;
+      }
       if (
         !event.defaultPrevented &&
         !event.repeat &&
@@ -1459,6 +1503,7 @@
           scanProfile,
           reviewWeights,
           recentPaths,
+          guideDismissed,
         }),
       );
     } catch (problem) {
@@ -1941,6 +1986,14 @@
             >
           </section>
           <WindowSettings />
+          <section aria-labelledby="settings-help-heading">
+            <h2 id="settings-help-heading">Help</h2>
+            <div class="settings-action">
+              <button onclick={openHelp} aria-haspopup="dialog" aria-keyshortcuts="F1">
+                <Icon name="help" />Help & shortcuts
+              </button>
+            </div>
+          </section>
           <section aria-labelledby="scanning-heading">
             <h2 id="scanning-heading">Scanning</h2>
             <ScanProfileSelect
@@ -2101,11 +2154,17 @@
               native={isTauri()}
               scanning={operation?.phase === 'scanning'}
               recent={recentPaths}
+              showGuide={!guideDismissed}
               onscan={(path) => {
                 void start(path);
               }}
               onchoose={() => {
                 void choose();
+              }}
+              onhelp={openHelp}
+              onskip={() => {
+                guideDismissed = true;
+                savePreferences();
               }}
             />
           {:else}
@@ -2616,6 +2675,12 @@
     oncommand={runCommand}
     onclose={() => closePalette()}
     onreload={() => void loadWorkspaces()}
+  />{/if}
+{#if helpOpen}<WorkspaceHelp
+    {view}
+    chart={ready && view === 'explorer' && explorerMap}
+    waitingForScan={!ready && (view === 'overview' || view === 'explorer' || view === 'large')}
+    onclose={() => void closeHelp()}
   />{/if}
 {#if showIssues}<div class="dialog-backdrop" role="presentation">
     <div

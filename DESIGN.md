@@ -342,6 +342,8 @@ Saved opens a compact two-column panel for named views and favorite folders. It 
 
 Commands and Ctrl+K open a native dialog with one search field and compact, icon-led rows. The initial groups cover actions, pages, charts, saved views and favorite folders. Typing shows the ranked list across groups, with label matches ahead of details and keywords. Arrow keys skip unavailable commands while focus stays in search. Enter opens the highlighted row and Escape closes the dialog. Chart commands appear when scan data is available and open the selected chart in the expanded Explorer. Close returns focus when still owned. Commands retain their ordinary index, operation and revision checks.
 
+The empty scan view places a short guide below the active scan controls. Skip tips dismisses it for the current profile. F1 and Help & shortcuts open a compact native dialog with guidance for the current screen. Explorer chart controls have their own shortcut rows when the chart is visible. Escape closes help and returns focus to its opener when possible.
+
 ### Large-item filters
 
 Large files adds an Items selector beside its existing filters, with Files and Folders choices. It defaults to Files, and Reset filters restores that choice. The same virtual list and details panel display folders without another explanatory paragraph or management action. Folder rows open their indexed scope through the existing navigation handler.

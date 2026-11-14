@@ -65,24 +65,33 @@ function item(id: number): CleanupPreview['preview']['items'][number] {
 
 test('frontend interactions preserve ownership and bounded motion', async () => {
   const commands = paletteCommands(null, false, false);
-  assert.deepEqual(filterCommands(commands, '  AJÚSTES ').map((command) => command.action), [
-    { kind: 'navigate', view: 'settings' },
-  ]);
-  assert.deepEqual(filterCommands(commands, 'files').map((command) => command.id), [
-    'navigate:large',
-    'search',
-  ]);
-  assert.deepEqual(groupCommands(commands).map(({ group }) => group), ['actions', 'views']);
+  assert.deepEqual(
+    filterCommands(commands, '  AJÚSTES ').map((command) => command.action),
+    [{ kind: 'navigate', view: 'settings' }],
+  );
+  assert.deepEqual(
+    filterCommands(commands, 'files').map((command) => command.id),
+    ['navigate:large', 'search'],
+  );
+  assert.deepEqual(
+    groupCommands(commands).map(({ group }) => group),
+    ['actions', 'views'],
+  );
   const settingsIndex = commands.findIndex((command) => command.id === 'navigate:settings');
   assert.equal(commands[settingsIndex].disabled, false);
   assert.equal(paletteFocusIndex('ArrowDown', settingsIndex, commands), 1);
   assert.equal(paletteFocusIndex('ArrowUp', 1, commands), settingsIndex);
   assert.equal(filterCommands(commands, 'unknown command').length, 0);
+  assert.deepEqual(
+    filterCommands(commands, 'ayuda').map(({ action, disabled }) => ({ action, disabled })),
+    [{ action: { kind: 'help' }, disabled: false }],
+  );
   assert.deepEqual(filterCommands(commands, 'sunburst'), []);
   const chartCommands = paletteCommands(null, true, false);
-  assert.deepEqual(filterCommands(chartCommands, 'sunburst').map(({ action }) => action), [
-    { kind: 'chart', view: 'sunburst' },
-  ]);
+  assert.deepEqual(
+    filterCommands(chartCommands, 'sunburst').map(({ action }) => action),
+    [{ kind: 'chart', view: 'sunburst' }],
+  );
   const pauseViews: ScanControlView[] = [];
   let rejectLate: (error: Error) => void = () => {};
   let nativePauseState = 'running';

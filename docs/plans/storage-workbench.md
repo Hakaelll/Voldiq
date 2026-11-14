@@ -232,6 +232,8 @@ Destination implementation reference: Microsoft's [FILE_RENAME_INFO contract](ht
 
   Desktop profile unit. Resolve the state and WebView2 data directory before creating the window. Keep the installed profile location and use an adjacent .voldiq-data directory when launched with --portable. Create a unique temporary profile for --ephemeral or when durable storage denies writes. Keep invalid paths and corrupt databases visible as startup failures. Use the resolved profile for local preferences, databases and agent state. Disable destructive operations and agent connections in temporary mode. Show the mode in the footer and test with isolated directories and a read-only snapshot.
 
+  First-scan help unit. Keep scan controls available and show a short optional guide in the empty scan view. Store dismissal with profile preferences. Open help from F1, Settings, the guide or the command palette, using the current screen and chart mode to select shortcut and workflow guidance.
+
 - [ ] Run final source/behavior gates and real synthetic/headless measurements. Record hardware-dependent and manual acceptance limits. Review the whole diff inline, update all coverage rows, commit and push.
 
 ## Decisions
