@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Prepare a transfer from the desktop selection
+
+Transfer opens the list of other connected NTFS volumes beside the inspection selection. Choose one by keyboard or drag the selection button to its row and pick an existing folder. The draft opens in Plan review. Keep originals is the default. Approval and the separate Start transfer action are required to copy. Desktop plans belong to a local owner that cannot authenticate with an agent token or be started through an agent connection.
+
+The six project checks passed with eight routine tests. The retained Windows flow used owned folders to reject same-volume and changed-volume destinations and to check desktop-owner isolation. The Svelte server markup check covered the collapsed button, selection and busy guards, and source checks for pointer capture and the separate preparation command. Dragging, native folder choice and graphical interaction remain manual. A positive transfer between two NTFS volumes remains deferred. [Project checks](../benchmarks/workbench-desktop-transfer-source.json)
+
+The Windows preview reached ready with 10 embedded non-HTML assets matching the frontend build. The unsigned NSIS installer measures 11,124,445 bytes. Cleanup removed 3,307,045,224 logical bytes of inactive builds and tests and 0 bytes of closed previews. The installer and open preview were preserved. [Startup](../benchmarks/native-desktop-transfer-preview.json) · [Distribution](../benchmarks/distribution-desktop-transfer.json) · [Post-clean checks](../benchmarks/workspace-footprint-desktop-transfer.json)
+
 ## Transfer and restore approval
 
 Windows can approve a newly prepared transfer or restore from Cleanup → Agent plans. The native confirmation names the action, destination and manifest hash. The connection must separately request execution within the two-minute grant. Start atomically checks the request, its issuer, its owner and its hash before consuming the grant. Earlier planning-only proposals still appear in the catalogue and require a fresh proposal for execution.
