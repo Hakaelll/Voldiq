@@ -6,5 +6,6 @@
     "windows": [{ "title": "Voldiq", "width": 1320, "height": 880, "minWidth": 840, "minHeight": 620 }],
     "security": { "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: data:; connect-src ipc: http://ipc.localhost; object-src 'none'; frame-src 'none'" }
   },
-  "bundle": { "active": true, "targets": ["nsis"], "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.ico"], "windows": { "webviewInstallMode": { "type": "embedBootstrapper" }, "nsis": { "installerIcon": "icons/icon.ico", "uninstallerIcon": "icons/icon.ico", "installerHooks": "windows/explorer-hooks.nsh" } } }
+  "bundle": { "active": true, "targets": ["nsis"], "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.ico"], "windows": { "webviewInstallMode": { "type": "embedBootstrapper" }, "nsis": { "installerIcon": "icons/icon.ico", "uninstallerIcon": "icons/icon.ico", "installerHooks": "windows/explorer-hooks.nsh" } } },
+  "plugins": { "updater": { "pubkey": "", "requireSignedVersion": true, "windows": { "installMode": "basicUi" } } }
 }

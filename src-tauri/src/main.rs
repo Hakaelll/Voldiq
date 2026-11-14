@@ -43,6 +43,8 @@ mod windows_explorer;
 mod windows_notifications;
 #[cfg(windows)]
 mod windows_startup;
+#[cfg(windows)]
+mod windows_updates;
 mod workbench_commands;
 use analysis_status::IndexId;
 use cleanup_commands::*;
@@ -965,6 +967,12 @@ fn main() {
             let ephemeral = profile.mode == profile::Mode::Ephemeral;
             app.manage(Arc::new(engine));
             app.manage(database);
+            #[cfg(windows)]
+            {
+                app.handle()
+                    .plugin(tauri_plugin_updater::Builder::new().build())?;
+                app.manage(windows_updates::Updates::default());
+            }
             app.manage(schedule_commands::Scheduler::default());
             setup_trace.record("snapshot-open-end", Some(app.handle()));
             if ephemeral {
@@ -1105,6 +1113,12 @@ fn main() {
             snapshot_commands::set_snapshot_retention,
             snapshot_commands::apply_snapshot_retention,
             window_tray::get_window_close_behavior,
+            #[cfg(windows)]
+            windows_updates::update_availability,
+            #[cfg(windows)]
+            windows_updates::check_windows_update,
+            #[cfg(windows)]
+            windows_updates::install_windows_update,
             window_tray::set_window_close_behavior,
             #[cfg(windows)]
             windows_startup,

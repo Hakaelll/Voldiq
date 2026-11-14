@@ -1,0 +1,97 @@
+{
+  "checkedUtc": "2026-11-14T16:39:56.2202554Z",
+  "startedUtc": "2026-11-14T16:26:50.2495003Z",
+  "checkoutCommit": "d485055f5ab2b8cdca896f10855f2b0be418cb6f",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.067
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 7.526
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.829
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 5.686
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 670.196
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 100.637
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "1EEA5456AD8D3C78FF0AB831F205A39180F213A696D0591B7A2AE711CAF0DAE3"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "A5A44561F21A9265D31468B5465DFF88D1DE717798A5011B84242833A7ADE8D1"
+    },
+    {
+      "path": "docs/DISTRIBUTION.md",
+      "sha256": "3154D1896EAEFD5D7A375EF2BF51129FF00C6FECAFB17C90B18E6170A0156754"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "D7B2A944D7B55F151A1D1F3955D2BF79D260DB528EFF0966FCB7D9A5579361F4"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "EA48A632FB8359605DE2C2042768138ED573901154554E859382B334EEADC48F"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "1F2EB56031DA6EF63F7CF9CA99AE514B3E7EAE07D059BA2A6420C185A8E0783E"
+    },
+    {
+      "path": "frontend/components/WindowsUpdates.svelte",
+      "sha256": "A8AF7AC7491BF3A6F21D15BB62372FB32BF8C0AED7535BC6B887265237591467"
+    },
+    {
+      "path": "scripts/prepare_signed_update.ps1",
+      "sha256": "8560AAD3C29CB85167FDD995BFD56E54F91452834E57E61EAB2D80E9E46375A5"
+    },
+    {
+      "path": "src-tauri/Cargo.toml",
+      "sha256": "99438A5FF6B2430799DC019AF01D6FD587529C38DA0351C3ECA940CCFA733C0D"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "F166767A2FF86BFD17B3D8D0DCA54C38C0FEA4F127A068E1BAC708EC7F577F40"
+    },
+    {
+      "path": "src-tauri/src/windows_updates.rs",
+      "sha256": "39F9FB33C106A84B722F5E3EA896C3A68875ECDD6AAF0857DC21B78DC4335193"
+    },
+    {
+      "path": "src-tauri/tauri.conf.json",
+      "sha256": "702711ECB41C2D16B242CDB7BF57D5DCA239655E34E1A368718F4B64F32974DB"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  }
+}

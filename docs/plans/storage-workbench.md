@@ -240,6 +240,8 @@ Destination implementation reference: Microsoft's [FILE_RENAME_INFO contract](ht
 
   First-scan help unit. Keep scan controls available and show a short optional guide in the empty scan view. Store dismissal with profile preferences. Open help from F1, Settings, the guide or the command palette, using the current screen and chart mode to select shortcut and workflow guidance.
 
+  Signed update unit. Add a manual Settings check for installed Windows release builds with an embedded maintainer public key. Use TLS to the existing GitHub release repository, limit manifest and package bytes, and require the exact versioned NSIS asset. Keep offers in native memory with a short expiry and use Tauri's version-bound signature verification before exact native confirmation and installation. Exclude startup, portable, temporary and unsigned previews from update activation. Document signed artifact generation and the external maintainer key and publication requirements.
+
 - [ ] Run final source/behavior gates and real synthetic/headless measurements. Record hardware-dependent and manual acceptance limits. Review the whole diff inline, update all coverage rows, commit and push.
 
 ## Decisions

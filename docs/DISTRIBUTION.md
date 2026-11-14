@@ -18,6 +18,21 @@ pnpm tauri build --features production --bundles nsis
 
 The Tauri command builds the frontend before compiling the native release executable. Its output directory is `target/release/bundle/nsis`. Open release previews from the separate hash-addressed copy described below so that packaging can update the canonical executable.
 
+### Signed in-app updates
+
+The release maintainer creates and retains a password-protected Tauri signing key outside the repository. Use the same key for successive releases. Supply the Base64 maintainer public key as `VOLDIQ_UPDATE_PUBLIC_KEY` and the matching private key through `TAURI_SIGNING_PRIVATE_KEY` or `TAURI_SIGNING_PRIVATE_KEY_PATH` in the release environment. Supply the key's password through `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Keep both private values in the maintainer's secret store.
+
+After setting the same stable version in the app and workspace configuration, run:
+
+```powershell
+./scripts/prepare_signed_update.ps1
+./scripts/verify_distribution.ps1
+```
+
+The script builds the x64 NSIS installer with an embedded trust key and a signature bound to the app version. Publish the resulting installer, signature and `latest.json` together on the GitHub release tagged `v<version>`. Mark that release as latest after its assets are attached. Keep one signed installer name per version. The updater requires a strictly newer version and the exact versioned asset name from Voldiq's release repository.
+
+Check for updates from Settings in an already installed, key-enabled build. An explicit download verifies the version-bound signature before showing the native installation confirmation. The installer opens visibly after confirmation. The ordinary preview build exposes an unavailable state and never contacts GitHub for updates. Tauri updater signing and Windows Authenticode are independent. [Tauri updater documentation](https://v2.tauri.app/plugin/updater/)
+
 ### Optional VS Code adapter
 
 Package the adapter independently of the installer. It uses the separate `voldiq-cli.exe` built by Cargo and ships without the CLI or Node dependencies.

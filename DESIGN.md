@@ -344,6 +344,10 @@ Commands and Ctrl+K open a 560px native dialog with one search field. Available 
 
 The empty scan view places a short guide below the active scan controls. Skip tips dismisses it for the current profile. F1 and Help & shortcuts open a compact native dialog with guidance for the current screen. Explorer chart controls have their own shortcut rows when the chart is visible. Escape closes help and returns focus to its opener when possible.
 
+### Windows updates
+
+Settings shows Updates below Window. It uses the shared settings rows and buttons, and displays the installed version when updates are available. Check for updates queries GitHub Releases on demand. The row reports an available version, an up-to-date result or an actionable error. Download and review prepares the signed installer before a native confirmation names the exact version and explains that Voldiq will close. Cancellation returns to Settings. Unconfigured and non-installed builds show their availability without a download control.
+
 Scheduled scans uses the existing Settings rows. A folder picker, cadence and exclusions define a capture. The list gives each schedule its folder, frequency and next due time or current state. A run history disclosure keeps outcomes and snapshot references available without expanding every schedule.
 
 A schedule can set a growth alert in MiB. The schedule list shows the latest alert with its comparison date. The run history preserves individual alerts, and the live workspace notice opens the schedule section.
