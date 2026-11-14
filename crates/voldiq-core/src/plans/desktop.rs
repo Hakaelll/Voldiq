@@ -84,6 +84,10 @@ impl Desktop {
         store.vault_quota(&self.human)
     }
 
+    pub fn set_vault_retention(&self, days: Option<u16>) -> Result<()> {
+        Store::open(&self.directory)?.set_vault_retention(&self.human, days)
+    }
+
     pub fn transfer_operations(
         &self,
         before: Option<&str>,

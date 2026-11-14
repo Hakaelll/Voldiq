@@ -70,6 +70,10 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
     [{ kind: 'navigate', view: 'settings' }],
   );
   assert.deepEqual(
+    filterCommands(commands, 'ctrl+,').map((command) => command.action),
+    [{ kind: 'navigate', view: 'settings' }],
+  );
+  assert.deepEqual(
     filterCommands(commands, 'files').map((command) => command.id),
     ['navigate:large', 'search'],
   );

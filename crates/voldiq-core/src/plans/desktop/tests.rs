@@ -208,7 +208,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                 SELECT ?1,owner,?2,?3,native_record,binding,'executing','prior catalogue fixture','fixture nonce' FROM agent_plans WHERE id=?4",
                 rusqlite::params![historical.id,json,hash,plan.manifest.id]).unwrap();
             // Model a version-2 database with a pre-existing proposal, then run the real migration.
-            ledger.connection.execute_batch("DROP TABLE recovery_vault_quota; DROP TABLE transfer_files; DROP TABLE transfer_operations; PRAGMA user_version=2;").unwrap();
+            ledger.connection.execute_batch("DROP TABLE recovery_vault_retention; DROP TABLE recovery_vault_quota; DROP TABLE transfer_files; DROP TABLE transfer_operations; PRAGMA user_version=2;").unwrap();
             drop(ledger);
             let mut ledger = Store::open(state.path()).unwrap();
             assert_eq!(
@@ -216,7 +216,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                     .connection
                     .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
                     .unwrap(),
-                5
+                6
             );
             let human = HumanAuthority::acquire(state.path()).unwrap();
             {
@@ -534,7 +534,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                         rusqlite::params![restored.id,restored.connection_id,json,hash]).unwrap();
                     database
                         .connection
-                        .execute_batch("DROP TABLE recovery_vault_quota; PRAGMA user_version=3;")
+                        .execute_batch("DROP TABLE recovery_vault_retention; DROP TABLE recovery_vault_quota; PRAGMA user_version=3;")
                         .unwrap();
                     drop(database);
                     let mut database = Store::open(migration_state.path()).unwrap();
@@ -554,7 +554,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                             .connection
                             .query_row("PRAGMA user_version", [], |row| row.get::<_, i64>(0))
                             .unwrap(),
-                        5
+                        6
                     );
                     let tx = database.connection.transaction().unwrap();
                     for node in [entries[0].id, entries[1].id] {
@@ -716,6 +716,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                     let copied = crate::plans::TransferFilter {
                         text: restored.entries[0].path.to_uppercase().replace('\\', "/"),
                         published_only: true,
+                        review_due_only: false,
                     };
                     let filtered = database
                         .transfer_operations(&history_reader, None, 1, &copied)
@@ -1164,6 +1165,63 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
             assert_eq!(saved.files[0].interrupted_at, None);
             assert_eq!(saved.files[1].phase, TransferPhase::PublishPending);
             assert_eq!(saved.files[1].interrupted_at, Some(at + 1));
+            {
+                assert_eq!(saved.retention_days, None);
+                assert!(ledger.set_vault_retention(&human, Some(0)).is_err());
+                ledger.set_vault_retention(&human, Some(30)).unwrap();
+                let policy = ledger.vault_quota(&human).unwrap();
+                assert_eq!(policy.retention_days, Some(30));
+                assert_eq!(
+                    catalogue::vault::review_at(&historical, &saved.files[0], Some(30)),
+                    Some(at + 30 * 86_400)
+                );
+                assert_eq!(
+                    catalogue::vault::review_at(&historical, &saved.files[1], Some(30)),
+                    None
+                );
+                let cutoff = at + 30 * 86_400;
+                assert!(
+                    !catalogue::Retention {
+                        days: Some(30),
+                        checked_at: cutoff - 1
+                    }
+                    .due(&historical, &saved.files[0])
+                );
+                assert!(
+                    catalogue::Retention {
+                        days: Some(30),
+                        checked_at: cutoff
+                    }
+                    .due(&historical, &saved.files[0])
+                );
+                assert!(
+                    !catalogue::Retention {
+                        days: Some(30),
+                        checked_at: cutoff
+                    }
+                    .due(&historical, &saved.files[1])
+                );
+                let due = crate::plans::TransferFilter {
+                    review_due_only: true,
+                    ..Default::default()
+                };
+                assert!(
+                    ledger
+                        .transfer_catalogue(&human, &historical.id, None, 100, &due)
+                        .unwrap()
+                        .files
+                        .is_empty()
+                );
+                drop(ledger);
+                ledger = Store::open(state.path()).unwrap();
+                assert_eq!(ledger.vault_quota(&human).unwrap().retention_days, Some(30));
+                ledger.set_vault_retention(&human, None).unwrap();
+                assert_eq!(ledger.vault_quota(&human).unwrap().retention_days, None);
+                assert_eq!(
+                    ledger.vault_quota(&human).unwrap().charged_bytes,
+                    policy.charged_bytes
+                );
+            }
             {
                 let tx = ledger.connection.transaction().unwrap();
                 assert!(

@@ -149,7 +149,7 @@ impl Store {
                 CREATE INDEX execution_requests_session ON execution_requests(issuer,requested);
                 PRAGMA user_version=2;",
             )?;
-        } else if version > 5 {
+        } else if version > 6 {
             return Err(invalid());
         }
         if version <= 2 {
@@ -159,6 +159,9 @@ impl Store {
         }
         if version <= 4 {
             tx.execute_batch(super::catalogue::vault::SCHEMA)?;
+        }
+        if version <= 5 {
+            tx.execute_batch(super::catalogue::vault::RETENTION_SCHEMA)?;
         }
         tx.commit()?;
         Ok(Self {

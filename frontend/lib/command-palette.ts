@@ -17,6 +17,7 @@ export interface PaletteCommand {
   group: PaletteGroup;
   icon: string;
   keywords?: string;
+  shortcut?: string;
   disabled: boolean;
   action: PaletteAction;
 }
@@ -84,9 +85,10 @@ export function paletteCommands(
     {
       id: 'help',
       label: 'Help & shortcuts',
-      detail: 'F1',
+      detail: '',
       group: 'actions',
       icon: 'help',
+      shortcut: 'F1',
       keywords: 'getting started guide keyboard ayuda atajos',
       disabled: false,
       action: { kind: 'help' },
@@ -98,6 +100,7 @@ export function paletteCommands(
       group: 'views',
       icon,
       keywords,
+      shortcut: view === 'settings' ? 'Ctrl+,' : undefined,
       disabled: false,
       action: { kind: 'navigate', view },
     })),
@@ -107,7 +110,7 @@ export function paletteCommands(
       commands.push({
         id: `chart:${view.id}`,
         label: view.label,
-        detail: 'Expanded chart',
+        detail: '',
         group: 'charts',
         icon: 'overview',
         keywords: 'map chart visualization gráfica',
@@ -159,7 +162,7 @@ export function filterCommands(
   return commands
     .flatMap((command) => {
       const label = normalized(command.label);
-      const searchable = `${label} ${normalized(command.detail)} ${normalized(command.keywords ?? '')}`;
+      const searchable = `${label} ${normalized(command.detail)} ${normalized(command.keywords ?? '')} ${normalized(command.shortcut ?? '')}`;
       if (!words.every((word) => searchable.includes(word))) return [];
       let score = 0;
       if (label === query) score = 3;

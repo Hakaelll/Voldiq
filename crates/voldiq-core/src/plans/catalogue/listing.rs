@@ -11,6 +11,8 @@ use serde::{Deserialize, Serialize};
 pub struct TransferFilter {
     pub text: String,
     pub published_only: bool,
+    #[serde(default)]
+    pub review_due_only: bool,
 }
 
 impl TransferFilter {
@@ -28,9 +30,12 @@ pub(super) fn matches_file(
     manifest: &super::Manifest,
     file: &super::TransferFile,
     needle: &str,
-    published_only: bool,
+    filter: &TransferFilter,
+    retention: Retention,
 ) -> Result<bool> {
-    if published_only && file.published_at.is_none() {
+    if (filter.published_only && file.published_at.is_none())
+        || (filter.review_due_only && !retention.due(manifest, file))
+    {
         return Ok(false);
     }
     if needle.is_empty() {
@@ -45,6 +50,29 @@ pub(super) fn matches_file(
     let output = group.destination.path.join(&file.output_name);
     let includes = |text: &str| text.replace('/', "\\").to_lowercase().contains(needle);
     Ok(includes(&entry.path) || includes(&output.to_string_lossy()) || includes(&file.output_name))
+}
+
+#[derive(Clone, Copy)]
+pub(in crate::plans) struct Retention {
+    pub days: Option<u16>,
+    pub checked_at: i64,
+}
+
+impl Retention {
+    pub(super) fn read(tx: &rusqlite::Transaction<'_>) -> Result<Self> {
+        Ok(Self {
+            days: super::vault::retention_days(tx)?,
+            checked_at: crate::plans::now()?,
+        })
+    }
+
+    pub(in crate::plans) fn due(
+        self,
+        manifest: &super::Manifest,
+        file: &super::TransferFile,
+    ) -> bool {
+        super::vault::review_at(manifest, file, self.days).is_some_and(|at| at <= self.checked_at)
+    }
 }
 
 #[derive(Serialize)]
@@ -78,6 +106,7 @@ pub enum TransferSummaryStatus {
         files: usize,
         published_files: usize,
         published_bytes: String,
+        review_due_files: usize,
         source_preview: String,
         destination_preview: String,
         destinations: usize,
@@ -101,7 +130,7 @@ impl Store {
             return Err(invalid());
         }
         let needle = filter.needle()?;
-        let filtering = filter.published_only || !needle.is_empty();
+        let filtering = filter.published_only || filter.review_due_only || !needle.is_empty();
         let before = before
             .map(|value| {
                 if value.len() > 19 {
@@ -115,6 +144,7 @@ impl Store {
             })
             .transpose()?;
         let tx = self.connection.unchecked_transaction()?;
+        let retention = Retention::read(&tx)?;
         let mut statement = tx.prepare(
             "SELECT p.rowid,CASE WHEN length(p.id)=64 THEN p.id ELSE '' END FROM agent_plans p JOIN transfer_operations o ON o.plan_id=p.id
             WHERE (?1 IS NULL OR p.rowid<?1) ORDER BY p.rowid DESC LIMIT ?2",
@@ -141,16 +171,18 @@ impl Store {
                 if files.len() != manifest.entries.len() { return Err(invalid()); }
                 let mut published_files = 0;
                 let mut published_bytes = 0_u128;
+                let mut review_due_files = 0;
                 let mut found = !filtering;
                 for file in files {
                     validate_file(&file, manifest)?;
                     if !found {
-                        found = matches_file(manifest, &file, &needle, filter.published_only)?;
+                        found = matches_file(manifest, &file, &needle, filter, retention)?;
                     }
                     if file.published_at.is_some() {
                         published_files += 1;
-                        published_bytes = published_bytes.checked_add(file.verified_bytes.ok_or_else(invalid)?.parse::<u128>().map_err(|_| invalid())?).ok_or_else(invalid)?;
+                        published_bytes = published_bytes.checked_add(file.verified_bytes.as_deref().ok_or_else(invalid)?.parse::<u128>().map_err(|_| invalid())?).ok_or_else(invalid)?;
                     }
+                    if retention.due(manifest, &file) { review_due_files += 1; }
                 }
                 if !found { return Ok(None); }
                 Ok(Some(TransferSummaryStatus::Ready {
@@ -161,6 +193,7 @@ impl Store {
                     files: manifest.entries.len(),
                     published_files,
                     published_bytes: published_bytes.to_string(),
+                    review_due_files,
                     source_preview: preview(&manifest.root),
                     destination_preview: preview(groups[0].destination.path.to_str().ok_or_else(invalid)?),
                     destinations: groups.len(),

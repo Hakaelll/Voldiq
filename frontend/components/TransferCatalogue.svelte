@@ -25,7 +25,11 @@
   let destinationsOpen = $state(false);
   let search = $state('');
   let copied = $state(false);
+  let dueOnly = $state(false);
   let filter = $state<TransferFilter>({ text: '', published_only: false });
+  const filtered = $derived(
+    Boolean(filter.text || filter.published_only || filter.review_due_only),
+  );
   let resultsHeading: HTMLHeadingElement;
   const catalogue = createTransferCatalogue({
     list: (before, filter) =>
@@ -58,7 +62,7 @@
   }
   function searchRecords(event: SubmitEvent): void {
     event.preventDefault();
-    filter = { text: search.trim(), published_only: copied };
+    filter = { text: search.trim(), published_only: copied, review_due_only: dueOnly };
     reload();
   }
   async function pageTo(before: string | null): Promise<void> {
@@ -102,7 +106,7 @@
     >
   </div>
   {#if native}
-    <VaultQuota />
+    <VaultQuota onretentionchange={reload} />
     <form class="transfer-search" onsubmit={searchRecords}>
       <label>
         Find a file or path
@@ -116,6 +120,9 @@
       <label class="transfer-copy-filter"
         ><input type="checkbox" bind:checked={copied} /> Published copies only</label
       >
+      <label class="transfer-copy-filter"
+        ><input type="checkbox" bind:checked={dueOnly} /> Retention review due</label
+      >
       <button type="submit">Search records</button>
     </form>
   {/if}
@@ -128,7 +135,7 @@
     </div>
   {:else if catalogueState.page && catalogueState.page.items.length === 0}<div class="empty">
       <Icon name="disk" size={28} />
-      {#if filter.text || filter.published_only}
+      {#if filtered}
         <h3>
           {catalogueState.page.next_before || cursors.length > 1
             ? 'No matches in this batch'
@@ -168,6 +175,9 @@
                       item.published_bytes,
                     )}</span
                   >
+                  {#if item.review_due_files > 0}<small
+                      >{item.review_due_files} due for retention review</small
+                    >{/if}
                   <small>{date(item.created)} · connection #{item.connection_id}</small>
                 </button>
               {:else}<div class="record unavailable">
@@ -178,7 +188,7 @@
         </ul>
         <div class="paging">
           <button disabled={cursors.length < 2} onclick={newer}>Newer</button><span
-            >{filter.text || filter.published_only ? 'Batch' : 'Page'} {cursors.length}</span
+            >{filtered ? 'Batch' : 'Page'} {cursors.length}</span
           ><button disabled={!catalogueState.page.next_before} onclick={older}>Older</button>
         </div>
       </div>
@@ -286,7 +296,7 @@
                   </div>
                 </dl>{/each}{/if}
           </details>
-          {#if filter.text || filter.published_only}
+          {#if filtered}
             <p class="matching-count">
               {record.files.length} matching {record.files.length === 1 ? 'file' : 'files'} on this page
             </p>
@@ -303,6 +313,10 @@
               ><tbody>
                 {#each record.files as file (file.node)}
                   {@const restored = restore?.files.find((entry) => entry.source_id === file.node)}
+                  {@const reviewAt =
+                    !restore && record.retention_days !== null && file.published_at !== null
+                      ? file.published_at + record.retention_days * 86400
+                      : null}
                   <tr
                     ><td
                       ><strong>{file.output_name}</strong>{#if restored}<small class="original-path"
@@ -327,7 +341,11 @@
                           >Interrupted · outcome needs review</small
                         >{/if}</td
                     ><td class="number">{exactBytes(file.verified_bytes)}</td><td
-                      >{date(file.published_at)}</td
+                      >{date(file.published_at)}
+                      {#if reviewAt !== null}<small>
+                          {reviewAt <= record.retention_checked_at ? 'Review due' : 'Review after'} ·
+                          {date(reviewAt)}
+                        </small>{/if}</td
                     ></tr
                   >
                 {/each}

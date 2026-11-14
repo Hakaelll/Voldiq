@@ -3,10 +3,17 @@
   import { onMount } from 'svelte';
   import { bytes } from '../lib/types';
 
-  type Quota = { limit_bytes: string | null; charged_bytes: string; charged_plans: number };
+  let { onretentionchange }: { onretentionchange: () => void } = $props();
+  type Quota = {
+    limit_bytes: string | null;
+    charged_bytes: string;
+    charged_plans: number;
+    retention_days: number | null;
+  };
   let quota = $state<Quota | null>(null);
   let pending = $state(false);
   let input = $state('');
+  let retention = $state('');
   let problem = $state('');
   let saved = $state(false);
   let open = $state(false);
@@ -21,6 +28,33 @@
     try {
       quota = await invoke<Quota>('get_recovery_vault_quota');
       input = quota.limit_bytes ?? '';
+      retention = quota.retention_days?.toString() ?? '';
+    } catch (error) {
+      problem = String(error);
+    } finally {
+      pending = false;
+    }
+  }
+
+  async function saveRetention(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    if (!quota || pending) return;
+    const value = retention.trim();
+    if (value === (quota.retention_days?.toString() ?? '')) return;
+    if (value && (!/^[1-9]\d{0,3}$/.test(value) || Number(value) > 3650)) {
+      problem = 'Enter 1 to 3650 days, or leave the field blank.';
+      return;
+    }
+    pending = true;
+    saved = false;
+    problem = '';
+    try {
+      const days = value ? Number(value) : null;
+      await invoke('set_recovery_vault_retention', { days });
+      quota = { ...quota, retention_days: days };
+      retention = value;
+      saved = true;
+      onretentionchange();
     } catch (error) {
       problem = String(error);
     } finally {
@@ -56,11 +90,14 @@
 
 <details class="vault-quota" bind:open>
   <summary>
-    Recovery vault quota
+    Recovery vault
     {#if quota}
       <span title={`${quota.charged_bytes} bytes charged`}>
         {bytes(Number(quota.charged_bytes))} charged ·
         {quota.limit_bytes === null ? 'No limit set' : bytes(Number(quota.limit_bytes)) + ' limit'}
+        · {quota.retention_days === null
+          ? 'Keep indefinitely'
+          : `Review after ${quota.retention_days} days`}
       </span>
     {/if}
   </summary>
@@ -87,7 +124,29 @@
           >Save quota</button
         >
       </form>
-      {#if saved}<p role="status">Quota saved.</p>{/if}
+      <p>
+        Retention review starts from each archive copy's recorded publication. All copies and quota
+        charges remain in place.
+      </p>
+      <form onsubmit={saveRetention}>
+        <label
+          >Review after (days)
+          <input
+            type="text"
+            inputmode="numeric"
+            bind:value={retention}
+            maxlength="4"
+            oninput={() => (saved = false)}
+            placeholder="Blank keeps indefinitely"
+          />
+        </label>
+        <button
+          type="submit"
+          aria-disabled={pending || retention.trim() === (quota.retention_days?.toString() ?? '')}
+          >Save retention</button
+        >
+      </form>
+      {#if saved}<p role="status">Vault settings saved.</p>{/if}
     {:else if pending}<p role="status">Reading quota…</p>
     {/if}
     {#if problem}

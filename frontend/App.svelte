@@ -405,6 +405,17 @@
     if (ready && (next === 'overview' || next === 'explorer' || next === 'large'))
       void refresh(scope);
   }
+  async function openSettings(): Promise<void> {
+    if (analysisBusy || cleanupPreview || restoreReceipt !== null || showIssues || helpOpen) return;
+    if (!paletteOpen && document.querySelector('dialog[open], [role="dialog"][aria-modal="true"]'))
+      return;
+    if (paletteOpen) closePalette(false);
+    navigate('settings');
+    const owner = interactionToken;
+    await tick();
+    if (owner === interactionToken && view === 'settings')
+      document.getElementById('workspace-title')?.focus({ preventScroll: true });
+  }
   async function reviewAgentPlans(id: string | null = null): Promise<void> {
     if (analysisBusy) return;
     cleanupSection = 'requests';
@@ -437,6 +448,10 @@
     const action = command.action;
     if (action.kind === 'help') {
       openHelp();
+      return;
+    }
+    if (action.kind === 'navigate' && action.view === 'settings') {
+      void openSettings();
       return;
     }
     closePalette(false);
@@ -1471,11 +1486,15 @@
         event.ctrlKey &&
         !event.altKey &&
         !event.metaKey &&
-        !event.shiftKey &&
-        event.key.toLowerCase() === 'k'
+        !event.shiftKey
       ) {
-        event.preventDefault();
-        openPalette();
+        if (event.key.toLowerCase() === 'k') {
+          event.preventDefault();
+          openPalette();
+        } else if (event.key === ',') {
+          event.preventDefault();
+          void openSettings();
+        }
       }
       if (event.key === 'Escape') {
         if (savedOpen) {
@@ -1549,6 +1568,7 @@
     <button
       class="navigation-search"
       onclick={openPalette}
+      disabled={analysisBusy}
       aria-haspopup="dialog"
       aria-keyshortcuts="Control+K"
       title="Commands · Ctrl+K"
@@ -1592,14 +1612,17 @@
     <div class="nav-bottom">
       <button
         class:active={view === 'settings'}
-        title="Settings"
+        class="nav-settings"
+        title="Settings (Ctrl+,)"
         disabled={analysisBusy}
         aria-label="Settings"
+        aria-keyshortcuts="Control+,"
         aria-current={view === 'settings' ? 'page' : undefined}
-        onclick={() => navigate('settings')}
-        ><Icon name="settings" />{#if expanded}<span>Settings</span>{/if}</button
+        onclick={() => void openSettings()}
+        ><Icon name="settings" size={20} />{#if expanded}<span>Settings</span>{/if}</button
       >
       <button
+        class="nav-collapse"
         title={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
         aria-label={expanded ? 'Collapse sidebar' : 'Expand sidebar'}
         aria-expanded={expanded}
@@ -1607,8 +1630,7 @@
           expanded = !expanded;
           savePreferences();
         }}
-        ><Icon name={expanded ? 'collapse' : 'expand'} />{#if expanded}<span>Collapse sidebar</span
-          >{/if}</button
+        ><Icon name={expanded ? 'collapse' : 'expand'} /></button
       >
     </div>
   </aside>

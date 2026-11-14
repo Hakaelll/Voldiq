@@ -4,6 +4,8 @@ use crate::{NodeId, Result};
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::Serialize;
 mod listing;
+#[cfg(test)]
+pub(super) use listing::Retention;
 pub(super) mod vault;
 pub use listing::{
     TransferFilter, TransferKind, TransferPage, TransferSummary, TransferSummaryStatus,
@@ -101,6 +103,8 @@ pub struct TransferCatalogue {
     pub state: State,
     pub last_observed_at: u64,
     pub files: Vec<TransferFile>,
+    pub retention_days: Option<u16>,
+    pub retention_checked_at: i64,
     pub next_after: Option<NodeId>,
     pub currently_connected: Option<bool>,
     pub restore_available: bool,
@@ -398,12 +402,13 @@ impl Store {
             return Err(invalid());
         }
         let needle = filter.needle()?;
-        let read_limit = if needle.is_empty() && !filter.published_only {
+        let read_limit = if needle.is_empty() && !filter.published_only && !filter.review_due_only {
             limit + 1
         } else {
             501
         };
         let tx = self.connection.unchecked_transaction()?;
+        let retention = listing::Retention::read(&tx)?;
         let RecordedManifest {
             manifest,
             hash,
@@ -430,7 +435,7 @@ impl Store {
         for file in files {
             let file = file?;
             validate_file(&file, &manifest)?;
-            if listing::matches_file(&manifest, &file, &needle, filter.published_only)? {
+            if listing::matches_file(&manifest, &file, &needle, filter, retention)? {
                 selected.push(file);
                 if selected.len() > limit {
                     break;
@@ -452,6 +457,8 @@ impl Store {
             state,
             last_observed_at: observed,
             files: selected,
+            retention_days: retention.days,
+            retention_checked_at: retention.checked_at,
             next_after,
             currently_connected: None,
             restore_available: false,

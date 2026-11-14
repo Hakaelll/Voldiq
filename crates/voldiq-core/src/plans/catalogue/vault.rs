@@ -10,11 +10,41 @@ CREATE TABLE recovery_vault_quota (
 );
 PRAGMA user_version=5;";
 
+pub(in crate::plans) const RETENTION_SCHEMA: &str = "
+CREATE TABLE recovery_vault_retention (
+    id INTEGER PRIMARY KEY CHECK(id=1),
+    days INTEGER NOT NULL CHECK(days BETWEEN 1 AND 3650)
+);
+PRAGMA user_version=6;";
+
 #[derive(Serialize)]
 pub struct VaultQuota {
     pub limit_bytes: Option<String>,
     pub charged_bytes: String,
     pub charged_plans: usize,
+    pub retention_days: Option<u16>,
+}
+
+pub(super) fn retention_days(tx: &Transaction<'_>) -> Result<Option<u16>> {
+    Ok(tx
+        .query_row(
+            "SELECT days FROM recovery_vault_retention WHERE id=1",
+            [],
+            |row| row.get(0),
+        )
+        .optional()?)
+}
+
+pub(in crate::plans) fn review_at(
+    manifest: &super::Manifest,
+    file: &super::TransferFile,
+    days: Option<u16>,
+) -> Option<i64> {
+    if matches!(manifest.action, Action::Offload(_)) {
+        file.published_at?.checked_add(i64::from(days?) * 86_400)
+    } else {
+        None
+    }
 }
 
 fn limit(tx: &Transaction<'_>) -> Result<Option<u64>> {
@@ -103,6 +133,7 @@ impl Store {
             limit_bytes,
             charged_bytes: bytes.to_string(),
             charged_plans,
+            retention_days: retention_days(&tx)?,
         })
     }
 
@@ -140,6 +171,34 @@ impl Store {
             )?;
         } else {
             tx.execute("DELETE FROM recovery_vault_quota WHERE id=1", [])?;
+        }
+        human.check_directory(self.directory.identity())?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub(in crate::plans) fn set_vault_retention(
+        &mut self,
+        human: &HumanAuthority,
+        days: Option<u16>,
+    ) -> Result<()> {
+        human.check_directory(self.directory.identity())?;
+        if days.is_some_and(|days| !(1..=3650).contains(&days)) {
+            return Err(Error::Invalid(
+                "Choose a retention period from 1 to 3650 days.".into(),
+            ));
+        }
+        let tx = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        if let Some(days) = days {
+            tx.execute(
+                "INSERT INTO recovery_vault_retention(id,days) VALUES(1,?1)
+                 ON CONFLICT(id) DO UPDATE SET days=excluded.days",
+                [days],
+            )?;
+        } else {
+            tx.execute("DELETE FROM recovery_vault_retention WHERE id=1", [])?;
         }
         human.check_directory(self.directory.identity())?;
         tx.commit()?;

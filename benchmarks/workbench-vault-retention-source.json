@@ -1,0 +1,142 @@
+{
+  "checkedUtc": "2026-11-14T19:10:57.374169Z",
+  "startedUtc": "2026-11-14T19:00:45.2463959Z",
+  "checkoutCommit": "e799387a5e5dd24dfe3853bfa078f95bb3664d8a",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.044
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.261
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.808
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.138
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 518.938
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 76.914
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "FAADEBE07C1888F5413192968241C829ACF3FA8319715B3D6381DF094554B712"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "5F4808D0D314D3D352C20C93875EAC768E417C0C4537D6F92BB323A26B4EB0BA"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "AB1D8E6239C9A84AF6E35D5E3610DA323E7E6FC3740991EAD328690B0C216002"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/catalogue.rs",
+      "sha256": "598935D3809BFBC2D55E9D618A83590616EE4F099D9F751E4DB30F0784162D57"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/catalogue/listing.rs",
+      "sha256": "F1816BEE1D57146AF086C621089FAC9F402754170D63A406DDADCE3EC1EEF437"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/catalogue/vault.rs",
+      "sha256": "B36E4133688D2718BF6C6ED1E5C78993D503D7C3873AE42919F295248A52FA04"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/desktop.rs",
+      "sha256": "283CE65125B94E0AB140C07B4CE786E8488421F09EA7AFBED3E8DD2DB9323235"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/desktop/tests.rs",
+      "sha256": "0CD147E5F1AF758971C2BFF3C6F0CEF4682AE84B543C8CA62E81C24BF02D2E16"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/store.rs",
+      "sha256": "7F6D624C3A436F237603154825783DEEF6EA718699BC1D2B96FB82495139618C"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "5FD66054ACAA5B3AAB1B09584F8EBACD481F4791F80D48491BE9ED1D0C5922E4"
+    },
+    {
+      "path": "frontend/components/CommandPalette.svelte",
+      "sha256": "94B108CECC2BEEBAEA888F25C503463F1D7A63E38A24C37DCD6A13A69C73E6AE"
+    },
+    {
+      "path": "frontend/components/TransferCatalogue.svelte",
+      "sha256": "4931EC55505F5DCA0DD52264B9512DBF23584C49DEA9432D1397023866308C04"
+    },
+    {
+      "path": "frontend/components/VaultQuota.svelte",
+      "sha256": "E5E02F1D67402837F26F45B7B0C59722BAC8706515995280F3FA86869D04481F"
+    },
+    {
+      "path": "frontend/lib/cleanup-selection.test.ts",
+      "sha256": "C686D12D80F092C34D40F6ADED2AC72991523363B837C2D449C30BB937CB5FED"
+    },
+    {
+      "path": "frontend/lib/command-palette.ts",
+      "sha256": "CE82215C13D06EF288F521258D3B9953F1FD6C5A81772D65C84DC8A40A7EF109"
+    },
+    {
+      "path": "frontend/lib/transfer-catalogue.ts",
+      "sha256": "717F79E15216BFC6B237F7E7CE441C8924005C89DCF8618C46C0B4652B5E9EAA"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "07112A79541115757E4E32410E6C162F2C3331EE41BCD1ACCABB4347BA15DE5C"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "62A140BFEACBEA7AF7ABDB78C99F36DB5227A1F0A839E72A55BFDA39022B7AD0"
+    },
+    {
+      "path": "src-tauri/src/plan_commands.rs",
+      "sha256": "2C891C57F186C340C61CCF54A309E2534E4ACA49F2144312FA48F433E2B262AA"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "vaultRetentionFixture": [
+    "migrated plan database",
+    "keep indefinitely default",
+    "exact review cutoff",
+    "pending publication excluded",
+    "upcoming files filtered out",
+    "preference persistence and removal",
+    "quota unchanged"
+  ],
+  "commandPaletteServerMarkup": [
+    "labeled Settings and Ctrl+,",
+    "active command and key hint",
+    "accessible favorite path",
+    "chart group",
+    "empty results",
+    "scroll region and focus ring rules"
+  ]
+}

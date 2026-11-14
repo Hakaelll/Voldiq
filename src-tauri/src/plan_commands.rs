@@ -168,6 +168,21 @@ pub async fn set_recovery_vault_quota(
 }
 
 #[tauri::command]
+pub async fn set_recovery_vault_retention(
+    reviews: tauri::State<'_, PlanReviews>,
+    days: Option<u16>,
+) -> Result<(), String> {
+    let desktop = reviews.desktop()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        desktop
+            .set_vault_retention(days)
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
 pub async fn list_transfer_records(
     reviews: tauri::State<'_, PlanReviews>,
     before: Option<String>,

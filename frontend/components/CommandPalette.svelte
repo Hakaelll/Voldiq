@@ -81,6 +81,8 @@
     id={optionId(command)}
     tabindex="-1"
     aria-selected={active === command}
+    aria-label={command.label}
+    aria-describedby={command.detail ? `${optionId(command)}-detail` : undefined}
     disabled={command.disabled}
     onmousedown={(event) => {
       if (event.button === 0) event.preventDefault();
@@ -91,9 +93,16 @@
     onclick={() => choose(command)}
   >
     <Icon name={command.icon} size={16} />
-    <span class="palette-label" title={command.label}>{command.label}</span>
-    {#if command.detail}
-      <span class="palette-detail" title={command.detail}>{command.detail}</span>
+    <span class="palette-name">
+      <span class="palette-label" title={command.label}>{command.label}</span>
+      {#if command.detail}
+        <span class="palette-detail" id={`${optionId(command)}-detail`} title={command.detail}
+          >{command.detail}</span
+        >
+      {/if}
+    </span>
+    {#if command.shortcut || active === command}
+      <kbd class="palette-key" aria-hidden="true">{active === command ? '↵' : command.shortcut}</kbd>
     {/if}
   </button>
 {/snippet}
@@ -142,7 +151,7 @@
         aria-expanded={visible.length > 0}
         aria-controls="palette-options"
         aria-activedescendant={active ? optionId(active) : undefined}
-        placeholder="Search commands, views and favorites"
+        placeholder="Search commands, pages and folders"
         autocomplete="off"
         maxlength="200"
       />
@@ -153,7 +162,7 @@
       onclick={onclose}
       aria-label="Close command palette"
     >
-      <kbd aria-hidden="true">Esc</kbd>
+      <Icon name="close" size={16} />
     </button>
   </header>
   {#if catalog.kind === 'loading'}
@@ -197,7 +206,7 @@
     {#if matches.length === 0}
       <div class="palette-empty">
         <strong>No matching commands</strong>
-        <p>Try a page name, an action or a favorite folder.</p>
+        <p>Try a page name or a folder path.</p>
       </div>
     {/if}
   </div>
@@ -208,8 +217,9 @@
       {:else if searching}{matches.length} {matches.length === 1 ? 'result' : 'results'}{/if}
     </span>
     <div class="palette-shortcuts">
-      <span><kbd>↑</kbd> <kbd>↓</kbd> Move</span>
+      <span><kbd>↑</kbd> <kbd>↓</kbd> Select</span>
       <span><kbd>Enter</kbd> Run</span>
+      <span><kbd>Esc</kbd> Close</span>
     </div>
   </footer>
 </dialog>

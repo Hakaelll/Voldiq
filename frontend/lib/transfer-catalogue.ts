@@ -10,6 +10,7 @@ export type TransferSummary = { id: string } & (
       files: number;
       published_files: number;
       published_bytes: string;
+      review_due_files: number;
       source_preview: string;
       destination_preview: string;
       destinations: number;
@@ -17,7 +18,7 @@ export type TransferSummary = { id: string } & (
   | { availability: 'unavailable'; reason: string }
 );
 export type TransferPage = { items: TransferSummary[]; next_before: string | null };
-export type TransferFilter = { text: string; published_only: boolean };
+export type TransferFilter = { text: string; published_only: boolean; review_due_only?: boolean };
 export type TransferRecord = {
   manifest: {
     id: string;
@@ -33,6 +34,8 @@ export type TransferRecord = {
   last_observed_at: number;
   currently_connected: boolean | null;
   restore_available: boolean;
+  retention_days: number | null;
+  retention_checked_at: number;
   limitations: string;
   next_after: number | null;
   files: {
