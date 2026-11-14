@@ -1,5 +1,19 @@
 # Storage workbench status
 
+## Command palette
+
+Ctrl+K opens a compact dialog with available commands grouped by task. Icons and labels line up on the left. The search and shortcut hints stay visible while results scroll. Search puts executable matches first and accepts favorite paths. Arrow keys and the mouse highlight the result. Enter runs it, and Escape closes the palette. Settings is also available from the sidebar footer.
+
+All six project checks passed with eight routine tests and strict Clippy. Svelte server markup checks covered commands before and after an analysis, an unavailable catalogue and an empty list. The lowest computed contrast for the checked text roles was 5.04:1 in light mode and 5.57:1 in dark mode. The production Windows window opened and its embedded assets matched the production build. Native composition, keyboard, pointer, focus and scaling remain manual. [Project checks](../benchmarks/workbench-command-palette-source-20261114.json) · [Production startup](../benchmarks/native-command-palette-preview-20261114.json)
+
+The unsigned NSIS installer is 10,601,930 bytes. Cleanup removed 3,552,241,397 logical bytes of inactive release files and 28,062,720 bytes from a closed preview. The workspace measured 380,097,102 logical bytes after cleanup, with the current preview still open. [Distribution](../benchmarks/distribution-command-palette-20261114.json) · [Post-clean checks](../benchmarks/workspace-footprint-command-palette-20261114.json)
+
+## Scheduled cleanup policies
+
+Settings → Scheduled scans can prepare an exact cleanup draft from a complete scheduled capture. The policy requires a restrictive query and sets file and logical byte limits and a cooldown. A draft expires after one day. Opening the draft uses the existing review dialog, and its Recycle action revalidates the schedule, protection settings, file identities and recorded metadata. The scheduler only prepares and records candidates.
+
+The retained history fixture exercised an exact draft, cooldown and rejection after a policy edit. In a disposable Windows portable profile, a due schedule saved a complete capture and recorded a single 137-byte candidate while leaving the file in place. The same fixture passed on the production executable opened for the command palette. Native review, confirmed recycling through the dialog, Windows notification delivery and scaling remain manual. [Project and fixture checks](../benchmarks/workbench-cleanup-policies-source-20261114.json)
+
 ## Scheduled growth alerts
 
 Scheduled scans can set a positive MiB threshold for logical growth. Each alert compares complete observations from the same schedule with matching root identity, exclusions and accounting versions. The alert and its reference date are committed with the capture. Settings shows recent alerts and the open app offers a link back to Scheduled scans. The installed copy can also notify through the existing opt-in Windows preference.
@@ -10,7 +24,7 @@ Cleanup removed 2,867,932,946 logical bytes of inactive release files and preser
 
 ## Scheduled scans
 
-Settings can schedule a selected local folder hourly, daily or weekly. Voldiq runs due scans while open or in the tray and idle. Each schedule supports folder exclusions, cadence edits, disabling and the latest 20 run outcomes. Scheduled scans recheck the folder's native identity, exclude Voldiq's profile and save a capture in History without replacing the active analysis. Interrupted runs are recorded and wait another interval. Cleanup preparation and growth alerts remain pending.
+Settings can schedule a selected local folder hourly, daily or weekly. Voldiq runs due scans while open or in the tray and idle. Each schedule supports folder exclusions, cadence edits, disabling and the latest 20 run outcomes. Scheduled scans recheck the folder's native identity, exclude Voldiq's profile and save a capture in History without replacing the active analysis. Interrupted runs are recorded and wait another interval.
 
 The six project checks passed with eight routine tests and strict Clippy. The retained fixture verified scan scope, exclusions, the saved 17-byte capture, revision checks and interruption recovery. The Windows executable started in an owned portable profile and its dispatcher published exactly one complete 137-byte snapshot from a due schedule. The visible production preview reached ready and remained open during cleanup. The unsigned installer is 10,558,373 bytes. Native Settings interaction, keyboard and scaling remain manual. [Project checks](../benchmarks/workbench-scheduled-scans-source-20261114.json) · [Production startup](../benchmarks/native-scheduled-scans-preview-20261114.json) · [Distribution](../benchmarks/distribution-scheduled-scans-20261114.json)
 
