@@ -35,6 +35,8 @@ mod restore_commands;
 mod scan_control;
 mod schedule_commands;
 mod snapshot_commands;
+#[cfg(windows)]
+mod video_commands;
 mod window_close_preference;
 mod window_tray;
 #[cfg(windows)]
@@ -1076,6 +1078,8 @@ fn main() {
             export_commands::save_history_webm,
             export_commands::report_progress,
             export_commands::cancel_report,
+            #[cfg(windows)]
+            video_commands::compress_local_video,
             start_scan,
             prepare_dropped_folder,
             start_dropped_folder,

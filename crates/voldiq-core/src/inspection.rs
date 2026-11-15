@@ -43,6 +43,8 @@ mod archive;
 #[cfg(windows)]
 mod native;
 #[cfg(windows)]
+pub use native::video::{VideoPhase, VideoRequest, VideoResult, compress_video};
+#[cfg(windows)]
 pub(crate) use native::{read_indexed_manifest, read_indexed_prefix};
 
 pub mod file_use;

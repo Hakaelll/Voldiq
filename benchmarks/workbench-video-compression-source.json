@@ -1,0 +1,129 @@
+{
+  "checkedUtc": "2026-11-15T14:54:42.074797Z",
+  "startedUtc": "2026-11-15T14:41:33.6638364Z",
+  "checkoutCommit": "1f9d2206f8b531a7bb51cb55ea4a5504d9f2db99",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.007
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.675
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.788
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 7.42
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 701.261
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 69.247
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "B4B16D09561AEADA4AD8B356E2DFA78D38D1F742850202EF01C55E80BB811A36"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "CD9E9886C78C9C7795A10B8EF9B7AABE5FAF20A93A34D6C789CFD3841980E635"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "C844CDBC5748FD7F67C50F1EE235DF2C12B14163525B3E890EE38FFA63B23AB6"
+    },
+    {
+      "path": "crates/voldiq-core/src/exports.rs",
+      "sha256": "EAA9CAE4E9930458CF5B7D7E57979424CF91933B5ACAAF50117784D463E46562"
+    },
+    {
+      "path": "crates/voldiq-core/src/exports/file.rs",
+      "sha256": "0B09FC0F4D0D2BF361155EA75DE1403415294338C8DC91BAA22860583E4EA538"
+    },
+    {
+      "path": "crates/voldiq-core/src/inspection.rs",
+      "sha256": "2AF2BD25A6BFAA5F0142D3EC2D7FD564B44CF66067B431812BB6E04058597844"
+    },
+    {
+      "path": "crates/voldiq-core/src/inspection/native.rs",
+      "sha256": "83DC7B252AB34C4E6636283FBF4D54AC65FA1950C827FF1B4BD2EFB1D9078EAF"
+    },
+    {
+      "path": "crates/voldiq-core/src/inspection/native/video.rs",
+      "sha256": "54E6722B37B8B24D2F90A78BC14614D360D8388F93D96FC87F41DAC78AEA5211"
+    },
+    {
+      "path": "crates/voldiq-core/tests/agents.rs",
+      "sha256": "8D95BD99FC50845AE7195FD668CBB935A9B75E1D5805FD75E7DD445363A00244"
+    },
+    {
+      "path": "crates/voldiq-core/tests/agents/video_fixture.rs",
+      "sha256": "A1E391A62BA2AA3A0D8526BB86563AD95F707ACCFB5D411288E9CDDCEC603BCA"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "B726B9888E8CE0177A72B90592B2B12A58D53C7E022706A02F4A21B6DBF2FAD8"
+    },
+    {
+      "path": "frontend/components/FileInspection.svelte",
+      "sha256": "D938508E53EEC3EE907A6D48755A82FA8C3ADB6F150A1406894C2E329CE20A00"
+    },
+    {
+      "path": "frontend/components/VideoCompression.svelte",
+      "sha256": "C4742BFB16AEE17F514B78E174F3008E6CBC9F79E95EC538C16DD1E5F2F68102"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "DC855B8736DCBC15E826E610C22EF0A17FDC82ED5BCA8B2C7763476C9DA4BFC2"
+    },
+    {
+      "path": "src-tauri/src/video_commands.rs",
+      "sha256": "2AFAC6B65D1E61FB269F1BBBCB74F462A7D8B3F076A286F1CC729531CF4FE787"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "videoInspectorMarkup": {
+    "ordinaryHasNoVideoAction": true,
+    "eligibleHasDisclosure": true,
+    "pausedActionAnnounced": true,
+    "accessibleStatus": true
+  },
+  "nativeFixture": {
+    "encoder": "h264_mf with forced hardware encoding",
+    "runtime": "FFmpeg 9.0.2 essentials build downloaded for verification",
+    "publisherSha256": "60F467265B1E312373DBCD92200C2618A74850F98D3D078E94296BB3FA2047BA",
+    "syntheticClipBytes": 3750204,
+    "compressedCopyBytes": 1926110,
+    "width": 640,
+    "height": 360,
+    "durationMilliseconds": 5000,
+    "originalByteForByte": true,
+    "collisionPreserved": true,
+    "cancelledWithNoOutput": true,
+    "softwarePipelineSeparatelyDecoded": true
+  }
+}

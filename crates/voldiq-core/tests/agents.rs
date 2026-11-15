@@ -10,6 +10,9 @@ mod file_use_fixture;
 #[cfg(windows)]
 #[path = "agents/similar_images_fixture.rs"]
 mod similar_images_fixture;
+#[cfg(windows)]
+#[path = "agents/video_fixture.rs"]
+mod video_fixture;
 
 fn policy(root: &std::path::Path, exclusions: Vec<PathBuf>) -> Policy {
     Policy::new(
@@ -195,6 +198,7 @@ fn scopes_reject_siblings_exclusions_missing_paths_and_changed_roots_without_dis
             assert_eq!(archive("joliet.iso")["items"][0]["path"], "Información.txt");
             assert!(!allowed.join("folder").exists());
             file_use_fixture::verify(&index, id("report.txt"), &allowed.join("report.txt"));
+            video_fixture::verify();
             similar_images_fixture::verify();
             assert!(inspect(&index, id("AUTH.JSON"), Request::Preview, &cancel).is_err());
             assert!(inspect(&index, NodeId(0), Request::Preview, &cancel).is_err());

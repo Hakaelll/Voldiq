@@ -8,6 +8,7 @@ use std::{
 use windows::cleanup_io::{LeafAccess, open_download_stream, open_leaf};
 
 mod preview;
+pub(crate) mod video;
 
 const ZONE_LIMIT: usize = 16 * 1024;
 

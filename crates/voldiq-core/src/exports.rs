@@ -33,6 +33,8 @@ pub use pdf::{render_pdf, stream_pdf};
 #[cfg(windows)]
 mod file;
 #[cfg(windows)]
+pub(crate) use file::save_generated_file;
+#[cfg(windows)]
 pub use file::{save_history_gif, save_history_webm, save_png, save_report, save_svg};
 
 #[derive(Clone, Copy, Deserialize, Serialize)]

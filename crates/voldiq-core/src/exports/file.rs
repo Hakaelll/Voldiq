@@ -104,6 +104,23 @@ fn save_generated<Progress: Copy>(
     cancelled: &AtomicBool,
     encode: impl FnOnce(&mut BufWriter<&File>) -> Result<StreamOutcome<Progress>>,
 ) -> Result<StreamOutcome<Progress>> {
+    save_generated_file(extension, destination, lease, cancelled, |file| {
+        let mut writer = BufWriter::with_capacity(64 * 1024, file);
+        let outcome = encode(&mut writer)?;
+        if matches!(outcome, StreamOutcome::Complete(_)) {
+            writer.flush()?;
+        }
+        Ok(outcome)
+    })
+}
+
+pub(crate) fn save_generated_file<Progress: Copy>(
+    extension: &'static str,
+    destination: &Path,
+    lease: &Lease,
+    cancelled: &AtomicBool,
+    encode: impl FnOnce(&File) -> Result<StreamOutcome<Progress>>,
+) -> Result<StreamOutcome<Progress>> {
     let destination = ordinary_path(destination)?;
     if !destination
         .extension()
@@ -111,7 +128,7 @@ fn save_generated<Progress: Copy>(
         .is_some_and(|value| value.eq_ignore_ascii_case(extension))
     {
         return Err(Error::Invalid(format!(
-            "Choose a new .{extension} report filename."
+            "Choose a new .{extension} filename."
         )));
     }
     let leaf = destination.file_name().ok_or_else(invalid)?;
@@ -126,19 +143,16 @@ fn save_generated<Progress: Copy>(
         &handle,
         FILE_READ_ATTRIBUTES | FILE_LIST_DIRECTORY | FILE_ADD_FILE | FILE_TRAVERSE,
     )
-    .map_err(|error| Error::Invalid(format!("Report parent access failed: {error}")))?;
+    .map_err(|error| Error::Invalid(format!("Output folder access failed: {error}")))?;
     let mut temporary = OwnedFile::create(&handle)
-        .map_err(|error| Error::Invalid(format!("Report temporary creation failed: {error}")))?;
+        .map_err(|error| Error::Invalid(format!("Temporary output creation failed: {error}")))?;
     let result: Result<StreamOutcome<Progress>> = (|| {
-        let mut writer = BufWriter::with_capacity(64 * 1024, temporary.file());
-        let outcome = encode(&mut writer)?;
+        let outcome = encode(temporary.file())?;
         if let StreamOutcome::Complete(state) = outcome {
-            writer.flush()?;
-            drop(writer);
             temporary
                 .file()
                 .sync_all()
-                .map_err(|error| Error::Invalid(format!("Report sync failed: {error}")))?;
+                .map_err(|error| Error::Invalid(format!("Output sync failed: {error}")))?;
             if cancelled.load(Ordering::Relaxed) {
                 return Ok(StreamOutcome::Cancelled(state));
             }
@@ -153,7 +167,7 @@ fn save_generated<Progress: Copy>(
             }
             temporary
                 .publish(leaf)
-                .map_err(|error| Error::Invalid(format!("Report publication failed: {error}")))?;
+                .map_err(|error| Error::Invalid(format!("Output publication failed: {error}")))?;
         }
         Ok(outcome)
     })();
@@ -161,7 +175,7 @@ fn save_generated<Progress: Copy>(
         && let Err(cleanup) = temporary.abort()
     {
         return Err(Error::Invalid(format!(
-            "Report was not published. Temporary report cleanup is uncertain for {}: {cleanup}. Export result: {}",
+            "The output was not published. Temporary file cleanup is uncertain for {}: {cleanup}. Operation result: {}",
             parent.path().join(temporary.name()).display(),
             match result {
                 Ok(_) => "cancelled".into(),
@@ -189,5 +203,5 @@ fn validate(parent: &AuthorizedPath, destination: &Path, protections: &Protectio
 }
 
 fn invalid() -> Error {
-    Error::Invalid("Report destination is protected, unavailable or changed.".into())
+    Error::Invalid("The output destination is protected, unavailable or changed.".into())
 }

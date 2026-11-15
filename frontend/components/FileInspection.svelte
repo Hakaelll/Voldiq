@@ -8,8 +8,14 @@
     type InspectionRequest,
   } from '../lib/queries';
   import { bytes, type NodeId } from '../lib/types';
+  import VideoCompression from './VideoCompression.svelte';
 
-  let { indexId, id, paused }: { indexId: IndexId; id: NodeId; paused: boolean } = $props();
+  let {
+    indexId,
+    id,
+    paused,
+    videoEligible,
+  }: { indexId: IndexId; id: NodeId; paused: boolean; videoEligible: boolean } = $props();
   let preview = $state<FileInspection | null>(null);
   let source = $state<FileInspection | null>(null);
   let url = $state<string | null>(null);
@@ -226,6 +232,9 @@
         </div>
       {/if}
     </section>
+  {/if}
+  {#if videoEligible}
+    <VideoCompression {indexId} {id} {paused} />
   {/if}
 </details>
 

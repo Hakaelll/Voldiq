@@ -2676,7 +2676,16 @@
                   {/if}
                   {#if indexId !== null && historical === null && details.entry.kind === 'file' && !details.entry.incomplete && !details.sensitive}
                     {#key `${indexId}/${details.entry.id}`}
-                      <FileInspection {indexId} id={details.entry.id} paused={busy} />
+                      <FileInspection
+                        {indexId}
+                        id={details.entry.id}
+                        paused={busy}
+                        videoEligible={isTauri() &&
+                          details.entry.cloud === 'not_placeholder' &&
+                          details.entry.logical >= 1024 ** 2 &&
+                          details.entry.logical <= 4 * 1024 ** 3 &&
+                          /\.(mp4|mov)$/i.test(details.entry.name)}
+                      />
                     {/key}
                   {/if}
                   {#if details.children}<div class="detail-children">
