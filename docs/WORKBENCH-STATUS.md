@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Prepare a restoration from the catalogue
+
+Cleanup → Transfers lets users select one or more published copies from a recorded transfer. Selection persists across file pages within that operation. Keep both opts into generating alternate names for conflicts. Review restoration reopens the recorded volume and folder by native identity and checks metadata for only the selected archives. The plan binds the verified archive hashes, current destinations and exact output names. A separate approval and Start restoration are required before copying.
+
+The six project checks passed with eight routine tests. In an owned Windows fixture, preparation evidence included only the chosen file, rejected a changed file identity and honored cancellation. The archived bytes remained intact. Prior fixtures still cover hash-bound copy and conflict handling. Native interaction, keyboard, scaling and a successful restoration between two NTFS volumes remain unverified. [Project checks](../benchmarks/workbench-desktop-restore-source.json)
+
+The Windows preview reached ready with 10 embedded non-HTML assets matching the frontend build. The unsigned NSIS installer measures 11,161,037 bytes. Cache cleanup removed 3,305,331,804 logical bytes of inactive builds and tests and 60,318,208 bytes of closed previews. The installer and open preview were preserved. [Startup](../benchmarks/native-desktop-restore-preview.json) · [Distribution](../benchmarks/distribution-desktop-restore.json) · [Post-clean checks](../benchmarks/workspace-footprint-desktop-restore.json)
+
 ## Prepare a transfer from the desktop selection
 
 Transfer opens the list of other connected NTFS volumes beside the inspection selection. Choose one by keyboard or drag the selection button to its row and pick an existing folder. The draft opens in Plan review. Keep originals is the default. Approval and the separate Start transfer action are required to copy. Desktop plans belong to a local owner that cannot authenticate with an agent token or be started through an agent connection.
