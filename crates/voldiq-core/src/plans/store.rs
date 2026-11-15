@@ -593,7 +593,8 @@ impl Store {
     }
 
     pub(super) fn read(&self, context: &PlanContext<'_>, id: &str) -> Result<Stored> {
-        self.read_with_binding(context, id, true)
+        context.check_directory(self.directory.identity())?;
+        self.read_plan(id, context.owner(), Some(context))
     }
 
     pub(super) fn read_restore_archive(
@@ -602,28 +603,35 @@ impl Store {
         id: &str,
     ) -> Result<Stored> {
         context.check(Capability::PreparePlans)?;
-        let stored = self.read_with_binding(context, id, false)?;
-        if !matches!(stored.view.manifest.action, Action::Offload(_)) {
-            return Err(invalid());
-        }
-        Ok(stored)
+        context.check_directory(self.directory.identity())?;
+        self.read_plan(id, context.owner(), None)
     }
 
-    fn read_with_binding(
+    #[cfg(windows)]
+    pub(super) fn read_desktop_restore_archive(
         &self,
-        context: &PlanContext<'_>,
+        human: &HumanAuthority,
         id: &str,
-        require_binding: bool,
     ) -> Result<Stored> {
-        context.check_directory(self.directory.identity())?;
+        let owner = self.review_owner(human, id)?;
+        self.read_plan(id, owner, None)
+    }
+
+    fn read_plan(&self, id: &str, owner: i64, context: Option<&PlanContext<'_>>) -> Result<Stored> {
         if id.len() != 64 || !id.bytes().all(|byte| byte.is_ascii_hexdigit()) {
             return Err(denied());
         }
         let values = self.connection.query_row("SELECT manifest,hash,native_record,binding,state,approval_expires,result FROM agent_plans WHERE id=?1 AND owner=?2 AND length(manifest)<=?3 AND length(native_record)<=?4 AND length(hash)=64 AND length(binding)=64 AND length(state)<=32 AND (result IS NULL OR length(result)<=65536)",
-            params![id,context.owner(),MANIFEST_LIMIT as i64,RECORD_LIMIT as i64], |row| Ok((row.get::<_,String>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,String>(3)?,row.get::<_,String>(4)?,row.get::<_,Option<i64>>(5)?,row.get::<_,Option<String>>(6)?))).optional()?.ok_or_else(denied)?;
+            params![id,owner,MANIFEST_LIMIT as i64,RECORD_LIMIT as i64], |row| Ok((row.get::<_,String>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?,row.get::<_,String>(3)?,row.get::<_,String>(4)?,row.get::<_,Option<i64>>(5)?,row.get::<_,Option<String>>(6)?))).optional()?.ok_or_else(denied)?;
         let (json, hash, native, binding, state, approval_expires, result) = values;
         let manifest: Manifest = serde_json::from_str(&json).map_err(|_| invalid())?;
-        if !require_binding && !matches!(manifest.action, Action::Offload(_)) {
+        if context.is_none() && !matches!(manifest.action, Action::Offload(_)) {
+            return Err(invalid());
+        }
+        if let Some(context) = context
+            && (binding != context.binding()?
+                || (manifest.source_snapshot == 0 && !context.is_desktop()))
+        {
             return Err(invalid());
         }
         if hash != digest(json.as_bytes())
@@ -631,14 +639,12 @@ impl Store {
             || manifest.id != id
             || manifest.schema_version != manifest.action.schema_version()
             || manifest.policy_version != POLICY_VERSION
-            || manifest.connection_id != context.owner()
+            || manifest.connection_id != owner
             || manifest.user != current_user()?
-            || (require_binding && binding != context.binding()?)
             || manifest.risk != "review"
             || manifest.created < 0
             || manifest.expires != manifest.created.checked_add(PLAN_TTL).ok_or_else(invalid)?
             || manifest.source_snapshot < 0
-            || (manifest.source_snapshot == 0 && !context.is_desktop())
         {
             return Err(invalid());
         }
@@ -652,21 +658,17 @@ impl Store {
             return Err(invalid());
         }
         let scope = record.scope();
-        let _root = if require_binding {
-            Some(context.snapshot(&scope)?)
-        } else {
-            None
-        };
+        let _root = context
+            .map(|context| context.snapshot(&scope))
+            .transpose()?;
         let evidence = record.evidence()?;
         let (logical, reclaim) = totals(&evidence)?;
         let reclaim = match &manifest.action {
             Action::Offload(plan) => {
                 plan.check_shape(&evidence)?;
-                let _target = if require_binding {
-                    Some(plan.authorize(context, &scope.root)?)
-                } else {
-                    None
-                };
+                let _target = context
+                    .map(|context| plan.authorize(context, &scope.root))
+                    .transpose()?;
                 if plan.originals == Originals::Keep {
                     0
                 } else {
@@ -676,7 +678,7 @@ impl Store {
             Action::Recycle => reclaim,
             Action::Restore(plan) => {
                 plan.check_shape(&evidence)?;
-                plan.authorize(context, &scope.root)?;
+                plan.authorize(context.ok_or_else(invalid)?, &scope.root)?;
                 0
             }
         };

@@ -99,6 +99,7 @@
   });
   const exactBytes = (value: string): string => `${BigInt(value).toLocaleString()} bytes`;
   const stateLabel = (value: PlanState): string => value.replaceAll('_', ' ');
+  const restoreAction = (plan: Plan): boolean => typeof plan.manifest.action === 'object' && 'restore' in plan.manifest.action;
 
   async function refresh(): Promise<void> {
     if (!native || loading || busy) return;
@@ -147,7 +148,7 @@
     try {
       if (action === 'start') {
         await invoke('start_desktop_transfer', { id: review.plan.manifest.id, hash: review.plan.hash });
-        if (alive) notice = 'Transfer queued. Voldiq will recheck the plan before starting.';
+        if (alive) notice = 'Queued. Voldiq will recheck the plan before starting.';
         return;
       }
       const plan = await invoke<Plan | null>(
@@ -164,7 +165,7 @@
         notice =
           action === 'approve'
             ? review.desktop_owned
-              ? 'Plan approved. Select Start transfer within two minutes.'
+              ? `Plan approved. Select ${restoreAction(plan) ? 'Start restoration' : 'Start transfer'} within two minutes.`
               : 'Plan approved for at most two minutes. The connection may now request execution if permitted.'
             : action === 'cancel'
               ? 'Stop requested. Review the final result for partial or unknown outcomes.'
@@ -478,7 +479,9 @@
         <dl>
           <div>
             <dt>Source analysis</dt>
-            <dd>{manifest.source_snapshot === 0 ? 'Live desktop analysis' : `Snapshot #${manifest.source_snapshot}`}</dd>
+            <dd>{manifest.source_snapshot === 0
+              ? restore ? 'Selected archive files' : 'Live desktop analysis'
+              : `Snapshot #${manifest.source_snapshot}`}</dd>
           </div>
           <div>
             <dt>Captured exclusions</dt>
@@ -588,7 +591,7 @@
           >{/if}
         {#if review.desktop_owned && plan.state === 'approved'}
           <button class="primary" disabled={busy || now >= (plan.approval_expires ?? 0)}
-            onclick={() => decide('start')}>Start transfer</button>
+            onclick={() => decide('start')}>{restore ? 'Start restoration' : 'Start transfer'}</button>
         {:else}<button
           class="primary"
           disabled={busy ||

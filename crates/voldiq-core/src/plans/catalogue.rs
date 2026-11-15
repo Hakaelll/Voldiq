@@ -451,6 +451,8 @@ impl Store {
         drop(statement);
         tx.commit()?;
         human.check_directory(self.directory.identity())?;
+        let restore_available = matches!(&manifest.action, Action::Offload(action) if action.metadata.is_some())
+            && selected.iter().any(|file| file.published_at.is_some());
         Ok(TransferCatalogue {
             manifest,
             manifest_hash: hash,
@@ -461,7 +463,7 @@ impl Store {
             retention_checked_at: retention.checked_at,
             next_after,
             currently_connected: None,
-            restore_available: false,
+            restore_available,
             limitations: "This catalogue shows the last recorded file phase. After an interruption, a pending publication or original action may have occurred. Restoration requires fresh archive evidence and its own approved plan. Metadata preservation depends on the recorded profile.",
         })
     }

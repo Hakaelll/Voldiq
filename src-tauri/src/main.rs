@@ -1053,6 +1053,8 @@ fn main() {
             plan_commands::transfer_destinations,
             #[cfg(windows)]
             plan_commands::prepare_desktop_transfer,
+            #[cfg(windows)]
+            plan_commands::prepare_desktop_restore,
             plan_commands::start_desktop_transfer,
             plan_commands::get_recovery_vault_quota,
             plan_commands::set_recovery_vault_quota,

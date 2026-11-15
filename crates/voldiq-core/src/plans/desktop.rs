@@ -76,6 +76,23 @@ pub enum ReviewStatus {
 
 impl Desktop {
     #[cfg(windows)]
+    pub fn prepare_restore(
+        &self,
+        request: &super::RestoreRequest,
+        hash: &str,
+        cancel: &std::sync::atomic::AtomicBool,
+    ) -> Result<View> {
+        let mut registry = Registry::open(&self.directory.join("agents.db"))?;
+        Store::open(&self.directory)?.create_desktop_restore(
+            &self.human,
+            &mut registry,
+            request,
+            hash,
+            cancel,
+        )
+    }
+
+    #[cfg(windows)]
     pub fn prepare_offload(
         &self,
         index: &crate::index::Index,

@@ -560,6 +560,8 @@ The inspection selection exposes Transfer with the selected count. Its inline di
 
 The selection drag uses pointer capture in the current window. Tauri's native Explorer drop handler remains enabled for folder scanning. [Tauri drag and drop configuration](https://v2.tauri.app/reference/config/#dragdropenabled)
 
+Transfers offers checkboxes for recorded published archive copies and holds the selection while paging through one operation. Keep both is an explicit conflict choice. Review restoration prepares the exact plan using fresh observations of the chosen copies, and the existing plan review shows their output names. Starting requires a separate approval and Start restoration.
+
 ## Reading and control hierarchy
 
 The storage workbench uses open sections, aligned rows and separators instead of a framed card for every information group. Overview and application sections use plain secondary navigation with an active underline. Summary headings use sentence case and existing title sizes; list text uses 13px and supporting metadata generally 12px. The black theme, chart palette, original artwork and main sidebar behavior remain in place.

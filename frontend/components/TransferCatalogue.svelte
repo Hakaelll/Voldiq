@@ -26,6 +26,11 @@
   let search = $state('');
   let copied = $state(false);
   let dueOnly = $state(false);
+  let restoreNodes = $state.raw<ReadonlySet<number>>(new Set());
+  let keepBoth = $state(false);
+  let preparingRestore = $state(false);
+  let restoreError = $state('');
+  let restoreRequest = 0;
   let filter = $state<TransferFilter>({ text: '', published_only: false });
   const filtered = $derived(
     Boolean(filter.text || filter.published_only || filter.review_due_only),
@@ -50,12 +55,48 @@
   const exactBytes = (value: string | null): string =>
     value === null ? 'Not recorded' : `${BigInt(value).toLocaleString()} bytes`;
   const label = (value: string): string => value.replaceAll('_', ' ');
+  function resetRestore(): void {
+    ++restoreRequest;
+    restoreNodes = new Set();
+    keepBoth = false;
+    preparingRestore = false;
+    restoreError = '';
+  }
+  function toggleRestore(node: number, checked: boolean): void {
+    const next = new Set(restoreNodes);
+    if (checked) next.add(node);
+    else next.delete(node);
+    restoreNodes = next;
+  }
+  async function prepareRestore(record: TransferRecord): Promise<void> {
+    if (preparingRestore || !restoreNodes.size || record.manifest.id !== selectedId) return;
+    const owner = ++restoreRequest;
+    preparingRestore = true;
+    restoreError = '';
+    try {
+      const id = await invoke<string>('prepare_desktop_restore', {
+        hash: record.manifest_hash,
+        request: {
+          transfer_plan_id: record.manifest.id,
+          node_ids: [...restoreNodes],
+          on_collision: keepBoth ? 'keep_both' : 'fail',
+        },
+      });
+      if (owner === restoreRequest) onreview(id);
+    } catch (problem) {
+      if (owner === restoreRequest) restoreError = String(problem);
+    } finally {
+      if (owner === restoreRequest) preparingRestore = false;
+    }
+  }
   function open(id: string): void {
+    resetRestore();
     destinationsOpen = false;
     fileCursors = [null];
     void catalogue.select(id);
   }
   function reload(): void {
+    resetRestore();
     cursors = [null];
     fileCursors = [null];
     void catalogue.load(null, filter);
@@ -66,6 +107,7 @@
     reload();
   }
   async function pageTo(before: string | null): Promise<void> {
+    resetRestore();
     await catalogue.load(before);
     await tick();
     if (document.activeElement === document.body && resultsHeading?.isConnected) {
@@ -90,7 +132,7 @@
   onMount(() => {
     if (native) reload();
   });
-  onDestroy(() => catalogue.dispose());
+  onDestroy(() => { ++restoreRequest; catalogue.dispose(); });
 </script>
 
 <section class="transfer-catalogue" aria-labelledby="transfer-catalogue-heading">
@@ -219,6 +261,7 @@
           >
         {:else}
           {@const record = catalogueState.selection.record}
+          {@const canRestore = record.restore_available || restoreNodes.size > 0}
           {@const action = record.manifest.action}
           {@const restore =
             typeof action === 'object' && 'restore' in action ? action.restore : null}
@@ -301,6 +344,15 @@
               {record.files.length} matching {record.files.length === 1 ? 'file' : 'files'} on this page
             </p>
           {/if}
+          {#if canRestore}
+            <div class="restore-actions" aria-label="Restore archived copies" role="group">
+              <span>{restoreNodes.size ? `${restoreNodes.size} selected` : 'Select verified copies'}</span>
+              <label><input type="checkbox" bind:checked={keepBoth} disabled={preparingRestore} /> Keep both if a name exists</label>
+              <button class="primary" disabled={!restoreNodes.size || preparingRestore}
+                onclick={() => void prepareRestore(record)}>{preparingRestore ? 'Checking copies…' : 'Review restoration'}</button>
+            </div>
+            {#if restoreError}<p role="alert" class="error">{restoreError}</p>{/if}
+          {/if}
           <!-- svelte-ignore a11y_no_noninteractive_tabindex (The named overflow region needs keyboard scrolling.) -->
           <div class="file-table" tabindex="0" role="region" aria-label="Recorded file table">
             <table>
@@ -319,7 +371,11 @@
                       : null}
                   <tr
                     ><td
-                      ><strong>{file.output_name}</strong>{#if restored}<small class="original-path"
+                      >{#if record.restore_available && file.published_at !== null}
+                        <label class="restore-file"><input type="checkbox" checked={restoreNodes.has(file.node)}
+                          disabled={preparingRestore} onchange={(event) => toggleRestore(file.node, event.currentTarget.checked)} />
+                          <strong>{file.output_name}</strong></label>
+                      {:else}<strong>{file.output_name}</strong>{/if}{#if restored}<small class="original-path"
                           >Original path: {restored.original_path}</small
                         >{/if}
                       <details>
@@ -380,6 +436,9 @@
 </section>
 
 <style>
+  .restore-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; margin-block: 10px; }
+  .restore-actions label, .restore-file { display: inline-flex; align-items: center; gap: 6px; }
+  .restore-actions button { margin-inline-start: auto; }
   .transfer-catalogue {
     display: grid;
     gap: 20px;

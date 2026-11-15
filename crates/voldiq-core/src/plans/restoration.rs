@@ -371,44 +371,63 @@ impl Store {
         request: &RestoreRequest,
         now: i64,
     ) -> Result<View> {
+        let archive = self.restore_evidence(context, request)?;
+        self.create_restore_plan(
+            context,
+            snapshot,
+            index,
+            &archive,
+            request.on_collision,
+            now,
+        )
+    }
+
+    fn restore_evidence(
+        &self,
+        context: &PlanContext<'_>,
+        request: &RestoreRequest,
+    ) -> Result<Archive> {
         let policy = context.check(Capability::PreparePlans)?;
-        if !hex(&request.transfer_plan_id, 64)
-            || request.node_ids.is_empty()
-            || request.node_ids.len() > policy.limits().plan_files
-            || request.node_ids.len() > 500
-            || request
-                .node_ids
-                .iter()
-                .copied()
-                .collect::<HashSet<_>>()
-                .len()
-                != request.node_ids.len()
-        {
-            return Err(invalid());
-        }
+        request.check_selection(policy.limits().plan_files)?;
         let tx = self.connection.unchecked_transaction()?;
-        // Old policy bindings describe the original operation; only the new proposal may get fresh approval.
         let stored = self.read_restore_archive(context, &request.transfer_plan_id)?;
-        let Action::Offload(offload) = &stored.view.manifest.action else {
-            return Err(invalid());
-        };
+        let archive = self.archive_evidence(stored, request)?;
+        tx.commit()?;
+        Ok(archive)
+    }
+
+    fn archive_evidence(
+        &self,
+        stored: super::store::Stored,
+        request: &RestoreRequest,
+    ) -> Result<Archive> {
         let files =
             self.restoration_files(&stored.view.manifest, &stored.view.hash, &request.node_ids)?;
-        let root = context.path(&index.root)?;
-        if format!("{:016x}:{:016x}", root.identity().0, root.identity().1)
-            != offload.destination.identity
-            || root
-                .identity_bytes()?
-                .iter()
-                .map(|byte| format!("{byte:02x}"))
-                .collect::<String>()
-                != offload.destination.native_identity
-        {
-            return Err(invalid());
-        }
         let protections = crate::metadata::Store::open(self.directory.path())?.protections()?;
         stored.record.check_protections(&protections)?;
-        let selection = files
+        Ok(Archive {
+            manifest: stored.view.manifest,
+            hash: stored.view.hash,
+            record: stored.record,
+            files,
+        })
+    }
+
+    fn create_restore_plan(
+        &mut self,
+        context: &PlanContext<'_>,
+        snapshot: i64,
+        index: &Index,
+        archive: &Archive,
+        collision: RestoreCollisionPolicy,
+        now: i64,
+    ) -> Result<View> {
+        let Action::Offload(offload) = &archive.manifest.action else {
+            return Err(invalid());
+        };
+        check_archive_root(offload, &context.path(&index.root)?)?;
+        let selection = archive
+            .files
             .iter()
             .map(|file| {
                 let candidate = index
@@ -424,25 +443,199 @@ impl Store {
                 Ok(candidate.id)
             })
             .collect::<Result<Vec<_>>>()?;
-        let archive = Archive {
-            manifest: stored.view.manifest,
-            hash: stored.view.hash,
-            record: stored.record,
-            files,
-        };
-        tx.commit()?;
         let state = self.directory.path().to_owned();
         self.create_using(context, snapshot, index, &selection, now, |entries| {
-            Restore::capture(
-                context,
-                &state,
-                index,
-                entries,
-                &archive,
-                request.on_collision,
-            )
-            .map(|plan| Action::Restore(Box::new(plan)))
+            Restore::capture(context, &state, index, entries, archive, collision)
+                .map(|plan| Action::Restore(Box::new(plan)))
         })
+    }
+
+    #[cfg(windows)]
+    pub(super) fn create_desktop_restore(
+        &mut self,
+        human: &super::HumanAuthority,
+        registry: &mut crate::agents::Registry,
+        request: &RestoreRequest,
+        expected_hash: &str,
+        cancel: &std::sync::atomic::AtomicBool,
+    ) -> Result<View> {
+        request.check_selection(500)?;
+        let tx = self.connection.unchecked_transaction()?;
+        let stored = self.read_desktop_restore_archive(human, &request.transfer_plan_id)?;
+        if stored.view.hash != expected_hash {
+            return Err(invalid());
+        }
+        let archive = self.archive_evidence(stored, request)?;
+        tx.commit()?;
+        let Action::Offload(offload) = &archive.manifest.action else {
+            return Err(invalid());
+        };
+        let root = offload
+            .destination
+            .volume
+            .restore_parent_path(&offload.destination.path)?;
+        let root = crate::agents::pin_directory(&root)?;
+        check_archive_root(offload, &root)?;
+        if super::offload::VolumeBinding::observe(root.path())? != offload.destination.volume {
+            return Err(invalid());
+        }
+        let ancestors = root.ancestor_identities()?;
+        let protections = crate::metadata::Store::open(self.directory.path())?.protections()?;
+        protections.check_evidence(root.path(), root.identity(), &ancestors)?;
+        let protected = crate::cleanup::protected_identities()?;
+        if crate::cleanup::record::sensitive(root.path())
+            || ancestors
+                .iter()
+                .any(|id| *id == self.directory.identity() || protected.contains(id))
+        {
+            return Err(invalid());
+        }
+        let (original_parent, _) = archive.record.restore_parent(request.node_ids[0])?;
+        let resolved = offload.source_volume.restore_parent_path(original_parent)?;
+        let original_root = resolved.ancestors().last().ok_or_else(invalid)?;
+        let index = observe_archive_selection(&root, &archive.files, cancel)?;
+        let principal = registry.desktop_transfer_principal(human, root.path(), original_root)?;
+        let context = registry.plan_context(&principal, Capability::PreparePlans)?;
+        if cancel.load(std::sync::atomic::Ordering::Acquire) {
+            return Err(Error::Invalid("Restore preparation was cancelled.".into()));
+        }
+        human.check_directory(self.directory.identity())?;
+        self.create_restore_plan(
+            &context,
+            0,
+            &index,
+            &archive,
+            request.on_collision,
+            super::now()?,
+        )
+    }
+}
+
+#[cfg(windows)]
+pub(super) fn observe_archive_selection(
+    root: &AuthorizedPath,
+    files: &[TransferFile],
+    cancel: &std::sync::atomic::AtomicBool,
+) -> Result<Index> {
+    use crate::{Entry, FileState, Kind, scanner::modified, windows};
+    use std::sync::atomic::Ordering;
+    let root_entry = Entry {
+        id: NodeId(0),
+        parent: None,
+        name: root.path().to_string_lossy().into_owned(),
+        kind: Kind::Directory,
+        file_state: None,
+        cloud: crate::cloud::CloudState::Unknown,
+        logical: 0,
+        allocated: 0,
+        allocation_known: false,
+        modified: None,
+        files: 0,
+        incomplete: false,
+        hard_link: false,
+    };
+    let mut entries = Vec::with_capacity(files.len() + 1);
+    entries.push(root_entry);
+    for recorded in files {
+        if cancel.load(Ordering::Acquire) {
+            return Err(Error::Invalid("Restore preparation was cancelled.".into()));
+        }
+        let name = &recorded.output_name;
+        if Path::new(name).file_name() != Some(std::ffi::OsStr::new(name)) {
+            return Err(invalid());
+        }
+        let path = root.path().join(name);
+        crate::agents::ordinary_path(&path)?;
+        if crate::cleanup::record::sensitive(&path) {
+            return Err(invalid());
+        }
+        let file = windows::open_metadata(&path)?;
+        let metadata = file.metadata()?;
+        if !metadata.is_file()
+            || windows::is_reparse(&metadata)
+            || windows::requires_recall(&metadata)
+        {
+            return Err(Error::Invalid(
+                "An archive copy is unavailable as a regular local file.".into(),
+            ));
+        }
+        let identity = windows::file_identity(&file)?;
+        let metadata_profile = BasicMetadata::observe(&file)?;
+        if metadata_profile.native_identity()
+            != recorded
+                .destination_identity
+                .as_deref()
+                .ok_or_else(invalid)?
+            || metadata.len().to_string()
+                != *recorded.verified_bytes.as_ref().ok_or_else(invalid)?
+        {
+            return Err(Error::Invalid(
+                "An archive copy changed since it was verified.".into(),
+            ));
+        }
+        entries.push(Entry {
+            id: NodeId(entries.len() as u32),
+            parent: Some(NodeId(0)),
+            name: name.clone(),
+            kind: Kind::File,
+            file_state: Some(FileState {
+                identity: identity.key,
+                change_time: identity.change_time,
+            }),
+            cloud: identity.cloud,
+            logical: metadata.len(),
+            allocated: identity.allocated,
+            allocation_known: true,
+            modified: modified(&metadata),
+            files: 1,
+            incomplete: false,
+            hard_link: identity.links > 1,
+        });
+    }
+    Ok(Index {
+        observation: None,
+        root: root.path().to_owned(),
+        entries,
+        issues: vec![],
+        error_count: 0,
+        native_names: Default::default(),
+        root_identity: Some(root.identity()),
+        exclusions: vec![],
+        snapshot_id: None,
+        captured_caches: vec![],
+        captured_applications: None,
+        captured_libraries: None,
+        ntfs_checkpoint: None,
+    })
+}
+
+fn check_archive_root(offload: &Offload, root: &AuthorizedPath) -> Result<()> {
+    if format!("{:016x}:{:016x}", root.identity().0, root.identity().1)
+        != offload.destination.identity
+        || root
+            .identity_bytes()?
+            .iter()
+            .map(|byte| format!("{byte:02x}"))
+            .collect::<String>()
+            != offload.destination.native_identity
+    {
+        return Err(Error::Invalid(
+            "The recorded archive folder identity changed.".into(),
+        ));
+    }
+    Ok(())
+}
+
+impl RestoreRequest {
+    fn check_selection(&self, limit: usize) -> Result<()> {
+        if !hex(&self.transfer_plan_id, 64)
+            || self.node_ids.is_empty()
+            || self.node_ids.len() > limit.min(500)
+            || self.node_ids.iter().copied().collect::<HashSet<_>>().len() != self.node_ids.len()
+        {
+            return Err(invalid());
+        }
+        Ok(())
     }
 }
 

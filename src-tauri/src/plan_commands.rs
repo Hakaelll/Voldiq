@@ -227,6 +227,28 @@ pub async fn prepare_desktop_transfer(
 }
 
 #[tauri::command]
+#[cfg(windows)]
+pub async fn prepare_desktop_restore(
+    reviews: tauri::State<'_, PlanReviews>,
+    engine: tauri::State<'_, Arc<crate::Engine>>,
+    request: voldiq_core::plans::RestoreRequest,
+    hash: String,
+) -> Result<String, String> {
+    engine.require_durable_state()?;
+    let desktop = reviews.desktop()?;
+    let operation = engine.begin()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let operation = operation;
+        desktop
+            .prepare_restore(&request, &hash, &operation.cancel)
+            .map(|plan| plan.manifest.id)
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
 pub async fn start_desktop_transfer(
     reviews: tauri::State<'_, PlanReviews>,
     id: String,
@@ -367,7 +389,13 @@ pub async fn approve_agent_plan(
             [one] => format!("\nDestination: {}", one.destination_path().display()),
             [first, rest @ ..] => format!("\nDestinations: {} and {} more reviewed folders", first.destination_path().display(), rest.len()),
         };
-        let next = if review.desktop_owned { "Select Start transfer in Voldiq to request execution." } else { "The connection must request execution separately." };
+        let next = if !review.desktop_owned {
+            "The connection must request execution separately."
+        } else if matches!(&manifest.action, voldiq_core::plans::Action::Restore(_)) {
+            "Select Start restoration in Voldiq to request execution."
+        } else {
+            "Select Start transfer in Voldiq to request execution."
+        };
         let message = format!(
             "Approve this exact plan?\n\nConnection: {} (#{})\nSource: {}{}\nFiles: {}\nLogical bytes: {}\n\n{}\n\nManifest hash:\n{}\n\nReview the full selection in Voldiq before approving. This grants one attempt within two minutes. {next}",
             review.connection, manifest.connection_id, manifest.root, destination, manifest.entries.len(),

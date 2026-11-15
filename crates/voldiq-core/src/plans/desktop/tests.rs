@@ -55,6 +55,39 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
     .unwrap();
     let plan = service.plan_prepare(snapshot, &[selected]).unwrap();
     {
+        use super::super::{TransferFile, TransferPhase, restoration::observe_archive_selection};
+        let archive = tempfile::tempdir().unwrap();
+        let root = crate::agents::pin_directory(archive.path()).unwrap();
+        let path = archive.path().join("reported.data");
+        std::fs::write(&path, b"owned archive copy").unwrap();
+        std::fs::write(archive.path().join("unselected.data"), b"skip this").unwrap();
+        let handle = crate::windows::open_metadata(&path).unwrap();
+        let profile = crate::transfer::metadata::BasicMetadata::observe(&handle).unwrap();
+        let mut files = [TransferFile {
+            node: selected,
+            output_name: "reported.data".into(),
+            phase: TransferPhase::Published,
+            private_name: None,
+            destination_identity: Some(profile.native_identity().into()),
+            content_blake3: Some(blake3::hash(b"owned archive copy").to_hex().to_string()),
+            verified_bytes: Some("18".into()),
+            verified_at: Some(1),
+            published_at: Some(2),
+            updated_at: 2,
+            interrupted_at: None,
+        }];
+        let cancel = AtomicBool::new(false);
+        let observed = observe_archive_selection(&root, &files, &cancel).unwrap();
+        assert_eq!(observed.entries.len(), 2);
+        assert_eq!(observed.entries[1].name, "reported.data");
+        assert_eq!(observed.entries[1].logical, 18);
+        assert_eq!(observed.root_identity, Some(root.identity()));
+        assert!(observe_archive_selection(&root, &files, &AtomicBool::new(true)).is_err());
+        files[0].destination_identity = Some("0".repeat(48));
+        assert!(observe_archive_selection(&root, &files, &cancel).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), b"owned archive copy");
+    }
+    {
         let human = HumanAuthority::acquire(state.path()).unwrap();
         let destination = tempfile::tempdir().unwrap();
         let desktop = Desktop {
