@@ -1,0 +1,14 @@
+{
+  "checkedUtc": "2026-11-15T15:57:49.4602621Z",
+  "cleanerSha256": "FAB925169773DC0EAC1064EAC83D2A7DAFE1E94498FA76B315F0446288716842",
+  "refusedLocks": [
+    ".cargo-lock",
+    ".cargo-artifact-lock",
+    ".cargo-build-lock"
+  ],
+  "dryRunUnchanged": true,
+  "intermediateRemoved": true,
+  "deliverablesUnchanged": true,
+  "unknownFileRetained": true,
+  "productionCleanupEvidence": "build-cache-lan-sharing.json"
+}

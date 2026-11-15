@@ -33,12 +33,7 @@ function Measure-Release {
     [ordered]@{ bytes = $bytes; files = $files }
 }
 
-function Assert-IdleBuild {
-    $builders = @(Get-Process cargo,rustc,link,makensis -ErrorAction SilentlyContinue)
-    if ($builders.Count -gt 0) {
-        $active = ($builders | ForEach-Object { "$($_.Name):$($_.Id)" }) -join ', '
-        throw "A Rust build or installer process is active. Finish it before cleaning. Processes: $active"
-    }
+function Assert-NoRunningReleaseImage {
     foreach ($process in Get-Process voldiq,voldiq-cli -ErrorAction SilentlyContinue) {
         if (-not $process.Path) { throw 'Cannot determine a running Voldiq image; cleanup stopped.' }
         $image = [IO.Path]::GetFullPath($process.Path)
@@ -46,73 +41,72 @@ function Assert-IdleBuild {
             throw 'A release executable is running. Use a hash-addressed preview before cleaning.'
         }
     }
-    $lockPath = Join-Path $release '.cargo-lock'
-    if (Test-Path -LiteralPath $lockPath) {
-        $lock = [IO.File]::Open($lockPath, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
-        $lock.Dispose()
-    }
 }
 
 foreach ($directory in @($repository, $target, $release)) { Assert-RegularDirectory $directory }
 if ([IO.Path]::GetDirectoryName($target) -ne $repository -or [IO.Path]::GetDirectoryName($release) -ne $target) {
     throw 'The release target must be inside this workspace.'
 }
-Assert-IdleBuild
-$before = Measure-Release
-$configuration = Get-Content -LiteralPath (Join-Path $repository 'src-tauri/tauri.conf.json') -Raw | ConvertFrom-Json
-if ($configuration.version -notmatch '^\d+\.\d+\.\d+$') { throw 'Unexpected distribution version.' }
-$relativePaths = @('voldiq.exe', 'voldiq-cli.exe', "bundle/nsis/Voldiq_$($configuration.version)_x64-setup.exe", 'nsis/x64/installer.nsi')
-$preserved = @(foreach ($relative in $relativePaths) {
-    $path = Join-Path $release $relative
-    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Build the deliverable before cleaning: $relative" }
-    $file = Get-Item -LiteralPath $path
-    [ordered]@{ path = $relative; bytes = $file.Length; sha256 = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash }
-})
 
-$cargoOutput = @()
-if ($Apply) {
-    $backup = Join-Path $target ('cache-preserve-' + [Guid]::NewGuid().ToString('N'))
-    if (Test-Path -LiteralPath $backup) { throw 'Preservation directory already exists.' }
-    [IO.Directory]::CreateDirectory($backup) | Out-Null
-    $restored = $false
-    $cleanAttempted = $false
-    try {
-        foreach ($file in $preserved) {
-            $copy = Join-Path $backup $file.path
-            [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($copy)) | Out-Null
-            Copy-Item -LiteralPath (Join-Path $release $file.path) -Destination $copy
-            if ((Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash -ne $file.sha256) { throw 'Preserved artifact hash differs.' }
+$locks = [Collections.Generic.List[IO.FileStream]]::new()
+$removed = [Collections.Generic.List[string]]::new()
+try {
+    Assert-NoRunningReleaseImage
+    # Cargo holds these files open while using this build or artifact directory.
+    # Hold Windows-exclusive handles through all deletion and verification.
+    foreach ($name in @('.cargo-lock', '.cargo-artifact-lock', '.cargo-build-lock')) {
+        $path = Join-Path $release $name
+        $item = Get-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+        if ($item -and ($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint))) {
+            throw 'Expected an ordinary Cargo lock file.'
         }
-        Assert-IdleBuild
-        $null = Measure-Release
-        $cleanAttempted = $true
-        $cargoOutput = @(& cargo clean --offline --release --manifest-path (Join-Path $repository 'Cargo.toml') --target-dir $target 2>&1 | ForEach-Object { "$_" })
-        if ($LASTEXITCODE -ne 0) { throw 'Cargo release cleanup failed; preserved files remain in the backup.' }
-    } finally {
-        # A pre-clean abort must not overwrite a build that started after preservation.
-        if ($cleanAttempted) {
-            foreach ($file in $preserved) {
-                $copy = Join-Path $backup $file.path
-                if (-not (Test-Path -LiteralPath $copy)) { continue }
-                if ((Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash -ne $file.sha256) { throw "Invalid backup retained at $backup" }
-                $destination = Join-Path $release $file.path
-                [IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($destination)) | Out-Null
-                Copy-Item -LiteralPath $copy -Destination $destination -Force
-                if ((Get-FileHash -LiteralPath $destination -Algorithm SHA256).Hash -ne $file.sha256) { throw "Restore failed; backup retained at $backup" }
+        if (!$Apply -and !$item) { continue }
+        $mode = if ($Apply) { [IO.FileMode]::OpenOrCreate } else { [IO.FileMode]::Open }
+        try {
+            $locks.Add([IO.File]::Open($path, $mode, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None))
+        } catch [IO.IOException] {
+            throw "A Rust build or installer process is active in Voldiq's release profile, or its lock is unavailable: $name"
+        }
+    }
+    $before = Measure-Release
+    $configuration = Get-Content -LiteralPath (Join-Path $repository 'src-tauri/tauri.conf.json') -Raw | ConvertFrom-Json
+    if ($configuration.version -notmatch '^\d+\.\d+\.\d+$') { throw 'Unexpected distribution version.' }
+    $relativePaths = @('voldiq.exe', 'voldiq-cli.exe', "bundle/nsis/Voldiq_$($configuration.version)_x64-setup.exe", 'nsis/x64/installer.nsi')
+    $preserved = @(foreach ($relative in $relativePaths) {
+        $path = Join-Path $release $relative
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Build the deliverable before cleaning: $relative" }
+        $file = Get-Item -LiteralPath $path
+        [ordered]@{ path = $relative; bytes = $file.Length; sha256 = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash }
+    })
+    if ($Apply) {
+        $directories = @('.fingerprint', 'build', 'deps', 'examples', 'incremental')
+        $files = @('voldiq.d', 'voldiq.pdb', 'voldiq_cli.pdb')
+        foreach ($name in $directories + $files) {
+            $path = [IO.Path]::GetFullPath((Join-Path $release $name))
+            if ([IO.Path]::GetDirectoryName($path) -ne $release) { throw 'Unexpected cache entry path.' }
+            $item = Get-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
+            if (!$item) { continue }
+            if ($item.FullName -ne $path -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or
+                $item.PSIsContainer -ne ($name -in $directories)) {
+                throw 'Expected a regular cache entry in the release profile.'
             }
-            $restored = $true
+            if ($item.PSIsContainer) {
+                Remove-Item -LiteralPath $path -Recurse -Force
+            } else {
+                Remove-Item -LiteralPath $path -Force
+            }
+            $removed.Add($name)
         }
     }
-    if ($restored) {
-        foreach ($file in $preserved) { Remove-Item -LiteralPath (Join-Path $backup $file.path) }
-        [IO.Directory]::Delete((Join-Path $backup 'bundle/nsis'), $false)
-        [IO.Directory]::Delete((Join-Path $backup 'bundle'), $false)
-        [IO.Directory]::Delete((Join-Path $backup 'nsis/x64'), $false)
-        [IO.Directory]::Delete((Join-Path $backup 'nsis'), $false)
-        [IO.Directory]::Delete($backup, $false)
+    foreach ($file in $preserved) {
+        if ((Get-FileHash -LiteralPath (Join-Path $release $file.path) -Algorithm SHA256).Hash -ne $file.sha256) {
+            throw "A deliverable changed during cleanup: $($file.path)"
+        }
     }
+    $after = Measure-Release
+} finally {
+    foreach ($lock in $locks) { $lock.Dispose() }
 }
-$after = Measure-Release
 [ordered]@{
     checkedUtc = [DateTime]::UtcNow.ToString('o')
     applied = [bool]$Apply
@@ -122,6 +116,6 @@ $after = Measure-Release
     after = $after
     removedBytes = $before.bytes - $after.bytes
     preserved = $preserved
-    cargoOutput = $cargoOutput
+    removedPaths = $removed.ToArray()
     otherCachesTouched = $false
 } | ConvertTo-Json -Depth 5

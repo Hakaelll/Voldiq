@@ -72,14 +72,14 @@ The two modes write the same versioned setup filename. Keep the required variant
 
 ### Build-cache footprint
 
-The latest verified native executable is 25,399,296 bytes. Rust metadata, dependencies, test binaries and old packages accounted for most of the measured 9.27 GB workspace; those files are not bundled into the application. After all source checks and packaging finish, inspect and clean this workspace's release artifacts with:
+Rust metadata, dependencies, test binaries and old packages accounted for most of the earlier 9.27 GB workspace measurement. The LAN release receipt records the 32,079,360-byte executable and 11,763,699-byte installer. After source checks and packaging finish, inspect and clean this workspace's release artifacts. [Distribution receipt](../benchmarks/distribution-lan-sharing.json)
 
 ```powershell
 ./scripts/clean_build_cache.ps1
 ./scripts/clean_build_cache.ps1 -Apply
 ```
 
-The script refuses active Cargo/compiler/installer processes, a release executable running in place, and reparse points. It checks the absolute workspace target, preserves SHA-256-verified copies of the application, CLI, current installer and generated NSIS source, invokes Cargo's release-only cleaner, then restores those files at their original paths. Restoration is skipped if cleanup aborts before invoking Cargo, preserving outputs of a build that started during preservation. A failed restoration retains its backup. Hash-addressed running previews, frontend dependencies, source files, application state, user data and other applications' caches are retained. The next Rust build must regenerate its dependencies. Do not run cleanup during verification or packaging.
+The script holds the Cargo lock files for this workspace's release profile while it removes known intermediate directories and Voldiq symbol and dependency files. It refuses a locked profile, a release executable running in place, and reparse points. It checks the absolute workspace target and verifies the application, CLI, current installer and generated NSIS source by SHA-256 before and after cleanup. The next Rust build must regenerate its dependencies. [Disposable lock fixture](../benchmarks/scoped-release-cache-fixture.json)
 
 ## Artwork
 
