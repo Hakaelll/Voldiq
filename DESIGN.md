@@ -352,6 +352,8 @@ Settings shows Updates below Window. It uses the shared settings rows and button
 
 Local network follows Updates as a compact Storage sharing disclosure. The host sees the exact fields being shared, an invitation countdown and a divided list of peers with individual revoke actions. Received measurements use the same labeled capacity bar and a timestamp. The join form opens on request, and its code stays obscured while pasting. Actions that remove a control return focus to the disclosure or the remaining heading.
 
+Scan requests appear above the host's storage measurements so pending consent is visible first. The disclosure shows a request count when collapsed. A row names the paired device and drive and offers one approval button and one decline action. The receiving side polls only while its open panel has a pending request, and shows the latest admission status alongside the existing Refresh action.
+
 ### Storage trends
 
 History → Trends uses the full workspace width. The scope and interval sit above a time-scaled logical-size chart, with a range control for the visible start date. A solid blue segment joins comparable observations. Gaps preserve partial coverage and accounting changes. A dashed violet extension marks a qualified projection and its text reports the observed-rate range and confidence. A separate signed change chart and measurement selector lead to the largest increases and decreases among immediate folders. Text labels and exact byte titles complement the chart colors. The projection covers this indexed scope. Native composition, keyboard interaction and Windows scaling remain manual.

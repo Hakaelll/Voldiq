@@ -13,18 +13,36 @@
     devices: number[];
     sample: Sample;
     invitation_seconds: number;
+    scans: { id: string; device: number }[];
   };
   type Invitation = { code: string; lifetime_seconds: number };
-  type Remote = { device: number; endpoint: string; sample: Sample };
+  type ScanStatus = 'pending' | 'started' | 'declined' | 'expired';
+  type Remote = { device: number; endpoint: string; sample: Sample; scan: ScanStatus | null };
   type View = { host: Host | null; remotes: Remote[] };
   type Response = View & { invitation: Invitation | null };
   type Action =
     | { kind: 'status' | 'stop' | 'create_invitation' | 'update_shared_summary' }
     | { kind: 'start'; address: string; drive: string }
     | { kind: 'join'; code: string }
-    | { kind: 'refresh' | 'revoke' | 'forget'; device: number };
+    | { kind: 'refresh' | 'revoke' | 'forget' | 'request_scan' | 'check_scan'; device: number }
+    | { kind: 'decline_scan'; request: string };
 
-  let { volumes }: { volumes: Volume[] } = $props();
+  let {
+    volumes,
+    scanBusy,
+    onscan,
+  }: {
+    volumes: Volume[];
+    scanBusy: boolean;
+    onscan: (path: string, request: string) => Promise<void>;
+  } = $props();
+
+  const scanLabels: Record<ScanStatus, string> = {
+    pending: 'Waiting for host approval',
+    started: 'Host approved the scan',
+    declined: 'Host declined the request',
+    expired: 'Request expired',
+  };
 
   const native = isTauri();
   let eligible = $derived(
@@ -43,7 +61,7 @@
   let drive = $state('');
   let address = $state('');
   let addresses = $state<string[]>([]);
-  let busy = $state<Action['kind'] | null>(null);
+  let busy = $state<Action['kind'] | 'approve_scan' | null>(null);
   let problem = $state('');
   let message = $state('');
   let showJoin = $state(false);
@@ -112,6 +130,8 @@
         message = 'Sharing stopped.';
       } else if (action.kind === 'revoke') {
         message = 'Device access revoked.';
+      } else if (action.kind === 'decline_scan') {
+        message = 'Scan request declined.';
       } else if (action.kind === 'update_shared_summary' || action.kind === 'refresh') {
         message = 'Storage summary updated.';
       }
@@ -122,9 +142,28 @@
     }
     if (!open || problem) return;
     await tick();
-    if (action.kind === 'start' || action.kind === 'revoke') shareHeading?.focus();
+    if (action.kind === 'start' || action.kind === 'revoke' || action.kind === 'decline_scan')
+      shareHeading?.focus();
     else if (action.kind === 'stop') panelSummary?.focus();
     else if (action.kind === 'join' || action.kind === 'forget') joinButton?.focus();
+  }
+
+  async function approveScan(drive: string, request: string): Promise<void> {
+    if (!native || busy || scanBusy) return;
+    revision++;
+    busy = 'approve_scan';
+    message = '';
+    problem = '';
+    try {
+      await onscan(drive, request);
+    } finally {
+      busy = null;
+    }
+    if (open) {
+      await perform({ kind: 'status' });
+      await tick();
+      shareHeading?.focus();
+    }
   }
 
   async function copyInvitation(): Promise<void> {
@@ -138,7 +177,7 @@
     }
   }
 
-  let pollActive = $derived(open && view?.host?.running === true);
+  let pollActive = $derived(view?.host?.running === true);
   $effect(() => {
     if (!pollActive) return;
     const timer = window.setInterval(async () => {
@@ -146,14 +185,41 @@
       const requested = revision;
       try {
         const { host, remotes } = await command({ kind: 'status' });
-        if (busy || !open || requested !== revision) return;
-        view = { host, remotes };
+        if (busy || requested !== revision) return;
+        view = { host, remotes: view?.remotes ?? remotes };
         if (!host?.invitation_seconds) hideInvitation();
       } catch (error) {
         if (!busy && open && requested === revision) problem = String(error);
       }
     }, 1200);
     return () => window.clearInterval(timer);
+  });
+
+  let waiting = $derived(view?.remotes.filter((remote) => remote.scan === 'pending') ?? []);
+  let pollScanActive = $derived(open && waiting.length > 0);
+  $effect(() => {
+    if (!pollScanActive) return;
+    let active = true;
+    let inFlight = false;
+    let cursor = 0;
+    const timer = window.setInterval(async () => {
+      if (busy || inFlight || waiting.length === 0) return;
+      const next = waiting[cursor++ % waiting.length];
+      const requested = revision;
+      inFlight = true;
+      try {
+        const { remotes } = await command({ kind: 'check_scan', device: next.device });
+        if (active && !busy && view && requested === revision) view = { host: view.host, remotes };
+      } catch (error) {
+        if (active && !busy && requested === revision) problem = String(error);
+      } finally {
+        inFlight = false;
+      }
+    }, 4000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
   });
 </script>
 
@@ -200,7 +266,16 @@
   >
     <summary bind:this={panelSummary}>
       <span>Storage sharing</span>
-      {#if native && view}<small>{view.host?.running ? 'Sharing' : 'Sharing off'}</small>{/if}
+      {#if native && view}
+        <small>{view.host?.running ? 'Sharing' : 'Sharing off'}</small>
+        {#if view.host?.scans.length}
+          <small
+            >{view.host.scans.length} scan {view.host.scans.length === 1
+              ? 'request'
+              : 'requests'}</small
+          >
+        {/if}
+      {/if}
     </summary>
     {#if !native}
       <p>Local network sharing is available in the Windows app.</p>
@@ -222,6 +297,32 @@
               onclick={() => void perform({ kind: 'stop' })}>Stop sharing</button
             >
           </div>
+          {#if host.scans.length}
+            <section class="scan-reviews" aria-label="Scan requests">
+              <h3>Scan requests</h3>
+              <p>Results stay on this computer. Requests expire after two minutes.</p>
+              <ul class="device-list">
+                {#each host.scans as request (request.id)}
+                  <li>
+                    <strong>Device {request.device} requests a scan of {host.drive}</strong>
+                    <div class="actions">
+                      <button
+                        disabled={busy !== null || scanBusy}
+                        onclick={() => void approveScan(host.drive, request.id)}
+                        >Approve and scan</button
+                      >
+                      <button
+                        class="quiet-action"
+                        disabled={busy !== null}
+                        onclick={() => void perform({ kind: 'decline_scan', request: request.id })}
+                        >Decline</button
+                      >
+                    </div>
+                  </li>
+                {/each}
+              </ul>
+            </section>
+          {/if}
           {@render storage(host.sample)}
           <div class="actions">
             <button
@@ -365,6 +466,14 @@
                       <div class="actions">
                         <button
                           class="quiet-action"
+                          disabled={busy !== null || remote.scan === 'pending'}
+                          aria-label={`Request a scan from device ${remote.device}`}
+                          onclick={() =>
+                            void perform({ kind: 'request_scan', device: remote.device })}
+                          >Request scan</button
+                        >
+                        <button
+                          class="quiet-action"
                           disabled={busy !== null}
                           aria-label={`Refresh device ${remote.device}`}
                           onclick={() => void perform({ kind: 'refresh', device: remote.device })}
@@ -379,6 +488,9 @@
                         >
                       </div>
                     </div>
+                    {#if remote.scan}
+                      <small role="status">{scanLabels[remote.scan]}</small>
+                    {/if}
                     {@render storage(remote.sample)}
                   </li>
                 {/each}
@@ -497,6 +609,10 @@
   .invite,
   .other-devices,
   .remote-device {
+    display: grid;
+    gap: 6px;
+  }
+  .scan-reviews {
     display: grid;
     gap: 6px;
   }

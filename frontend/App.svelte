@@ -106,7 +106,8 @@
   type ScanFolder = { path: string; identity: [string, string] };
   type ScanSource =
     | { kind: 'favorite'; reference: RecordRef }
-    | { kind: 'drop'; folder: ScanFolder };
+    | { kind: 'drop'; folder: ScanFolder }
+    | { kind: 'lan'; request: string };
   type FolderDrop =
     | { kind: 'idle' }
     | { kind: 'checking' }
@@ -1147,7 +1148,9 @@
           ? { command: 'start_favorite_scan', target: { reference: source.reference } }
           : source?.kind === 'drop'
             ? { command: 'start_dropped_folder', target: { folder: source.folder } }
-            : { command: 'start_scan', target: { path } };
+            : source?.kind === 'lan'
+              ? { command: 'start_lan_scan', target: { request: source.request } }
+              : { command: 'start_scan', target: { path } };
       const id = await invoke<number>(request.command, {
         ...request.target,
         options: {
@@ -2049,7 +2052,11 @@
           </section>
           <WindowSettings />
           <WindowsUpdates />
-          <LocalNetwork {volumes} />
+          <LocalNetwork
+            {volumes}
+            scanBusy={busy}
+            onscan={(path, request) => start(path, { kind: 'lan', request })}
+          />
           <section aria-labelledby="settings-help-heading">
             <h2 id="settings-help-heading">Help</h2>
             <div class="settings-action">

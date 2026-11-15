@@ -1,0 +1,126 @@
+{
+  "checkedUtc": "2026-11-15T17:14:47.4795274Z",
+  "startedUtc": "2026-11-15T16:49:04.9087144Z",
+  "checkoutCommit": "5f6fb821d6054327f82f7d7f9f78ab3356f2bbfc",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 3.176
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 32.446
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 2.316
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 8.824
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1413.918
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 81.817
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "13690026B7BB0B3DC80B90F99E23206FD17BFE7D514A0A114A0A9B08FCCB09B7"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "455D427CB3654963758628711F54801EE7B54686FC09ABBDEF3D24B8DF86C0AB"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "955F85B77E297989820CE764C5FB12F1ACA141DD66EDB9C930F0014D963A96F9"
+    },
+    {
+      "path": "crates/voldiq-core/src/lan.rs",
+      "sha256": "C75A5CB32F746B8BEB276721EA0AB8215311F588CFAB860E4C0704702EDA8F85"
+    },
+    {
+      "path": "crates/voldiq-core/src/lan/windows.rs",
+      "sha256": "35A8101DF897C8EFBD58B20517191F48BBDC7992689EFA20312B3DA91840F8B8"
+    },
+    {
+      "path": "crates/voldiq-core/src/lib.rs",
+      "sha256": "97662E049A13559416BDBA0383C97B325E2916448F3EC5E2A9869550924B1E21"
+    },
+    {
+      "path": "crates/voldiq-core/src/live/native.rs",
+      "sha256": "8A00E4471A26225454DC9FBA5CD87080140613F90096FF4016572E507DAF1BFC"
+    },
+    {
+      "path": "crates/voldiq-core/src/ntfs/indexing.rs",
+      "sha256": "DFE6F4EC637AB7652231AD750084506C3752476445D846CC904A2D29B517CA5E"
+    },
+    {
+      "path": "crates/voldiq-core/src/scanner.rs",
+      "sha256": "FC6D4517C99EA278535E25B44826CFF067F7D68FB6BF0600D92B4C43E45FD271"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "262EC1BCF0527475B433910FD8CA17DBDADC84F88612E5BF6EB18EBA9F5229B6"
+    },
+    {
+      "path": "frontend/components/LocalNetwork.svelte",
+      "sha256": "FF2CB51EF257CBDA3AD44828183514755C0CC671378D962CFF176FF7603C8B56"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "169FAC51F054DCEF4C1073177C3E6FD83141699ACAF7D33E70014305E0799E91"
+    },
+    {
+      "path": "src-tauri/src/lan_commands.rs",
+      "sha256": "0678EFB96B7D8B9FC33AE566B49CBAA3625A43AC1937D95A10EE72F7E3D98214"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "networkScanMarkup": {
+    "browserFallback": true,
+    "hostDriveAndRequesterLabels": true,
+    "explicitApproveAndDecline": true,
+    "blockedWhileScanBusy": true,
+    "requestOnlyPayload": true,
+    "pendingOnlyPolling": true
+  },
+  "disposableLoopback": {
+    "fixtureSha256": "9855A991E2115CBAADD32D07CACB8B1DC815FF8A2C4466BE018DB80E671DAA89",
+    "address": "127.0.0.1",
+    "approvedFixtureFiles": 1,
+    "approvedFixtureLogicalBytes": 11,
+    "clientCannotSelectPath": true,
+    "mismatchedPeerCredentialsRefused": true,
+    "perPeerStatusIsolated": true,
+    "consentRequired": true,
+    "failedAdmissionPreservedPending": true,
+    "wrongRootRefusedBeforePublication": true,
+    "approvedOnce": true,
+    "cooldownReturnsLatestDecision": true,
+    "expiredDeclinedAndRevokedRequestsRefused": true,
+    "twoMachineAcceptance": false,
+    "routineCaseAdded": false
+  }
+}

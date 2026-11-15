@@ -110,6 +110,7 @@ impl Session {
                 concurrency,
                 profile,
                 control: None,
+                expected_root: None,
                 max_entries: None,
             },
             previous: measurement(index)?,

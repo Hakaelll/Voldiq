@@ -49,6 +49,10 @@ pub fn refresh_or_scan(
         if index.ntfs_checkpoint.is_some()
             && index.root == std::fs::canonicalize(root)?
             && index.exclusions == exclusions
+            && options.expected_root.is_none_or(|expected| {
+                index.root_identity == Some(expected)
+                    && windows::identity(root).is_ok_and(|identity| identity.key == expected)
+            })
         {
             let start = Instant::now();
             progress(Progress {
@@ -150,6 +154,13 @@ pub fn scan_live(
     exclusions.sort();
     exclusions.dedup();
     let root_identity = windows::identity(&root).ok();
+    if options.expected_root.is_some_and(|expected| {
+        root_identity
+            .as_ref()
+            .is_none_or(|identity| identity.key != expected)
+    }) {
+        return Err(Error::Invalid("The approved scan root changed.".into()));
+    }
     let shared = Arc::new(RwLock::new(Index {
         root: root.clone(),
         entries: vec![Entry {
@@ -195,14 +206,7 @@ pub fn scan_live(
         .clamp(1, u32::MAX as usize);
     #[cfg(windows)]
     if options.mode == crate::ScanMode::Auto
-        && crate::ntfs::try_scan(
-            &shared,
-            limit,
-            cancel,
-            &mut progress,
-            start,
-            options.profile,
-        )?
+        && crate::ntfs::try_scan(&shared, limit, cancel, &mut progress, start, options)?
     {
         shared
             .write()

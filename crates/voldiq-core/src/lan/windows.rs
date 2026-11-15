@@ -1,6 +1,7 @@
 use super::{Summary, invalid};
 use crate::{
-    space::{Observation, VolumeIdentity, observe_volume},
+    agents::{AuthorizedPath, pin_directory},
+    space::{VolumeIdentity, measure_index_volume},
     windows::wide,
 };
 use std::{
@@ -86,6 +87,7 @@ pub fn local_addresses() -> io::Result<Vec<Ipv4Addr>> {
 pub struct LocalVolume {
     root: PathBuf,
     identity: VolumeIdentity,
+    root_identity: (u64, u64),
 }
 
 impl LocalVolume {
@@ -97,12 +99,22 @@ impl LocalVolume {
             return Err(invalid("Select a local drive."));
         }
         let root = PathBuf::from(root);
-        let (identity, summary) = observe(&root)?;
-        Ok((Self { root, identity }, summary))
+        require_local_drive(&root)?;
+        let pin = pin_directory(&root).map_err(io::Error::other)?;
+        let root_identity = pin.identity();
+        let (identity, summary) = observe(&root, root_identity)?;
+        Ok((
+            Self {
+                root,
+                identity,
+                root_identity,
+            },
+            summary,
+        ))
     }
 
     pub fn refresh(&self) -> io::Result<Summary> {
-        let (identity, summary) = observe(&self.root)?;
+        let (identity, summary) = observe(&self.root, self.root_identity)?;
         if !identity
             .guid_root
             .eq_ignore_ascii_case(&self.identity.guid_root)
@@ -115,20 +127,25 @@ impl LocalVolume {
         Ok(summary)
     }
 
+    pub fn pin_scan(&self) -> io::Result<AuthorizedPath> {
+        self.refresh()?;
+        let pin = pin_directory(&self.root).map_err(io::Error::other)?;
+        if pin.identity() != self.root_identity {
+            return Err(invalid(
+                "The shared drive changed. Stop sharing and select it again.",
+            ));
+        }
+        Ok(pin)
+    }
+
     pub fn path(&self) -> &Path {
         &self.root
     }
 }
 
-fn observe(path: &Path) -> io::Result<(VolumeIdentity, Summary)> {
-    // The caller checked the normal drive-root form before storing this path.
-    if !matches!(
-        unsafe { GetDriveTypeW(wide(path).as_ptr()) },
-        DRIVE_FIXED | DRIVE_REMOVABLE
-    ) {
-        return Err(invalid("Select a local or removable drive."));
-    }
-    let Observation::Measured { measurement } = observe_volume(path) else {
+fn observe(path: &Path, root_identity: (u64, u64)) -> io::Result<(VolumeIdentity, Summary)> {
+    require_local_drive(path)?;
+    let Some(measurement) = measure_index_volume(path, root_identity) else {
         return Err(io::Error::other(
             "Cannot measure this drive's whole-volume storage.",
         ));
@@ -141,4 +158,16 @@ fn observe(path: &Path) -> io::Result<(VolumeIdentity, Summary)> {
     }
     .validate()?;
     Ok((measurement.volume, summary))
+}
+
+fn require_local_drive(path: &Path) -> io::Result<()> {
+    // The caller checked the normal drive-root form before storing this path.
+    if matches!(
+        unsafe { GetDriveTypeW(wide(path).as_ptr()) },
+        DRIVE_FIXED | DRIVE_REMOVABLE
+    ) {
+        Ok(())
+    } else {
+        Err(invalid("Select a local or removable drive."))
+    }
 }

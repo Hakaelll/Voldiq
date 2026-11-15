@@ -302,7 +302,10 @@ fn launch_scan(
         let mut final_progress = None;
         let path = PathBuf::from(path);
         let start = std::time::Instant::now();
-        let resumed = if options.mode == voldiq_core::ScanMode::Auto && previous.is_none() {
+        let can_resume = options.mode == voldiq_core::ScanMode::Auto
+            && previous.is_none()
+            && options.expected_root.is_none();
+        let resumed = if can_resume {
             store
                 .lock()
                 .ok()
@@ -322,10 +325,7 @@ fn launch_scan(
                 method: "USN Journal".into(),
             });
             Ok(Some(Arc::new(std::sync::RwLock::new(index))))
-        } else if options.mode == voldiq_core::ScanMode::Auto
-            && previous.is_none()
-            && cancel.load(Ordering::Relaxed)
-        {
+        } else if can_resume && cancel.load(Ordering::Relaxed) {
             final_progress = Some(Progress {
                 previous: false,
                 phase: ScanPhase::Cancelled,
@@ -1047,6 +1047,8 @@ fn main() {
             lan_commands::local_network_addresses,
             #[cfg(windows)]
             lan_commands::lan_sharing,
+            #[cfg(windows)]
+            lan_commands::start_lan_scan,
             metadata_commands::get_folder_metadata,
             metadata_commands::get_indexed_folder_metadata,
             metadata_commands::save_folder_note,

@@ -20,8 +20,9 @@ pub(crate) fn try_scan(
     cancel: &AtomicBool,
     progress: &mut impl FnMut(Progress),
     start: Instant,
-    profile: crate::ScanProfile,
+    options: &crate::ScanOptions,
 ) -> Result<bool> {
+    let profile = options.profile;
     let root = shared
         .read()
         .map_err(|e| Error::Invalid(e.to_string()))?
@@ -34,6 +35,12 @@ pub(crate) fn try_scan(
     // Capability errors occur before any non-root ID is published.
     let prepared = (|| {
         let reader = VolumeReader::open(&root)?.with_profile(profile);
+        if options
+            .expected_root
+            .is_some_and(|expected| reader.serial != expected.0)
+        {
+            return Err(Error::Invalid("The approved scan volume changed.".into()));
+        }
         let records = reader.enumerate(limit, cancel)?;
         Ok::<_, Error>((reader, records))
     })();

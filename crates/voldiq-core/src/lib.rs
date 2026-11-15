@@ -139,6 +139,9 @@ pub struct ScanOptions {
     pub profile: ScanProfile,
     #[serde(skip)]
     pub control: Option<std::sync::Arc<scanner::ScanControl>>,
+    /// Set by the native caller when a scan must stay bound to a reviewed root.
+    #[serde(skip)]
+    pub expected_root: Option<(u64, u64)>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -1,3 +1,6 @@
+use crate::{
+    Engine, analysis_status::ScanProgress, launch_scan, snapshot_commands::SnapshotDatabase,
+};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeMap,
@@ -5,8 +8,11 @@ use std::{
     net::Ipv4Addr,
     sync::{Arc, Mutex, MutexGuard},
 };
-use tauri::State;
-use voldiq_core::lan::{Invitation, LocalVolume, Peer, Share, Summary, local_addresses};
+use tauri::{State, ipc::Channel};
+use voldiq_core::{
+    ScanOptions,
+    lan::{Invitation, LocalVolume, Peer, ScanReview, ScanStatus, Share, Summary, local_addresses},
+};
 
 const REMOTE_LIMIT: usize = 8;
 
@@ -16,7 +22,7 @@ pub(crate) struct Lan(Arc<Session>);
 #[derive(Default)]
 struct Session {
     state: Mutex<Sharing>,
-    join: Mutex<()>,
+    remote_operation: Mutex<()>,
 }
 
 #[derive(Default)]
@@ -35,6 +41,7 @@ struct Host {
 struct Remote {
     peer: Arc<Peer>,
     sample: Summary,
+    scan: Option<ScanStatus>,
 }
 
 #[derive(Deserialize)]
@@ -48,6 +55,9 @@ pub(crate) enum Action {
     Revoke { device: u32 },
     Join { code: String },
     Refresh { device: u32 },
+    RequestScan { device: u32 },
+    CheckScan { device: u32 },
+    DeclineScan { request: String },
     Forget { device: u32 },
 }
 
@@ -66,6 +76,7 @@ struct HostView {
     sample: SampleView,
     devices: Vec<u32>,
     invitation_seconds: u64,
+    scans: Vec<ScanReview>,
 }
 
 #[derive(Serialize)]
@@ -73,6 +84,7 @@ struct RemoteView {
     device: u32,
     endpoint: String,
     sample: SampleView,
+    scan: Option<ScanStatus>,
 }
 
 #[derive(Serialize)]
@@ -108,6 +120,7 @@ impl Sharing {
                     sample: host.sample.into(),
                     devices: status.devices,
                     invitation_seconds: status.invitation_seconds,
+                    scans: status.scans,
                 })
             })
             .transpose()?;
@@ -118,6 +131,7 @@ impl Sharing {
                 device,
                 endpoint: remote.peer.endpoint().to_string(),
                 sample: remote.sample.into(),
+                scan: remote.scan,
             })
             .collect();
         Ok(View {
@@ -137,7 +151,7 @@ impl Sharing {
 impl Session {
     fn apply(&self, action: Action) -> io::Result<View> {
         if let Action::Join { code } = action {
-            let _joining = lock(&self.join)?;
+            let _operation = lock(&self.remote_operation)?;
             if lock(&self.state)?.remotes.len() >= REMOTE_LIMIT {
                 return Err(io::Error::other(
                     "Disconnect a device before adding another.",
@@ -155,20 +169,43 @@ impl Session {
                 Remote {
                     peer: Arc::new(peer),
                     sample,
+                    scan: None,
                 },
             );
             return state.view(None);
         }
-        if let Action::Refresh { device } = action {
-            let peer = lock(&self.state)?
-                .remotes
-                .get(&device)
-                .map(|remote| remote.peer.clone())
-                .ok_or_else(|| io::Error::other("This device is disconnected."))?;
-            let sample = peer.summary()?;
+        if let Action::Refresh { device }
+        | Action::RequestScan { device }
+        | Action::CheckScan { device } = action
+        {
+            let _operation = lock(&self.remote_operation)?;
+            let (peer, scan) = {
+                let state = lock(&self.state)?;
+                let remote = state
+                    .remotes
+                    .get(&device)
+                    .ok_or_else(|| io::Error::other("This device is disconnected."))?;
+                (remote.peer.clone(), remote.scan)
+            };
+            let mut sample = None;
+            let scan = match action {
+                Action::RequestScan { .. } => peer.request_scan()?,
+                Action::CheckScan { .. } => peer.scan_status()?,
+                _ => {
+                    sample = Some(peer.summary()?);
+                    if scan.is_some() {
+                        peer.scan_status()?
+                    } else {
+                        None
+                    }
+                }
+            };
             let mut state = lock(&self.state)?;
             if let Some(remote) = state.remotes.get_mut(&device) {
-                remote.sample = sample;
+                remote.scan = scan;
+                if let Some(sample) = sample {
+                    remote.sample = sample;
+                }
             }
             return state.view(None);
         }
@@ -206,11 +243,24 @@ impl Session {
                 state.host()?.share.revoke(device)?;
                 None
             }
+            Action::DeclineScan { request } => {
+                state
+                    .host()?
+                    .share
+                    .decline_scan(&request)
+                    .map_err(io::Error::other)?;
+                None
+            }
             Action::Forget { device } => {
                 state.remotes.remove(&device);
                 None
             }
-            Action::Join { .. } | Action::Refresh { .. } => unreachable!(),
+            Action::Join { .. }
+            | Action::Refresh { .. }
+            | Action::RequestScan { .. }
+            | Action::CheckScan { .. } => {
+                unreachable!()
+            }
         };
         state.view(invitation)
     }
@@ -234,6 +284,41 @@ pub(crate) async fn lan_sharing(action: Action, lan: State<'_, Lan>) -> Result<V
     let lan = lan.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         lan.apply(action).map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+// Invoked by the host's explicit approval control. The LAN listener can only queue requests.
+#[tauri::command]
+pub(crate) async fn start_lan_scan(
+    request: String,
+    mut options: ScanOptions,
+    progress: Channel<ScanProgress>,
+    lan: State<'_, Lan>,
+    engine: State<'_, Arc<Engine>>,
+    database: State<'_, SnapshotDatabase>,
+) -> Result<u64, String> {
+    let lan = lan.0.clone();
+    let engine = engine.inner().clone();
+    let database = database.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || {
+        let mut state = lock(&lan.state).map_err(|error| error.to_string())?;
+        let host = state.host().map_err(|error| error.to_string())?;
+        let current = host.share.status().map_err(|error| error.to_string())?;
+        if !current.scans.iter().any(|pending| pending.id == request) {
+            return Err("This scan request is no longer pending.".into());
+        }
+        let root = host.volume.pin_scan().map_err(|error| error.to_string())?;
+        let path = root
+            .path()
+            .to_str()
+            .ok_or("Cannot display the approved drive path.")?
+            .to_owned();
+        options.expected_root = Some(root.identity());
+        host.share.start_requested_scan(&request, || {
+            launch_scan(path, options, progress, engine, &database, Some(root))
+        })
     })
     .await
     .map_err(|error| error.to_string())?

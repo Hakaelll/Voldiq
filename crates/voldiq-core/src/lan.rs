@@ -20,6 +20,8 @@ use std::{
 
 const INVITE_LIFETIME: Duration = Duration::from_secs(120);
 const INVITE_ATTEMPTS: u8 = 5;
+const SCAN_REVIEW_LIFETIME: Duration = Duration::from_secs(120);
+const SCAN_RETRY_DELAY: Duration = Duration::from_secs(60);
 const PEER_LIMIT: usize = 8;
 const FRAME_LIMIT: usize = 1024;
 const INVITE_BYTES: usize = 62;
@@ -50,8 +52,22 @@ impl Summary {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 enum Request {
-    Pair { code: [u8; 24] },
-    Summary { device: u32, token: [u8; 32] },
+    Pair {
+        code: [u8; 24],
+    },
+    Summary {
+        device: u32,
+        token: [u8; 32],
+    },
+    #[serde(rename = "request_scan")]
+    QueueScan {
+        device: u32,
+        token: [u8; 32],
+    },
+    ScanStatus {
+        device: u32,
+        token: [u8; 32],
+    },
 }
 
 #[derive(Serialize, Deserialize)]
@@ -65,7 +81,46 @@ enum Reply {
     Summary {
         summary: Summary,
     },
+    Scan {
+        status: Option<ScanStatus>,
+    },
     Denied,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScanStatus {
+    Pending,
+    Started,
+    Declined,
+    Expired,
+}
+
+#[derive(Serialize)]
+pub struct ScanReview {
+    pub id: String,
+    pub device: u32,
+}
+
+struct ScanIntent {
+    id: String,
+    status: ScanStatus,
+    until: Instant,
+}
+
+impl ScanIntent {
+    fn status(&self, now: Instant) -> ScanStatus {
+        if self.status == ScanStatus::Pending && now >= self.until {
+            ScanStatus::Expired
+        } else {
+            self.status
+        }
+    }
+}
+
+struct PairedPeer {
+    token_hash: blake3::Hash,
+    scan: Option<ScanIntent>,
 }
 
 struct Invite {
@@ -86,16 +141,23 @@ pub struct ShareStatus {
     pub running: bool,
     pub devices: Vec<u32>,
     pub invitation_seconds: u64,
+    pub scans: Vec<ScanReview>,
 }
 
 struct State {
     summary: Summary,
     invite: Option<Invite>,
-    peers: BTreeMap<u32, blake3::Hash>,
+    peers: BTreeMap<u32, PairedPeer>,
     next_device: u32,
 }
 
 impl State {
+    fn authorize(&mut self, device: u32, token: &[u8; 32]) -> Option<&mut PairedPeer> {
+        self.peers
+            .get_mut(&device)
+            .filter(|peer| peer.token_hash == blake3::hash(token))
+    }
+
     fn reply(&mut self, request: Request) -> io::Result<Reply> {
         match request {
             Request::Pair { code } => {
@@ -116,7 +178,13 @@ impl State {
                 self.next_device = device
                     .checked_add(1)
                     .ok_or_else(|| invalid("Restart sharing to add another device."))?;
-                self.peers.insert(device, blake3::hash(&token));
+                self.peers.insert(
+                    device,
+                    PairedPeer {
+                        token_hash: blake3::hash(&token),
+                        scan: None,
+                    },
+                );
                 Ok(Reply::Paired {
                     token,
                     device,
@@ -124,13 +192,41 @@ impl State {
                 })
             }
             Request::Summary { device, token } => {
-                if self.peers.get(&device) == Some(&blake3::hash(&token)) {
+                if self.authorize(device, &token).is_some() {
                     Ok(Reply::Summary {
                         summary: self.summary,
                     })
                 } else {
                     Ok(Reply::Denied)
                 }
+            }
+            Request::QueueScan { device, token } => {
+                let Some(peer) = self.authorize(device, &token) else {
+                    return Ok(Reply::Denied);
+                };
+                let now = Instant::now();
+                if peer
+                    .scan
+                    .as_ref()
+                    .is_none_or(|request| now >= request.until)
+                {
+                    peer.scan = Some(ScanIntent {
+                        id: URL_SAFE_NO_PAD.encode(random::<16>()?),
+                        status: ScanStatus::Pending,
+                        until: now + SCAN_REVIEW_LIFETIME,
+                    });
+                }
+                Ok(Reply::Scan {
+                    status: peer.scan.as_ref().map(|scan| scan.status(now)),
+                })
+            }
+            Request::ScanStatus { device, token } => {
+                let Some(peer) = self.authorize(device, &token) else {
+                    return Ok(Reply::Denied);
+                };
+                Ok(Reply::Scan {
+                    status: peer.scan.as_ref().map(|scan| scan.status(Instant::now())),
+                })
             }
         }
     }
@@ -184,17 +280,29 @@ impl Share {
     pub fn status(&self) -> io::Result<ShareStatus> {
         let state = self.state.lock().map_err(|_| unavailable())?;
         let running = self.running();
+        let now = Instant::now();
         let remaining = state
             .invite
             .as_ref()
             .filter(|invite| running && invite.attempts > 0)
-            .map(|invite| invite.until.saturating_duration_since(Instant::now()))
+            .map(|invite| invite.until.saturating_duration_since(now))
             .unwrap_or_default();
         Ok(ShareStatus {
             endpoint: self.endpoint.to_string(),
             running,
             devices: state.peers.keys().copied().collect(),
             invitation_seconds: remaining.as_secs() + u64::from(remaining.subsec_nanos() != 0),
+            scans: state
+                .peers
+                .iter()
+                .filter_map(|(&device, peer)| {
+                    let scan = peer.scan.as_ref()?;
+                    (running && scan.status(now) == ScanStatus::Pending).then(|| ScanReview {
+                        id: scan.id.clone(),
+                        device,
+                    })
+                })
+                .collect(),
         })
     }
 
@@ -238,6 +346,42 @@ impl Share {
         }
         self.state.lock().map_err(|_| unavailable())?.summary = summary.validate()?;
         Ok(())
+    }
+
+    /// Only called by a host-local action, after the exact volume has been checked.
+    pub fn start_requested_scan<T>(
+        &self,
+        id: &str,
+        launch: impl FnOnce() -> Result<T, String>,
+    ) -> Result<T, String> {
+        self.finish_review(id, ScanStatus::Started, launch)
+    }
+
+    pub fn decline_scan(&self, id: &str) -> Result<(), String> {
+        self.finish_review(id, ScanStatus::Declined, || Ok(()))
+    }
+
+    fn finish_review<T>(
+        &self,
+        id: &str,
+        status: ScanStatus,
+        apply: impl FnOnce() -> Result<T, String>,
+    ) -> Result<T, String> {
+        if !self.running() {
+            return Err(unavailable().to_string());
+        }
+        let mut state = self.state.lock().map_err(|_| unavailable().to_string())?;
+        let now = Instant::now();
+        let scan = state
+            .peers
+            .values_mut()
+            .filter_map(|peer| peer.scan.as_mut())
+            .find(|scan| scan.id == id && scan.status(now) == ScanStatus::Pending)
+            .ok_or("This scan request has expired or is no longer pending.")?;
+        let result = apply()?;
+        scan.status = status;
+        scan.until = Instant::now() + SCAN_RETRY_DELAY;
+        Ok(result)
     }
 
     fn running(&self) -> bool {
@@ -358,6 +502,27 @@ impl Peer {
         })? {
             Reply::Summary { summary } => summary.validate(),
             _ => Err(denied("Access to this device was revoked.")),
+        }
+    }
+
+    pub fn request_scan(&self) -> io::Result<Option<ScanStatus>> {
+        self.scan_reply(Request::QueueScan {
+            device: self.device,
+            token: self.token,
+        })
+    }
+
+    pub fn scan_status(&self) -> io::Result<Option<ScanStatus>> {
+        self.scan_reply(Request::ScanStatus {
+            device: self.device,
+            token: self.token,
+        })
+    }
+
+    fn scan_reply(&self, request: Request) -> io::Result<Option<ScanStatus>> {
+        match self.address.request(&request)? {
+            Reply::Scan { status } => Ok(status),
+            _ => Err(denied("The host refused this scan request.")),
         }
     }
 }
