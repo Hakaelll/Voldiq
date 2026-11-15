@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Optional video compression
+
+Inspect file → Compress video is available for supported live local MP4 and MOV candidates. Choose a trusted FFmpeg installation, then a new MP4 path. Voldiq probes Media Foundation hardware and handles supported CPU encoding through libx264. It compares recorded video dimensions, aspect, frame count when known, duration and audio, then decodes the output before publishing. The inspector compares sizes and shows the path for playback. Recompression can reduce quality. [Media Foundation encoder](https://ffmpeg.org/ffmpeg-codecs.html#MediaFoundation) · [Seekable file descriptors](https://ffmpeg.org/ffmpeg-protocols.html#fd)
+
+All six project checks passed with eight routine tests. A five-second owned Windows fixture went from 3,750,204 to 1,926,110 bytes through the hardware encoder and preserved the original byte for byte. Cancellation left no output, and an occupied destination was preserved. A separate software encode through file descriptors decoded fully. Svelte server markup covered the disclosure, its eligibility, the busy state and live status. Native picker interaction, in-player visual comparison and Windows scaling remain manual. [Project and fixture checks](../benchmarks/workbench-video-compression-source.json)
+
+The Windows preview reached ready with 10 embedded non-HTML assets matching the frontend build. The unsigned NSIS installer measures 11,196,879 bytes. Cleanup removed 3,781,511,043 logical bytes of inactive builds and tests, 449,229,981 bytes from the disposable FFmpeg test fixture and 30,366,720 bytes of closed previews. The installer and open preview were preserved. [Startup](../benchmarks/native-video-compression-preview.json) · [Distribution](../benchmarks/distribution-video-compression.json) · [Post-clean checks](../benchmarks/workspace-footprint-video-compression.json) · [Encoder test cache](../benchmarks/video-compression-fixture-cache.json)
+
 ## Prepare a restoration from the catalogue
 
 Cleanup → Transfers lets users select one or more published copies from a recorded transfer. Selection persists across file pages within that operation. Keep both opts into generating alternate names for conflicts. Review restoration reopens the recorded volume and folder by native identity and checks metadata for only the selected archives. The plan binds the verified archive hashes, current destinations and exact output names. A separate approval and Start restoration are required before copying.
