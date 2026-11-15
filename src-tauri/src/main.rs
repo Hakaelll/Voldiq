@@ -24,6 +24,8 @@ mod developer_commands;
 mod docker_commands;
 mod embedded_ui;
 mod export_commands;
+#[cfg(windows)]
+mod lan_commands;
 mod lifecycle_trace;
 mod live_commands;
 mod metadata_commands;
@@ -976,6 +978,8 @@ fn main() {
                 app.manage(windows_updates::Updates::default());
             }
             app.manage(schedule_commands::Scheduler::default());
+            #[cfg(windows)]
+            app.manage(lan_commands::Lan::default());
             setup_trace.record("snapshot-open-end", Some(app.handle()));
             if ephemeral {
                 app.manage(CleanupJournal::unavailable());
@@ -1039,6 +1043,10 @@ fn main() {
         .manage(restore_commands::RestorationReviews::default())
         .invoke_handler(tauri::generate_handler![
             storage_mode,
+            #[cfg(windows)]
+            lan_commands::local_network_addresses,
+            #[cfg(windows)]
+            lan_commands::lan_sharing,
             metadata_commands::get_folder_metadata,
             metadata_commands::get_indexed_folder_metadata,
             metadata_commands::save_folder_note,

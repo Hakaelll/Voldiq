@@ -11,6 +11,8 @@ pub mod exports;
 pub mod index;
 pub mod inspection;
 pub mod jobs;
+#[cfg(windows)]
+pub mod lan;
 pub mod libraries;
 pub mod live;
 pub mod map;

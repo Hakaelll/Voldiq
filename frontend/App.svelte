@@ -68,6 +68,7 @@
   import ProtectedFolders from './components/ProtectedFolders.svelte';
   import WindowSettings from './components/WindowSettings.svelte';
   import WindowsUpdates from './components/WindowsUpdates.svelte';
+  import LocalNetwork from './components/LocalNetwork.svelte';
   import { readRecentPaths, rememberPath } from './lib/recent-paths';
   import { overviewQueries, detailQueries } from './lib/queries';
   import { createNavigationRefresh } from './lib/navigation-refresh';
@@ -2048,6 +2049,7 @@
           </section>
           <WindowSettings />
           <WindowsUpdates />
+          <LocalNetwork {volumes} />
           <section aria-labelledby="settings-help-heading">
             <h2 id="settings-help-heading">Help</h2>
             <div class="settings-action">

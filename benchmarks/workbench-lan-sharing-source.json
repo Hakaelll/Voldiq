@@ -1,0 +1,132 @@
+{
+  "checkedUtc": "2026-11-15T15:35:41.2240707Z",
+  "startedUtc": "2026-11-15T15:20:03.5012071Z",
+  "checkoutCommit": "e3c8906b379d3a9501466c453eb4073b1eac9f3c",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.071
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 7.751
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.851
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.664
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 807.705
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 113.649
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "0F95DC75F29D7968A57BCCB13DAA11A0DCF492C8C955969AE079947812A2A563"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "87B057B6003A268B776BFD687E1FA56B2684BAE87079B9C8FF930B2025D6E9E2"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "47470788CB6EBD27A74729EED6382E078AC070918CBBBF8B618DF5820E6EFD66"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "27CF4AD5F965D1CC6709E3BE36E404B724E1151B63C55765A6811B779E401B28"
+    },
+    {
+      "path": "crates/voldiq-core/Cargo.toml",
+      "sha256": "8D3EC2D4C1A5597F1D93C5916E264C89E811165125227F6C20459FA97F66F624"
+    },
+    {
+      "path": "crates/voldiq-core/src/lib.rs",
+      "sha256": "E065EB82D2BAFE7BD96EEDEB6A4683D9CA33E5D2DE56B96991F3DF58B642F878"
+    },
+    {
+      "path": "crates/voldiq-core/src/lan.rs",
+      "sha256": "37CB22693516BD52478F1DBC8C9310A12F9A5DE55B13621DB144E4612C8AD4CC"
+    },
+    {
+      "path": "crates/voldiq-core/src/lan/tls.rs",
+      "sha256": "4BCEFC1E151CC14220D045D1E81AD38BA582225BC3BCCA673B293C7E3299156A"
+    },
+    {
+      "path": "crates/voldiq-core/src/lan/windows.rs",
+      "sha256": "86F46DBB798B8562FE007C818351FA0C8081DEF259018DE25D4F455F4524DF6B"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "C29B1E31D9BA54D2266B422E8D89B2E1C6BEC8E2B4AC4823AEFA9CC55CE4AFF9"
+    },
+    {
+      "path": "frontend/components/LocalNetwork.svelte",
+      "sha256": "FB9DC218F47C79C43C934B9E02C5374E19BE30CCF3B60B984F626C358D07601B"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "A53AB39B5E9E2921E4E7D6700FE37D281F0F5A9D19F61A22782931A82DAC5D23"
+    },
+    {
+      "path": "src-tauri/src/lan_commands.rs",
+      "sha256": "5F8E2627E6695AB303E00E9A2AD224E520FB8B236A6C3071D34517612D2804F1"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "networkPanelMarkup": {
+    "collapsedControlInSettingsMarkup": true,
+    "browserFallback": true,
+    "invitationEntryMasked": true,
+    "labelledRevoke": true,
+    "stalePollGuard": true,
+    "statusRegion": true
+  },
+  "disposableLoopback": {
+    "fixtureSha256": "CD008F3F0F18DB69B7F3C59F81FF24710FF9E81D09DC6CA4E08E5AD5396C57CD",
+    "address": "127.0.0.1",
+    "knownSample": {
+      "total": 1000,
+      "used": 250,
+      "free": 650,
+      "observed_at": 1000000
+    },
+    "refreshedFree": 601,
+    "pinMismatchRefusedBeforeCountingInvitationAttempt": true,
+    "invitationUseOnce": true,
+    "invitationExpiryRefused": true,
+    "failedInvitationsAllowed": 5,
+    "summaryRefusedAfterRevoke": true,
+    "socketClosedAfterStop": true,
+    "extraRequestRefused": true,
+    "oversizedFrameRefused": true,
+    "privateInterfacesOnly": true,
+    "tls": "1.3, RFC 7250 raw public key, SHA-256 fingerprint, Ed25519 signature",
+    "twoMachineAcceptance": false,
+    "routineCaseAdded": false
+  }
+}
