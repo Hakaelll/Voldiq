@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Local network storage summaries
+
+Settings → Local network → Storage sharing shows capacity, used space, free space and the observation time for one local drive. Start sharing binds a selected private IPv4 address. An invitation lasts two minutes, works once and allows five attempts. The receiving device checks the invitation's public-key fingerprint before sending credentials over TLS 1.3. The host can revoke each device or stop the share. Both sides keep credentials in memory. [TLS raw public keys](https://www.rfc-editor.org/rfc/rfc7250.html)
+
+The six project checks passed with the existing eight routine tests. A separate Windows loopback check exercised real encrypted pairing, rejection of a mismatched key, invitation replay, expiry, five invalid attempts, a literal measurement, a refresh, revocation and listener shutdown. The protocol rejected excess bytes and an unsupported scan request. The Settings check verified collapsed markup, read-only fallback for browser preview, a masked invitation field, labeled revoke controls and stale-response handling. A connection between two Windows computers, application interaction and scaling remain manual. The LAN feature currently shares measurements. Remote scan requests with separate consent remain open. [Project and fixture checks](../benchmarks/workbench-lan-sharing-source.json)
+
+The Windows preview reached ready with 10 embedded non-HTML assets matching the frontend build and zero TCP listeners owned by the new process at default startup. The unsigned NSIS installer measures 11,763,699 bytes. Cleanup removed 3,861,716,892 logical bytes of inactive builds and tests and 0 bytes of closed previews. The installer and open preview were preserved. [Startup](../benchmarks/native-lan-sharing-preview.json) · [Default listener](../benchmarks/lan-sharing-default-listener.json) · [Distribution](../benchmarks/distribution-lan-sharing.json) · [Post-clean checks](../benchmarks/workspace-footprint-lan-sharing.json)
+
 ## Optional video compression
 
 Inspect file → Compress video is available for supported live local MP4 and MOV candidates. Choose a trusted FFmpeg installation, then a new MP4 path. Voldiq probes Media Foundation hardware and handles supported CPU encoding through libx264. It compares recorded video dimensions, aspect, frame count when known, duration and audio, then decodes the output before publishing. The inspector compares sizes and shows the path for playback. Recompression can reduce quality. [Media Foundation encoder](https://ffmpeg.org/ffmpeg-codecs.html#MediaFoundation) · [Seekable file descriptors](https://ffmpeg.org/ffmpeg-protocols.html#fd)
