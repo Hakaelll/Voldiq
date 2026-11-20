@@ -1,0 +1,166 @@
+{
+  "checkedUtc": "2026-11-20T03:07:23.468252Z",
+  "checkoutCommit": "531c6b8f7981949b77064f612dfcb558aa12eb14",
+  "scope": "After-only release scanner observation on newly created owned files and warm metadata. Each run verifies exact stored counts and queries. Hardware, disk-cache state, background load and GUI effects were not isolated.",
+  "executableSha256": "9FC4CB1C6CBF8E6692D4E1949ECD5AB4816E6B065AE8D55E4F813D356151B37D",
+  "harnessSha256": "644EC884886F7AAABA23ED1FE0C39A8391A8E8A7DD7BF9D43A241318337EDAD3",
+  "logicalProcessors": 8,
+  "physicalMemoryBytes": 16932671488,
+  "osVersion": "10.0.26200",
+  "osBuild": "26200",
+  "samples": [
+    {
+      "fixtureFiles": 1000,
+      "concurrentCargoOrRustcAtStart": 9,
+      "runs": [
+        {
+          "run": 1,
+          "files": 1000,
+          "entries": 1101,
+          "errors": 0,
+          "logicalBytes": 128000,
+          "allocatedBytes": 128000,
+          "scanMs": 752.47,
+          "rootPageMs": 0.05,
+          "globalSearchMs": 0.118,
+          "privateBytes": 1343488,
+          "workingSetBytes": 7270400,
+          "processPeakWorkingSetBytes": 7438336
+        },
+        {
+          "run": 2,
+          "files": 1000,
+          "entries": 1101,
+          "errors": 0,
+          "logicalBytes": 128000,
+          "allocatedBytes": 128000,
+          "scanMs": 1103.005,
+          "rootPageMs": 0.049,
+          "globalSearchMs": 0.126,
+          "privateBytes": 1343488,
+          "workingSetBytes": 7270400,
+          "processPeakWorkingSetBytes": 7438336
+        },
+        {
+          "run": 3,
+          "files": 1000,
+          "entries": 1101,
+          "errors": 0,
+          "logicalBytes": 128000,
+          "allocatedBytes": 128000,
+          "scanMs": 730.607,
+          "rootPageMs": 0.056,
+          "globalSearchMs": 0.11,
+          "privateBytes": 1343488,
+          "workingSetBytes": 7454720,
+          "processPeakWorkingSetBytes": 7454720
+        },
+        {
+          "run": 4,
+          "files": 1000,
+          "entries": 1101,
+          "errors": 0,
+          "logicalBytes": 128000,
+          "allocatedBytes": 128000,
+          "scanMs": 337.69,
+          "rootPageMs": 0.036,
+          "globalSearchMs": 0.112,
+          "privateBytes": 1347584,
+          "workingSetBytes": 7450624,
+          "processPeakWorkingSetBytes": 7454720
+        },
+        {
+          "run": 5,
+          "files": 1000,
+          "entries": 1101,
+          "errors": 0,
+          "logicalBytes": 128000,
+          "allocatedBytes": 128000,
+          "scanMs": 510.716,
+          "rootPageMs": 0.037,
+          "globalSearchMs": 0.106,
+          "privateBytes": 1597440,
+          "workingSetBytes": 7499776,
+          "processPeakWorkingSetBytes": 7499776
+        }
+      ]
+    },
+    {
+      "fixtureFiles": 10000,
+      "concurrentCargoOrRustcAtStart": 9,
+      "runs": [
+        {
+          "run": 1,
+          "files": 10000,
+          "entries": 10101,
+          "errors": 0,
+          "logicalBytes": 1280000,
+          "allocatedBytes": 1280000,
+          "scanMs": 2901.418,
+          "rootPageMs": 0.212,
+          "globalSearchMs": 1.398,
+          "privateBytes": 3145728,
+          "workingSetBytes": 6287360,
+          "processPeakWorkingSetBytes": 7831552
+        },
+        {
+          "run": 2,
+          "files": 10000,
+          "entries": 10101,
+          "errors": 0,
+          "logicalBytes": 1280000,
+          "allocatedBytes": 1280000,
+          "scanMs": 3658.689,
+          "rootPageMs": 0.168,
+          "globalSearchMs": 1.082,
+          "privateBytes": 3207168,
+          "workingSetBytes": 6377472,
+          "processPeakWorkingSetBytes": 7872512
+        },
+        {
+          "run": 3,
+          "files": 10000,
+          "entries": 10101,
+          "errors": 0,
+          "logicalBytes": 1280000,
+          "allocatedBytes": 1280000,
+          "scanMs": 3038.753,
+          "rootPageMs": 0.146,
+          "globalSearchMs": 1.064,
+          "privateBytes": 3219456,
+          "workingSetBytes": 6389760,
+          "processPeakWorkingSetBytes": 7872512
+        },
+        {
+          "run": 4,
+          "files": 10000,
+          "entries": 10101,
+          "errors": 0,
+          "logicalBytes": 1280000,
+          "allocatedBytes": 1280000,
+          "scanMs": 3369.485,
+          "rootPageMs": 0.154,
+          "globalSearchMs": 1.033,
+          "privateBytes": 3170304,
+          "workingSetBytes": 6340608,
+          "processPeakWorkingSetBytes": 7872512
+        },
+        {
+          "run": 5,
+          "files": 10000,
+          "entries": 10101,
+          "errors": 0,
+          "logicalBytes": 1280000,
+          "allocatedBytes": 1280000,
+          "scanMs": 2371.172,
+          "rootPageMs": 0.149,
+          "globalSearchMs": 0.912,
+          "privateBytes": 3211264,
+          "workingSetBytes": 6377472,
+          "processPeakWorkingSetBytes": 7872512
+        }
+      ]
+    }
+  ],
+  "deliveredSourceCommit": "9f7b587d4a5d69795c3f8f264023e6be1576eb88"
+}
