@@ -3,6 +3,8 @@ pub mod applications;
 pub mod budgets;
 pub mod cleanup;
 pub mod cloud;
+#[cfg(windows)]
+pub mod cloud_accounts;
 mod database;
 pub mod developer;
 pub mod device_health;

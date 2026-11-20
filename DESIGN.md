@@ -585,3 +585,9 @@ View files in Applications opens the existing Explorer table within the current 
 Review tray sits beside Saved in the workspace toolbar. Its count stays visible across views. The tray opens below the active workspace as a compact section with source disclosures, folder headings and aligned file rows. Candidate pages use one Add to review tray action. Explorer checkboxes update the tray directly. Preparation opens the existing native confirmation dialog and lists the sources and retained copies.
 
 The simulation shows indexed logical size and the remaining logical size on the same scale. A separate figure shows known indexed allocation. Review target is an optional disclosure for logical size or indexed allocation. The tray uses the existing light and black theme tokens, visible focus and compact controls. Columns stack at narrower widths. Populated rendering, keyboard interaction and Windows scaling require manual review.
+
+## Cloud accounts
+
+Settings presents each connection as a collapsed row with its current state. The OneDrive row reveals a public client ID field, a sign-in code, or a read-only browser according to the connection state. Remote quota uses the existing accent for the measured share and always includes the corresponding size labels. It stays outside Overview and Explorer so remote quota and local allocation retain their own contexts.
+
+The browser uses a bounded, labelled file-list region with inline folder actions, a parent action and pagination. Folder navigation moves focus to the new heading. The OneDrive row uses existing typography, borders, focus and action styles. Windows layout, keyboard interaction and scaling remain subject to manual review.

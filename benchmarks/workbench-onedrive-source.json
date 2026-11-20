@@ -1,0 +1,115 @@
+{
+  "checkedUtc": "2026-11-20T02:19:10.3146727Z",
+  "startedUtc": "2026-11-20T02:04:22.2736704Z",
+  "checkoutCommit": "a554a73ec532f362651f12549f79aef47f62ed77",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.474
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 9.984
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.958
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 8.832
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 787.767
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 78.986
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "5917B32A102BB26A649AC334521877865E7132485E07D3EEC085E5ABE1A03100"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "FDC1673AF579D3898DA28AD94A4CDC6AC8B15AA5E24956CD46B334B4E28FA1BE"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "FDB7518C261AF94E867FD648B59824F0813EA88F0DB1BC4AEBAB276E7315E8CD"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "5E6EA6ED702AF38D82045FEDFCE639E7E42E1B7247BD8B39424CE23F4E6864F5"
+    },
+    {
+      "path": "crates/voldiq-core/Cargo.toml",
+      "sha256": "395D6B8E70CCF44E45F62A02B39832D2044D021B3FEACC64CC6505E6C5727CB1"
+    },
+    {
+      "path": "crates/voldiq-core/src/lib.rs",
+      "sha256": "9FC69874D80F0D7303F8854990E38E5E234119A839EED4A43BF73CC00FA050EF"
+    },
+    {
+      "path": "crates/voldiq-core/src/cloud_accounts.rs",
+      "sha256": "8F189F828897C60E4AAB8684CEB104C7B2783B2B4CCBF06E6FDF6C50354F2EE4"
+    },
+    {
+      "path": "crates/voldiq-core/src/cloud_accounts/credential.rs",
+      "sha256": "77900AE44DBFCA729793AF0FF7BDE2C69E41C80D71B80212F2C1A1CBFD8F1F1A"
+    },
+    {
+      "path": "src-tauri/src/cloud_commands.rs",
+      "sha256": "9C99C0C7A9B3FE9A3E75B21677917C915C8E4721C1B8141B50158F6F0F70477D"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "2172D674191E9C383B1D0F7D012D863F3ECCF43635472E8C40289E99E212D6B3"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "181C65DFCD65FF1691CD74E7DA5994C18A8B7E3D37A17CC38C6F941F9F819341"
+    },
+    {
+      "path": "frontend/components/CloudAccounts.svelte",
+      "sha256": "83C12CC69C388458805FA7B21DE84A54F61C6629BEF18051360BC2CE3D76A011"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "settingsMarkup": {
+    "scope": "Svelte server markup and source checks",
+    "checks": [
+      "collapsed Windows-only provider row",
+      "waiting-only polling",
+      "labelled keyboard-scrollable file list",
+      "separate quota and unknown sizes",
+      "only the user code reaches the frontend"
+    ]
+  },
+  "windowsFixture": {
+    "passed": true,
+    "tests": 1,
+    "ignored": 0,
+    "fixtureSha256": "7A3FF4D9B69853943174E47E7BF381FFCD8B3D1110386992345FD78FDFBF9CD8",
+    "scope": "Windows DPAPI with owned fake credentials, ciphertext corruption, stale replacement, state and disconnect, exact byte sizes, and continuation and read-only scope checks. No provider login or network."
+  },
+  "frontendRecheck": "Svelte reported zero errors and zero warnings after documenting the named scroll region focus exception. The rebuilt production asset file names matched."
+}

@@ -3441,6 +3441,7 @@ checksum = "16a1cfa75cc186dd73d5818e510e042e40927bccc9c236b061cea97e1eb08029"
 dependencies = [
  "base64 0.23.1",
  "bytes",
+ "futures-channel",
  "futures-core",
  "futures-util",
  "http",
@@ -5103,6 +5104,7 @@ dependencies = [
  "parley",
  "png 0.18.1",
  "quick-xml 0.42.0",
+ "reqwest",
  "ring",
  "rusqlite",
  "rustls",
@@ -5115,6 +5117,7 @@ dependencies = [
  "url",
  "windows",
  "windows-sys 0.61.2",
+ "zeroize",
  "zip",
 ]
 

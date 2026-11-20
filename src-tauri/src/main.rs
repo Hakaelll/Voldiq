@@ -19,6 +19,8 @@ mod agent_commands;
 mod analysis_status;
 mod budget_commands;
 mod cleanup_commands;
+#[cfg(windows)]
+mod cloud_commands;
 mod config_file;
 mod developer_commands;
 mod docker_commands;
@@ -976,6 +978,7 @@ fn main() {
                 app.handle()
                     .plugin(tauri_plugin_updater::Builder::new().build())?;
                 app.manage(windows_updates::Updates::default());
+                app.manage(cloud_commands::Cloud::default());
             }
             app.manage(schedule_commands::Scheduler::default());
             #[cfg(windows)]
@@ -1043,6 +1046,8 @@ fn main() {
         .manage(restore_commands::RestorationReviews::default())
         .invoke_handler(tauri::generate_handler![
             storage_mode,
+            #[cfg(windows)]
+            cloud_commands::one_drive,
             #[cfg(windows)]
             lan_commands::local_network_addresses,
             #[cfg(windows)]

@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## OneDrive metadata in Settings
+
+Settings → Cloud accounts shows OneDrive as Off until a user starts Microsoft sign-in. Enter the Application (client) ID of a Microsoft Entra public client registration with Graph delegated `Files.Read` and public client flows enabled. Use an account type supported by that registration. Voldiq asks Microsoft for a short sign-in code and uses the system browser for consent. A saved account can reopen after restart through the refresh credential protected by Windows DPAPI. Disconnect removes the stored credential. Manage Microsoft permissions opens the provider's consent controls. [Microsoft device authorization](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-device-code) · [Work and school consent](https://support.microsoft.com/en-us/accounts-billing/work-school/edit-or-revoke-application-permissions-in-the-my-apps-portal)
+
+The connected section shows the reported remote quota and pages of file and folder names and sizes. The UI keeps OneDrive quota out of local disk totals, including for synced folders. The six project checks passed with eight routine tests. A disposable Windows test exercised the real DPAPI round trip, ciphertext corruption, stale credential replacement, disconnect, scope rejection, byte precision and continuation boundaries. Server-rendered markup verified the collapsed control and browser preview fallback. Real OneDrive sign-in and pagination, native visual and keyboard interaction and Windows scaling remain manual. Google Drive, Dropbox and separately authorized provider recycling remain open. [Project and fixture checks](../benchmarks/workbench-onedrive-source.json)
+
 ## Host approval for local-network scans
 
 A paired device can request a scan from Settings → Local network → Storage sharing. The host sees the requester and exact drive above the shared measurements. Approve and scan invokes the regular local scanner with current preferences and a freshly pinned drive. Decline ends the request. Each pending request expires after two minutes. The requesting device sees its own admission status. Scan records and progress stay on the host.
