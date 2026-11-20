@@ -590,4 +590,6 @@ The simulation shows indexed logical size and the remaining logical size on the 
 
 Settings presents each connection as a collapsed row with its current state. The OneDrive row reveals a public client ID field, a sign-in code, or a read-only browser according to the connection state. Remote quota uses the existing accent for the measured share and always includes the corresponding size labels. It stays outside Overview and Explorer so remote quota and local allocation retain their own contexts.
 
+OneDrive, Google Drive and Dropbox share one accordion. Google Drive and Dropbox open system-browser consent and keep the waiting status in the active row. All three use the same quota, folder list and pagination. Disconnect removes the local credential. Revocation has its own explicitly labelled action and, when performed inside Voldiq, asks for confirmation. The layouts reuse the Settings separators, action styles and responsive controls.
+
 The browser uses a bounded, labelled file-list region with inline folder actions, a parent action and pagination. Folder navigation moves focus to the new heading. The OneDrive row uses existing typography, borders, focus and action styles. Windows layout, keyboard interaction and scaling remain subject to manual review.

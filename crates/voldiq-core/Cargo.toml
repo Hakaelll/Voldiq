@@ -21,6 +21,7 @@ libc = "0.2"
 
 [target.'cfg(windows)'.dependencies]
 base64 = "0.22"
+httparse = "1"
 ring = "0.17"
 reqwest = { version = "0.13", default-features = false, features = ["blocking", "native-tls", "system-proxy"] }
 rustls = { version = "0.23.46", default-features = false, features = ["ring", "std"] }

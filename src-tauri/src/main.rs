@@ -1047,7 +1047,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             storage_mode,
             #[cfg(windows)]
-            cloud_commands::one_drive,
+            cloud_commands::cloud_account,
             #[cfg(windows)]
             lan_commands::local_network_addresses,
             #[cfg(windows)]

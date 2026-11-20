@@ -1,0 +1,127 @@
+{
+  "checkedUtc": "2026-11-20T03:10:56.4711547Z",
+  "startedUtc": "2026-11-20T02:40:43.0302322Z",
+  "checkoutCommit": "531c6b8f7981949b77064f612dfcb558aa12eb14",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 2.515
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 23.448
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 2.111
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 20.517
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1119.75
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 645.011
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "4C2E8C53278BC31B227681B3A5662A2982E97DFCEE60DFA6220AA3F55DBF221E"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "3EE0E7F50E2A8445DDD5A68E66009D284C264F9095D47ADD12C6EBBF75BCD83D"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "7E9FF183CEB41DA80F8A1F407A6EC3FEAEF27D1CF99F418F820965BF097BFE92"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "5F3BB3EF88D950E0A51535BA507F97405FE43B0DAF2275BE0F02D645E4A9DB6C"
+    },
+    {
+      "path": "crates/voldiq-core/Cargo.toml",
+      "sha256": "E7AC280CDC397D4B5B287267229149E2F7526AA454F24022A72AB04D9C33B9E5"
+    },
+    {
+      "path": "crates/voldiq-core/src/cloud_accounts.rs",
+      "sha256": "82A9FC8D960760A7DE3399ECD552B0032E174A67FC4FC5BE9608299EB72FDCA3"
+    },
+    {
+      "path": "crates/voldiq-core/src/cloud_accounts/credential.rs",
+      "sha256": "9DBE49172F5FFAF61638188265B351989F368FE13247C514BDAA3ACD56439C63"
+    },
+    {
+      "path": "crates/voldiq-core/src/cloud_accounts/browser.rs",
+      "sha256": "94DCD16A3A8F4B7471B87E97E7FFDB5E1BBF96A640368F00E890458B4D6521CE"
+    },
+    {
+      "path": "crates/voldiq-core/src/cloud_accounts/loopback.rs",
+      "sha256": "6AD19A37DDC4F400EF5DDC418B8291EFF530912F90A87DE4CFE8284E2DB88023"
+    },
+    {
+      "path": "src-tauri/src/cloud_commands.rs",
+      "sha256": "C789A65834781CD7852EF77A7F869964CF5D5029581DD7732862C8F4D9EE79EE"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "E2D7D34AB59C255FA582F40001FF12AFF273005EF7CBC1B828DB16DC26F76EDD"
+    },
+    {
+      "path": "frontend/components/CloudAccounts.svelte",
+      "sha256": "50C92196C409FDF9F82E8DF7BB7D237911A4F533E6C43DB3002578A379FF2F2D"
+    },
+    {
+      "path": "frontend/components/CloudAccount.svelte",
+      "sha256": "05CF764914E16BE49403EAF2CCCEF08C016BB86E51BFA6836D53B7EA41C1BDEA"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "settingsMarkup": {
+    "scope": "Svelte server markup and source checks",
+    "checks": [
+      "three labelled collapsed provider rows in one accordion",
+      "Windows-only fallback",
+      "quota separate from local usage",
+      "local disconnect and confirmed provider revocation",
+      "credential tokens never serialized to the UI"
+    ]
+  },
+  "windowsFixtures": {
+    "passed": true,
+    "tests": 2,
+    "ignored": 0,
+    "fixtureSources": [
+      {
+        "name": "probe_callback.rs",
+        "sha256": "3214C5BF46236BFBEA2B971B01996494DAC4032A8D55B1F598ABB014E6BC141F"
+      },
+      {
+        "name": "probe_metadata.rs",
+        "sha256": "D047B2DD6E299B6D2A98AC6B33249EB01F180B7CB781F4D40DE670E8E0CEE401"
+      }
+    ],
+    "scope": "Windows loopback HTTP callback, wrong state and host rejection, local-only listener closure, provider-separated DPAPI storage, code and token confidentiality, exact metadata and scope decoding. No live credentials or provider logins."
+  }
+}

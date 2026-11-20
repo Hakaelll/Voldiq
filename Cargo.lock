@@ -5099,6 +5099,7 @@ dependencies = [
  "flate2",
  "getrandom 0.3.4",
  "gif",
+ "httparse",
  "krilla",
  "libc",
  "parley",

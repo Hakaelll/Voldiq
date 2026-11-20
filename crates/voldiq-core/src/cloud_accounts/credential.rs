@@ -34,11 +34,19 @@ impl Store {
         Self(directory.join("cloud-accounts.db"))
     }
 
+    pub(super) fn browser(directory: &Path, provider: super::BrowserProvider) -> Self {
+        Self(directory.join(match provider {
+            super::BrowserProvider::GoogleDrive => "cloud-google-drive.db",
+            super::BrowserProvider::Dropbox => "cloud-dropbox.db",
+        }))
+    }
+
     fn connect(&self) -> Result<Connection> {
         let database = Connection::open(&self.0)?;
         crate::database::configure(&database)?;
         database.execute_batch(
-            "CREATE TABLE IF NOT EXISTS onedrive_session (
+            "PRAGMA secure_delete=ON;
+            CREATE TABLE IF NOT EXISTS onedrive_session (
                 id INTEGER PRIMARY KEY CHECK (id = 1),
                 ciphertext BLOB NOT NULL
             );",
@@ -75,9 +83,17 @@ impl Store {
             drive_id: drive_id.into(),
             refresh_token: refresh_token.into(),
         };
+        self.put(existing, &credential)
+    }
+
+    pub(super) fn put<T: Serialize>(
+        &self,
+        existing: Option<&[u8]>,
+        credential: &T,
+    ) -> Result<Vec<u8>> {
         let mut plain = Zeroizing::new(
             serde_json::to_vec(&credential)
-                .map_err(|_| invalid("The Microsoft credential could not be encoded."))?,
+                .map_err(|_| invalid("The cloud credential could not be encoded."))?,
         );
         let sealed = dpapi(&mut plain, true)?;
         let database = self.connect()?;
@@ -90,9 +106,7 @@ impl Store {
             database.execute("INSERT INTO onedrive_session (id, ciphertext) VALUES (1, ?1) ON CONFLICT DO NOTHING", [&sealed])?
         };
         if changed != 1 {
-            return Err(invalid(
-                "The OneDrive connection changed in another window.",
-            ));
+            return Err(invalid("The cloud connection changed in another window."));
         }
         Ok(sealed)
     }
@@ -104,12 +118,23 @@ impl Store {
         }
         Ok(())
     }
+
+    pub(super) fn forget_exact(&self, existing: &[u8]) -> Result<()> {
+        if self.connect()?.execute(
+            "DELETE FROM onedrive_session WHERE id = 1 AND ciphertext = ?1",
+            [existing],
+        )? != 1
+        {
+            return Err(invalid("The cloud connection changed in another window."));
+        }
+        Ok(())
+    }
 }
 
-pub(super) fn unseal(sealed: &[u8]) -> Result<Credential> {
+pub(super) fn unseal<T: serde::de::DeserializeOwned>(sealed: &[u8]) -> Result<T> {
     let plain = Zeroizing::new(dpapi(&mut sealed.to_vec(), false)?);
     serde_json::from_slice(&plain).map_err(|_| {
-        invalid("The saved OneDrive credential is invalid. Disconnect and sign in again.")
+        invalid("The saved cloud credential is invalid. Disconnect and sign in again.")
     })
 }
 
@@ -118,7 +143,7 @@ fn dpapi(input: &mut [u8], seal: bool) -> Result<Vec<u8>> {
         cbData: input
             .len()
             .try_into()
-            .map_err(|_| invalid("The OneDrive credential is too large."))?,
+            .map_err(|_| invalid("The cloud credential is too large."))?,
         pbData: input.as_mut_ptr(),
     };
     let mut output = CRYPT_INTEGER_BLOB::default();
@@ -147,7 +172,7 @@ fn dpapi(input: &mut [u8], seal: bool) -> Result<Vec<u8>> {
     };
     if transformed == 0 || output.pbData.is_null() {
         return Err(invalid(
-            "Windows could not access the OneDrive credential. Disconnect and sign in again.",
+            "Windows could not access the cloud credential. Disconnect and sign in again.",
         ));
     }
     // DPAPI allocated this buffer. Clear bytes before returning it to Windows.

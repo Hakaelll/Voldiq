@@ -1,5 +1,9 @@
-//! OneDrive account metadata is independent of scan paths and volume accounting.
+//! Cloud account metadata is independent of scan paths and volume accounting.
+mod browser;
 mod credential;
+mod loopback;
+
+pub use browser::{BrowserAccount, BrowserProvider};
 
 use crate::{Error, Result};
 use reqwest::{StatusCode, blocking::Client, redirect::Policy};
@@ -27,17 +31,26 @@ fn invalid(message: &str) -> Error {
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum Action {
     Status,
-    Begin { client_id: String },
+    Begin {
+        client_id: String,
+        #[serde(default)]
+        client_secret: Option<String>,
+    },
     Poll,
     OpenSignIn,
     Cancel,
     Browse,
-    EnterFolder { id: String },
+    EnterFolder {
+        id: String,
+    },
     Parent,
     FirstPage,
     NextPage,
     Disconnect,
-    OpenPermissions { work_account: bool },
+    Revoke,
+    OpenPermissions {
+        work_account: bool,
+    },
 }
 
 #[derive(Serialize)]
@@ -49,6 +62,7 @@ pub enum View {
         code: String,
         retry_seconds: u64,
     },
+    BrowserWaiting,
     Connected {
         work_account: bool,
         page: Page,
@@ -159,6 +173,7 @@ struct Tokens {
     access_token: String,
     refresh_token: Option<String>,
     token_type: String,
+    #[serde(default)]
     scope: String,
     expires_in: u64,
 }
@@ -206,7 +221,13 @@ impl Account {
                 };
                 open_in_browser(url)?;
             }
-            Action::Begin { client_id } => {
+            Action::Begin {
+                client_id,
+                client_secret,
+            } => {
+                if client_secret.map(Zeroizing::new).is_some() {
+                    return Err(invalid("OneDrive only uses the public application ID."));
+                }
                 if saved.is_some() || self.pending.is_some() {
                     return Err(invalid("Finish the current OneDrive connection first."));
                 }
@@ -228,6 +249,11 @@ impl Account {
                 open_in_browser(&pending.authorization.verification_uri)?;
             }
             Action::Cancel => self.pending = None,
+            Action::Revoke => {
+                return Err(invalid(
+                    "Use Manage Microsoft permissions to revoke OneDrive access.",
+                ));
+            }
             Action::Disconnect => {
                 store.forget()?;
                 self.pending = None;
@@ -367,7 +393,7 @@ impl Account {
 }
 
 fn resume(store: &credential::Store, sealed: &[u8]) -> Result<Active> {
-    let credential = credential::unseal(sealed)?;
+    let credential: credential::Credential = credential::unseal(sealed)?;
     let client = client()?;
     let tokens = refresh(&client, &credential)?;
     let mut active = Active::open(&client, &tokens, Some(&credential.drive_id))?;
@@ -441,7 +467,7 @@ impl Active {
         };
         let client = client()?;
         if self.expires <= Instant::now() + Duration::from_secs(15) {
-            let credential = credential::unseal(&self.sealed)?;
+            let credential: credential::Credential = credential::unseal(&self.sealed)?;
             let tokens = refresh(&client, &credential)?;
             self.sealed = store.save(
                 Some(&self.sealed),
@@ -607,7 +633,7 @@ fn client() -> Result<Client> {
         .redirect(Policy::none())
         .timeout(Duration::from_secs(15))
         .build()
-        .map_err(|_| invalid("The Microsoft connection could not be initialized."))
+        .map_err(|_| invalid("The cloud connection could not be initialized."))
 }
 
 fn decode<T: DeserializeOwned>(response: reqwest::blocking::Response) -> Result<T> {
@@ -615,11 +641,11 @@ fn decode<T: DeserializeOwned>(response: reqwest::blocking::Response) -> Result<
     response
         .take(MAX_BODY + 1)
         .read_to_end(&mut body)
-        .map_err(|_| invalid("The Microsoft response could not be read."))?;
+        .map_err(|_| invalid("The cloud response could not be read."))?;
     if body.len() as u64 > MAX_BODY {
-        return Err(invalid("The Microsoft response exceeded the size limit."));
+        return Err(invalid("The cloud response exceeded the size limit."));
     }
-    serde_json::from_slice(&body).map_err(|_| invalid("Microsoft returned an unexpected response. Check the OneDrive registration or try again."))
+    serde_json::from_slice(&body).map_err(|_| invalid("The provider returned an unexpected response. Check the app registration or try again."))
 }
 
 fn oauth<T: DeserializeOwned>(
@@ -627,16 +653,24 @@ fn oauth<T: DeserializeOwned>(
     route: &str,
     fields: &[(&str, &str)],
 ) -> Result<(StatusCode, T)> {
+    let response = send_form(client, &format!("{LOGIN}{route}"), fields)?;
+    Ok((response.status(), decode(response)?))
+}
+
+fn send_form(
+    client: &Client,
+    endpoint: &str,
+    fields: &[(&str, &str)],
+) -> Result<reqwest::blocking::Response> {
     let body = form_urlencoded::Serializer::new(String::new())
         .extend_pairs(fields.iter().copied())
         .finish();
-    let response = client
-        .post(format!("{LOGIN}{route}"))
+    client
+        .post(endpoint)
         .header("content-type", "application/x-www-form-urlencoded")
         .body(body)
         .send()
-        .map_err(|_| invalid("Microsoft sign-in could not be reached."))?;
-    Ok((response.status(), decode(response)?))
+        .map_err(|_| invalid("The cloud sign-in service could not be reached."))
 }
 
 fn graph<T: DeserializeOwned>(client: &Client, access: &str, url: Url) -> Result<T> {
