@@ -1,0 +1,114 @@
+{
+  "checkedUtc": "2026-11-20T02:29:30.7729718Z",
+  "sourceCommit": "84c871382986aeb750355822b5eab8e2d89f2807",
+  "executableSha256": "0D8549773ED482E0208478A7EBD4804521241FD64F074764681E4ED43B8BB85B",
+  "executableBytes": 32592384,
+  "preview": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\0D8549773ED482E0208478A7EBD4804521241FD64F074764681E4ED43B8BB85B\\voldiq.exe",
+  "processId": 5492,
+  "mainWindowHandle": 2295380,
+  "observation": "ready",
+  "startupEvents": [
+    {
+      "event": "process-start",
+      "pid": 5492,
+      "unixMs": 1795141769624
+    },
+    {
+      "event": "setup-start",
+      "pid": 5492,
+      "unixMs": 1795141769630
+    },
+    {
+      "event": "snapshot-open-start",
+      "pid": 5492,
+      "unixMs": 1795141769636
+    },
+    {
+      "event": "snapshot-open-end",
+      "pid": 5492,
+      "unixMs": 1795141769653
+    },
+    {
+      "event": "profile-installed",
+      "pid": 5492,
+      "unixMs": 1795141770382
+    },
+    {
+      "event": "setup-end",
+      "pid": 5492,
+      "unixMs": 1795141770382
+    },
+    {
+      "event": "ready",
+      "pid": 5492,
+      "unixMs": 1795141770383
+    },
+    {
+      "event": "page-finished",
+      "pid": 5492,
+      "unixMs": 1795141770508
+    }
+  ],
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "33A4A7D55C28A15A39A3934065F9D8EF901C4E6CDE70CBFCD2FFDE0A3C7F60E9"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      },
+      {
+        "path": "assets/voronoi.worker-DwJ2QmrW.js",
+        "bytes": 5606,
+        "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+      },
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "assets/history-video-CHtStNLV.js",
+        "bytes": 2865,
+        "sha256": "F3671B8A84ACAA1C9FB3D7E9E284B515F04B41950C18976A17D82D9AF1792604"
+      },
+      {
+        "path": "assets/svg-surface-D3Yw6xZb.js",
+        "bytes": 6995,
+        "sha256": "16031B0D00F7998ED47803E71C5F769269D4295083881302DD52A7B7F3A450AA"
+      },
+      {
+        "path": "assets/history-export-D_4fL9LY.js",
+        "bytes": 3986,
+        "sha256": "1C77BA4ED65221AB47F7E305AB1E92EC9B8A3A890E00C02C338C0D49E9A10E6A"
+      },
+      {
+        "path": "assets/index-mzoQ_Xcs.css",
+        "bytes": 126390,
+        "sha256": "745BEB84606A1AC9110D23AD506BA687B5EE6CE82A56845F6D56BB88E4EDA724"
+      },
+      {
+        "path": "assets/index-P7zcc3f9.js",
+        "bytes": 651491,
+        "sha256": "4999795E32B5C970AA6475DFD3E546DDCA6F283E24C06BFF8E4C6B241176772B"
+      },
+      {
+        "path": "assets/256x256-BkkuVpWj.png",
+        "bytes": 69723,
+        "sha256": "BE1C9BFF0E4D3E5E88FDFAA71B0A97A9C99EFA625CD062DB6A3F74DB633B0974"
+      },
+      {
+        "path": "assets/city.worker-DLxzT0Wm.js",
+        "bytes": 2879,
+        "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+      }
+    ]
+  },
+  "scope": "Production native startup and embedded payload/reference checks. Windows rendering, pointer and keyboard interaction, and scaling for the OneDrive Settings flow remain manual."
+}
