@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Host approval for local-network scans
+
+A paired device can request a scan from Settings → Local network → Storage sharing. The host sees the requester and exact drive above the shared measurements. Approve and scan invokes the regular local scanner with current preferences and a freshly pinned drive. Decline ends the request. Each pending request expires after two minutes. The requesting device sees its own admission status. Scan records and progress stay on the host.
+
+All six project checks passed with eight routine tests. A disposable loopback check exercised a forged peer credential, a caller-supplied path, repeated requests, isolation, failed admission, expiry, refusal and revocation. The approved path used the real scanner on one owned 11-byte file. A wrong root identity failed before publication, and the approval was consumed once. Source and Svelte checks covered the paired device and drive labels, disabled approval during another scan, request-only IPC payload and pending-only status polling. Interaction in the native panel, physical two-machine networking and a full-drive remote-request acceptance run remain manual. [Project and fixture checks](../benchmarks/workbench-lan-scan-consent-source.json)
+
+The Windows preview reached ready. 10 embedded non-HTML resources matched the production frontend, and the new process owned no TCP listeners at startup. The unsigned NSIS installer measures 11,776,808 bytes. Cleanup removed 3,820,492,156 logical bytes of inactive builds and tests and 62,619,136 bytes of closed previews. The installer and open preview were preserved. [Startup](../benchmarks/native-lan-scan-consent-preview.json) · [Default listener](../benchmarks/lan-scan-consent-default-listener.json) · [Distribution](../benchmarks/distribution-lan-scan-consent.json) · [Post-clean checks](../benchmarks/workspace-footprint-lan-scan-consent.json)
+
 ## Local network storage summaries
 
 Settings → Local network → Storage sharing shows capacity, used space, free space and the observation time for one local drive. Start sharing binds a selected private IPv4 address. An invitation lasts two minutes, works once and allows five attempts. The receiving device checks the invitation's public-key fingerprint before sending credentials over TLS 1.3. The host can revoke each device or stop the share. Both sides keep credentials in memory. [TLS raw public keys](https://www.rfc-editor.org/rfc/rfc7250.html)
