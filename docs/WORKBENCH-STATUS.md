@@ -6,6 +6,8 @@ Cleanup, the console, CLI and MCP check indexed empty-looking directories on dis
 
 The retained CLI and official SDK flows use owned directories and exercise paging, additions after the scan, replaced native identities, partial and excluded branches, protection and revoked access. The separate Windows probe checks native enumeration through end of directory. Svelte markup was rendered for the populated, unscanned, unavailable and empty continuation states. Native pointer, keyboard and scaling acceptance remain manual. [Source verification](../benchmarks/workbench-empty-folders-source.json)
 
+The Windows preview reached ready with zero TCP listeners. 10 embedded non-HTML assets matched the production web build. The unsigned NSIS installer measures 12,078,798 bytes. Cleanup removed 3,089,496,198 logical bytes of inactive release artifacts and 0 bytes of closed previews. The current preview and installer were preserved. [Startup](../benchmarks/native-empty-folders-preview.json) · [Default listener](../benchmarks/empty-folders-default-listener.json) · [Distribution](../benchmarks/distribution-empty-folders.json) · [Post-clean checks](../benchmarks/workspace-footprint-empty-folders.json)
+
 ## Authorized cleanup candidates from saved analyses
 
 The CLI, console menu and MCP expose the same four cleanup recipes with recorded evidence. The service checks the grant, directory identity, exclusion coverage and current protected folders. It intersects the rule location with the requested indexed folder. Pages include versioned criteria, exact recorded logical bytes and the review score breakdown. Allocation charge, unavailable ages and partial coverage remain distinct. Current file use and actual recoverable bytes require live verification.
