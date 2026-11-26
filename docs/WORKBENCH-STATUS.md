@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Authorized duplicate candidates
+
+`duplicate-candidates` in the CLI and `voldiq_duplicate_candidates` in MCP page distinct file identities of the same recorded logical size within an authorized snapshot folder. The shared core checks the active Metadata capability and protection policy before delivering results. The desktop distinguishes sample comparison, full content verification and verified group counts. Exact duplicate discovery through CLI and MCP remains open.
+
+The retained CLI test checked size order, group and member pagination, hard links and distinct contents of equal length. The official MCP SDK exercised the authorized call, argument rejection and credential revocation. The markup comparison exercised both progress labels and the verified summary. Windows visual and keyboard acceptance remain manual. [Source verification](../benchmarks/workbench-duplicate-candidates-source.json)
+
 ## Authorized transfer and restoration history
 
 The shared catalogue now offers `transfers` and `transfer-files` in the CLI and `voldiq_transfers` and `voldiq_transfer_files` in MCP. Both endpoints use recorded evidence for the connection's current credential and policy binding. List and file cursors remain scoped. File rows include recorded dates and status. Content hashes require an explicit request and ReadContent permission. The desktop labels the destination observation separately from current connection and explains empty file pages.

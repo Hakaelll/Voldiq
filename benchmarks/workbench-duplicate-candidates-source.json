@@ -1,0 +1,104 @@
+{
+  "checkedUtc": "2026-11-26T20:08:37.5506097Z",
+  "startedUtc": "2026-11-26T19:50:41.2739892Z",
+  "checkoutCommit": "8847e2aa429903e5f035e7128eb4ccfe118b8ea6",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.097
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.21
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.776
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.089
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 590.794
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 469.285
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "691456ED0A9198ED30A7B1D803588089D235C442A9799C446C741581AAB1ADF0"
+    },
+    {
+      "path": "docs/MCP.md",
+      "sha256": "7C4A900993D63DFED294BE54A56CA3C7FAE9D3263A0139EAFE30886E884D614C"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "E5DA0D4773FCA70BB93A991AC95156BFC86F6F45D9961B4C0FD0ACC61A2CDEDA"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "4DDE148FA52750D5F099409309617A2D229A0FEEF14BBFA66B3DA34DB8A22E5F"
+    },
+    {
+      "path": "crates/voldiq-core/src/duplicates.rs",
+      "sha256": "322AEF6D3A94CB767236474EB938ED3E262B13935388119B1C9FCAEE1430745E"
+    },
+    {
+      "path": "crates/voldiq-core/src/duplicates/candidates.rs",
+      "sha256": "BA796DBE705D9139A70B9A5E038B2C343D8020A1A52EA8721CD662EF8578EF41"
+    },
+    {
+      "path": "crates/voldiq-core/src/service.rs",
+      "sha256": "85CBE809E43AD81458C6EEC2FB8E2D2437F390EFC1BE38F88B4B072BF07E664D"
+    },
+    {
+      "path": "crates/voldiq-headless/src/main.rs",
+      "sha256": "58BC9305293E2E43961B64BF7FBB734E7110425280037B62C7C3534150F63DB9"
+    },
+    {
+      "path": "crates/voldiq-headless/src/mcp.rs",
+      "sha256": "B49352C7E2B15A05B2A7C9FB909397D234C7A0DEEB3FD5FB4E64C5208ABA12E6"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/headless.rs",
+      "sha256": "B8D4434145EEC665A22E310FE78CDA1BEB83F76488B641552762D6178AD28766"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/mcp.rs",
+      "sha256": "DA757773A0279A04E66F6D8591FF2307C57679AD484515D0487A2C8B0A136EAA"
+    },
+    {
+      "path": "frontend/components/Duplicates.svelte",
+      "sha256": "A0B3B9380645CCAFACBBF6761CF322190F2FAEA910FFD37B7B50E8907C9BA082"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "serverMarkup": {
+    "scope": "Before/after server markup for the same duplicate states",
+    "sampleComparison": true,
+    "fullContentVerification": true,
+    "verifiedSummary": true,
+    "visualReview": "Manual"
+  }
+}

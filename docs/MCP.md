@@ -71,6 +71,7 @@ This example forwards an environment variable by name, without embedding its val
 | `voldiq_volumes` | Metadata | Page of granted whole Windows volumes with timestamped space measurements and explicit unavailable values |
 | `voldiq_query` | Metadata | Bounded page with shared structured filters and advanced expression |
 | `voldiq_applications` | Metadata | Current authorized Windows installation claims over scoped indexed files; capped page, dated provenance and exact logical-byte partition |
+| `voldiq_duplicate_candidates` | Metadata | Recorded equal-size groups of distinct file identities and paged member names |
 | `voldiq_libraries` | Metadata and ReadContent | Recorded game or media evidence and logical sizes from an authorized snapshot and indexed folder |
 | `voldiq_export_csv` | Metadata + Export | Bounded files/folders CSV page and scope/filter/coverage metadata; full paths require explicit opt-in |
 | `voldiq_query_translate` | Metadata | Offline expression proposal and exact unparsed input spans; no snapshot/query execution |
@@ -158,6 +159,12 @@ Metadata permission and current snapshot root identity/exclusion coverage are re
 Example request: `{"scope":0,"sort":"size","limit":20,"filters":{"expression":"type:file size>1GiB"}}`. CLI/MCP return the existing `schema_version: 1` envelope. Native paths are not included in this page; indexed root IDs are context for separately authorized queries, never file-action authority.
 
 
+
+## Duplicate candidates
+
+Use `duplicate-candidates <snapshot_id> [JSON options]` in the CLI or pass `snapshot_id` and optional `options` to `voldiq_duplicate_candidates`. An indexed directory `scope` narrows the snapshot. Groups contain at least two distinct file identities and are ordered by descending logical size. A hard link counts once. Pass `logical_bytes` with the exact size of a group to page its members in snapshot order.
+
+Sizes are decimal byte strings. `min_bytes` defaults to `"1"`. Keep the same scope, size and filters when following `next_offset`. The default page is 25, subject to the connection limit. If the folder exceeds 250,000 qualifying identities, choose a narrower folder or raise the minimum size. Protected entries, cloud placeholders and files without sufficient recorded evidence are omitted. `recorded_complete`, `files_without_evidence` and `unverified_branches` describe coverage. `recorded_size_only` denotes candidates from the scan. Content equality and reclaimable allocation remain unknown.
 
 ## CSV export pages
 

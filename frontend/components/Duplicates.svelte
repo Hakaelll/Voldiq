@@ -233,7 +233,7 @@
   </div>
   {#if operation && working}<div class="scan-status" aria-live="polite">
       <span class="status-dot working"></span><span
-        >{operation.phase === 'hashing' ? 'Verifying content' : 'Comparing files'}</span
+        >{operation.phase === 'hashing' ? 'Verifying full contents' : 'Comparing file samples'}</span
       >
       <span
         >{operation.examined.toLocaleString()} / {operation.candidates.toLocaleString()} files · {bytes(
@@ -246,7 +246,7 @@
     </div>{/if}
   {#if page}
     <div class="duplicate-summary">
-      <div><span>Duplicate groups</span><strong>{page.total.toLocaleString()}</strong></div>
+      <div><span>Verified duplicate groups</span><strong>{page.total.toLocaleString()}</strong></div>
       <div><span>Potential allocation</span><strong>{bytes(page.recoverable)}</strong></div>
       {#if page.cancelled}<span>Partial results</span>{/if}
       {#if page.errors}<button onclick={issues}>{page.errors} issues</button>{/if}

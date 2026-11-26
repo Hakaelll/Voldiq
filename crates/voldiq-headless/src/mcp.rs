@@ -185,6 +185,13 @@ struct PlanArgs {
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct DuplicateCandidatesArgs {
+    snapshot_id: i64,
+    #[serde(default)]
+    options: voldiq_core::duplicates::CandidateRequest,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ExecutionArgs {
     plan_id: String,
     manifest_hash: String,
@@ -495,6 +502,25 @@ fn invoke(
             )
             .map_err(unavailable)
         }
+        "voldiq_duplicate_candidates" => {
+            let args: DuplicateCandidatesArgs = parse(args)?;
+            if args.snapshot_id <= 0 || !args.options.valid() {
+                return Err(super::failure(
+                    "invalid_arguments",
+                    "Use a snapshot ID, bounded pages and decimal byte strings.",
+                ));
+            }
+            let result = service
+                .duplicate_candidates(args.snapshot_id, &args.options, cancel)
+                .map_err(unavailable)?
+                .ok_or_else(|| {
+                    super::failure(
+                        "duplicate_candidates_cancelled",
+                        "Duplicate candidates query cancelled.",
+                    )
+                })?;
+            serde_json::to_value(result).map_err(unavailable)
+        }
         "voldiq_plan_get" => {
             let args: PlanArgs = parse(args)?;
             serde_json::to_value(service.plan_get(&args.plan_id).map_err(plan_unavailable)?)
@@ -664,6 +690,7 @@ impl ServerHandler for Server {
                 | "voldiq_applications"
                 | "voldiq_libraries"
                 | "voldiq_plan_validate"
+                | "voldiq_duplicate_candidates"
                 | "voldiq_transfers"
                 | "voldiq_transfer_files"
         );
@@ -746,6 +773,7 @@ fn tools() -> Vec<Tool> {
         ("voldiq_plan_prepare_offload", "Prepare a read-only, exact cross-volume transfer proposal. Source, destination and destination volume root must be explicitly authorized. Request independent Windows desktop approval of the exact plan before asking to execute it.", json!({"snapshot_id":integer,"node_ids":{"type":"array","minItems":1,"maxItems":500,"uniqueItems":true,"items":{"type":"integer","minimum":0,"maximum":4294967295u64}},"destination":{"type":"string","minLength":1,"maxLength":32768},"originals":{"type":"string","enum":["keep","recycle_after_verification"]}}), json!(["snapshot_id","node_ids","destination","originals"])) ,
         ("voldiq_plan_prepare_restore", "Prepare an exact read-only restore proposal from this connection's confirmed transfer catalogue and a fresh archive snapshot. node_ids refer to original catalogue nodes. Current archive, original parents and volume scopes are required. To keep both files on collision, set on_collision to keep_both. Request independent Windows desktop approval before asking to execute it.", json!({"snapshot_id":integer,"transfer_plan_id":plan_id,"node_ids":{"type":"array","minItems":1,"maxItems":500,"uniqueItems":true,"items":{"type":"integer","minimum":0,"maximum":4294967295u64}},"on_collision":{"type":"string","enum":["fail","keep_both"],"default":"fail"}}), json!(["snapshot_id","transfer_plan_id","node_ids"])),
         ("voldiq_plan_get", "Read this connection's exact manifest and current state. An approved row is not execution authority.", json!({"plan_id":plan_id}), json!(["plan_id"])),
+        ("voldiq_duplicate_candidates", "List equally sized distinct file identities recorded in an authorized snapshot. Scope accepts an indexed folder ID. Set logical_bytes to page the members of that size. Uses recorded metadata and omits protected or unverified entries. Content equality and recoverable bytes remain unknown.", json!({"snapshot_id":integer,"options":{"type":"object","additionalProperties":false,"properties":{"scope":{"type":"integer","minimum":0,"maximum":4294967295u64},"min_bytes":{"type":"string","pattern":"^(0|[1-9][0-9]{0,19})$"},"logical_bytes":{"type":"string","pattern":"^(0|[1-9][0-9]{0,19})$"},"offset":{"type":"integer","minimum":0,"maximum":250000},"limit":{"type":"integer","minimum":1,"maximum":100}}}}), json!(["snapshot_id"])),
         ("voldiq_transfers", "Page recorded transfer and restore operations for this connection's current credential and policy. Use next_before for the next page. Publication counts describe records only.", json!({"before":plan_id,"limit":{"type":"integer","minimum":1,"maximum":25,"default":25}}), json!([])),
         ("voldiq_transfer_files", "Page recorded file phases and publication evidence for an owned transfer or restore. Use next_after for the next page. Opt-in hashes require ReadContent. Restore preparation requires fresh archive evidence.", json!({"plan_id":plan_id,"after":{"type":"integer","minimum":0,"maximum":4294967295u64},"limit":{"type":"integer","minimum":1,"maximum":25,"default":25},"include_hashes":{"type":"boolean","default":false}}), json!(["plan_id"])),
         ("voldiq_plan_validate", "Check the current metadata evidence of this connection's exact plan ID and manifest hash. Requires PreparePlans. Returns status, observed lifecycle state and time. Reports no new paths and makes no changes to plan state or approval. Execution revalidates independently.", json!({"plan_id":plan_id,"manifest_hash":plan_id}), json!(["plan_id","manifest_hash"])),

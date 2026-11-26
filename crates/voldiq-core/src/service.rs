@@ -439,6 +439,41 @@ impl AgentService {
         Ok(())
     }
 
+    pub fn duplicate_candidates(
+        &self,
+        snapshot: i64,
+        request: &crate::duplicates::CandidateRequest,
+        cancel: &AtomicBool,
+    ) -> Result<Option<crate::duplicates::CandidatePage>> {
+        let registry = self.registry()?;
+        let context = registry.plan_context(&self.principal, Capability::Metadata)?;
+        let (policy, binding) = context.bound_policy(Capability::Metadata)?;
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        let index = self.index(snapshot)?;
+        let _root = registry.authorize_index(&self.principal, &index)?;
+        let mut notes = crate::metadata::Store::open(self.directory.directory())?;
+        let protections = notes.protections()?;
+        let result = crate::duplicates::candidate_page(
+            &index,
+            request,
+            policy.limits().page_size,
+            &protections,
+            cancel,
+        )?;
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        self.validate_index(&registry, &index)?;
+        if context.binding()? != binding
+            || notes.protections()?.fingerprint() != protections.fingerprint()
+        {
+            return Err(denied());
+        }
+        Ok(result)
+    }
+
     pub fn translate_query(&self, source: &str) -> Result<crate::search::Translation> {
         self.registry()?
             .policy(&self.principal, Capability::Metadata)?;

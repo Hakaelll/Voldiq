@@ -128,6 +128,11 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     assert!(
         tools
             .iter()
+            .any(|tool| tool.name == "voldiq_duplicate_candidates")
+    );
+    assert!(
+        tools
+            .iter()
             .any(|tool| tool.name == "voldiq_transfer_files")
     );
     let transfers = call(&client, "voldiq_transfers", json!({})).await;
@@ -188,6 +193,27 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     assert!(!history.contains(i64::MAX).unwrap());
     assert!(history.summary(i64::MAX).unwrap().is_none());
     drop(history);
+
+    let candidates = call(
+        &client,
+        "voldiq_duplicate_candidates",
+        json!({"snapshot_id":snapshot,"options":{"limit":1}}),
+    )
+    .await;
+    assert_ne!(candidates.is_error, Some(true));
+    let candidates = candidates.structured_content.unwrap();
+    assert_eq!(candidates["result"]["evidence"], "recorded_size_only");
+    assert_eq!(candidates["result"]["groups"], json!([]));
+    let injected = call(
+        &client,
+        "voldiq_duplicate_candidates",
+        json!({"snapshot_id":snapshot,"options":{"root":source.path()}}),
+    )
+    .await;
+    assert_eq!(
+        injected.structured_content.unwrap()["error"]["code"],
+        "invalid_arguments"
+    );
 
     let isolated = tempfile::tempdir().unwrap();
     let lease = Lease::acquire(isolated.path()).unwrap();
@@ -1099,6 +1125,16 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     let revoked_transfers = call(&client, "voldiq_transfers", json!({})).await;
     assert_eq!(
         revoked_transfers.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
+    );
+    let revoked_candidates = call(
+        &client,
+        "voldiq_duplicate_candidates",
+        json!({"snapshot_id":snapshot}),
+    )
+    .await;
+    assert_eq!(
+        revoked_candidates.structured_content.unwrap()["error"]["code"],
         "not_authorized_or_unavailable"
     );
     assert_eq!(

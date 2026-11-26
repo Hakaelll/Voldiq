@@ -1,4 +1,7 @@
+mod candidates;
 pub(crate) mod persistence;
+pub(crate) use candidates::candidate_page;
+pub use candidates::{CandidatePage, CandidateRequest};
 #[cfg(windows)]
 pub mod similar;
 

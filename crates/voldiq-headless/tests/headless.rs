@@ -593,4 +593,52 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     assert_eq!(audit["result"].as_array().unwrap().len(), 1);
     assert_eq!(audit["result"][0]["event"], "draft");
     assert_eq!(std::fs::read(file).unwrap(), b"changed fixture");
+
+    let first = source.path().join("same-a.data");
+    std::fs::write(&first, b"ABCD").unwrap();
+    std::fs::hard_link(&first, source.path().join("same-a-alias.data")).unwrap();
+    std::fs::write(source.path().join("same-b.data"), b"ZYXW").unwrap();
+    std::fs::write(source.path().join("six-a.data"), b"123456").unwrap();
+    std::fs::write(source.path().join("six-b.data"), b"abcdef").unwrap();
+    let cancel = std::sync::atomic::AtomicBool::new(false);
+    let index =
+        voldiq_core::scanner::scan(source.path(), &Default::default(), &cancel, |_| {}).unwrap();
+    let snapshot = voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db"))
+        .unwrap()
+        .save(&index, &cancel, &[])
+        .unwrap()
+        .to_string();
+    let candidates = |options: &str| {
+        let output = run(&["duplicate-candidates", &snapshot, options]);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        serde_json::from_slice::<Value>(&output.stdout).unwrap()["result"].clone()
+    };
+    let first_page = candidates(r#"{"limit":1}"#);
+    assert_eq!(first_page["evidence"], "recorded_size_only");
+    assert_eq!(
+        first_page["groups"],
+        json!([{"logical_bytes":"6","distinct_files":2}])
+    );
+    assert_eq!(first_page["next_offset"], 1);
+    let second_page = candidates(r#"{"offset":1,"limit":1}"#);
+    assert_eq!(
+        second_page["groups"],
+        json!([{"logical_bytes":"4","distinct_files":2}])
+    );
+    assert_eq!(second_page["next_offset"], Value::Null);
+    let first_member = candidates(r#"{"logical_bytes":"4","limit":1}"#);
+    let second_member = candidates(r#"{"logical_bytes":"4","offset":1,"limit":1}"#);
+    assert_eq!(first_member["total"], 2);
+    assert_eq!(first_member["next_offset"], 1);
+    assert_eq!(second_member["next_offset"], Value::Null);
+    let names =
+        [&first_member, &second_member].map(|page| page["members"][0]["name"].as_str().unwrap());
+    assert!(names.contains(&"same-b.data"));
+    assert!(names.contains(&"same-a.data") || names.contains(&"same-a-alias.data"));
+    let invalid = run(&["duplicate-candidates", &snapshot, r#"{"min_bytes":"04"}"#]);
+    assert_eq!(invalid.status.code(), Some(2));
 }
