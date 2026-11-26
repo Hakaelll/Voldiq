@@ -5,6 +5,7 @@
   import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
   import { getCurrentWebview } from '@tauri-apps/api/webview';
+  import { getCurrentWindow, type Theme } from '@tauri-apps/api/window';
   import { readPlanProgress } from './lib/plan-progress';
   import Icon from './components/Icon.svelte';
   import Overview from './components/Overview.svelte';
@@ -180,10 +181,12 @@
     issues = $state<Issue[]>([]),
     showIssues = $state(false);
   let excluded = $state(''),
-    theme = $state('light'),
+    theme = $state<Theme>('light'),
     sizeMode = $state('logical'),
     storageUnits = $state<StorageUnits>('binary'),
     reduceMotion = $state(false);
+  let themeReady = $state(false);
+  let windowThemeUpdate = Promise.resolve();
   let search = $state<HTMLInputElement>();
   let refreshToken = 0;
   let interactionToken = 0;
@@ -1475,6 +1478,7 @@
     } catch {
       error = 'Saved preferences could not be read. Defaults restored.';
     }
+    themeReady = true;
     if (isTauri())
       void invoke<Volume[]>('get_volumes')
         .then((value) => {
@@ -1544,7 +1548,15 @@
     };
   });
   $effect(() => {
-    document.documentElement.dataset.theme = theme;
+    const selected = theme;
+    document.documentElement.dataset.theme = selected;
+    if (themeReady && isTauri()) {
+      windowThemeUpdate = windowThemeUpdate
+        .then(() => getCurrentWindow().setTheme(selected))
+        .catch(report);
+    }
+  });
+  $effect(() => {
     document.documentElement.dataset.motion = reduceMotion ? 'reduced' : 'normal';
   });
   function chooseStorageUnits(value: StorageUnits): void {

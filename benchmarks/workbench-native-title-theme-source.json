@@ -1,0 +1,75 @@
+{
+  "checkedUtc": "2026-11-26T19:05:57.3135296Z",
+  "startedUtc": "2026-11-26T19:01:50.7464113Z",
+  "checkoutCommit": "6ddc47786919281ab19b11b6eef1cd9cb02ffc9b",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.084
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.601
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.745
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.909
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 222.746
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 6.427
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "CDA9A5E2D2EC3C06B612034F3EAA359A201D8A4CC0E3FB2D70B379748BDCD69A"
+    },
+    {
+      "path": "docs/WORKBENCH-STATUS.md",
+      "sha256": "ED741272AD949505EFE07CB6878E87905225CF5C3FFD127373AAE8C63599F4E8"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "7CE71169DE1AA2E096BAA2148ED8A5A1BCA8EECA661A5A0273CDF5DD6156271A"
+    },
+    {
+      "path": "src-tauri/capabilities/default.json",
+      "sha256": "4769449F538E07488BFF12A3294BEDEF582AF0677CFD7C35F69791B4A457C6B5"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "desktopThemeSource": {
+    "window": "main",
+    "nativePreferenceLoadedFirst": true,
+    "flow": {
+      "scope": "Production theme effect executed with a disposable window bridge fixture",
+      "distinctNativeAndBrowser": true,
+      "waitsForPreferences": true,
+      "orderedNativeChanges": true
+    }
+  }
+}

@@ -156,7 +156,7 @@ Vivid+Co informs the dark workspace. Obsidian and ivory set the large surfaces a
 
 Amra informs the light workspace. White and graphite keep text and shared surfaces clear. Periwinkle identifies the primary action and softly highlights selection. Rounded navigation and chart selectors keep a compact footprint. The measured drive and file-type rings use a slight violet tint inside their existing data marks.
 
-Both themes use the supplied Voldiq mark and the Windows system font. Settings opens with Appearance and shows a swatch for each radio choice. The sidebar's dimensions, collapse behavior and Settings entry remain shared. Primary controls have a short press transition. The initial drive reading uses a 220 ms opacity reveal. Both Windows and Voldiq reduced-motion settings suppress these effects. The command palette and chart selector respond as soon as the user acts.
+Both themes use the supplied Voldiq mark and the Windows system font. Settings opens with Appearance and shows a swatch for each radio choice. The native Windows title bar follows the selected theme, including the preference restored when the desktop opens. The sidebar's dimensions, collapse behavior and Settings entry remain shared. Primary controls have a short press transition. The initial drive reading uses a 220 ms opacity reveal. Both Windows and Voldiq reduced-motion settings suppress these effects. The command palette and chart selector respond as soon as the user acts.
 
 ## Overview
 
