@@ -783,10 +783,15 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
     ],
   };
   const historicalGeometry = historicalRects(history.frames[0], 66, 1000);
+  const historicalSizes = historicalRects(history.frames[0], 66, 1000, 320, 'size');
   assert.equal(
     historicalGeometry.reduce((area, rect) => area + rect.width * rect.height, 0),
     160000,
   );
+  const bounds = ({ x, y, width, height }: (typeof historicalGeometry)[number]) => [
+    x, y, width, height,
+  ];
+  assert.deepEqual(historicalSizes.map(bounds), historicalGeometry.map(bounds));
   const historySurface = new SvgSurface(1000, 560, (text) => ({
     width: text.length * 6,
     actualBoundingBoxAscent: 9,
@@ -795,8 +800,11 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
     surface: '#fcfcf9',
     text: '#242c29',
     secondary: '#505c54',
+    color: 'size',
+    units: 'decimal',
   });
   const historyDrawing = historySurface.finish();
+  assert.ok(historyDrawing.includes('fill="#e6b74a"'));
   assert.ok(historyDrawing.includes('At least 33 logical bytes'));
   assert.ok(historyDrawing.includes('Partial capture; sizes are lower bounds.'));
   assert.ok(historyDrawing.includes('Legacy accounting comparability is unverified.'));
@@ -850,7 +858,7 @@ test('frontend interactions preserve ownership and bounded motion', async () => 
     videoSurface,
     history,
     1,
-    { surface: '#fcfcf9', text: '#242c29', secondary: '#505c54' },
+    { surface: '#fcfcf9', text: '#242c29', secondary: '#505c54', color: 'type', units: 'binary' },
     'webm',
   );
   const videoDrawing = videoSurface.finish();

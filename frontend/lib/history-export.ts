@@ -1,6 +1,6 @@
-import { historicalRects, historicalAbsence } from './history-geometry.ts';
+import { historicalRects, historicalAbsence, type HistoricalMapColor } from './history-geometry.ts';
 import { utcDate } from './history-activity.ts';
-import { bytes } from './types.ts';
+import { formatStorageBytes, type StorageUnits } from './storage-units.ts';
 import type { PaintSurface } from './paint-surface.ts';
 import type { HistoryClip, HistoryGifRequest, HistoryWebmRequest } from './history-clip.ts';
 
@@ -10,6 +10,8 @@ export interface HistoryStyle {
   surface: string;
   text: string;
   secondary: string;
+  color: HistoricalMapColor;
+  units: StorageUnits;
 }
 
 export function paintHistoryFrame(
@@ -63,7 +65,7 @@ export function paintHistoryFrame(
   );
   surface.save();
   surface.translate(0, 128);
-  const rects = historicalRects(frame, Number(clip.maximum_logical), HISTORY_WIDTH);
+  const rects = historicalRects(frame, Number(clip.maximum_logical), HISTORY_WIDTH, 320, style.color);
   surface.lineWidth = 1;
   for (const rect of rects) {
     surface.fillStyle = rect.paint.fill;
@@ -74,7 +76,8 @@ export function paintHistoryFrame(
       surface.fillStyle = rect.paint.ink;
       surface.font = '12px "Segoe UI", sans-serif';
       surface.fillText(fit(rect.name, rect.width - 12), rect.x + 6, rect.y + 15);
-      surface.fillText(bytes(rect.value), rect.x + 6, rect.y + 29);
+      const logical = rect.source?.logical ?? frame.remainder?.logical ?? '0';
+      surface.fillText(formatStorageBytes(logical, style.units), rect.x + 6, rect.y + 29);
     }
   }
   if (!rects.length) {

@@ -22,7 +22,7 @@ if (clip.schema_version !== 1 || clip.frames.length !== 2 || clip.paths_included
   throw new Error('Expected two private synthetic capture summaries.');
 const require = createRequire(path.join(modules, 'package.json'));
 const { createCanvas } = require('@napi-rs/canvas');
-const style = { surface: '#fcfcf9', text: '#242c29', secondary: '#505c54' };
+const style = { surface: '#fcfcf9', text: '#242c29', secondary: '#505c54', color: 'type', units: 'binary' };
 for (let index = 0; index < clip.frames.length; index++) {
   const canvas = createCanvas(HISTORY_WIDTH, HISTORY_HEIGHT);
   paintHistoryFrame(canvas.getContext('2d'), clip, index, style);

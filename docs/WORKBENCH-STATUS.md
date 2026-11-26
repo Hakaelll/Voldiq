@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Historical map layout and colors
+
+Comparison and Playback give the map a larger plot as the window height allows. The Size and File type choices stay available while captures load. Both maps in a comparison use one size scale. Other contents uses a separate neutral color, and the color choice leaves the measured areas intact. GIF and WebM capture the active color choice and unit setting when the export starts.
+
+All six project checks passed with eight routine tests. Owned geometry fixtures checked equal colors for equal sizes across two captures, identical tile coordinates at the same plot size, and placement within the taller plot. Server-rendered markup checked exact bytes in map titles, adjusted view-box dimensions, native radio labels and the conditional legend. Windows rendering, pointer and keyboard interaction, and scaling remain manual. [Source verification](../benchmarks/workbench-historical-colors-source.json)
+
 ## Storage units
 
 Settings → Appearance offers Binary (GiB) and Decimal (GB). Charts and lists update their size labels. Large files and Duplicates display the active unit in the minimum-size field. Saved searches retain the exact threshold in bytes. Advanced search accepts explicit decimal and binary suffixes in either display mode.

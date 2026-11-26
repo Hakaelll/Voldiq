@@ -2748,16 +2748,27 @@ main {
 }
 .snapshot-visual-plot {
   position: relative;
-  height: 320px;
+  height: clamp(280px, calc(100vh - 355px), 540px);
   margin: 0 14px;
   background: var(--surface);
+}
+.history-map-colors {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 16px;
+  flex-wrap: wrap;
+  margin: 0 14px 8px;
+}
+.history-map-colors .map-category-legend {
+  padding: 0;
 }
 .snapshot-visual-map {
   position: absolute;
   inset: 0;
   display: block;
   width: 100%;
-  height: 320px;
+  height: 100%;
   background: var(--surface);
   font-size: 11px;
 }

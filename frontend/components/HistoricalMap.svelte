@@ -1,10 +1,13 @@
 <script lang="ts">
-  import { historicalRects, historicalAbsence } from '../lib/history-geometry';
-  import { bytes, type SnapshotVisualFrame } from '../lib/types';
+  import { historicalRects, historicalAbsence, type HistoricalMapColor } from '../lib/history-geometry';
+  import { formatStorageBytes } from '../lib/storage-units';
+  import type { SnapshotVisualFrame } from '../lib/types';
   let {
     frame,
     maximum,
     width,
+    height,
+    color,
     label,
     id,
     front = false,
@@ -13,12 +16,14 @@
     frame: SnapshotVisualFrame;
     maximum: number;
     width: number;
+    height: number;
+    color: HistoricalMapColor;
     label: string;
     id: string;
     front?: boolean;
     reveal?: number;
   } = $props();
-  const rects = $derived(historicalRects(frame, maximum, width));
+  const rects = $derived(historicalRects(frame, maximum, width, height, color));
   const absence = $derived(historicalAbsence(frame));
 </script>
 
@@ -27,11 +32,13 @@
   class="snapshot-visual-map"
   class:before={front}
   style:clip-path={front ? `inset(0 ${100 - reveal}% 0 0)` : 'none'}
-  viewBox={`0 0 ${Math.max(1, width)} 320`}
+  viewBox={`0 0 ${Math.max(1, width)} ${Math.max(1, height)}`}
   role="img"
   aria-label={label}
 >
-  {#each rects as rect}<g
+  {#each rects as rect}
+    {@const logical = rect.source?.logical ?? frame.remainder?.logical ?? '0'}
+    <g
       ><rect
         x={rect.x}
         y={rect.y}
@@ -41,7 +48,7 @@
         stroke="var(--canvas)"
         stroke-width="1"
         ><title
-          >{rect.name} · {rect.source?.logical ?? frame.remainder?.logical ?? '0'} logical bytes{rect.incomplete
+          >{rect.name} · {logical} logical bytes{rect.incomplete
             ? ' · partial'
             : ''}</title
         ></rect
@@ -51,7 +58,7 @@
           y={rect.y + 15}
           fill={rect.paint.ink}
           >{rect.name.slice(0, Math.max(1, Math.floor((rect.width - 12) / 7)))}</text
-        ><text x={rect.x + 6} y={rect.y + 29} fill={rect.paint.ink}>{bytes(rect.value)}</text>{/if}
+        ><text x={rect.x + 6} y={rect.y + 29} fill={rect.paint.ink}>{formatStorageBytes(logical)}</text>{/if}
     </g>{/each}
   {#if !rects.length}<text x="16" y="40" fill="var(--secondary)">{absence}</text>{/if}
 </svg>

@@ -1,0 +1,117 @@
+{
+  "checkedUtc": "2026-11-26T15:44:22.9001407Z",
+  "startedUtc": "2026-11-26T15:22:27.5554563Z",
+  "checkoutCommit": "18b745b4f9cb15454a1ccb03eedc64e7f6a84f4c",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 3.95
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 21.75
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 2.306
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 16.795
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1117.655
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 152.796
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "3AC911B45F6135D1DF2CC7E87752B2B61F7DE47775AF66C92AD6A62EEAFDB6A4"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "AB9F422CFAF31AAEB42F697A54915C7E786E17DCC01E6DF21EA72DB2A2431CA5"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "DA80CCE75551A215EDAB3B33B5D7AB18CF2A7BCAC27C3DD81D5738EB777732DB"
+    },
+    {
+      "path": "frontend/components/HistoricalMap.svelte",
+      "sha256": "208A9CCC7A562FA2395DF9754CFCDC36D27DA1BFB895A762EB17458CFBC2C7E4"
+    },
+    {
+      "path": "frontend/components/HistoryExport.svelte",
+      "sha256": "6AB07F4BAE001522B772359FB44F1F792B5C8029FAF109A2DC4A6A4F0091C4BE"
+    },
+    {
+      "path": "frontend/components/HistoryMapColors.svelte",
+      "sha256": "B59C15B9E3CE92A7F7FCF8A437E9C12EED462D4BF5E184E933BDCB6DCF7756FB"
+    },
+    {
+      "path": "frontend/components/HistoryPlayback.svelte",
+      "sha256": "BE56225EDB8203DC867C247D91188495A82F78C116907A129BA7B0CD1729FB31"
+    },
+    {
+      "path": "frontend/components/SnapshotVisualCompare.svelte",
+      "sha256": "CB87572153288CB2B1956EE4CBC2B462292556A10BA63576A97E97F4F3071066"
+    },
+    {
+      "path": "frontend/lib/cleanup-selection.test.ts",
+      "sha256": "C9BABF96B6116D7BFA57D2D75E59C0FEA35D2EBE247B053D906AB23A16F3F3EB"
+    },
+    {
+      "path": "frontend/lib/history-export.ts",
+      "sha256": "A6520FE0DA07A0DD5C66CC8F959EE8DCEA965108BBBC5442563676D5EC9B833C"
+    },
+    {
+      "path": "frontend/lib/history-geometry.ts",
+      "sha256": "E104E7AAA767835F4FAABF49D25A1F86CA5CC65FB8AD433116FC7FFB2C37751D"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "E523E7F61A9B6B332386DC7BE134E11DEC8891519A43557C41169AEEEAA17506"
+    },
+    {
+      "path": "scripts/render_history_fixture.mjs",
+      "sha256": "CB2E3156E9710238BBA172D4515C7A3107E00A0167A673EE83A570A98C07378C"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "sourceGeometry": {
+    "scope": "Production history geometry with owned synthetic frames. Native layout, input and scaling are manual.",
+    "widths": [
+      1100
+    ],
+    "heights": [
+      320,
+      480
+    ],
+    "geometryMatchesAtSameSize": true,
+    "sameSizeColorInBothCaptures": "#ed8549",
+    "smallFolderColor": "#e6b74a",
+    "aggregateColor": "#616e81",
+    "resizedGeometryWithinPlot": true
+  },
+  "serverMarkup": "Actual historical SVG viewBox and literal bytes, labeled radio group and conditional size and aggregate legend."
+}

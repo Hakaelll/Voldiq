@@ -1,12 +1,15 @@
 import { layout, type WeightedNode } from './treemap.ts';
-import { categoryPaint } from './storage-map.ts';
+import { categoryPaint, visualPaint } from './storage-map.ts';
 import type { SnapshotVisualFrame } from './types.ts';
+
+export type HistoricalMapColor = 'size' | 'type';
 
 export function historicalRects(
   frame: SnapshotVisualFrame,
   maximum: number,
   width: number,
   height = 320,
+  color: HistoricalMapColor = 'type',
 ) {
   const nodes: WeightedNode[] = frame.entries.map((entry, index) => ({
     id: index + 1,
@@ -29,7 +32,8 @@ export function historicalRects(
     height,
   ).map((rect) => ({
     ...rect,
-    paint: categoryPaint(rect),
+    paint:
+      rect.id < 0 ? categoryPaint(rect) : visualPaint({ ...rect, modified: null }, color, maximum, 0),
     source: rect.id > 0 ? frame.entries[rect.id - 1] : null,
   }));
 }

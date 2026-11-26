@@ -1,10 +1,13 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import HistoricalMap from './HistoricalMap.svelte';
+  import HistoryMapColors from './HistoryMapColors.svelte';
   import HistoryExport from './HistoryExport.svelte';
   import { isTauri } from '@tauri-apps/api/core';
+  import type { HistoricalMapColor } from '../lib/history-geometry';
   import { snapshotCaptureQueries } from '../lib/queries';
-  import { bytes, date, type Snapshot, type SnapshotVisualFrame } from '../lib/types';
+  import { formatStorageBytes } from '../lib/storage-units';
+  import { date, type Snapshot, type SnapshotVisualFrame } from '../lib/types';
 
   let {
     captures,
@@ -23,7 +26,9 @@
     speed = $state(1),
     loop = $state(false),
     retry = $state(0),
-    width = $state(800);
+    width = $state(800),
+    height = $state(320);
+  let color = $state<HistoricalMapColor>('size');
   const selected = $derived(ordered[position] ?? ordered[0]);
   type Model =
     | { kind: 'loading' }
@@ -142,6 +147,7 @@
     >
     {#if isTauri()}<HistoryExport
         captures={accountingCaptures}
+        {color}
         {disabled}
         initialDelay={speed === 2 ? 50 : speed === 0.5 ? 200 : 100}
         initialLoop={loop}
@@ -177,6 +183,11 @@
         {disabled}>Open full snapshot</button
       >
     </div>{/if}
+  <HistoryMapColors
+    {color}
+    hasRemainder={frame?.remainder != null}
+    onchange={(value) => (color = value)}
+  />
   {#if disabled}<p role="status">Playback paused during the current operation.</p>
   {:else if current?.kind === 'failed'}<p role="alert">
       {current.message} <button onclick={() => retry++}>Reload capture</button>
@@ -184,7 +195,11 @@
   {:else if !frame}<p role="status">Reading recorded capture…</p>
   {:else}
     <div class="snapshot-playback-values">
-      <strong>{frame.incomplete ? 'At least ' : ''}{bytes(Number(frame.logical))}</strong><span
+      <strong
+        >{frame.logical === null
+          ? 'Unavailable'
+          : `${frame.incomplete ? 'At least ' : ''}${formatStorageBytes(frame.logical)}`}</strong
+      ><span
         >{frame.observation
           ? `Measured ${date(frame.observation.completed_at)} · accounting revision ${frame.observation.accounting_version}`
           : 'Measurement date and accounting revision unavailable'}</span
@@ -193,11 +208,13 @@
     {#if frame.incomplete}<p class="snapshot-visual-warning">
         Partial coverage; recorded sizes are lower bounds.
       </p>{/if}
-    <div class="snapshot-visual-plot" bind:clientWidth={width}>
+    <div class="snapshot-visual-plot" bind:clientWidth={width} bind:clientHeight={height}>
       <HistoricalMap
         {frame}
         {maximum}
         {width}
+        {height}
+        {color}
         id="snapshot-playback-map"
         label={`Recorded logical sizes in ${selected?.root ?? 'the captured root'}`}
       />
@@ -211,9 +228,9 @@
       <summary>Map entries · {frame.entries.length} ranked names</summary>
       <ul>
         {#each frame.entries as entry}<li>
-            {entry.name} · {entry.incomplete ? 'At least ' : ''}{bytes(Number(entry.logical))}
+            {entry.name} · {entry.incomplete ? 'At least ' : ''}{formatStorageBytes(entry.logical)}
           </li>{/each}{#if frame.remainder}<li>
-            Other indexed contents · {bytes(Number(frame.remainder.logical))}
+            Other indexed contents · {formatStorageBytes(frame.remainder.logical)}
           </li>{/if}
       </ul>
     </details>

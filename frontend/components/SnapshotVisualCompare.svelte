@@ -3,7 +3,10 @@
   import { tick, untrack } from 'svelte';
   import { snapshotVisualQueries } from '../lib/queries';
   import HistoricalMap from './HistoricalMap.svelte';
-  import { bytes, date, type SnapshotVisualPair, type SnapshotVisualFrame } from '../lib/types';
+  import HistoryMapColors from './HistoryMapColors.svelte';
+  import type { HistoricalMapColor } from '../lib/history-geometry';
+  import { formatStorageBytes } from '../lib/storage-units';
+  import { date, type SnapshotVisualPair, type SnapshotVisualFrame } from '../lib/types';
 
   let {
     before,
@@ -16,7 +19,9 @@
     reverse = $state(false),
     retry = $state(0);
   let divider = $state(50),
-    width = $state(800);
+    width = $state(800),
+    height = $state(320);
+  let color = $state<HistoricalMapColor>('size');
   let plot = $state<HTMLDivElement>();
   let region = $state<HTMLElement>();
   let dragging: number | null = null;
@@ -188,6 +193,11 @@
     <h2>Recorded logical sizes</h2>
     <button {disabled} onclick={() => retry++}>Reload</button>
   </div>
+  <HistoryMapColors
+    {color}
+    hasRemainder={frames.some((frame) => frame.remainder !== null)}
+    onchange={(value) => (color = value)}
+  />
   {#if current?.kind === 'failed'}<p role="alert">{current.message}</p>
     <button {disabled} onclick={resetRoot}>Reset to root</button>
   {:else if !pair}<p role="status">
@@ -242,16 +252,23 @@
           <strong
             >{i === 0 ? 'Before' : 'After'} · {frame.logical === null
               ? 'Unavailable'
-              : `${frame.incomplete ? 'At least ' : ''}${bytes(Number(frame.logical))}`}</strong
+              : `${frame.incomplete ? 'At least ' : ''}${formatStorageBytes(frame.logical)}`}</strong
           ><span>Saved {date(frame.captured)}</span><small>{measured(frame)}</small>
         </div>{/each}
     </div>
-    <div class="snapshot-visual-plot" bind:this={plot} bind:clientWidth={width}>
+    <div
+      class="snapshot-visual-plot"
+      bind:this={plot}
+      bind:clientWidth={width}
+      bind:clientHeight={height}
+    >
       {#each frames as frame, i}
         <HistoricalMap
           {frame}
           {maximum}
           {width}
+          {height}
+          {color}
           id={i === 0 ? 'snapshot-map-before' : 'snapshot-map-after'}
           front={i === 0}
           reveal={divider}
@@ -321,8 +338,8 @@
                   >{#if row.directory}<button onclick={() => navigate(row.path_id)}
                       >{row.name}</button
                     >{:else}{row.name}{/if}</td
-                ><td>{row.before === null ? 'Not listed' : bytes(Number(row.before))}</td><td
-                  >{row.after === null ? 'Not listed' : bytes(Number(row.after))}</td
+                ><td>{row.before === null ? 'Not listed' : formatStorageBytes(row.before)}</td><td
+                  >{row.after === null ? 'Not listed' : formatStorageBytes(row.after)}</td
                 ></tr
               >{/each}</tbody
           >

@@ -10,9 +10,12 @@
     type ReportContext,
   } from '../lib/report-export';
   import type { HistoryExportProgress, HistoryWebmRequest } from '../lib/history-clip';
+  import type { HistoricalMapColor } from '../lib/history-geometry';
+  import { currentStorageUnits } from '../lib/storage-units';
   import type { Snapshot } from '../lib/types';
   let {
     captures,
+    color,
     disabled,
     initialDelay,
     initialLoop,
@@ -20,6 +23,7 @@
     onbusy,
   }: {
     captures: Snapshot[];
+    color: HistoricalMapColor;
     disabled: boolean;
     initialDelay: 50 | 100 | 200;
     initialLoop: boolean;
@@ -110,6 +114,8 @@
     problem = '';
     rendered = null;
     activeFormat = format;
+    const capturedColor = color;
+    const capturedUnits = currentStorageUnits();
     onbusy(true);
     const controller = new AbortController();
     preparation = controller;
@@ -129,6 +135,8 @@
         surface: css.getPropertyValue('--canvas').trim(),
         text: css.getPropertyValue('--text').trim(),
         secondary: css.getPropertyValue('--secondary').trim(),
+        color: capturedColor,
+        units: capturedUnits,
       };
       const progress = (done: number, total: number): void => {
         if (mounted) rendered = { done, total };
