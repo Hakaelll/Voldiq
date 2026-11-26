@@ -1,0 +1,249 @@
+{
+  "checkedUtc": "2026-11-26T16:03:12.0680635Z",
+  "sourceCommit": "66100d3c7ea5fef04fd537399cb0746bdf78ea49",
+  "scope": "Logical regular-file workspace bytes with reparse points skipped. Native startup/resources, static distribution and CLI help are checked. Windows rendering, pointer and keyboard interaction, scaling and clean-machine installation remain manual.",
+  "before": {
+    "checkedUnix": 1795708964.1166127,
+    "elapsedSeconds": 0.656,
+    "scope": "Logical regular-file bytes inside the workspace; reparse points skipped. No files were modified. These are not measured physical allocated bytes.",
+    "totalBytes": 3827038785,
+    "skippedReparsePoints": 119,
+    "directories": [
+      {
+        "path": "target",
+        "bytes": 3642712098,
+        "files": 8466
+      },
+      {
+        "path": "node_modules",
+        "bytes": 89590025,
+        "files": 1868
+      },
+      {
+        "path": ".git",
+        "bytes": 42063480,
+        "files": 411
+      },
+      {
+        "path": "output",
+        "bytes": 16801568,
+        "files": 16
+      },
+      {
+        "path": "interface",
+        "bytes": 12841789,
+        "files": 11
+      },
+      {
+        "path": "assets",
+        "bytes": 7903038,
+        "files": 5
+      },
+      {
+        "path": "benchmarks",
+        "bytes": 6868067,
+        "files": 748
+      },
+      {
+        "path": "crates",
+        "bytes": 2657548,
+        "files": 201
+      },
+      {
+        "path": "frontend",
+        "bytes": 1502515,
+        "files": 143
+      },
+      {
+        "path": "dist",
+        "bytes": 1270807,
+        "files": 11
+      },
+      {
+        "path": "docs",
+        "bytes": 1054790,
+        "files": 38
+      },
+      {
+        "path": "src-tauri",
+        "bytes": 807437,
+        "files": 52
+      },
+      {
+        "path": ".impeccable",
+        "bytes": 501734,
+        "files": 17
+      },
+      {
+        "path": ".",
+        "bytes": 340866,
+        "files": 18
+      },
+      {
+        "path": "scripts",
+        "bytes": 99927,
+        "files": 19
+      },
+      {
+        "path": "vscode-extension",
+        "bytes": 23096,
+        "files": 6
+      }
+    ]
+  },
+  "after": {
+    "checkedUnix": 1795708987.2749026,
+    "elapsedSeconds": 0.297,
+    "scope": "Logical regular-file bytes inside the workspace; reparse points skipped. No files were modified. These are not measured physical allocated bytes.",
+    "totalBytes": 440563918,
+    "skippedReparsePoints": 119,
+    "directories": [
+      {
+        "path": "target",
+        "bytes": 256235176,
+        "files": 1438
+      },
+      {
+        "path": "node_modules",
+        "bytes": 89590025,
+        "files": 1868
+      },
+      {
+        "path": ".git",
+        "bytes": 42063480,
+        "files": 411
+      },
+      {
+        "path": "output",
+        "bytes": 16801568,
+        "files": 16
+      },
+      {
+        "path": "interface",
+        "bytes": 12841789,
+        "files": 11
+      },
+      {
+        "path": "assets",
+        "bytes": 7903038,
+        "files": 5
+      },
+      {
+        "path": "benchmarks",
+        "bytes": 6870122,
+        "files": 750
+      },
+      {
+        "path": "crates",
+        "bytes": 2657548,
+        "files": 201
+      },
+      {
+        "path": "frontend",
+        "bytes": 1502515,
+        "files": 143
+      },
+      {
+        "path": "dist",
+        "bytes": 1270807,
+        "files": 11
+      },
+      {
+        "path": "docs",
+        "bytes": 1054790,
+        "files": 38
+      },
+      {
+        "path": "src-tauri",
+        "bytes": 807437,
+        "files": 52
+      },
+      {
+        "path": ".impeccable",
+        "bytes": 501734,
+        "files": 17
+      },
+      {
+        "path": ".",
+        "bytes": 340866,
+        "files": 18
+      },
+      {
+        "path": "scripts",
+        "bytes": 99927,
+        "files": 19
+      },
+      {
+        "path": "vscode-extension",
+        "bytes": 23096,
+        "files": 6
+      }
+    ]
+  },
+  "sourceInputsVerified": 13,
+  "preservedDeliverablesVerified": 4,
+  "nativeResourceCount": 11,
+  "exactPayloadHashMatches": 10,
+  "htmlVerification": "Tauri-processed HTML references pass the native probe; raw dist HTML byte identity is not claimed.",
+  "cliHelpExitCode": 0,
+  "debugArtifactsPresent": false,
+  "preview": {
+    "processId": 16500,
+    "running": true,
+    "mainWindowHandle": 263530,
+    "sha256": "CB56F1C931C3835315C0E5C559BE25B85513DF9E94FD6203FB12FFB7FE34A2F5",
+    "closeObserved": false,
+    "exitObserved": false
+  },
+  "cleanup": {
+    "release": 3386478613,
+    "previews": 0
+  },
+  "historyExportRaster": {
+    "width": 1000,
+    "height": 560,
+    "actual": [
+      {
+        "snapshot": 1,
+        "color": "type",
+        "rgba": [
+          50,
+          114,
+          209,
+          255
+        ]
+      },
+      {
+        "snapshot": 1,
+        "color": "size",
+        "rgba": [
+          237,
+          133,
+          73,
+          255
+        ]
+      },
+      {
+        "snapshot": 2,
+        "color": "type",
+        "rgba": [
+          50,
+          114,
+          209,
+          255
+        ]
+      },
+      {
+        "snapshot": 2,
+        "color": "size",
+        "rgba": [
+          237,
+          133,
+          73,
+          255
+        ]
+      }
+    ],
+    "scope": "Production export painter with developer Canvas and owned synthetic captures. Native recording and visual acceptance are manual."
+  }
+}

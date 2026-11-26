@@ -6,6 +6,8 @@ Comparison and Playback give the map a larger plot as the window height allows. 
 
 All six project checks passed with eight routine tests. Owned geometry fixtures checked equal colors for equal sizes across two captures, identical tile coordinates at the same plot size, and placement within the taller plot. Server-rendered markup checked exact bytes in map titles, adjusted view-box dimensions, native radio labels and the conditional legend. Windows rendering, pointer and keyboard interaction, and scaling remain manual. [Source verification](../benchmarks/workbench-historical-colors-source.json)
 
+The Windows preview reached ready with zero TCP listeners. 10 embedded non-HTML assets matched the production web build. The unsigned NSIS installer measures 12,002,106 bytes. Cleanup removed 3,386,478,613 logical bytes of inactive release artifacts and 0 bytes of closed previews. The current preview and installer were preserved. A developer Canvas probe also checked exact colors for both export modes across two owned captures. [Startup](../benchmarks/native-historical-colors-preview.json) · [Default listener](../benchmarks/historical-colors-default-listener.json) · [Distribution](../benchmarks/distribution-historical-colors.json) · [Post-clean checks](../benchmarks/workspace-footprint-historical-colors.json)
+
 ## Storage units
 
 Settings → Appearance offers Binary (GiB) and Decimal (GB). Charts and lists update their size labels. Large files and Duplicates display the active unit in the minimum-size field. Saved searches retain the exact threshold in bytes. Advanced search accepts explicit decimal and binary suffixes in either display mode.
