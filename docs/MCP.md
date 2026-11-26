@@ -84,6 +84,8 @@ This example forwards an environment variable by name, without embedding its val
 | `voldiq_trend` | Metadata | Paged logical folder measurements and a qualified projection through an authorized snapshot |
 | `voldiq_plan_prepare` | PreparePlans + Metadata | Immutable manifest from exact snapshot node IDs, freshly checked against disk |
 | `voldiq_plan_get` | Metadata | Owned manifest, lifecycle state and bounded result summary |
+| `voldiq_transfers` | Metadata | Paged recorded transfers and restores for the current connection and plan binding |
+| `voldiq_transfer_files` | Metadata, plus ReadContent for optional hashes | Paged file phases, publication dates and recorded destination context |
 | `voldiq_plan_validate` | PreparePlans + Metadata | Current evidence observation for an owned plan ID and exact manifest hash |
 | `voldiq_plan_request_approval` | RequestApproval + Metadata | Records a pending request, then returns `needs_human_approval` |
 | `voldiq_plan_audit` | Metadata | Owned events paged after a sequence number |
@@ -200,6 +202,10 @@ Snapshot schema 7 adds `observation`: actual core completion time, completeness,
 Image-file equivalents use at most 128 positive-size indexed image-extension matches ordered by name in that folder scope. The response discloses sample count, total matching count, mean logical bytes and approximate equivalent count. This metadata sample is not random or a content classifier, and the equivalent is unavailable for incomplete coverage or an empty sample. It never assumes a generic image size or claims content is locally resident.
 
 ## Plan review
+
+Use `transfers` with an optional JSON object or call `voldiq_transfers` to list recorded transfers and restorations. Set `limit` from 1 to 25 and use the returned `next_before` plan ID as `before`. The backend applies the connection's page limit. Each summary gives the recorded state, file count, confirmed publication count and bytes, and the time of the recorded destination observation.
+
+Use `transfer-files <JSON request>` or `voldiq_transfer_files` with `plan_id`, optional `after` and `limit`, and optional `include_hashes`. Continue from `next_after` until it is null. File rows include the recorded destination folder preview, output name, phase, verification bytes and dates, and any interruption timestamp. `include_hashes` defaults to false and requires ReadContent. Each result carries the exact manifest hash. The catalogue uses the connection's current credential and policy binding and can read matching records while a drive is disconnected. `currently_connected` is null because this read uses recorded observations. Restore preparation still requires a fresh authorized archive scan and separate human approval.
 
 Use `plan prepare <snapshot_id> <JSON node IDs>` with file IDs returned by a query on that same snapshot. For example, the selection argument has the shape `[4,9]`. The backend requires complete regular files, persisted native identities and unchanged live evidence. A legacy snapshot without native evidence needs a rescan; it is never promoted to live authority. The manifest preserves the source snapshot flag and passes the same root, exclusion and protection checks.
 

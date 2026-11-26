@@ -567,12 +567,18 @@ impl PlanContext<'_> {
     }
 
     pub(crate) fn binding(&self) -> Result<String> {
-        let policy = self.registry.policy(self.principal, self.capability)?;
+        self.bound_policy(self.capability)
+            .map(|(_, binding)| binding)
+    }
+
+    pub(crate) fn bound_policy(&self, capability: Capability) -> Result<(Policy, String)> {
+        let policy = self.check(capability)?;
         let key = blake3::hash(self.principal.credential_hash.as_bytes());
         let bytes = serde_json::to_vec(&policy).map_err(|_| denied())?;
-        Ok(blake3::keyed_hash(key.as_bytes(), &bytes)
+        let binding = blake3::keyed_hash(key.as_bytes(), &bytes)
             .to_hex()
-            .to_string())
+            .to_string();
+        Ok((policy, binding))
     }
 
     pub(crate) fn snapshot(&self, scope: &crate::snapshots::Scope) -> Result<AuthorizedPath> {

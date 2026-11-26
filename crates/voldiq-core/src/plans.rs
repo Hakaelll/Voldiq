@@ -18,6 +18,7 @@ use crate::{Error, Result};
 #[cfg(windows)]
 pub use batch::{CopiedTransfer, TransferFailure};
 pub use catalogue::{
+    AgentTransferFilePage, AgentTransferFiles, AgentTransferPage, AgentTransfers,
     TransferCatalogue, TransferFile, TransferFilter, TransferKind, TransferPage, TransferPhase,
     TransferSummary, TransferSummaryStatus, TransferUpdate, VaultQuota,
 };

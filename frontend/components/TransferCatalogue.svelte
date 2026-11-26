@@ -288,11 +288,11 @@
               <dd>{exactBytes(record.manifest.logical_bytes)}</dd>
             </div>
             <div>
-              <dt>Destination observation</dt>
+              <dt>Destination last observed</dt>
               <dd>{date(record.last_observed_at)}</dd>
             </div>
             <div>
-              <dt>Connection now</dt>
+              <dt>Current connection</dt>
               <dd>
                 {record.currently_connected === null
                   ? 'Not checked'
@@ -363,6 +363,9 @@
                   ><th scope="col">Publication recorded</th></tr
                 ></thead
               ><tbody>
+                {#if record.files.length === 0}
+                  <tr><td colspan="4">{filtered ? 'No files in this operation match the filters.' : 'No file records on this page.'}</td></tr>
+                {/if}
                 {#each record.files as file (file.node)}
                   {@const restored = restore?.files.find((entry) => entry.source_id === file.node)}
                   {@const reviewAt =

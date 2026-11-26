@@ -37,7 +37,7 @@ type CliError = (&'static str, String, i32);
 async fn run(args: &mut Vec<String>) -> Result<Option<Value>, CliError> {
     if args.is_empty() || args == &["--help"] {
         return Ok(Some(success(
-            json!({"commands":["capabilities","volumes [offset] [limit]","translate <description>","scan <root> [--wait]","query <snapshot_id> [JSON filters]","stats <snapshot_id>","applications <snapshot_id> [JSON scope/sort/page/file filters]","libraries <snapshot_id> <games|media> [JSON scope/page]","export <snapshot_id> <JSON CSV request>","space <snapshot_id>","history [offset] [limit]","compare <before_id> <after_id> [offset] [limit]","trend <snapshot_id> [days] [offset] [limit]","calendar <snapshot_id> <YYYY-MM> [day] [offset] [limit]","diary <snapshot_id> [offset] [limit]","details <snapshot_id> <node_id>","folder <snapshot_id> <node_id> [--note]","budget <snapshot_id> <node_id>","jobs <job_id>","cancel <job_id>","plan prepare <snapshot_id> <JSON node IDs>","plan offload <snapshot_id> <JSON node IDs> <JSON destination/originals request>","plan restore <archive_snapshot_id> <JSON transfer_plan_id/node_ids request>","plan get <plan_id>","plan validate <plan_id> <manifest_hash>","plan request <plan_id>","plan execute <plan_id> <manifest_hash>","plan cancel <plan_id> <manifest_hash>","plan audit <plan_id> [after_sequence] [limit]","mcp serve --stdio"],"state":"--state <directory> before command (default: Voldiq local application data)","authentication":"Human-provisioned VOLDIQ_AGENT_TOKEN environment variable. No credential arguments or approval bypass."}),
+            json!({"commands":["capabilities","volumes [offset] [limit]","translate <description>","scan <root> [--wait]","query <snapshot_id> [JSON filters]","stats <snapshot_id>","applications <snapshot_id> [JSON scope/sort/page/file filters]","libraries <snapshot_id> <games|media> [JSON scope/page]","export <snapshot_id> <JSON CSV request>","space <snapshot_id>","transfers [JSON before/limit]","transfer-files <JSON plan_id/after/limit/include_hashes>","history [offset] [limit]","compare <before_id> <after_id> [offset] [limit]","trend <snapshot_id> [days] [offset] [limit]","calendar <snapshot_id> <YYYY-MM> [day] [offset] [limit]","diary <snapshot_id> [offset] [limit]","details <snapshot_id> <node_id>","folder <snapshot_id> <node_id> [--note]","budget <snapshot_id> <node_id>","jobs <job_id>","cancel <job_id>","plan prepare <snapshot_id> <JSON node IDs>","plan offload <snapshot_id> <JSON node IDs> <JSON destination/originals request>","plan restore <archive_snapshot_id> <JSON transfer_plan_id/node_ids request>","plan get <plan_id>","plan validate <plan_id> <manifest_hash>","plan request <plan_id>","plan execute <plan_id> <manifest_hash>","plan cancel <plan_id> <manifest_hash>","plan audit <plan_id> [after_sequence] [limit]","mcp serve --stdio"],"state":"--state <directory> before command (default: Voldiq local application data)","authentication":"Human-provisioned VOLDIQ_AGENT_TOKEN environment variable. No credential arguments or approval bypass."}),
         )));
     }
     let directory = if args.first().is_some_and(|arg| arg == "--state") {
@@ -338,6 +338,33 @@ async fn run(args: &mut Vec<String>) -> Result<Option<Value>, CliError> {
                 service.clone(),
                 ("space_cancelled", "Space account query cancelled."),
                 move |service, cancel| service.space_account(snapshot, cancel),
+            )
+            .await?
+        }
+        ("transfers", 1 | 2) => {
+            let request: voldiq_core::plans::AgentTransfers =
+                serde_json::from_str(args.get(1).map_or("{}", String::as_str))
+                    .map_err(|_| arguments())?;
+            if !request.valid() {
+                return Err(arguments());
+            }
+            read_history(
+                service.clone(),
+                ("transfers_cancelled", "Transfer catalogue cancelled."),
+                move |service, cancel| service.transfers(request, cancel),
+            )
+            .await?
+        }
+        ("transfer-files", 2) => {
+            let request: voldiq_core::plans::AgentTransferFiles =
+                serde_json::from_str(&args[1]).map_err(|_| arguments())?;
+            if !request.valid() {
+                return Err(arguments());
+            }
+            read_history(
+                service.clone(),
+                ("transfers_cancelled", "Transfer catalogue cancelled."),
+                move |service, cancel| service.transfer_files(request, cancel),
             )
             .await?
         }

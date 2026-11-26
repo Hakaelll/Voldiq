@@ -1,0 +1,124 @@
+{
+  "checkedUtc": "2026-11-26T19:39:24.856486Z",
+  "startedUtc": "2026-11-26T19:21:57.0347535Z",
+  "checkoutCommit": "589a5f1ba6899ba78bd141054f4e95c47a4c6b49",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.041
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.615
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.724
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.75
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 588.466
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 442.202
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "9EF0ED60BFBB221507C143CABB5CDA1AFE126FF3AE2786F77892EB63E2286B22"
+    },
+    {
+      "path": "docs/MCP.md",
+      "sha256": "67CF8FE4E0EEAE014B1075EE9C7A60D54D182D25765CD92D4AA558560F521B52"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "EE34361583758126B3115F335936B8D00077B8940A676AD2F4B85FB4BFC357B5"
+    },
+    {
+      "path": "docs/WORKBENCH-STATUS.md",
+      "sha256": "B8A76FDFD6B2CC4CA0716223A086F3EE0FD5F3D873C2BB2978EF73C67B190EAB"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "286128C1F0966A39E0D83201FC8F0691093415974FAF0272B99F0825A8BF5CD9"
+    },
+    {
+      "path": "crates/voldiq-core/src/agents.rs",
+      "sha256": "C7943563DAEBDCE0E6271E9629A8E6B497FBEE8A4C15C7C92B8DCA73A7946348"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans.rs",
+      "sha256": "70D744B8BE3EAA363B23AB9A9FDE72583696512F642F472B4F3B115B74180EA5"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/catalogue.rs",
+      "sha256": "C1B383C62B9EF988E892FD7B56870D3E580B10DACE7A1E26A3E45249B73F97B3"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/catalogue/agent.rs",
+      "sha256": "DC4FD93D7FDD94D13936BB83A17409A26B6BF5039EA9DDCAFDD134B45D1D45BE"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/catalogue/listing.rs",
+      "sha256": "76166AB83EDE367905F9853E0D62390F9087925CC947240346B37C1035F2C4C1"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/desktop/tests.rs",
+      "sha256": "2D6AFB14F5338AB7755AA5B44F230315C1F3E8743227E243B0D0C061A9169699"
+    },
+    {
+      "path": "crates/voldiq-core/src/service.rs",
+      "sha256": "198AE7A73B49BCE9A3FB785DE19AA99CBEE8F1861B01ACD28DD807B4CCBC8E9B"
+    },
+    {
+      "path": "crates/voldiq-headless/src/main.rs",
+      "sha256": "6FD127EA962AAB8E7BB3CCC6BDFF32FFF2FF2401623E151B77CA0152843951BE"
+    },
+    {
+      "path": "crates/voldiq-headless/src/mcp.rs",
+      "sha256": "B66D6CFEB6B1B38D5A8490A395EB7FA3CC61BEFD50A9BB62BC58AA9898239E8B"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/headless.rs",
+      "sha256": "4595EFED5ED884EA2D1E45B76A7381B99167FD02306D829D4EC53DE51B2A855C"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/mcp.rs",
+      "sha256": "F1A770B232B571B17926F195DD8A0CE97E27E983BD3DFFAC332E575831BEB48C"
+    },
+    {
+      "path": "frontend/components/TransferCatalogue.svelte",
+      "sha256": "4CF8C0542E826F945C6FB9AEF429FA80852CC0B4F3D965AEEB2E8227DFE48883"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "serverMarkup": {
+    "scope": "Production transfer detail template with fixture state",
+    "lastObservationLabel": true,
+    "unknownCurrentConnection": true,
+    "filteredAndUnfilteredEmptyStates": true,
+    "nativeInteraction": "Manual"
+  }
+}

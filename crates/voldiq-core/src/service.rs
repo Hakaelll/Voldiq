@@ -125,6 +125,28 @@ impl AgentService {
         crate::plans::Store::open(self.directory.directory())?.validate(&context, id, hash, cancel)
     }
 
+    pub fn transfers(
+        &self,
+        request: crate::plans::AgentTransfers,
+        cancel: &AtomicBool,
+    ) -> Result<Option<crate::plans::AgentTransferPage>> {
+        let registry = self.registry()?;
+        let context = registry.plan_context(&self.principal, Capability::Metadata)?;
+        crate::plans::Store::open(self.directory.directory())?
+            .agent_transfers(&context, request, cancel)
+    }
+
+    pub fn transfer_files(
+        &self,
+        request: crate::plans::AgentTransferFiles,
+        cancel: &AtomicBool,
+    ) -> Result<Option<crate::plans::AgentTransferFilePage>> {
+        let registry = self.registry()?;
+        let context = registry.plan_context(&self.principal, Capability::Metadata)?;
+        crate::plans::Store::open(self.directory.directory())?
+            .agent_transfer_files(&context, request, cancel)
+    }
+
     pub fn plan_prepare_offload(
         &self,
         snapshot: i64,

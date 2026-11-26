@@ -228,7 +228,7 @@ impl Store {
     }
 }
 
-fn preview(value: &str) -> String {
+pub(super) fn preview(value: &str) -> String {
     let mut chars = value.chars();
     let mut result = chars.by_ref().take(160).collect::<String>();
     if chars.next().is_some() {

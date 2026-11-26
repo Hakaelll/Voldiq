@@ -222,6 +222,10 @@ fn query_unavailable(error: voldiq_core::Error) -> Value {
     }
 }
 
+fn transfer_cancelled() -> Value {
+    super::failure("transfers_cancelled", "Transfer catalogue cancelled.")
+}
+
 fn plan_unavailable(error: voldiq_core::Error) -> Value {
     match error {
         voldiq_core::Error::NeedsHumanApproval => super::failure(
@@ -496,6 +500,34 @@ fn invoke(
             serde_json::to_value(service.plan_get(&args.plan_id).map_err(plan_unavailable)?)
                 .map_err(unavailable)
         }
+        "voldiq_transfers" => {
+            let request: voldiq_core::plans::AgentTransfers = parse(args)?;
+            if !request.valid() {
+                return Err(super::failure(
+                    "invalid_arguments",
+                    "Use an owned plan cursor and a limit from 1 to 25.",
+                ));
+            }
+            let result = service
+                .transfers(request, cancel)
+                .map_err(unavailable)?
+                .ok_or_else(transfer_cancelled)?;
+            serde_json::to_value(result).map_err(unavailable)
+        }
+        "voldiq_transfer_files" => {
+            let request: voldiq_core::plans::AgentTransferFiles = parse(args)?;
+            if !request.valid() {
+                return Err(super::failure(
+                    "invalid_arguments",
+                    "Use a plan ID and a limit from 1 to 25.",
+                ));
+            }
+            let result = service
+                .transfer_files(request, cancel)
+                .map_err(unavailable)?
+                .ok_or_else(transfer_cancelled)?;
+            serde_json::to_value(result).map_err(unavailable)
+        }
         "voldiq_plan_validate" => {
             let args: ExecutionArgs = parse(args)?;
             let result = service
@@ -632,6 +664,8 @@ impl ServerHandler for Server {
                 | "voldiq_applications"
                 | "voldiq_libraries"
                 | "voldiq_plan_validate"
+                | "voldiq_transfers"
+                | "voldiq_transfer_files"
         );
         let cancel = Arc::new(AtomicBool::new(false));
         let _cancel_on_drop = CancelReadOnDrop(cancel.clone());
@@ -712,6 +746,8 @@ fn tools() -> Vec<Tool> {
         ("voldiq_plan_prepare_offload", "Prepare a read-only, exact cross-volume transfer proposal. Source, destination and destination volume root must be explicitly authorized. Request independent Windows desktop approval of the exact plan before asking to execute it.", json!({"snapshot_id":integer,"node_ids":{"type":"array","minItems":1,"maxItems":500,"uniqueItems":true,"items":{"type":"integer","minimum":0,"maximum":4294967295u64}},"destination":{"type":"string","minLength":1,"maxLength":32768},"originals":{"type":"string","enum":["keep","recycle_after_verification"]}}), json!(["snapshot_id","node_ids","destination","originals"])) ,
         ("voldiq_plan_prepare_restore", "Prepare an exact read-only restore proposal from this connection's confirmed transfer catalogue and a fresh archive snapshot. node_ids refer to original catalogue nodes. Current archive, original parents and volume scopes are required. To keep both files on collision, set on_collision to keep_both. Request independent Windows desktop approval before asking to execute it.", json!({"snapshot_id":integer,"transfer_plan_id":plan_id,"node_ids":{"type":"array","minItems":1,"maxItems":500,"uniqueItems":true,"items":{"type":"integer","minimum":0,"maximum":4294967295u64}},"on_collision":{"type":"string","enum":["fail","keep_both"],"default":"fail"}}), json!(["snapshot_id","transfer_plan_id","node_ids"])),
         ("voldiq_plan_get", "Read this connection's exact manifest and current state. An approved row is not execution authority.", json!({"plan_id":plan_id}), json!(["plan_id"])),
+        ("voldiq_transfers", "Page recorded transfer and restore operations for this connection's current credential and policy. Use next_before for the next page. Publication counts describe records only.", json!({"before":plan_id,"limit":{"type":"integer","minimum":1,"maximum":25,"default":25}}), json!([])),
+        ("voldiq_transfer_files", "Page recorded file phases and publication evidence for an owned transfer or restore. Use next_after for the next page. Opt-in hashes require ReadContent. Restore preparation requires fresh archive evidence.", json!({"plan_id":plan_id,"after":{"type":"integer","minimum":0,"maximum":4294967295u64},"limit":{"type":"integer","minimum":1,"maximum":25,"default":25},"include_hashes":{"type":"boolean","default":false}}), json!(["plan_id"])),
         ("voldiq_plan_validate", "Check the current metadata evidence of this connection's exact plan ID and manifest hash. Requires PreparePlans. Returns status, observed lifecycle state and time. Reports no new paths and makes no changes to plan state or approval. Execution revalidates independently.", json!({"plan_id":plan_id,"manifest_hash":plan_id}), json!(["plan_id","manifest_hash"])),
         ("voldiq_plan_execute", "Queue one exact human-approved recycling plan in the open Voldiq desktop. Requires ExecuteApproved and a live independent human session; cannot approve, expand or permanently delete. Poll plan_get for actual results; repeat calls do not repeat execution.", json!({"plan_id":plan_id,"manifest_hash":{"type":"string","pattern":"^[a-f0-9]{64}$"}}), json!(["plan_id","manifest_hash"])),
         ("voldiq_plan_cancel", "Cancel this connection's exact queued plan or request a running worker to stop safely. Inspect plan_get for actual partial or unknown outcomes. Cannot purge the bin or undo unrelated work.", json!({"plan_id":plan_id,"manifest_hash":{"type":"string","pattern":"^[a-f0-9]{64}$"}}), json!(["plan_id","manifest_hash"])),

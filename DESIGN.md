@@ -585,6 +585,8 @@ A single search field above the lists matches recorded file names and source or 
 
 Transfers shows a collapsed Recovery vault quota row with estimated usage and the configured limit. Expand it to set a positive byte limit or clear the limit. Interrupted copies remain in the estimate. Reaching the limit blocks new archive plans and the separate Windows capacity check still applies.
 
+Transfer details label the last recorded destination observation and the separate current connection status. The file table describes an empty page or a filter with no matches in its own row.
+
 The Recovery vault disclosure also shows the configured review period. Each published archive copy labels its review date in the file table. Retention review due filters the existing search and the operation list counts overdue copies. Review dates use the recorded publication rather than the time a plan was prepared. The setting changes review dates without removing copies.
 
 The exact restore review shows the original path and the planned output name for each file. For a keep-both proposal it also shows the selected conflict policy above the file table. The recorded transfer table labels the original path beneath the recorded output name. The copy must use the reviewed name in the original parent.

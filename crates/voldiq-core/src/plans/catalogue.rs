@@ -3,7 +3,9 @@ use super::{Action, HumanAuthority, Manifest, State, Store, invalid};
 use crate::{NodeId, Result};
 use rusqlite::{OptionalExtension, Transaction, params};
 use serde::Serialize;
+mod agent;
 mod listing;
+pub use agent::{AgentTransferFilePage, AgentTransferFiles, AgentTransferPage, AgentTransfers};
 #[cfg(test)]
 pub(super) use listing::Retention;
 pub(super) mod vault;
@@ -415,14 +417,7 @@ impl Store {
             state,
             observed,
         } = recorded_manifest(&tx, id)?;
-        let total: i64 = tx.query_row(
-            "SELECT count(*) FROM transfer_files WHERE plan_id=?1",
-            [id],
-            |row| row.get(0),
-        )?;
-        if total != manifest.entries.len() as i64 {
-            return Err(invalid());
-        }
+        check_recorded_file_count(&tx, &manifest)?;
         let mut statement = tx.prepare(&format!(
             "SELECT {FILE_COLUMNS} FROM transfer_files
             WHERE plan_id=?1 AND (?2 IS NULL OR node>?2) ORDER BY node LIMIT ?3"
@@ -474,6 +469,18 @@ struct RecordedManifest {
     hash: String,
     state: State,
     observed: u64,
+}
+
+fn check_recorded_file_count(tx: &Transaction<'_>, manifest: &Manifest) -> Result<()> {
+    let total: i64 = tx.query_row(
+        "SELECT count(*) FROM transfer_files WHERE plan_id=?1",
+        [&manifest.id],
+        |row| row.get(0),
+    )?;
+    if total != manifest.entries.len() as i64 {
+        return Err(invalid());
+    }
+    Ok(())
 }
 
 fn recorded_manifest(tx: &Transaction<'_>, id: &str) -> Result<RecordedManifest> {

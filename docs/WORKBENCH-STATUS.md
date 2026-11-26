@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Authorized transfer and restoration history
+
+The shared catalogue now offers `transfers` and `transfer-files` in the CLI and `voldiq_transfers` and `voldiq_transfer_files` in MCP. Both endpoints use recorded evidence for the connection's current credential and policy binding. List and file cursors remain scoped. File rows include recorded dates and status. Content hashes require an explicit request and ReadContent permission. The desktop labels the destination observation separately from current connection and explains empty file pages.
+
+The retained Windows ledger fixture verified an owned operation with one confirmed publication of 22 bytes and another file still pending publication. It exercised list and file cursors, hidden and explicitly included hashes, cancellation and foreign owner rejection. The real CLI and MCP SDK exercised the catalogue's empty and unauthorized results and strict arguments. The rendered fixture covered both empty file states. Cross-volume copy and native interaction acceptance remain deferred. [Source verification](../benchmarks/workbench-agent-transfer-history-source.json)
+
 ## Windows title bar theme
 
 Voldiq applies the saved light or dark preference to the native Windows title bar after loading preferences. Changing Appearance updates the same window. The desktop keeps its standard caption and controls. [Tauri window theme API](https://v2.tauri.app/reference/javascript/api/namespacewindow/#settheme)

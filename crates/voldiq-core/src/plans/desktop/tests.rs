@@ -39,6 +39,7 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                 vec![],
                 vec![
                     Capability::Metadata,
+                    Capability::ReadContent,
                     Capability::PreparePlans,
                     Capability::RequestApproval,
                     Capability::ExecuteApproved,
@@ -1206,6 +1207,126 @@ fn desktop_dispatch_consumes_only_a_live_grant_and_persists_the_real_helper_resu
                     .is_err()
                 );
                 tx.commit().unwrap();
+            }
+            {
+                use crate::plans::{AgentTransferFiles, AgentTransfers};
+                use serde_json::json;
+                let cancel = AtomicBool::new(false);
+                let before = service
+                    .transfers(
+                        AgentTransfers {
+                            before: None,
+                            limit: 1,
+                        },
+                        &cancel,
+                    )
+                    .unwrap()
+                    .unwrap();
+                let older = service
+                    .transfers(
+                        AgentTransfers {
+                            before: before.next_before.clone(),
+                            limit: 25,
+                        },
+                        &cancel,
+                    )
+                    .unwrap()
+                    .unwrap();
+                assert!(before.next_before.is_some());
+                assert!(
+                    older
+                        .items
+                        .iter()
+                        .all(|item| item.plan_id != before.items[0].plan_id)
+                );
+                let item = before
+                    .items
+                    .iter()
+                    .chain(&older.items)
+                    .find(|item| item.plan_id == historical.id)
+                    .unwrap();
+                assert_eq!(
+                    (
+                        item.files,
+                        item.published_files,
+                        item.published_bytes.as_str()
+                    ),
+                    (2, 1, "22")
+                );
+
+                let file_request = |after, include_hashes| AgentTransferFiles {
+                    plan_id: historical.id.clone(),
+                    after,
+                    limit: 1,
+                    include_hashes,
+                };
+                let masked = service
+                    .transfer_files(file_request(None, false), &cancel)
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(masked.manifest_hash, hash);
+                assert!(!masked.hashes_included);
+                assert_eq!(masked.files[0].node, selected);
+                assert!(masked.files[0].content_blake3.is_none());
+                let payload = serde_json::to_value(&masked).unwrap();
+                assert_eq!(payload["files"][0]["verified_bytes"], "22");
+                assert!(!payload.to_string().contains(".voldiq-output-"));
+                assert!(payload["files"][0].get("destination_identity").is_none());
+                let hashed = service
+                    .transfer_files(file_request(None, true), &cancel)
+                    .unwrap()
+                    .unwrap();
+                assert!(hashed.hashes_included && hashed.files[0].content_blake3.is_some());
+                let next = service
+                    .transfer_files(file_request(masked.next_after, false), &cancel)
+                    .unwrap()
+                    .unwrap();
+                assert_eq!(next.files[0].node, second_id);
+                assert!(next.files[0].published_at.is_none());
+                assert!(next.next_after.is_none());
+                assert!(
+                    service
+                        .transfer_files(file_request(None, false), &AtomicBool::new(true))
+                        .unwrap()
+                        .is_none()
+                );
+
+                let other = registry
+                    .authenticate(volume_reader.credential.expose())
+                    .unwrap();
+                let other = AgentService::new(state.path().to_owned(), other).unwrap();
+                assert_eq!(
+                    serde_json::to_value(
+                        other
+                            .transfers(
+                                AgentTransfers {
+                                    before: None,
+                                    limit: 1
+                                },
+                                &cancel
+                            )
+                            .unwrap()
+                            .unwrap()
+                    )
+                    .unwrap(),
+                    json!({"items":[],"next_before":null})
+                );
+                assert!(
+                    other
+                        .transfers(
+                            AgentTransfers {
+                                before: Some(historical.id.clone()),
+                                limit: 1
+                            },
+                            &cancel
+                        )
+                        .is_err()
+                );
+                assert!(
+                    other
+                        .transfer_files(file_request(None, false), &cancel)
+                        .is_err()
+                );
             }
             {
                 let tx = ledger.connection.transaction().unwrap();

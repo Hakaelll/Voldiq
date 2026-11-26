@@ -83,6 +83,23 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
         json!({"supported":cfg!(windows),"items":[],"next_offset":null})
     );
     assert_eq!(run(&["volumes", "0", "0"]).status.code(), Some(2));
+    let transfers = run(&["transfers"]);
+    assert!(transfers.status.success());
+    let transfers: Value = serde_json::from_slice(&transfers.stdout).unwrap();
+    assert_eq!(transfers["result"], json!({"items":[], "next_before":null}));
+    assert_eq!(
+        run(&["transfers", r#"{"limit":26}"#]).status.code(),
+        Some(2)
+    );
+    assert_eq!(
+        run(&[
+            "transfer-files",
+            &json!({"plan_id":"0".repeat(64)}).to_string()
+        ])
+        .status
+        .code(),
+        Some(4)
+    );
     let files: Value = serde_json::from_slice(
         &run(&["query", &snapshot.to_string(), r#"{"files_only":true}"#]).stdout,
     )

@@ -124,6 +124,37 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         );
     }
     assert!(Jobs::recent_for_desktop(state.path()).unwrap().is_empty());
+    assert!(tools.iter().any(|tool| tool.name == "voldiq_transfers"));
+    assert!(
+        tools
+            .iter()
+            .any(|tool| tool.name == "voldiq_transfer_files")
+    );
+    let transfers = call(&client, "voldiq_transfers", json!({})).await;
+    assert_eq!(
+        transfers.structured_content.unwrap()["result"],
+        json!({"items":[],"next_before":null})
+    );
+    let hidden = call(
+        &client,
+        "voldiq_transfer_files",
+        json!({"plan_id":"0".repeat(64)}),
+    )
+    .await;
+    assert_eq!(
+        hidden.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
+    );
+    let invalid_files = call(
+        &client,
+        "voldiq_transfer_files",
+        json!({"plan_id":"0".repeat(64),"path":source.path()}),
+    )
+    .await;
+    assert_eq!(
+        invalid_files.structured_content.unwrap()["error"]["code"],
+        "invalid_arguments"
+    );
     assert!(!state.path().join("jobs.db").exists());
     let start = call(&client, "voldiq_scan_start", json!({"root": source.path()})).await;
     assert_ne!(start.is_error, Some(true));
@@ -1063,6 +1094,11 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     let revoked_volumes = call(&client, "voldiq_volumes", json!({})).await;
     assert_eq!(
         revoked_volumes.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
+    );
+    let revoked_transfers = call(&client, "voldiq_transfers", json!({})).await;
+    assert_eq!(
+        revoked_transfers.structured_content.unwrap()["error"]["code"],
         "not_authorized_or_unavailable"
     );
     assert_eq!(

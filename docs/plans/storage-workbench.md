@@ -45,6 +45,8 @@ Runtime execution uses one borrowed worker context containing the operation leas
 
 Plan validation unit. CLI, MCP and desktop review run the shared native evidence checks against an owned plan ID and hash. Observe current lifecycle and transfer quota without committing a transition. Keep approval gating and the executor's independent checks. Exercise the actual CLI and real SDK, including a changed owned fixture that leaves the plan draft and its audit untouched.
 
+Transfer history unit. Page recorded transfer and restore operations for the current credential and exact policy binding. Resolve a list cursor against that same connection. Use the shared recorded manifest and file validation and project only public evidence. Require explicit ReadContent permission for hashes. Reads work without reopening the source or destination and remain separate from preparing an approved restore.
+
 Dispatch unit: one dedicated desktop STA worker consumes current-session requests under the existing native operation guard. Headless execute/cancel only enqueue exact-hash intents and report status. Human provisioning grants execution separately, off by default. Closing the review session releases availability and prevents reacquisition by that session; a second instance may retry acquisition. Replayed or uncertain execution is never dispatched again. Invalidate the current native analysis with its exact index ID when agent work starts, so delayed events cannot clear a newer analysis.
 
 - [ ] Extend the existing cleanup preview/executor with immutable serializable manifests and explicit lifecycle states. Persist hash, principal, exact identities, policy version, expiry and audit. No agent approval endpoint.
