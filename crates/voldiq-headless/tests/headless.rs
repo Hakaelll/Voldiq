@@ -829,4 +829,122 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
             .get("result")
             .is_none()
     );
+
+    #[cfg(windows)]
+    {
+        let project = source.path().join("project");
+        let build = project.join("target");
+        let protected = build.join("protected");
+        let unrelated = source.path().join("unmarked").join("target");
+        std::fs::create_dir_all(&protected).unwrap();
+        std::fs::create_dir_all(&unrelated).unwrap();
+        std::fs::write(project.join("Cargo.toml"), b"[workspace]\n").unwrap();
+        std::fs::write(build.join("fresh.tmp"), b"recent").unwrap();
+        std::fs::write(build.join("untimed.tmp"), b"age unavailable").unwrap();
+        for (path, size) in [
+            (build.join("large.tmp"), 65_536),
+            (build.join("small.temp"), 4),
+            (build.join("ordinary.txt"), 6),
+            (protected.join("hidden.tmp"), 64),
+            (unrelated.join("unmarked.tmp"), 8),
+        ] {
+            std::fs::write(&path, vec![1; size]).unwrap();
+            std::fs::OpenOptions::new()
+                .write(true)
+                .open(path)
+                .unwrap()
+                .set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(1709164800))
+                .unwrap();
+        }
+        voldiq_core::metadata::Store::open(state.path())
+            .unwrap()
+            .protect_folder(&protected)
+            .unwrap();
+        let mut index =
+            voldiq_core::scanner::scan(source.path(), &Default::default(), &cancel, |_| {})
+                .unwrap();
+        let unmeasured = index
+            .entries
+            .iter_mut()
+            .find(|entry| entry.name == "small.temp")
+            .unwrap();
+        unmeasured.allocated = 0;
+        unmeasured.allocation_known = false;
+        index
+            .entries
+            .iter_mut()
+            .find(|entry| entry.name == "untimed.tmp")
+            .unwrap()
+            .modified = None;
+        let mut snapshots =
+            voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db")).unwrap();
+        let snapshot = snapshots.save(&index, &cancel, &[]).unwrap().to_string();
+        let first = analysis(&[
+            "cleanup-candidates",
+            &snapshot,
+            "project_temp",
+            r#"{"limit":1}"#,
+        ]);
+        assert_eq!(first["rule"], "project_temp");
+        assert_eq!(first["availability"], "recorded");
+        assert_eq!(first["logical_bytes"], "65540");
+        assert_eq!(first["total"], 2);
+        assert_eq!(first["unverified_files"], 1);
+        assert_eq!(first["recorded_complete"], false);
+        assert_eq!(first["next_offset"], 1);
+        assert_eq!(first["items"][0]["name"], "large.tmp");
+        assert!(first["items"][0].get("path").is_none());
+        let tmp = |path: &std::path::Path| {
+            let reply = Command::new(env!("CARGO_BIN_EXE_voldiq-cli"))
+                .arg("--state")
+                .arg(state.path())
+                .args(["cleanup-candidates", &snapshot, "user_temp"])
+                .env("VOLDIQ_AGENT_TOKEN", read.credential.expose())
+                .env("TEMP", path)
+                .env("TMP", path)
+                .output()
+                .unwrap();
+            assert!(
+                reply.status.success(),
+                "{}",
+                String::from_utf8_lossy(&reply.stdout)
+            );
+            serde_json::from_slice::<Value>(&reply.stdout).unwrap()["result"].clone()
+        };
+        let temporary = tmp(&build);
+        assert_eq!(temporary["availability"], "recorded");
+        assert_eq!(temporary["total"], 2);
+        let build_id = temporary["rule_scope"].as_u64().unwrap();
+        assert_ne!(build_id, 0);
+        let options = json!({"scope":build_id,"offset":1,"limit":1}).to_string();
+        let next = analysis(&["cleanup-candidates", &snapshot, "project_temp", &options]);
+        assert_eq!(next["rule_scope"], build_id);
+        assert_eq!(next["items"][0]["name"], "small.temp");
+        assert!(next["items"][0]["recorded_allocation_charge_bytes"].is_null());
+        assert!(next["next_offset"].is_null());
+        let size_only = analysis(&[
+            "cleanup-candidates",
+            &snapshot,
+            "project_temp",
+            r#"{"limit":1,"weights":{"size":100,"age":0,"regeneration":0,"duplication":0,"provenance":0,"recovery":0}}"#,
+        ]);
+        assert_eq!(size_only["items"][0]["priority"]["points"], 600);
+        let unrelated = tempfile::tempdir().unwrap();
+        let unobserved = tmp(unrelated.path());
+        assert_eq!(unobserved["availability"], "rule_location_not_indexed");
+        assert!(unobserved.get("items").is_none());
+        let text = console(&read.credential, &format!("R\n9\n{snapshot}\n3\n\n0\n"));
+        assert_eq!(text.matches("VOLDIQ  /  Disk space analyzer").count(), 1);
+        assert!(text.contains("Cleanup candidates  |  Saved analysis"));
+        assert!(text.contains("2 of 2 shown  |  65540 recorded logical bytes"));
+        assert!(text.contains("large.tmp") && text.contains("small.temp"));
+        assert!(!text.contains("hidden.tmp") && !text.contains("unmarked.tmp"));
+        assert!(protected.join("hidden.tmp").is_file());
+        index.observation = None;
+        let legacy = snapshots.save(&index, &cancel, &[]).unwrap().to_string();
+        let unavailable = analysis(&["cleanup-candidates", &legacy, "old_files"]);
+        assert_eq!(unavailable["availability"], "observation_time_unavailable");
+        assert!(unavailable["recorded_at"].is_null());
+        assert!(unavailable.get("total").is_none());
+    }
 }

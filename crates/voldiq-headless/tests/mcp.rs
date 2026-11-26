@@ -133,6 +133,11 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     assert!(
         tools
             .iter()
+            .any(|tool| tool.name == "voldiq_cleanup_candidates")
+    );
+    assert!(
+        tools
+            .iter()
             .any(|tool| tool.name == "voldiq_verify_duplicates")
     );
     assert!(
@@ -209,6 +214,41 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     let candidates = candidates.structured_content.unwrap();
     assert_eq!(candidates["result"]["evidence"], "recorded_size_only");
     assert_eq!(candidates["result"]["groups"], json!([]));
+    #[cfg(windows)]
+    {
+        let cleanup = call(
+            &client,
+            "voldiq_cleanup_candidates",
+            json!({
+                "snapshot_id":snapshot,"rule":"old_files","options":{"limit":100}
+            }),
+        )
+        .await;
+        assert_ne!(cleanup.is_error, Some(true), "{cleanup:?}");
+        let cleanup = cleanup.structured_content.unwrap();
+        let result = &cleanup["result"];
+        assert_eq!(result["availability"], "recorded");
+        assert_eq!(result["rule_version"], 1);
+        assert_eq!(result["logical_bytes"], "11");
+        assert_eq!(result["items"][0]["name"], "measured.txt");
+        assert!(result["items"][0].get("path").is_none());
+        assert!(result.get("reclaimable").is_none());
+        assert!(result["items"][0]["priority"]["signals"][3]["value"].is_null());
+    }
+    for args in [
+        json!({"snapshot_id":snapshot,"rule":"delete","options":{}}),
+        json!({"snapshot_id":snapshot,"rule":"old_files","options":{"root":source.path()}}),
+        json!({"snapshot_id":snapshot,"rule":"old_files","options":{"limit":101}}),
+        json!({"snapshot_id":snapshot,"rule":"old_files","options":{"weights":{
+            "size":0,"age":0,"regeneration":0,"duplication":0,"provenance":0,"recovery":0
+        }}}),
+    ] {
+        let invalid = call(&client, "voldiq_cleanup_candidates", args).await;
+        assert_eq!(
+            invalid.structured_content.unwrap()["error"]["code"],
+            "invalid_arguments"
+        );
+    }
     let injected = call(
         &client,
         "voldiq_duplicate_candidates",
@@ -1140,6 +1180,16 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     .await;
     assert_eq!(
         revoked_candidates.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
+    );
+    let revoked_cleanup = call(
+        &client,
+        "voldiq_cleanup_candidates",
+        json!({"snapshot_id":snapshot,"rule":"old_files"}),
+    )
+    .await;
+    assert_eq!(
+        revoked_cleanup.structured_content.unwrap()["error"]["code"],
         "not_authorized_or_unavailable"
     );
     assert_eq!(

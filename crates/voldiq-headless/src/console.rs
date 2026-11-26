@@ -174,9 +174,56 @@ pub(super) async fn open(state: &[String], no_motion: bool) -> io::Result<()> {
                 }
                 args.extend([command.into(), id, options.to_string()]);
             }
+            "9" => {
+                let Some(snapshot) =
+                    ask(&mut input, &mut out, "  Snapshot ID (see Scan history) > ")?
+                else {
+                    break;
+                };
+                if snapshot.is_empty() {
+                    continue;
+                }
+                writeln!(out, "  [1] Old files           [2] User temporary files")?;
+                writeln!(out, "  [3] Project temporary   [4] Browser HTTP cache")?;
+                let Some(rule) = ask(&mut input, &mut out, "  Cleanup rule > ")? else {
+                    break;
+                };
+                let rule = match rule.as_str() {
+                    "1" => "old_files",
+                    "2" => "user_temp",
+                    "3" => "project_temp",
+                    "4" => "browser_cache",
+                    _ => {
+                        writeln!(out, "  Choose a rule from 1 to 4.")?;
+                        continue;
+                    }
+                };
+                let Some(scope) = ask(
+                    &mut input,
+                    &mut out,
+                    "  Folder ID (Enter for the scan root) > ",
+                )?
+                else {
+                    break;
+                };
+                let mut options = json!({"limit":12});
+                if !scope.is_empty() {
+                    let Ok(scope) = scope.parse::<u32>() else {
+                        writeln!(out, "  Enter a numeric folder ID.")?;
+                        continue;
+                    };
+                    options["scope"] = json!(scope);
+                }
+                args.extend([
+                    "cleanup-candidates".into(),
+                    snapshot,
+                    rule.into(),
+                    options.to_string(),
+                ]);
+            }
             "" => continue,
             _ => {
-                writeln!(out, "  Choose 1-8, ?, H, R or 0.")?;
+                writeln!(out, "  Choose 1-9, ?, H or 0.")?;
                 continue;
             }
         }
@@ -224,6 +271,7 @@ fn menu(terminal: &Terminal, has_token: bool) -> Vec<String> {
         (4, "Authorized volumes"),
         (5, "Scan history"),
         (8, "Duplicate analysis results"),
+        (9, "Cleanup candidates"),
     ];
     for (section, entries) in [
         ("Analyze", analysis.as_slice()),
@@ -435,6 +483,54 @@ fn show(out: &mut impl Write, terminal: &Terminal, choice: &str, result: &Value)
                 )?;
             }
             Ok(())
+        }
+        "9" => {
+            heading(out, terminal, "Cleanup candidates  |  Saved analysis")?;
+            writeln!(out, "  {}", label(&result["description"]))?;
+            let notice = match result["availability"].as_str() {
+                Some("recorded") => None,
+                Some("observation_time_unavailable") => {
+                    Some("The saved analysis has no observation time.")
+                }
+                Some("rule_location_not_indexed") => {
+                    Some("The rule location is outside the indexed folder.")
+                }
+                _ => Some("The rule location could not be verified."),
+            };
+            if let Some(notice) = notice {
+                return writeln!(out, "  {notice}");
+            }
+            let rows = items(&result["items"]);
+            writeln!(
+                out,
+                "  {} of {} shown  |  {} recorded logical bytes",
+                rows.len(),
+                label(&result["total"]),
+                label(&result["logical_bytes"])
+            )?;
+            for item in rows {
+                let priority = item["priority"]["points"].as_u64().map_or_else(
+                    || "unknown".into(),
+                    |points| format!("{}.{:02}/100", points / 100, points % 100),
+                );
+                writeln!(
+                    out,
+                    "  {:>10}  #{}  {}  |  Priority {priority}",
+                    size_label(bytes(&item["logical_bytes"])),
+                    label(&item["node_id"]),
+                    label(&item["name"])
+                )?;
+            }
+            if result["recorded_complete"].as_bool() == Some(false) {
+                writeln!(out, "  Partial evidence")?;
+            }
+            if !result["next_offset"].is_null() {
+                writeln!(
+                    out,
+                    "  More matches are available with the cleanup-candidates command."
+                )?;
+            }
+            writeln!(out, "  Recoverable space requires live verification.")
         }
         "4" => {
             heading(out, terminal, "Authorized volumes")?;

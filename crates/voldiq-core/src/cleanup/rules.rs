@@ -10,10 +10,13 @@ use std::{
 
 const MINIMUM_AGE: u64 = 7 * 24 * 60 * 60;
 const OLD_FILE_AGE: u64 = 90 * 24 * 60 * 60;
+mod recorded;
 mod scope;
+pub(crate) use recorded::query_snapshot;
+pub use recorded::{RecordedPage, RecordedRequest};
 use scope::DirectoryScope;
 
-#[derive(Clone, Copy, serde::Deserialize)]
+#[derive(Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum RuleKind {
     UserTemp,
@@ -213,6 +216,16 @@ struct Ranked<'a> {
     local_copy: bool,
 }
 
+#[derive(Default)]
+struct RankedPage<'a> {
+    unverified_branches: usize,
+    unverified_files: usize,
+    total: usize,
+    logical: u128,
+    covered_allocation: u128,
+    items: Vec<(&'a crate::Entry, score::Assessment)>,
+}
+
 fn query_scoped(
     index: Option<&Index>,
     temporary: Option<&Path>,
@@ -223,7 +236,7 @@ fn query_scoped(
 ) -> Result<Page> {
     let kind = source.kind();
     let now = env.now;
-    let model = score::Model::new(request.weights)?;
+    score::Model::new(request.weights)?;
     let temporary = temporary.map(verified_root).transpose()?;
     let mut page = Page {
         rule: kind.metadata(),
@@ -262,9 +275,53 @@ fn query_scoped(
     page.complete = !index.entry(NodeId(0))?.incomplete
         && !index.entry(scope_id)?.incomplete
         && (binding.whole || matches!(source, RuleSource::BrowserCache(_, Some(_))));
-    let mask = env.protections.for_index(index, cancel)?;
-    page.unverified_branches = mask.unverified_branches(scope_id)?;
+    let ranked = rank_candidates(index, scope_id, request, source, env, cancel)?;
+    page.unverified_branches = ranked.unverified_branches;
     page.complete &= page.unverified_branches == 0;
+    page.total = ranked.total;
+    page.logical = u64::try_from(ranked.logical)
+        .map_err(|_| Error::Invalid("Cleanup size overflow.".into()))?;
+    page.reclaimable = u64::try_from(ranked.covered_allocation)
+        .map_err(|_| Error::Invalid("Cleanup allocation overflow.".into()))?;
+    for (entry, priority) in ranked.items {
+        super::check_cancelled(cancel)?;
+        page.items.push(Candidate {
+            priority,
+            file: PreviewItem {
+                id: entry.id,
+                path: index.path(entry.id)?.to_string_lossy().into_owned(),
+                logical: entry.logical,
+                reclaimable: recorded_charge(entry).unwrap_or(0),
+                hard_link: entry.hard_link,
+                modified: entry.modified,
+            },
+        });
+    }
+    Ok(page)
+}
+
+fn recorded_charge(entry: &crate::Entry) -> Option<u64> {
+    entry
+        .allocation_known
+        .then_some(if entry.hard_link { 0 } else { entry.allocated })
+}
+
+fn rank_candidates<'a>(
+    index: &'a Index,
+    scope_id: NodeId,
+    request: Query,
+    source: RuleSource<'_>,
+    env: &Environment<'_>,
+    cancel: &AtomicBool,
+) -> Result<RankedPage<'a>> {
+    let kind = source.kind();
+    let model = score::Model::new(request.weights)?;
+    let now = env.now;
+    let mask = env.protections.for_index(index, cancel)?;
+    let mut page = RankedPage {
+        unverified_branches: mask.unverified_branches(scope_id)?,
+        ..RankedPage::default()
+    };
     let mut protected_scopes = Vec::new();
     #[cfg(windows)]
     if matches!(
@@ -293,7 +350,7 @@ fn query_scoped(
         .iter()
         .take_while(|_| !cancel.load(Ordering::Relaxed))
         .filter(|entry| {
-            eligible(entry, now, kind)
+            matches_rule(entry, kind)
                 && mask.allows(entry.id)
                 && index.in_scope(entry.id, scope_id)
                 && (!matches!(kind, RuleKind::ProjectTemp) || builds.contains(index, entry.id))
@@ -302,6 +359,14 @@ fn query_scoped(
                 && !protected_scopes
                     .iter()
                     .any(|&protected| index.in_scope(entry.id, protected))
+        })
+        .filter(|entry| {
+            let has_evidence = index.snapshot_id.is_none()
+                || (entry.modified.is_some()
+                    && entry.file_state.is_some()
+                    && entry.cloud == crate::cloud::CloudState::NotPlaceholder);
+            page.unverified_files += usize::from(!has_evidence);
+            has_evidence && old_enough(entry, now, kind)
         })
         .map(|entry| Ranked {
             entry,
@@ -373,18 +438,8 @@ fn query_scoped(
         super::check_cancelled(cancel)?;
         item.points = model.points(facts(item));
         let entry = item.entry;
-        page.logical = page
-            .logical
-            .checked_add(entry.logical)
-            .ok_or_else(|| Error::Invalid("Cleanup size overflow.".into()))?;
-        page.reclaimable = page
-            .reclaimable
-            .checked_add(if entry.hard_link || !entry.allocation_known {
-                0
-            } else {
-                entry.allocated
-            })
-            .ok_or_else(|| Error::Invalid("Cleanup allocation overflow.".into()))?;
+        page.logical += u128::from(entry.logical);
+        page.covered_allocation += u128::from(recorded_charge(entry).unwrap_or(0));
     }
     if request.offset >= candidates.len() {
         return Ok(page);
@@ -408,22 +463,7 @@ fn query_scoped(
     rest[..limit].sort_unstable_by(compare);
     for item in &rest[..limit] {
         super::check_cancelled(cancel)?;
-        let entry = item.entry;
-        page.items.push(Candidate {
-            priority: model.explain(facts(item)),
-            file: PreviewItem {
-                id: entry.id,
-                path: index.path(entry.id)?.to_string_lossy().into_owned(),
-                logical: entry.logical,
-                reclaimable: if entry.hard_link || !entry.allocation_known {
-                    0
-                } else {
-                    entry.allocated
-                },
-                hard_link: entry.hard_link,
-                modified: entry.modified,
-            },
-        });
+        page.items.push((item.entry, model.explain(facts(item))));
     }
     Ok(page)
 }
@@ -569,6 +609,10 @@ fn scope(index: &Index, temporary: &Path) -> Result<Option<NodeId>> {
 }
 
 fn eligible(entry: &crate::Entry, now: u64, kind: RuleKind) -> bool {
+    matches_rule(entry, kind) && old_enough(entry, now, kind)
+}
+
+fn matches_rule(entry: &crate::Entry, kind: RuleKind) -> bool {
     entry.kind == Kind::File
         && !entry.incomplete
         && match kind {
@@ -583,10 +627,12 @@ fn eligible(entry: &crate::Entry, now: u64, kind: RuleKind) -> bool {
                 extension.eq_ignore_ascii_case("tmp") || extension.eq_ignore_ascii_case("temp")
             }),
         }
-        && now
-            .checked_sub(match kind {
-                RuleKind::UserTemp | RuleKind::ProjectTemp | RuleKind::BrowserCache => MINIMUM_AGE,
-                RuleKind::OldFiles => OLD_FILE_AGE,
-            })
-            .is_some_and(|cutoff| entry.modified.is_some_and(|modified| modified <= cutoff))
+}
+
+fn old_enough(entry: &crate::Entry, now: u64, kind: RuleKind) -> bool {
+    now.checked_sub(match kind {
+        RuleKind::UserTemp | RuleKind::ProjectTemp | RuleKind::BrowserCache => MINIMUM_AGE,
+        RuleKind::OldFiles => OLD_FILE_AGE,
+    })
+    .is_some_and(|cutoff| entry.modified.is_some_and(|modified| modified <= cutoff))
 }

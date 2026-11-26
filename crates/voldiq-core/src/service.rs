@@ -1,6 +1,6 @@
 //! Authorized services shared by headless adapters. Human management uses separate APIs.
 use crate::{
-    Error, Kind, Result, ScanPhase,
+    Error, Kind, NodeId, Result, ScanPhase,
     agents::{Capability, Principal, Registry, VolumeCatalogue, VolumeCatalogueRequest, denied},
     index::{Details, Index, Page, Query},
     jobs::{Job, JobState, Jobs},
@@ -381,6 +381,10 @@ impl AgentService {
     }
 
     fn index(&self, snapshot: i64) -> Result<Arc<Index>> {
+        self.index_with_cancel(snapshot, &AtomicBool::new(false))
+    }
+
+    fn index_with_cancel(&self, snapshot: i64, cancel: &AtomicBool) -> Result<Arc<Index>> {
         let registry = self.registry()?;
         registry.policy(&self.principal, Capability::Metadata)?;
         let mut cache = self.cache.lock().map_err(|_| denied())?;
@@ -401,7 +405,7 @@ impl AgentService {
             let scope = store.scope(snapshot).map_err(|_| denied())?;
             let _guard = registry.authorize_snapshot(&self.principal, &scope)?;
             let mut index = store
-                .load_evidence(snapshot, &AtomicBool::new(false))
+                .load_evidence(snapshot, cancel)
                 .map_err(|_| denied())?;
             registry.authorize_index(&self.principal, &index)?;
             let applications = index.captured_applications.clone();
@@ -487,6 +491,52 @@ impl AgentService {
             return Err(denied());
         }
         Ok(result)
+    }
+
+    pub fn cleanup_candidates(
+        &self,
+        snapshot: i64,
+        rule: crate::cleanup::rules::RuleKind,
+        request: &crate::cleanup::rules::RecordedRequest,
+        cancel: &AtomicBool,
+    ) -> Result<Option<crate::cleanup::rules::RecordedPage>> {
+        let registry = self.registry()?;
+        let context = registry.plan_context(&self.principal, Capability::Metadata)?;
+        let (policy, binding) = context.bound_policy(Capability::Metadata)?;
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        let index = match self.index_with_cancel(snapshot, cancel) {
+            Err(_) if cancel.load(Ordering::Relaxed) => return Ok(None),
+            result => result?,
+        };
+        let _scope = registry.authorize_index_entry(
+            &self.principal,
+            Capability::Metadata,
+            &index,
+            request.scope.unwrap_or(NodeId(0)),
+        )?;
+        let mut notes = crate::metadata::Store::open(self.directory.directory())?;
+        let protections = notes.protections()?;
+        let result = crate::cleanup::rules::query_snapshot(
+            &index,
+            rule,
+            request,
+            policy.limits().page_size,
+            &protections,
+            cancel,
+        );
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        let result = result?;
+        self.validate_index(&registry, &index)?;
+        if context.binding()? != binding
+            || notes.protections()?.fingerprint() != protections.fingerprint()
+        {
+            return Err(denied());
+        }
+        Ok(Some(result))
     }
 
     pub fn translate_query(&self, source: &str) -> Result<crate::search::Translation> {

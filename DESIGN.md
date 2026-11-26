@@ -156,6 +156,8 @@ The terminal mark follows the original Voldiq icon. Three light arcs follow a si
 
 The home menu stays beside the logo on a standard 80-column terminal. Its right column holds the wordmark, analysis and browsing actions, shortcuts, access instructions and input prompt. Only the logo moves. Narrow terminals stack the logo and menu when the columns cannot fit. Accented key markers identify actions. Section headings and aligned result rows keep attention on measured sizes. Filled ASCII bars show measured volume use or search result size relative to the largest match. Missing measurements use a dashed bar and an explicit unknown label. The console remains legible with color disabled.
 
+The cleanup candidate menu opens a saved analysis by snapshot and rule. Results align recorded file sizes, IDs and priority scores. The summary states when the evidence is partial or the rule location is unavailable. Recoverable space requires live verification.
+
 The Duplicate candidates action lists byte-size groups or the file IDs and names for an exact size. Verify exact duplicates accepts those IDs and shows groups confirmed by a content check. Empty verification results name the selected scope. A changed or unavailable entry leaves the request without a verification result.
 
 The console starts a folder analysis from a snapshot and shows its job ID. Duplicate analysis results opens the job's verified groups or the file IDs in a group. Partial evidence and additional pages have explicit labels.

@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Authorized cleanup candidates from saved analyses
+
+The CLI, console menu and MCP expose the same four cleanup recipes with recorded evidence. The service checks the grant, directory identity, exclusion coverage and current protected folders. It intersects the rule location with the requested indexed folder. Pages include versioned criteria, exact recorded logical bytes and the review score breakdown. Allocation charge, unavailable ages and partial coverage remain distinct. Current file use and actual recoverable bytes require live verification.
+
+The retained CLI and official MCP SDK flows verify ranking, scope, pagination, unknown evidence, bad arguments and revocation using owned files. A disposable Windows fixture exercises the shared Chrome and Edge rule, including rejected lookalikes and a protected profile. The positive browser fixture uses synthetic profiles and the shared native rule. [Source verification](../benchmarks/workbench-cleanup-candidates-source.json)
+
 ## Automatic console logo rotation
 
 The tilted ASCII logo revolves every 14 seconds while the Windows home prompt is idle. The replay command has been removed. A distinct ASCII texture identifies the colored sector in monochrome. Only the logo cells are updated. Key input stops those updates and the native line editor receives the pending input. Resizing stops the old frame updates. Reopening the menu with `?` uses the new width. The static flag, environment setting and Windows accessibility preference remain available.

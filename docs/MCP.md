@@ -35,7 +35,7 @@ In the desktop application, open Settings, then Agents and permissions. Enter a 
 
 ## Interactive console
 
-Run the executable without arguments in an interactive terminal or run `voldiq-cli console`. Use the numbered menu to scan a folder, search a snapshot, see duplicate candidates, list authorized volumes or find snapshot IDs. Enter `?` for the menu, `H` for the shell command reference or `0` to exit. The menu uses the connection from `VOLDIQ_AGENT_TOKEN` and accepts `--state <directory>` before `console`.
+Run the executable without arguments in an interactive terminal or run `voldiq-cli console`. Use the numbered menu to scan a folder, search a snapshot, see duplicate or cleanup candidates, list authorized volumes or find snapshot IDs. Enter `?` for the menu, `H` for the shell command reference or `0` to exit. The menu uses the connection from `VOLDIQ_AGENT_TOKEN` and accepts `--state <directory>` before `console`.
 
 The tilted mark rotates slowly while the home prompt is idle in a supported Windows console. It pauses at the first keypress so the usual line editor handles the command. Use `console --no-motion` or set `VOLDIQ_REDUCE_MOTION` for the static mark. The Windows accessibility preference and redirected output also select the static mark. Set `NO_COLOR` for monochrome output. Shell commands and `--help` emit versioned JSON. The MCP stdio command writes the protocol to stdout.
 
@@ -168,6 +168,21 @@ Metadata permission and current snapshot root identity/exclusion coverage are re
 Example request: `{"scope":0,"sort":"size","limit":20,"filters":{"expression":"type:file size>1GiB"}}`. CLI/MCP return the existing `schema_version: 1` envelope. Native paths are not included in this page; indexed root IDs are context for separately authorized queries, never file-action authority.
 
 
+
+## Cleanup candidates from saved analyses
+
+Use menu option `9` in the console, `cleanup-candidates <snapshot_id> <rule> [JSON options]` at the shell or `voldiq_cleanup_candidates` with `snapshot_id`, `rule` and optional `options`. The command requires Metadata and an authorized snapshot. `scope` is an indexed directory ID. Follow `next_offset` with the same snapshot, rule, scope and weights. The connection's page limit applies.
+
+| Rule | Evidence used |
+| --- | --- |
+| `old_files` | Complete ordinary files unchanged for at least 90 days at the time of the scan |
+| `user_temp` | Complete ordinary `.tmp` and `.temp` files unchanged for seven days in the temporary directory used by Voldiq's process |
+| `project_temp` | The same extensions and age under recognized build output with an indexed project manifest. Captured global cache and dependency exclusions apply |
+| `browser_cache` | External Blockfile cache payloads unchanged for seven days in a supported Chrome or Edge profile under Windows Local AppData |
+
+The backend intersects the chosen scope with the rule location using native directory identities. Protected files, reparse records and entries without verified local identity evidence are omitted. `recorded_at` is the snapshot's observation time in Unix seconds. An unavailable observation time or rule location has its own `availability` value and omits totals. `recorded_complete` and unverified counts describe evidence in the returned scope.
+
+`logical_bytes` counts recorded file paths as exact decimal strings. An individual `recorded_allocation_charge_bytes` is null when the scan did not measure it. Hard-link aliases can have a zero recorded charge. Actual recoverable bytes and current file use require live verification. Each candidate carries a breakdown with coverage, weight and contribution for size, age, regeneration, duplication, provenance and recovery in that order. To override the default weights, provide all six values from 0 to 100 with at least one nonzero. Unobserved signals remain null. Planning and human approval are separate operations.
 
 ## Duplicate candidates
 

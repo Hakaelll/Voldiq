@@ -9,7 +9,13 @@ pub(super) struct DirectoryScope {
 
 impl DirectoryScope {
     pub(super) fn bind(index: &Index, path: &Path) -> Result<Option<Self>> {
-        let root = crate::agents::pin_directory(path)?;
+        Self::bind_pinned(index, crate::agents::pin_directory(path)?)
+    }
+
+    pub(super) fn bind_pinned(
+        index: &Index,
+        root: crate::agents::AuthorizedPath,
+    ) -> Result<Option<Self>> {
         let index_root = index.pin_folder(NodeId(0))?;
         let identity = root.identity();
         let found = index
