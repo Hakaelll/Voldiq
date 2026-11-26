@@ -1,0 +1,90 @@
+{
+  "checkedUtc": "2026-11-26T22:12:28.1208866Z",
+  "startedUtc": "2026-11-26T22:08:33.3107037Z",
+  "checkoutCommit": "47d17ab4c67f08e76b1d41543deb941fb3af83c0",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.203
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 7.558
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.8
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.03
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 212.484
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 6.705
+    }
+  ],
+  "inputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "F19B4EDE3C3A7EC38C0D403C1B0D3D43FFFB7A12516D9F548FCE0AAC8A69D48B"
+    },
+    {
+      "path": "crates/voldiq-headless/src/console.rs",
+      "sha256": "0F813D8E25EAC5C6C8C45707F59B7C2F2B9EF93140745099074F3D0C80E72048"
+    },
+    {
+      "path": "crates/voldiq-headless/src/console/logo.rs",
+      "sha256": "B2DDC264FBDC114D97BC6CE5EED956BCD54183B904A994C740EB49329E3FAB7C"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/headless.rs",
+      "sha256": "A515BE7357390D22DE5696E9FB0A878896ADABD5860A956716FF78DFA6B80FA7"
+    }
+  ],
+  "console": {
+    "previewPid": 16800,
+    "previewRunning": true,
+    "cliBytes": 7742976,
+    "sha256": "7CDAAEE52BF6C9DBC0147FB11549A4D5F0E5836A469FCE7CFF00C75E904BD6AC",
+    "realCliMenuRecallAndReplay": true,
+    "layout": {
+      "columns": {
+        "48": 2,
+        "64": 2,
+        "65": 25,
+        "80": 40,
+        "100": 60,
+        "120": 61
+      },
+      "animations": [
+        80,
+        120
+      ],
+      "frames": 31,
+      "height": 24,
+      "menuVisibleEveryFrame": true,
+      "plainModeWithToken": true
+    }
+  },
+  "cache": {
+    "beforeBytes": 2571731131,
+    "afterBytes": 90356286,
+    "removedBytes": 2481374845
+  }
+}

@@ -6,7 +6,6 @@ use std::{
     time::{Duration, Instant},
 };
 
-const WORDMARK: &str = "VOLDIQ  /  Disk space analyzer";
 const DENSITY: &[u8] = b" .:-=+*#%@";
 const REST_YAW: f64 = -0.08;
 const LEAN: f64 = 0.17;
@@ -15,10 +14,25 @@ const BASE: f64 = -0.78;
 const RIMS: [f64; 3] = [TOP, 0.08, -0.37];
 const RIM_WIDTH: f64 = 0.135;
 
-pub(super) fn write(out: &mut impl Write, terminal: &Terminal) -> io::Result<()> {
-    let columns = terminal.width.saturating_sub(3).clamp(1, 56);
+pub(super) fn write(
+    out: &mut impl Write,
+    terminal: &Terminal,
+    menu: &[String],
+    menu_width: usize,
+    animate: bool,
+) -> io::Result<usize> {
+    let beside_columns = terminal.width.saturating_sub(menu_width + 6);
+    let beside_menu = beside_columns >= 20;
+    let available = if beside_menu {
+        beside_columns
+    } else {
+        terminal.width.saturating_sub(3)
+    };
+    let columns = available.clamp(1, 56);
     let rows = (columns * 21).div_ceil(56);
-    if terminal.motion && columns >= 26 && terminal.height > rows + 2 {
+    let panel = if beside_menu { menu } else { &[] };
+    let frame_rows = rows.max(panel.len());
+    if animate && terminal.motion && columns >= 26 && terminal.height > frame_rows + 2 {
         const FRAMES: u32 = 30;
         const INTERVAL: Duration = Duration::from_millis(42);
         let start = Instant::now();
@@ -32,18 +46,23 @@ pub(super) fn write(out: &mut impl Write, terminal: &Terminal) -> io::Result<()>
                 columns,
                 rows,
                 REST_YAW + TAU * (rotation - 1.0),
-                false,
+                panel,
             )?;
             out.flush()?;
             thread::sleep(
                 (start + INTERVAL * (step + 1)).saturating_duration_since(Instant::now()),
             );
-            write!(out, "\x1b[{rows}A\r")?;
+            write!(out, "\x1b[{frame_rows}A\r")?;
         }
     }
-    draw(out, terminal, columns, rows, REST_YAW, true)?;
-    writeln!(out)?;
-    out.flush()
+    draw(out, terminal, columns, rows, REST_YAW, panel)?;
+    if !beside_menu {
+        for line in menu {
+            writeln!(out, "  {line}")?;
+        }
+    }
+    out.flush()?;
+    Ok(if beside_menu { columns + 5 } else { 2 })
 }
 
 fn draw(
@@ -52,7 +71,7 @@ fn draw(
     columns: usize,
     rows: usize,
     yaw: f64,
-    settled: bool,
+    panel: &[String],
 ) -> io::Result<()> {
     let pose = Pose {
         yaw: yaw.sin_cos(),
@@ -75,67 +94,79 @@ fn draw(
         direction,
         light,
     };
-    let beside_mark = columns + WORDMARK.len() + 7 <= terminal.width;
     let width = 2.34 / columns as f64;
     let height = 2.52 / rows as f64;
-    let mut frame = String::with_capacity((columns + 4) * rows);
-    for row in 0..rows {
+    let frame_rows = rows.max(panel.len());
+    let top = (frame_rows - rows) / 2;
+    let panel_top = (frame_rows - panel.len()) / 2;
+    let mut frame = String::with_capacity((columns + 4) * frame_rows);
+    for row in 0..frame_rows {
         frame.push_str("  ");
-        let vertical = 1.17 - (row as f64 + 0.5) * height;
-        let mut tinted = false;
-        for column in 0..columns {
-            let horizontal = (column as f64 + 0.5) * width - 1.17;
-            let mut intensity = 0.0;
-            let mut tinted_samples = 0;
-            let mut light_samples = 0;
-            for x in [horizontal - width * 0.25, horizontal + width * 0.25] {
-                for y in [vertical - height * 0.25, vertical + height * 0.25] {
-                    let (tone, sector) = view.sample(x, y);
-                    intensity += tone;
-                    tinted_samples += u8::from(sector);
-                    light_samples += u8::from(tone >= 0.77 && !sector);
-                }
-            }
-            let sector = tinted_samples >= 2 && light_samples < 2;
-            let coverage = intensity / 4.0;
-            // Keep thin white details legible where they cover half a character cell.
-            let tone = if light_samples >= 2 && !sector {
-                coverage.max(0.75)
-            } else {
-                coverage
-            };
-            let lit_cell = (tone * (DENSITY.len() - 1) as f64).round() as usize;
-            if sector != tinted {
-                frame.push_str(if sector {
-                    terminal.logo_sector
-                } else {
-                    terminal.reset
-                });
-                tinted = sector;
-            }
-            frame.push(char::from(DENSITY[lit_cell]));
+        if (top..top + rows).contains(&row) {
+            let vertical = 1.17 - ((row - top) as f64 + 0.5) * height;
+            draw_row(
+                &mut frame, terminal, columns, width, height, vertical, &view,
+            );
+        } else {
+            frame.extend(std::iter::repeat_n(' ', columns));
         }
-        if tinted {
-            frame.push_str(terminal.reset);
-        }
-        if settled && beside_mark && row == rows / 2 {
-            frame.push_str("    ");
-            frame.push_str(terminal.strong);
-            frame.push_str(WORDMARK);
-            frame.push_str(terminal.reset);
+        if let Some(line) = row
+            .checked_sub(panel_top)
+            .and_then(|index| panel.get(index))
+        {
+            frame.push_str("   ");
+            frame.push_str(line);
         }
         frame.push('\n');
     }
-    out.write_all(frame.as_bytes())?;
-    if settled && !beside_mark {
-        let mark = if WORDMARK.len() + 2 < terminal.width {
-            WORDMARK
+    out.write_all(frame.as_bytes())
+}
+
+fn draw_row(
+    frame: &mut String,
+    terminal: &Terminal,
+    columns: usize,
+    width: f64,
+    height: f64,
+    vertical: f64,
+    view: &View,
+) {
+    let mut tinted = false;
+    for column in 0..columns {
+        let horizontal = (column as f64 + 0.5) * width - 1.17;
+        let mut intensity = 0.0;
+        let mut tinted_samples = 0;
+        let mut light_samples = 0;
+        for x in [horizontal - width * 0.25, horizontal + width * 0.25] {
+            for y in [vertical - height * 0.25, vertical + height * 0.25] {
+                let (tone, sector) = view.sample(x, y);
+                intensity += tone;
+                tinted_samples += u8::from(sector);
+                light_samples += u8::from(tone >= 0.77 && !sector);
+            }
+        }
+        let sector = tinted_samples >= 2 && light_samples < 2;
+        let coverage = intensity / 4.0;
+        // Keep thin white details legible where they cover half a character cell.
+        let tone = if light_samples >= 2 && !sector {
+            coverage.max(0.75)
         } else {
-            "VOLDIQ"
+            coverage
         };
-        writeln!(out, "  {}{mark}{}", terminal.strong, terminal.reset)?;
+        let lit_cell = (tone * (DENSITY.len() - 1) as f64).round() as usize;
+        if sector != tinted {
+            frame.push_str(if sector {
+                terminal.logo_sector
+            } else {
+                terminal.reset
+            });
+            tinted = sector;
+        }
+        frame.push(char::from(DENSITY[lit_cell]));
     }
-    Ok(())
+    if tinted {
+        frame.push_str(terminal.reset);
+    }
 }
 
 struct View {

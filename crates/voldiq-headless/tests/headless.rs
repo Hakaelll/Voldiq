@@ -680,6 +680,15 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     );
     assert_eq!(text.matches("VOLDIQ  /  Disk space analyzer").count(), 1);
     assert!(!text.contains('\x1b'));
+    let (home, _) = text.split_once("Voldiq >").unwrap();
+    let column = home.lines().find_map(|row| row.find("VOLDIQ  /")).unwrap();
+    assert!(column > 20);
+    for label in ["Analyze", "Browse", "[?] Menu", "[R] Replay logo"] {
+        assert!(home.lines().any(|row| row.find(label) == Some(column)));
+    }
+    assert!(home.lines().any(|row| row.find("[7]") == Some(column + 2)));
+    assert_eq!(home.lines().last().unwrap().len(), column);
+    assert!(home.lines().all(|row| row.len() < 80));
     assert!(text.contains(&format!("#{snapshot}")));
     assert!(text.contains("[##############]"));
     assert!(text.contains("same-b.data"));

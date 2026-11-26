@@ -28,30 +28,28 @@ pub(super) async fn open(state: &[String], no_motion: bool) -> io::Result<()> {
     );
     let mut input = io::stdin().lock();
     let mut out = io::stdout().lock();
-    logo::write(&mut out, &terminal)?;
-    if std::env::var_os("VOLDIQ_AGENT_TOKEN").is_none() {
-        writeln!(
-            out,
-            "  For disk access, set VOLDIQ_AGENT_TOKEN from Voldiq Settings."
-        )?;
-        writeln!(out)?;
-    }
-    menu(&mut out, &terminal)?;
-
-    let prompt = format!("\n  {}Voldiq >{} ", terminal.accent, terminal.reset);
-    while let Some(choice) = ask(&mut input, &mut out, &prompt)? {
+    let menu = menu(&terminal, std::env::var_os("VOLDIQ_AGENT_TOKEN").is_some());
+    let mut menu_column = logo::write(&mut out, &terminal, &menu, MENU_WIDTH, true)?;
+    loop {
+        let prompt = format!(
+            "\n{:menu_column$}{}Voldiq >{} ",
+            "", terminal.accent, terminal.reset
+        );
+        let Some(choice) = ask(&mut input, &mut out, &prompt)? else {
+            break;
+        };
+        menu_column = 2;
         let mut args = state.to_vec();
         match choice.as_str() {
             "0" => break,
             "?" => {
                 writeln!(out)?;
-                menu(&mut out, &terminal)?;
+                menu_column = logo::write(&mut out, &terminal, &menu, MENU_WIDTH, false)?;
                 continue;
             }
             "r" | "R" => {
                 writeln!(out)?;
-                logo::write(&mut out, &terminal)?;
-                menu(&mut out, &terminal)?;
+                menu_column = logo::write(&mut out, &terminal, &menu, MENU_WIDTH, true)?;
                 continue;
             }
             "h" | "H" => {
@@ -196,13 +194,25 @@ pub(super) async fn open(state: &[String], no_motion: bool) -> io::Result<()> {
                 }
             }
         }
-        shortcuts(&mut out, &terminal)?;
+        writeln!(out, "  {}", shortcuts(&terminal).join("   "))?;
     }
     writeln!(out)?;
     Ok(())
 }
 
-fn menu(out: &mut impl Write, terminal: &Terminal) -> io::Result<()> {
+const MENU_WIDTH: usize = 39;
+
+fn menu(terminal: &Terminal, has_token: bool) -> Vec<String> {
+    let Terminal {
+        accent,
+        reset,
+        strong,
+        ..
+    } = *terminal;
+    let mut lines = vec![
+        format!("{strong}VOLDIQ  /  Disk space analyzer{reset}"),
+        String::new(),
+    ];
     let analysis = [
         (1, "Scan a folder"),
         (2, "Search a snapshot"),
@@ -219,40 +229,33 @@ fn menu(out: &mut impl Write, terminal: &Terminal) -> io::Result<()> {
         ("Analyze", analysis.as_slice()),
         ("Browse", browsing.as_slice()),
     ] {
-        heading(out, terminal, section)?;
+        lines.push(format!("{strong}{section}{reset}"));
         for (key, label) in entries {
-            writeln!(
-                out,
-                "    {}[{key}]{}  {label}",
-                terminal.accent, terminal.reset
-            )?;
+            lines.push(format!("  {accent}[{key}]{reset}  {label}"));
         }
-        writeln!(out)?;
+        lines.push(String::new());
     }
-    shortcuts(out, terminal)
+    lines.extend(shortcuts(terminal));
+    if !has_token {
+        lines.extend([
+            String::new(),
+            "Disk access needs VOLDIQ_AGENT_TOKEN.".into(),
+            "Get it from Voldiq Settings.".into(),
+        ]);
+    }
+    lines
 }
 
 fn heading(out: &mut impl Write, terminal: &Terminal, label: &str) -> io::Result<()> {
     writeln!(out, "  {}{label}{}", terminal.strong, terminal.reset)
 }
 
-fn shortcuts(out: &mut impl Write, terminal: &Terminal) -> io::Result<()> {
-    write!(out, "  ")?;
-    for (index, (key, label)) in [
-        ('?', "Menu"),
-        ('H', "Commands"),
-        ('R', "Replay logo"),
-        ('0', "Exit"),
+fn shortcuts(terminal: &Terminal) -> [String; 2] {
+    let mark = |key| format!("{}[{key}]{}", terminal.accent, terminal.reset);
+    [
+        format!("{} Menu   {} Commands", mark('?'), mark('H')),
+        format!("{} Replay logo   {} Exit", mark('R'), mark('0')),
     ]
-    .into_iter()
-    .enumerate()
-    {
-        if index != 0 {
-            write!(out, "   ")?;
-        }
-        write!(out, "{}[{key}]{} {label}", terminal.accent, terminal.reset)?;
-    }
-    writeln!(out)
 }
 
 fn ask(input: &mut impl BufRead, out: &mut impl Write, prompt: &str) -> io::Result<Option<String>> {

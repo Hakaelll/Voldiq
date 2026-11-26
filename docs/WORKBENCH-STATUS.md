@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Side-by-side console home
+
+The Windows CLI puts the full menu on the right of the ASCII mark. The prompt aligns with the menu on entry, menu recall and animation replay. Command results keep their own output area. The frame stacks the menu at widths under 65 columns.
+
+The retained CLI flow checks option and prompt alignment on the actual executable. The source renderer was checked at 48, 64, 65, 80, 100 and 120 columns, including monochrome output and all 31 frames at 80 × 24 and 120 × 24. Each frame kept the full menu visible. The optimized Windows executable showed, recalled and replayed that same layout and opened a visible preview. [Verification](../benchmarks/workbench-console-side-menu-source.json)
+
 ## Cylindrical ASCII mark
 
 The terminal mark now uses one filled silhouette with three curved silver rims. The larger frame makes the oval hub, two separators and blue sector easier to distinguish on the top face. The whole tilted cylinder rotates under a fixed light. A narrow terminal shows a shorter wordmark while retaining the full turn at standard 80 × 24 size.
