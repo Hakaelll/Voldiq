@@ -1,0 +1,31 @@
+{
+  "applied": true,
+  "removedBytes": 133346816,
+  "previews": [
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\16BF1B485FE303B53A6D2504712E15EE44258CED0E980536E6E0016590B958BF",
+      "bytes": 33342464,
+      "status": "Removed"
+    },
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\76153219DE7D2E1AFA1710BD3E23866496E4C2248B0B056F97BB00C42A65E306",
+      "bytes": 33312768,
+      "status": "Removed"
+    },
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\B19FA65C416488B088ABDCC5FE90E2DEFF5661655E10682DD52432907706FF2A",
+      "bytes": 33346048,
+      "status": "KeptCurrent"
+    },
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\DCE4B7690D0067B4F8DE4BE00C827C41ADB765A4178AE596CE1FA696506ECB37",
+      "bytes": 33346048,
+      "status": "Removed"
+    },
+    {
+      "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\FC95850A1A1868CAE3B50350F71D3D196737A15F66133120AEC59DE0FF3A4D36",
+      "bytes": 33345536,
+      "status": "Removed"
+    }
+  ]
+}

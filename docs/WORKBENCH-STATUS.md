@@ -6,6 +6,8 @@
 
 The retained CLI test checked size order, group and member pagination, hard links and distinct contents of equal length. The official MCP SDK exercised the authorized call, argument rejection and credential revocation. The markup comparison exercised both progress labels and the verified summary. Windows visual and keyboard acceptance remain manual. [Source verification](../benchmarks/workbench-duplicate-candidates-source.json)
 
+The Windows preview reached ready with zero TCP listeners. 10 embedded non-HTML assets matched the production web build. The unsigned NSIS installer measures 12,054,687 bytes. Cleanup removed 3,084,317,428 logical bytes of inactive release artifacts and 133,346,816 bytes of closed previews. The current preview and installer were preserved. [Startup](../benchmarks/native-duplicate-candidates-preview.json) · [Default listener](../benchmarks/duplicate-candidates-default-listener.json) · [Distribution](../benchmarks/distribution-duplicate-candidates.json) · [Post-clean checks](../benchmarks/workspace-footprint-duplicate-candidates.json)
+
 ## Authorized transfer and restoration history
 
 The shared catalogue now offers `transfers` and `transfer-files` in the CLI and `voldiq_transfers` and `voldiq_transfer_files` in MCP. Both endpoints use recorded evidence for the connection's current credential and policy binding. List and file cursors remain scoped. File rows include recorded dates and status. Content hashes require an explicit request and ReadContent permission. The desktop labels the destination observation separately from current connection and explains empty file pages.
