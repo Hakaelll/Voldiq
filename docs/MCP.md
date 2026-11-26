@@ -35,9 +35,9 @@ In the desktop application, open Settings, then Agents and permissions. Enter a 
 
 ## Interactive console
 
-Run the executable without arguments in an interactive terminal or run `voldiq-cli console`. Use the numbered menu to scan a folder, search a snapshot, see duplicate candidates, list authorized volumes or find snapshot IDs. Press `?` for the menu, `H` for the shell command reference, `R` to replay the logo and `0` to exit. The menu uses the connection from `VOLDIQ_AGENT_TOKEN` and accepts `--state <directory>` before `console`.
+Run the executable without arguments in an interactive terminal or run `voldiq-cli console`. Use the numbered menu to scan a folder, search a snapshot, see duplicate candidates, list authorized volumes or find snapshot IDs. Enter `?` for the menu, `H` for the shell command reference or `0` to exit. The menu uses the connection from `VOLDIQ_AGENT_TOKEN` and accepts `--state <directory>` before `console`.
 
-The tilted stacked-disk mark turns once on startup in a supported terminal. Use `console --no-motion` or set `VOLDIQ_REDUCE_MOTION` for the static mark. The Windows accessibility preference and redirected output also select the static mark. Set `NO_COLOR` for monochrome output. Shell commands and `--help` emit versioned JSON. The MCP stdio command writes the protocol to stdout.
+The tilted mark rotates slowly while the home prompt is idle in a supported Windows console. It pauses at the first keypress so the usual line editor handles the command. Use `console --no-motion` or set `VOLDIQ_REDUCE_MOTION` for the static mark. The Windows accessibility preference and redirected output also select the static mark. Set `NO_COLOR` for monochrome output. Shell commands and `--help` emit versioned JSON. The MCP stdio command writes the protocol to stdout.
 
 ## Connect a stdio client
 

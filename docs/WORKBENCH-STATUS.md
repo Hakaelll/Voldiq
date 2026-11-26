@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Automatic console logo rotation
+
+The tilted ASCII logo revolves every 14 seconds while the Windows home prompt is idle. The replay command has been removed. A distinct ASCII texture identifies the colored sector in monochrome. Only the logo cells are updated. Key input stops those updates and the native line editor receives the pending input. Resizing stops the old frame updates. Reopening the menu with `?` uses the new width. The static flag, environment setting and Windows accessibility preference remain available.
+
+The optimized Windows executable produced 110 distinct sampled poses over 15.2 seconds in the pseudoconsole. The menu and cursor stayed in place. The fixture also checked typing, resize and recall, monochrome rendering and both explicit static controls. The routine CLI flow checks the new text texture, menu alignment and absence of the replay shortcut. The visible CLI preview opened from the same binary. [Verification](../benchmarks/workbench-console-idle-spin-source.json)
+
 ## Side-by-side console home
 
 The Windows CLI puts the full menu on the right of the ASCII mark. The prompt aligns with the menu on entry, menu recall and animation replay. Command results keep their own output area. The frame stacks the menu at widths under 65 columns.

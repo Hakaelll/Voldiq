@@ -1,0 +1,96 @@
+{
+  "checkedUtc": "2026-11-26T22:33:43.0897569Z",
+  "startedUtc": "2026-11-26T22:18:19.6887666Z",
+  "checkoutCommit": "df4a4434dd6225c80e9e7350f66aecfca3b66d4f",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.152
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 7.694
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.749
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.029
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 819.621
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 88.131
+    }
+  ],
+  "inputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "902B636E84F422B53770CC4F7E9B30B205B37EB4C344D3BAEC5807F161C59C78"
+    },
+    {
+      "path": "docs/MCP.md",
+      "sha256": "8A96FCC9482CCAC1F5B14E72A0D1EECE160D16E307EF58F52E7D2986D907DA22"
+    },
+    {
+      "path": "crates/voldiq-headless/src/console.rs",
+      "sha256": "3F262E8290F9B318F183766414AF38AC52EABAD7269BB194E1BBC17EAB5DE579"
+    },
+    {
+      "path": "crates/voldiq-headless/src/console/logo.rs",
+      "sha256": "80476586B80BE3866A992F09A2618B19A967A7507276F1A2A688297390A60C23"
+    },
+    {
+      "path": "crates/voldiq-headless/src/console/terminal.rs",
+      "sha256": "287EC77F9A334883038DB3FDD1F493110C18EB519371ECBC270FCC1D8C64CE1E"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/headless.rs",
+      "sha256": "EA1D5F69DEC823D2CC30703CC80DAAD52A94C2246AAFBCE456A15DC5795A6DA2"
+    }
+  ],
+  "console": {
+    "previewPid": 15640,
+    "previewRunning": true,
+    "cliBytes": 7751168,
+    "sha256": "22A190C750FBF82103BA36DAC30BD77AACC89091E9FE61881527CEBF3D6091F7",
+    "redirectedStaticMenu": true
+  },
+  "nativePseudoconsole": {
+    "width": 80,
+    "height": 24,
+    "sampleSeconds": 15.2,
+    "uniquePoses": 110,
+    "menuStable": true,
+    "cursorStable": true,
+    "idleSpinAfterRecall": true,
+    "pausedWhileTyping": true,
+    "flagsDisableMotion": true,
+    "monochromeSectorTexture": true,
+    "resizeAndRecall": true,
+    "exitCode": 0,
+    "sha256": "22A190C750FBF82103BA36DAC30BD77AACC89091E9FE61881527CEBF3D6091F7"
+  },
+  "cache": {
+    "beforeBytes": 2571436731,
+    "afterBytes": 90364478,
+    "removedBytes": 2481072253,
+    "fixtureRemovedBytes": 118992111
+  }
+}

@@ -1,112 +1,66 @@
 use super::terminal::Terminal;
-use std::f64::consts::TAU;
 use std::io::{self, Write};
-use std::{
-    thread,
-    time::{Duration, Instant},
-};
 
 const DENSITY: &[u8] = b" .:-=+*#%@";
-const REST_YAW: f64 = -0.08;
+pub(super) const REST_YAW: f64 = -0.08;
 const LEAN: f64 = 0.17;
 const TOP: f64 = 0.53;
 const BASE: f64 = -0.78;
 const RIMS: [f64; 3] = [TOP, 0.08, -0.37];
 const RIM_WIDTH: f64 = 0.135;
 
+#[derive(Clone, Copy)]
+pub(super) struct Layout {
+    pub(super) menu_column: usize,
+    pub(super) columns: usize,
+    pub(super) rows: usize,
+    #[cfg(windows)]
+    pub(super) terminal_width: usize,
+    #[cfg(windows)]
+    pub(super) rows_above_prompt: Option<usize>,
+}
+
+pub(super) struct Cell {
+    pub(super) glyph: u8,
+    pub(super) sector: bool,
+}
+
 pub(super) fn write(
     out: &mut impl Write,
     terminal: &Terminal,
     menu: &[String],
     menu_width: usize,
-    animate: bool,
-) -> io::Result<usize> {
-    let beside_columns = terminal.width.saturating_sub(menu_width + 6);
+) -> io::Result<Layout> {
+    let terminal_width = terminal.width();
+    let beside_columns = terminal_width.saturating_sub(menu_width + 6);
     let beside_menu = beside_columns >= 20;
     let available = if beside_menu {
         beside_columns
     } else {
-        terminal.width.saturating_sub(3)
+        terminal_width.saturating_sub(3)
     };
     let columns = available.clamp(1, 56);
     let rows = (columns * 21).div_ceil(56);
     let panel = if beside_menu { menu } else { &[] };
     let frame_rows = rows.max(panel.len());
-    if animate && terminal.motion && columns >= 26 && terminal.height > frame_rows + 2 {
-        const FRAMES: u32 = 30;
-        const INTERVAL: Duration = Duration::from_millis(42);
-        let start = Instant::now();
-        for step in 0..FRAMES {
-            let time = f64::from(step) / f64::from(FRAMES);
-            // Ease the turn at both ends without changing the piece's lean.
-            let rotation = time * time * (3.0 - 2.0 * time);
-            draw(
-                out,
-                terminal,
-                columns,
-                rows,
-                REST_YAW + TAU * (rotation - 1.0),
-                panel,
-            )?;
-            out.flush()?;
-            thread::sleep(
-                (start + INTERVAL * (step + 1)).saturating_duration_since(Instant::now()),
-            );
-            write!(out, "\x1b[{frame_rows}A\r")?;
-        }
-    }
-    draw(out, terminal, columns, rows, REST_YAW, panel)?;
-    if !beside_menu {
-        for line in menu {
-            writeln!(out, "  {line}")?;
-        }
-    }
-    out.flush()?;
-    Ok(if beside_menu { columns + 5 } else { 2 })
-}
-
-fn draw(
-    out: &mut impl Write,
-    terminal: &Terminal,
-    columns: usize,
-    rows: usize,
-    yaw: f64,
-    panel: &[String],
-) -> io::Result<()> {
-    let pose = Pose {
-        yaw: yaw.sin_cos(),
-        lean: LEAN.sin_cos(),
-    };
-    let (sin_elevation, cos_elevation) = 0.48_f64.sin_cos();
-    let direction = pose.local(Vec3 {
-        x: 0.0,
-        y: cos_elevation,
-        z: -sin_elevation,
-    });
-    let light = pose.local(Vec3 {
-        x: -0.47,
-        y: -0.72,
-        z: 0.51,
-    });
-    let view = View {
-        pose,
-        elevation: (sin_elevation, cos_elevation),
-        direction,
-        light,
-    };
-    let width = 2.34 / columns as f64;
-    let height = 2.52 / rows as f64;
-    let frame_rows = rows.max(panel.len());
     let top = (frame_rows - rows) / 2;
-    let panel_top = (frame_rows - panel.len()) / 2;
+    let layout = Layout {
+        menu_column: if beside_menu { columns + 5 } else { 2 },
+        columns,
+        rows,
+        #[cfg(windows)]
+        terminal_width,
+        #[cfg(windows)]
+        rows_above_prompt: (terminal_width > menu_width + 2)
+            .then_some(frame_rows + 1 + if beside_menu { 0 } else { menu.len() } - top),
+    };
+    let mut cells = layout.cells(REST_YAW);
     let mut frame = String::with_capacity((columns + 4) * frame_rows);
+    let panel_top = (frame_rows - panel.len()) / 2;
     for row in 0..frame_rows {
         frame.push_str("  ");
         if (top..top + rows).contains(&row) {
-            let vertical = 1.17 - ((row - top) as f64 + 0.5) * height;
-            draw_row(
-                &mut frame, terminal, columns, width, height, vertical, &view,
-            );
+            write_row(&mut frame, terminal, cells.by_ref().take(columns));
         } else {
             frame.extend(std::iter::repeat_n(' ', columns));
         }
@@ -119,27 +73,88 @@ fn draw(
         }
         frame.push('\n');
     }
-    out.write_all(frame.as_bytes())
+    out.write_all(frame.as_bytes())?;
+    if !beside_menu {
+        for line in menu {
+            writeln!(out, "  {line}")?;
+        }
+    }
+    Ok(layout)
 }
 
-fn draw_row(
-    frame: &mut String,
-    terminal: &Terminal,
-    columns: usize,
-    width: f64,
-    height: f64,
-    vertical: f64,
-    view: &View,
-) {
+impl Layout {
+    pub(super) fn cells(self, yaw: f64) -> impl Iterator<Item = Cell> {
+        let view = View::new(yaw);
+        let width = 2.34 / self.columns as f64;
+        let height = 2.52 / self.rows as f64;
+        (0..self.rows).flat_map(move |row| {
+            let vertical = 1.17 - (row as f64 + 0.5) * height;
+            (0..self.columns).map(move |column| {
+                let horizontal = (column as f64 + 0.5) * width - 1.17;
+                view.cell(horizontal, vertical, width, height)
+            })
+        })
+    }
+}
+
+fn write_row(frame: &mut String, terminal: &Terminal, cells: impl Iterator<Item = Cell>) {
     let mut tinted = false;
-    for column in 0..columns {
-        let horizontal = (column as f64 + 0.5) * width - 1.17;
+    for cell in cells {
+        if cell.sector != tinted {
+            frame.push_str(if cell.sector {
+                terminal.logo_sector
+            } else {
+                terminal.reset
+            });
+            tinted = cell.sector;
+        }
+        frame.push(char::from(cell.glyph));
+    }
+    if tinted {
+        frame.push_str(terminal.reset);
+    }
+}
+
+#[derive(Clone, Copy)]
+struct View {
+    pose: Pose,
+    elevation: (f64, f64),
+    direction: Vec3,
+    light: Vec3,
+}
+
+impl View {
+    fn new(yaw: f64) -> Self {
+        let pose = Pose {
+            yaw: yaw.sin_cos(),
+            lean: LEAN.sin_cos(),
+        };
+        let (sin_elevation, cos_elevation) = 0.48_f64.sin_cos();
+        let direction = pose.local(Vec3 {
+            x: 0.0,
+            y: cos_elevation,
+            z: -sin_elevation,
+        });
+        let light = pose.local(Vec3 {
+            x: -0.47,
+            y: -0.72,
+            z: 0.51,
+        });
+        Self {
+            pose,
+            elevation: (sin_elevation, cos_elevation),
+            direction,
+            light,
+        }
+    }
+
+    fn cell(&self, horizontal: f64, vertical: f64, width: f64, height: f64) -> Cell {
         let mut intensity = 0.0;
         let mut tinted_samples = 0;
         let mut light_samples = 0;
         for x in [horizontal - width * 0.25, horizontal + width * 0.25] {
             for y in [vertical - height * 0.25, vertical + height * 0.25] {
-                let (tone, sector) = view.sample(x, y);
+                let (tone, sector) = self.sample(x, y);
                 intensity += tone;
                 tinted_samples += u8::from(sector);
                 light_samples += u8::from(tone >= 0.77 && !sector);
@@ -154,29 +169,14 @@ fn draw_row(
             coverage
         };
         let lit_cell = (tone * (DENSITY.len() - 1) as f64).round() as usize;
-        if sector != tinted {
-            frame.push_str(if sector {
-                terminal.logo_sector
-            } else {
-                terminal.reset
-            });
-            tinted = sector;
-        }
-        frame.push(char::from(DENSITY[lit_cell]));
+        let glyph = if sector && lit_cell >= 6 {
+            b'x'
+        } else {
+            DENSITY[lit_cell]
+        };
+        Cell { glyph, sector }
     }
-    if tinted {
-        frame.push_str(terminal.reset);
-    }
-}
 
-struct View {
-    pose: Pose,
-    elevation: (f64, f64),
-    direction: Vec3,
-    light: Vec3,
-}
-
-impl View {
     fn sample(&self, x: f64, y: f64) -> (f64, bool) {
         let (sin_elevation, cos_elevation) = self.elevation;
         let origin = self.pose.local(Vec3 {
@@ -199,6 +199,7 @@ struct Vec3 {
     z: f64,
 }
 
+#[derive(Clone, Copy)]
 struct Pose {
     yaw: (f64, f64),
     lean: (f64, f64),

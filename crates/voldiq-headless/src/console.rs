@@ -29,27 +29,27 @@ pub(super) async fn open(state: &[String], no_motion: bool) -> io::Result<()> {
     let mut input = io::stdin().lock();
     let mut out = io::stdout().lock();
     let menu = menu(&terminal, std::env::var_os("VOLDIQ_AGENT_TOKEN").is_some());
-    let mut menu_column = logo::write(&mut out, &terminal, &menu, MENU_WIDTH, true)?;
+    let mut home = Some(logo::write(&mut out, &terminal, &menu, MENU_WIDTH)?);
     loop {
-        let prompt = format!(
+        let menu_column = home.as_ref().map_or(2, |layout| layout.menu_column);
+        write!(
+            out,
             "\n{:menu_column$}{}Voldiq >{} ",
             "", terminal.accent, terminal.reset
-        );
-        let Some(choice) = ask(&mut input, &mut out, &prompt)? else {
+        )?;
+        out.flush()?;
+        if let Some(layout) = home.take() {
+            terminal.spin_idle(&layout);
+        }
+        let Some(choice) = read_answer(&mut input)? else {
             break;
         };
-        menu_column = 2;
         let mut args = state.to_vec();
         match choice.as_str() {
             "0" => break,
             "?" => {
                 writeln!(out)?;
-                menu_column = logo::write(&mut out, &terminal, &menu, MENU_WIDTH, false)?;
-                continue;
-            }
-            "r" | "R" => {
-                writeln!(out)?;
-                menu_column = logo::write(&mut out, &terminal, &menu, MENU_WIDTH, true)?;
+                home = Some(logo::write(&mut out, &terminal, &menu, MENU_WIDTH)?);
                 continue;
             }
             "h" | "H" => {
@@ -194,7 +194,7 @@ pub(super) async fn open(state: &[String], no_motion: bool) -> io::Result<()> {
                 }
             }
         }
-        writeln!(out, "  {}", shortcuts(&terminal).join("   "))?;
+        writeln!(out, "  {}", shortcuts(&terminal))?;
     }
     writeln!(out)?;
     Ok(())
@@ -235,7 +235,7 @@ fn menu(terminal: &Terminal, has_token: bool) -> Vec<String> {
         }
         lines.push(String::new());
     }
-    lines.extend(shortcuts(terminal));
+    lines.push(shortcuts(terminal));
     if !has_token {
         lines.extend([
             String::new(),
@@ -250,17 +250,23 @@ fn heading(out: &mut impl Write, terminal: &Terminal, label: &str) -> io::Result
     writeln!(out, "  {}{label}{}", terminal.strong, terminal.reset)
 }
 
-fn shortcuts(terminal: &Terminal) -> [String; 2] {
+fn shortcuts(terminal: &Terminal) -> String {
     let mark = |key| format!("{}[{key}]{}", terminal.accent, terminal.reset);
-    [
-        format!("{} Menu   {} Commands", mark('?'), mark('H')),
-        format!("{} Replay logo   {} Exit", mark('R'), mark('0')),
-    ]
+    format!(
+        "{} Menu   {} Commands   {} Exit",
+        mark('?'),
+        mark('H'),
+        mark('0')
+    )
 }
 
 fn ask(input: &mut impl BufRead, out: &mut impl Write, prompt: &str) -> io::Result<Option<String>> {
     write!(out, "{prompt}")?;
     out.flush()?;
+    read_answer(input)
+}
+
+fn read_answer(input: &mut impl BufRead) -> io::Result<Option<String>> {
     let mut answer = String::new();
     let length = input.read_line(&mut answer)?;
     Ok((length != 0).then(|| answer.trim().to_owned()))

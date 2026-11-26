@@ -683,9 +683,18 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     let (home, _) = text.split_once("Voldiq >").unwrap();
     let column = home.lines().find_map(|row| row.find("VOLDIQ  /")).unwrap();
     assert!(column > 20);
-    for label in ["Analyze", "Browse", "[?] Menu", "[R] Replay logo"] {
+    for label in ["Analyze", "Browse", "[?] Menu"] {
         assert!(home.lines().any(|row| row.find(label) == Some(column)));
     }
+    assert!(
+        home.lines()
+            .any(|row| row.find("[?] Menu") == Some(column) && row.contains("[0] Exit"))
+    );
+    assert!(!home.contains("[R]"));
+    assert!(
+        home.lines()
+            .any(|line| line.as_bytes()[..line.len().min(column)].contains(&b'x'))
+    );
     assert!(home.lines().any(|row| row.find("[7]") == Some(column + 2)));
     assert_eq!(home.lines().last().unwrap().len(), column);
     assert!(home.lines().all(|row| row.len() < 80));
