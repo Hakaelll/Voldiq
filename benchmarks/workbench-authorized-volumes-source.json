@@ -1,0 +1,135 @@
+{
+  "checkedUtc": "2026-11-26T18:22:22.3888839Z",
+  "startedUtc": "2026-11-26T18:01:32.3466127Z",
+  "checkoutCommit": "57df74c1ae52f989ce2bd1b6c6779ea332172315",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.255
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 7.435
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.776
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.374
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 742.754
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 491.421
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "26B028D84FF2A5924B1D1973D81447675F84085A88BC257EF72E916818F1FA6D"
+    },
+    {
+      "path": "docs/MCP.md",
+      "sha256": "7026679A221A0D6D1FAA4827A4411B3AEBB357B5632156F7A82648960C3646A1"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "4E44A6EA2C5A21BB1975A5C53B1A0600559F035BA6C7A6F5C4EAF3AE1FE69ECF"
+    },
+    {
+      "path": "docs/WORKBENCH-STATUS.md",
+      "sha256": "55D643C768C2723BFEFEA6039A66AC06CA32E90661C773E1572B79F16CAD0705"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "194A4755320D9C691BEC54AE38CEB4FD1C551E8D8EABBA6D82718256F3A2F865"
+    },
+    {
+      "path": "crates/voldiq-core/src/agents.rs",
+      "sha256": "AC104CBFDDE7D73B14E15FD63376DE633FE021E97E216102488D30084E1CC7C5"
+    },
+    {
+      "path": "crates/voldiq-core/src/agents/scope.rs",
+      "sha256": "F700AE107DA6B18E169F01D96EE8F1BEF8CA63EB49E25FD0041CDD0B964853F5"
+    },
+    {
+      "path": "crates/voldiq-core/src/agents/volumes.rs",
+      "sha256": "9B3555CF66B56595244C1BAEC469207C3FE8503788DA14CD9DA2EE5FF4A6CB64"
+    },
+    {
+      "path": "crates/voldiq-core/src/service.rs",
+      "sha256": "797EFE71F95E5F1C0E0163ECF14BD76AD509EFC195A89398676A245F94A0C17D"
+    },
+    {
+      "path": "crates/voldiq-core/src/space.rs",
+      "sha256": "74BBC0ABB7C93216B2384B610B33B6F96826DCFA6A4B55BABB8EA439C647C6FC"
+    },
+    {
+      "path": "crates/voldiq-core/src/space/native.rs",
+      "sha256": "60BFE60C6E287F9F421613B17FA857DA9BEE6BAE65B54140E33F1971C12A7AAB"
+    },
+    {
+      "path": "crates/voldiq-headless/src/main.rs",
+      "sha256": "B2DED04E0ADB4AA734E30D9F4EB1DD6F00AF2CE2814E2BA2E75B5CD97DD85106"
+    },
+    {
+      "path": "crates/voldiq-headless/src/mcp.rs",
+      "sha256": "0B76551F095CF03FC4EFDCE82EF1E78256C96089878C0B910FDB37FB7C4A9102"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/headless.rs",
+      "sha256": "F758B981543FC23C04CFCC36CBA87F30F7BD1ADBC66FD9DDDEAE381409B294AA"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/mcp.rs",
+      "sha256": "0B3E60BB4F50045D3D58998473F5C37731DAF31EE6BB1490C9520298353D3B22"
+    },
+    {
+      "path": "frontend/components/AgentConnections.svelte",
+      "sha256": "4A2AB5128C50B0549BA2DE2BD30B8CD0EFE8873F5965A705526D59BE2AFC9207"
+    },
+    {
+      "path": "src-tauri/src/agent_commands.rs",
+      "sha256": "F29BB64DE3E39149EE6AFB4268F26B5695F24D1FEEB35FC1FA272F980DB382E0"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "serverMarkup": {
+    "scope": "Production AgentConnections server markup",
+    "locationLabel": true,
+    "exactVolumeDisclosure": true,
+    "folderAction": true,
+    "metadataLabel": true,
+    "nativeInteraction": "Manual"
+  },
+  "liveVolumes": {
+    "scope": "Local drive metadata, temporary connection database, no file scan",
+    "exactVolume": true,
+    "observation": "measured",
+    "folderOnlyHidden": true,
+    "exclusionHidden": true,
+    "pagination": true,
+    "cancelled": true,
+    "revoked": true
+  }
+}

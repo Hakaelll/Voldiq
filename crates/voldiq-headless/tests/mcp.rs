@@ -105,6 +105,24 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         || tool.name.contains("shell")));
     let status = call(&client, "voldiq_capabilities", json!({})).await;
     assert_ne!(status.is_error, Some(true));
+    assert_eq!(
+        status.structured_content.unwrap()["result"]["volume_catalogue_available"],
+        cfg!(windows)
+    );
+    assert!(tools.iter().any(|tool| tool.name == "voldiq_volumes"));
+    let volumes = call(&client, "voldiq_volumes", json!({})).await;
+    assert_ne!(volumes.is_error, Some(true));
+    assert_eq!(
+        volumes.structured_content.unwrap()["result"],
+        json!({"supported":cfg!(windows),"items":[],"next_offset":null})
+    );
+    for args in [json!({"root":state.path()}), json!({"limit":33})] {
+        let invalid = call(&client, "voldiq_volumes", args).await;
+        assert_eq!(
+            invalid.structured_content.unwrap()["error"]["code"],
+            "invalid_arguments"
+        );
+    }
     assert!(Jobs::recent_for_desktop(state.path()).unwrap().is_empty());
     assert!(!state.path().join("jobs.db").exists());
     let start = call(&client, "voldiq_scan_start", json!({"root": source.path()})).await;
@@ -1015,6 +1033,11 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     let revoked_trend = call(&client, "voldiq_trend", json!({"snapshot_id":snapshot})).await;
     assert_eq!(
         revoked_trend.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
+    );
+    let revoked_volumes = call(&client, "voldiq_volumes", json!({})).await;
+    assert_eq!(
+        revoked_volumes.structured_content.unwrap()["error"]["code"],
         "not_authorized_or_unavailable"
     );
     assert_eq!(

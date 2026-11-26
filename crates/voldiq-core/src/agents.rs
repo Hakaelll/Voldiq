@@ -1,8 +1,10 @@
 //! Human provisioning is separate from agent authentication and per-call authorization.
 mod scope;
+mod volumes;
 #[cfg(windows)]
 pub(crate) use scope::ordinary_path;
 pub(crate) use scope::{pin_directory, pin_path};
+pub use volumes::{VolumeCatalogue, VolumeCatalogueRequest};
 
 use crate::{Error, Result};
 use rusqlite::{Connection, OptionalExtension, params};

@@ -50,7 +50,7 @@ Dispatch unit: one dedicated desktop STA worker consumes current-session request
 - [ ] Add a separate headless crate and CLI for scan/query/stats/history/plan/jobs/export, with JSON envelopes, structured errors and a read-only default.
   Scan/query/stats/history/details/jobs/cancel, exact plan prepare/get/request/execute/cancel/audit and versioned errors are implemented and subprocess-tested. Export remains open.
 - [ ] Add official `rmcp` stdio transport, bounded schemas/results and tools that route through authorization and shared services. Verify protocol behavior with the SDK client against the real executable.
-  Transport plus nine analysis and six recycling-plan tools are implemented and verified with `rmcp` 3.8.0's real client. The broader catalogue remains open.
+  Transport, analysis and recycling-plan tools are implemented and exercised with the real `rmcp` client. The volume catalogue pages exact Windows volume-root grants and omits any volume covered by an exclusion. The broader catalogue remains open.
 - [ ] Add desktop connection management, separate human approval and revocation. Unavailable independent approval returns `needs_human_approval` without changing user data.
   Native management/review and separate confirmation are implemented. Human facade and request behavior are fixture-tested; actual dialog/keyboard/visual acceptance remains manual.
 - [ ] Test mutation, expiry, replay, concurrent execution and restart in temporary fixtures. Document generic stdio and current Codex configuration. Commit and push.

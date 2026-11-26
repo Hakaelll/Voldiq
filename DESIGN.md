@@ -246,6 +246,8 @@ Appearance places Binary (GiB) and Decimal (GB) in one labeled Storage units row
 
 Overview has a collapsed Scan activity row. Its expanded list aligns the recorded path, origin, measured progress, state and available action. It refreshes while the panel is visible. Desktop scans use the main scan controls for cancellation. CLI and MCP rows can request cancellation in the list. Open snapshot loads a saved result as historical analysis. The list distinguishes a completed unsaved scan from a saved snapshot that has since become unavailable.
 
+Agents and permissions labels the grant field Allowed locations and explains when whole-volume figures are available. Folder selection and the separate native confirmation use the existing form and controls.
+
 History comparison and playback give the map a plot sized to the window height. Two inline radio options choose Size or File type. The size colors share the comparison or playback byte scale. Other contents keeps its own neutral swatch. Changing colors keeps the same area, scope and playback position. Animated exports use the colors and display units selected at submission.
 
 History Trends puts the projected size, observed-rate range and measurement basis in one flat row beneath the folder plot. The leading value uses the forecast violet mixed with the theme's text color for readability. Its display units follow Appearance, and the exact byte value is available on the projected figure.

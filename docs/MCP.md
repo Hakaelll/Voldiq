@@ -68,6 +68,7 @@ This example forwards an environment variable by name, without embedding its val
 | `voldiq_job_cancel` | Scan | Cooperative cancellation request for an owned job |
 | `voldiq_stats` | Metadata | Indexed logical bytes, unique known allocation or null, counts and coverage |
 | `voldiq_space_account` | Metadata | Scoped indexed allocation, logical path bytes, cloud/reparse metadata, accounting and coverage; whole-volume context and residual withheld |
+| `voldiq_volumes` | Metadata | Page of granted whole Windows volumes with timestamped space measurements and explicit unavailable values |
 | `voldiq_query` | Metadata | Bounded page with shared structured filters and advanced expression |
 | `voldiq_applications` | Metadata | Current authorized Windows installation claims over scoped indexed files; capped page, dated provenance and exact logical-byte partition |
 | `voldiq_libraries` | Metadata and ReadContent | Recorded game or media evidence and logical sizes from an authorized snapshot and indexed folder |
@@ -220,6 +221,14 @@ Metadata and explicitly permitted note content stay local until the client recei
 These checks control operations through Voldiq. They do not sandbox an agent that independently has filesystem access under the same Windows account. Local SQLite state and hashes are not claimed tamper-proof against such a process. No tool treats file names, notes or other indexed text as instructions.
 
 Verification status: transport, sixteen analysis tools and six plan tools are implemented. Real CLI and official SDK clients check shared space-account/budget/comparison reads, exact-hash execution/cancellation intents, absence of a human channel, rejected approval injection, replay and unchanged owned source files. A core dispatch fixture exercises independent human approval, helper refusal, persisted result and closed-session denial. Native provisioning, review, event presentation and the full elevated/Shell route await manual acceptance. User clients are not configured.
+
+## Authorized volumes
+
+Use CLI `volumes [offset] [limit]` or MCP `voldiq_volumes` with optional `offset` and `limit`. The default page size is 32, capped by the connection policy. `next_offset` is null on the last page. `supported` identifies Windows support. An empty Windows page means the connection has no matching whole-volume grants. The request accepts paging only. Each reported root comes from the current connection policy.
+
+The grant must resolve to the native volume root using a pinned directory handle and current identity. An exclusion within the grant or on the same volume suppresses its aggregate readings. The host drive list and other mount aliases stay outside the response. The backend rechecks the eligible roots and the connection policy before returning. [Windows volume names](https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-volume) · [Final path by handle](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfinalpathnamebyhandlew)
+
+Space counters use exact decimal byte strings and distinguish whole-volume totals from available space and quotas for the caller. `space` reports measured counters or an unavailable reason and any available caller counters. The volume label and filesystem may be null. Cancellation discards the response. [Volume information by handle](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getvolumeinformationbyhandlew) · [Caller space and quotas](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getdiskfreespaceexw)
 
 ## Folder trends and forecasts
 

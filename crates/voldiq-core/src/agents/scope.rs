@@ -14,6 +14,11 @@ pub(super) struct Root {
 }
 
 impl Root {
+    #[cfg(windows)]
+    pub(super) fn volume_serial(&self) -> u64 {
+        self.identity.0
+    }
+
     pub(super) fn reopen(&self) -> Result<AuthorizedPath> {
         let current = AuthorizedPath::open(&self.path)?;
         if current.identity != self.identity {

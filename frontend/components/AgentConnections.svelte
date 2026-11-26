@@ -155,7 +155,7 @@
     <button onclick={refresh} disabled={!native || loading || saving}>Refresh</button>
   </div>
   <p class="agent-description">
-    Allow a local client to inspect selected folders. The client may send metadata and permitted
+    Allow a local client to inspect selected locations. The client may send metadata and permitted
     content to its AI provider. File modification requires a separate approved plan.
   </p>
   {#if !native}<p class="notice">Connection management requires the Windows application.</p>{/if}
@@ -248,7 +248,7 @@
         /></label
       >
       <label for="agent-roots"
-        >Allowed folders<small>One existing folder per line; overlapping roots are rejected.</small
+        >Allowed locations<small>One path per line. Whole-volume figures require an allowed drive root with no exclusions on that volume.</small
         ><textarea id="agent-roots" bind:value={roots} required rows="3" spellcheck="false"
         ></textarea></label
       >
@@ -261,7 +261,7 @@
           spellcheck="false"></textarea></label
       >
       <label class="agent-check"
-        ><input type="checkbox" checked disabled />Read indexed metadata</label
+        ><input type="checkbox" checked disabled />Read metadata for allowed locations</label
       >
       <label class="agent-check"
         ><input type="checkbox" bind:checked={allowScan} />Scan allowed folders</label

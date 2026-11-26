@@ -1,7 +1,11 @@
 use super::{
     AllocationUnits, Bytes, CallerSpace, Measurement, Observation, Unavailable, VolumeIdentity,
 };
-use crate::{Error, Result, agents::pin_directory, windows};
+use crate::{
+    Error, Result,
+    agents::{AuthorizedPath, pin_directory},
+    windows,
+};
 use std::{
     path::Path,
     time::{SystemTime, UNIX_EPOCH},
@@ -18,22 +22,21 @@ pub(super) fn observe(path: &Path, expected: Option<(u64, u64)>) -> Result<Obser
     if expected.is_some_and(|identity| identity != pin.identity()) {
         return Err(Error::Invalid("Volume scope changed.".into()));
     }
-    let file = windows::open_metadata(pin.path())?;
-    let metadata = file.metadata()?;
-    if windows::is_reparse(&metadata)
-        || windows::requires_recall(&metadata)
-        || windows::file_identity(&file)?.key != pin.identity()
-    {
+    observe_pinned(&pin)
+}
+
+pub(crate) fn observe_pinned(pin: &AuthorizedPath) -> Result<Observation> {
+    let file = pin.directory_handle()?;
+    if windows::file_identity(file)?.key != pin.identity() {
         return Err(Error::Invalid("Volume scope changed.".into()));
     }
-    let (native_path, guid_root) = windows::volume_paths(&file)?;
-    let guid_root = guid_root.to_string_lossy().into_owned();
+    let (native_path, guid_root) = windows::volume_paths(file)?;
     let identity = VolumeIdentity {
-        guid_root: guid_root.clone(),
+        guid_root: guid_root.to_string_lossy().into_owned(),
         serial: format!("{:016x}", pin.identity().0),
     };
-    let full = windows::wide(Path::new(&native_path));
-    let root = windows::wide(Path::new(&guid_root));
+    let full = windows::wide(&native_path);
+    let root = windows::wide(&guid_root);
     let now = || {
         SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -107,7 +110,8 @@ pub(super) fn observe(path: &Path, expected: Option<(u64, u64)>) -> Result<Obser
     let current = pin_directory(pin.path())?;
     if current.identity() != pin.identity()
         || current.ancestor_identities()? != pin.ancestor_identities()?
-        || windows::file_identity(&file)?.key != pin.identity()
+        || windows::file_identity(file)?.key != pin.identity()
+        || windows::volume_paths(current.directory_handle()?)? != (native_path, guid_root)
     {
         return Err(Error::Invalid(
             "Volume scope changed during observation.".into(),

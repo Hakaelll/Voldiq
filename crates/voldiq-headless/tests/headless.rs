@@ -74,6 +74,15 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
             .output()
             .unwrap()
     };
+    let volumes = run(&["volumes", "0", "1"]);
+    assert!(volumes.status.success());
+    let volumes: Value = serde_json::from_slice(&volumes.stdout).unwrap();
+    assert_eq!(volumes["schema_version"], 1);
+    assert_eq!(
+        volumes["result"],
+        json!({"supported":cfg!(windows),"items":[],"next_offset":null})
+    );
+    assert_eq!(run(&["volumes", "0", "0"]).status.code(), Some(2));
     let files: Value = serde_json::from_slice(
         &run(&["query", &snapshot.to_string(), r#"{"files_only":true}"#]).stdout,
     )

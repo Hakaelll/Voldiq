@@ -2,6 +2,8 @@
 //! Identifiers here describe observations; they never authorize a filesystem action.
 #[cfg(windows)]
 mod native;
+#[cfg(windows)]
+pub(crate) use native::observe_pinned;
 mod reconcile;
 #[cfg(windows)]
 pub mod system;

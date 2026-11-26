@@ -1,7 +1,7 @@
 //! Authorized services shared by headless adapters. Human management uses separate APIs.
 use crate::{
     Error, Kind, Result, ScanPhase,
-    agents::{Capability, Principal, Registry, denied},
+    agents::{Capability, Principal, Registry, VolumeCatalogue, VolumeCatalogueRequest, denied},
     index::{Details, Index, Page, Query},
     jobs::{Job, JobState, Jobs},
     operations::Coordinator,
@@ -195,8 +195,18 @@ impl AgentService {
             serde_json::json!({"schema_version":1,"capabilities":policy.capabilities(),"limits":policy.limits(),
             "transport":"local_stdio","approval":"independent_human_required","plan_preparation_available":true,"execution_available":execution,"application_attribution_available":cfg!(windows),
             "library_attribution_available":cfg!(windows) && policy.capabilities().contains(&Capability::ReadContent),
+            "volume_catalogue_available":cfg!(windows),
             "scope":"Stored snapshots whose native root identity and exclusion coverage satisfy this connection's current policy."}),
         )
+    }
+
+    pub fn volumes(
+        &self,
+        request: VolumeCatalogueRequest,
+        cancel: &AtomicBool,
+    ) -> Result<Option<VolumeCatalogue>> {
+        self.registry()?
+            .volume_catalogue(&self.principal, request, cancel)
     }
 
     pub fn start_scan(&self, root: &Path) -> Result<i64> {

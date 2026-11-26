@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Authorized volumes in CLI and MCP
+
+`voldiq-cli volumes` and MCP `voldiq_volumes` report the Windows volumes covered by the connection's exact drive-root grants. Voldiq pins and rechecks each eligible root and excludes a volume when the policy omits a location on it. Results distinguish measured whole-volume bytes, caller quota counters and unavailable observations. The adapters page the eligible grants under the connection limit.
+
+Settings → Agents and permissions explains when a location grant includes whole-volume figures. The desktop still asks for native confirmation before provisioning the connection. Windows keyboard interaction and scaling remain manual.
+
+The live read-only Windows probe measured the workspace drive using a temporary connection database. It verified an exact root grant, folder-only and excluded grants, paging, cancellation and revocation with no file scan. Server rendering verified the form labels, permission explanation and folder picker action. [Source checks and fixtures](../benchmarks/workbench-authorized-volumes-source.json)
+
 ## Folder forecasts in CLI and MCP
 
 `voldiq-cli trend` and MCP `voldiq_trend` use the same folder forecast as History. Both read the retained measurements of an authorized root and exclusion group through the selected capture's save order. The series has a fixed measurement cap and connection-scoped pages. A forecast covers the retained interval across pages. Volume capacity and free space are shown separately in the desktop.
