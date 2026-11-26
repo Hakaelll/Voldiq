@@ -8,6 +8,8 @@ The desktop forecast row puts the projected value, observed-rate range and measu
 
 The six project checks passed with eight routine tests. Real CLI and MCP calls exercised anchored pages, the connection limit, invalid requests and scope denial. The retained history fixture verified that saved-order anchoring excludes later captures and keeps the forecast consistent across pages. A markup check covered both unit systems. Calculated value-to-workspace contrast was 5.23:1 in light and 8.79:1 in dark. The final stylesheet was rebuilt and checked separately. [Verification record](../benchmarks/workbench-folder-trends-source.json)
 
+The Windows preview reached ready with zero TCP listeners. 10 embedded non-HTML assets matched the production web build. The unsigned NSIS installer measures 12,052,457 bytes. Cleanup removed 3,082,037,741 logical bytes of inactive release artifacts and 33,291,264 bytes of closed previews. The current preview and installer were preserved. [Startup](../benchmarks/native-folder-trends-preview.json) · [Default listener](../benchmarks/folder-trends-default-listener.json) · [Distribution](../benchmarks/distribution-folder-trends.json) · [Post-clean checks](../benchmarks/workspace-footprint-folder-trends.json)
+
 ## Desktop scans in shared activity
 
 Overview → Scan activity groups interactive desktop, CLI and MCP scans in the last eight durable job records. It shows which scans are still running, finished without a saved snapshot, or have a saved snapshot that can be opened. Desktop scans retain their normal pause and cancellation controls. Temporary sessions skip the durable activity record.
