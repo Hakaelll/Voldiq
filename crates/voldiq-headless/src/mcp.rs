@@ -334,6 +334,20 @@ fn invoke(
                 })?;
             serde_json::to_value(result).map_err(unavailable)
         }
+        "voldiq_trend" => {
+            let request: voldiq_core::snapshots::TrendPageRequest = parse(args)?;
+            if !request.valid() {
+                return Err(super::failure(
+                    "invalid_arguments",
+                    "Use a positive snapshot ID, 7, 30, 90 or 365 days, offset up to 240 and a limit from 1 to 100.",
+                ));
+            }
+            let result = service
+                .trend(request, cancel)
+                .map_err(unavailable)?
+                .ok_or_else(|| super::failure("trend_cancelled", "Trend query cancelled."))?;
+            serde_json::to_value(result).map_err(unavailable)
+        }
         "voldiq_space_account" => {
             let args: SnapshotArgs = parse(args)?;
             let result = service
@@ -583,6 +597,7 @@ impl ServerHandler for Server {
         let cancellable_read = matches!(
             request.name.as_ref(),
             "voldiq_compare"
+                | "voldiq_trend"
                 | "voldiq_calendar"
                 | "voldiq_diary"
                 | "voldiq_space_account"
@@ -661,6 +676,7 @@ fn tools() -> Vec<Tool> {
         ("voldiq_folder_budget", "Read current logical-byte folder limit, scoped indexed usage, disclosed image-extension sample and a qualified observed-rate forecast. Requires Metadata and the exact current folder identity. Unavailable history never becomes a deadline. Cannot change limits or approve/execute operations.", json!({"snapshot_id":integer,"node_id":{"type":"integer","minimum":0,"maximum":4294967295u64}}), json!(["snapshot_id","node_id"])),
         ("voldiq_history", "List only snapshots with authorized native identity and exclusion coverage, including desktop captures. Offsets count visible captures; limited indicates a metadata work cap.", json!({"offset":{"type":"integer","minimum":0,"maximum":10000},"limit":{"type":"integer","minimum":1,"maximum":100}}), json!([])),
         ("voldiq_compare", "Compare two independently authorized snapshots with the same native root and exclusions. Returns bounded recorded logical-size changes, coverage and accounting qualification; missing records do not prove deletion. Metadata only; no file operation or approval. Request cancellation is cooperative.", json!({"before":integer,"after":integer,"offset":{"type":"integer","minimum":0,"maximum":10000},"limit":{"type":"integer","minimum":1,"maximum":200,"default":50}}), json!(["before","after"])),
+        ("voldiq_trend", "Page recorded folder sizes through an authorized snapshot. Includes a qualified logical-size projection when compatible history supports it. Metadata only. The forecast covers the full retained interval even when points are paginated. Reuse snapshot_id and days with next_offset. Cancellation is cooperative.", json!({"snapshot_id":integer,"days":{"enum":[7,30,90,365],"default":30},"offset":{"type":"integer","minimum":0,"maximum":240,"default":0},"limit":{"type":"integer","minimum":1,"maximum":100,"default":50}}), json!(["snapshot_id"])),
         ("voldiq_calendar", "Read UTC last-modification cohorts from one authorized stored capture. Logical file-path sizes are not bytes written. Includes unknown dates, outside-month metadata, coverage and accounting. Add day to page recorded file/placeholder metadata; day is required for offset/limit. No content reads or file operation.", json!({"snapshot_id":integer,"month":{"type":"string","pattern":"^[0-9]{4}-[0-9]{2}$","maxLength":7},"day":{"type":"integer","minimum":1,"maximum":31},"offset":{"type":"integer","minimum":0,"maximum":10000},"limit":{"type":"integer","minimum":1,"maximum":100}}), json!(["snapshot_id","month"])),
         ("voldiq_diary", "Read adjacent retained observations in the authorized capture's root/identity/exclusion group, through that capture. Paged baselines/comparisons retain partial/unknown/incompatible evidence and opaque historical context IDs. Does not establish who caused a change, bytes written, current paths or file-operation authority.", json!({"snapshot_id":integer,"offset":{"type":"integer","minimum":0,"maximum":10000},"limit":{"type":"integer","minimum":1,"maximum":10,"default":5}}), json!(["snapshot_id"])),
         ("voldiq_plan_prepare", "Prepare an immutable recycling manifest from exact indexed file IDs, with fresh scope/identity/protection validation. Changes no files and grants no approval.", json!({"snapshot_id":integer,"node_ids":{"type":"array","minItems":1,"maxItems":500,"uniqueItems":true,"items":{"type":"integer","minimum":0,"maximum":4294967295u64}}}), json!(["snapshot_id","node_ids"])),

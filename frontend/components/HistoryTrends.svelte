@@ -3,6 +3,7 @@
   import { trendQueries, trendChangeQueries } from '../lib/queries';
   import { historyTrend, type TrendChanges, type TrendReport } from '../lib/history-trend';
   import { utcDate } from '../lib/history-activity';
+  import { formatStorageBytes } from '../lib/storage-units';
   import { bytes, difference, type Snapshot } from '../lib/types';
 
   let {
@@ -279,7 +280,7 @@
   <section class="panel history-trend history-extended-trend" aria-label="Logical size over time">
     <div class="panel-heading">
       <h3>Logical size over time</h3>
-      <span>{bytes(Number(last.logical))} · {short(last.measured_at)} UTC</span>
+      <span>{formatStorageBytes(last.logical)} · {short(last.measured_at)} UTC</span>
     </div>
     {#if chart && measured.length > 1}
       <div class="history-plot" bind:clientWidth={width}>
@@ -381,13 +382,20 @@
       </label>
     {/if}
     {#if forecast}
-      <p class="activity-help">
-        Dashed line · projected {bytes(Number(forecast.logical))} on {short(forecast.at)} UTC.
-        {forecast.confidence === 'higher' ? 'Higher' : 'Moderate'} confidence based on {forecast.samples}
-        measured days. Observed-rate range {bytes(Number(forecast.low))} to {bytes(
-          Number(forecast.high),
-        )}.
-      </p>
+      <dl class="folder-projection" aria-label="Folder size forecast">
+        <div>
+          <dt>Dashed line · {short(forecast.at)} UTC</dt>
+          <dd title={`${forecast.logical} logical bytes`}>{formatStorageBytes(forecast.logical)}</dd>
+        </div>
+        <div>
+          <dt>Observed-rate range</dt>
+          <dd>{formatStorageBytes(forecast.low)} to {formatStorageBytes(forecast.high)}</dd>
+        </div>
+        <div>
+          <dt>Measurement basis</dt>
+          <dd>{forecast.samples} days · {forecast.confidence === 'higher' ? 'Higher' : 'Moderate'} confidence</dd>
+        </div>
+      </dl>
     {:else}
       <p class="activity-help">
         A projection requires recent, sustained growth across comparable measurement days.

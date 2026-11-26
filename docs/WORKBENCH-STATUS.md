@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Folder forecasts in CLI and MCP
+
+`voldiq-cli trend` and MCP `voldiq_trend` use the same folder forecast as History. Both read the retained measurements of an authorized root and exclusion group through the selected capture's save order. The series has a fixed measurement cap and connection-scoped pages. A forecast covers the retained interval across pages. Volume capacity and free space are shown separately in the desktop.
+
+The desktop forecast row puts the projected value, observed-rate range and measurement basis below the chart. Its labels follow the active storage units. The projected value uses the forecast violet adjusted for text contrast. Windows keyboard interaction and scaling remain manual.
+
+The six project checks passed with eight routine tests. Real CLI and MCP calls exercised anchored pages, the connection limit, invalid requests and scope denial. The retained history fixture verified that saved-order anchoring excludes later captures and keeps the forecast consistent across pages. A markup check covered both unit systems. Calculated value-to-workspace contrast was 5.23:1 in light and 8.79:1 in dark. The final stylesheet was rebuilt and checked separately. [Verification record](../benchmarks/workbench-folder-trends-source.json)
+
 ## Desktop scans in shared activity
 
 Overview → Scan activity groups interactive desktop, CLI and MCP scans in the last eight durable job records. It shows which scans are still running, finished without a saved snapshot, or have a saved snapshot that can be opened. Desktop scans retain their normal pause and cancellation controls. Temporary sessions skip the durable activity record.

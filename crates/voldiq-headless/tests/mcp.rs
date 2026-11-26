@@ -413,6 +413,7 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     );
     let denied = call(&client, "voldiq_scan_start", json!({"root":state.path()})).await;
     assert!(tools.iter().any(|tool| tool.name == "voldiq_compare"));
+    assert!(tools.iter().any(|tool| tool.name == "voldiq_trend"));
     let private = source.path().join("excluded");
     std::fs::create_dir(&private).unwrap();
     let extra = source.path().join("history-added.data");
@@ -423,18 +424,64 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         .unwrap()
         .set_modified(std::time::UNIX_EPOCH + std::time::Duration::from_secs(1709164800))
         .unwrap();
-    let index = voldiq_core::scanner::scan(
+    let mut index = voldiq_core::scanner::scan(
         source.path(),
         &Default::default(),
         &std::sync::atomic::AtomicBool::new(false),
         |_| {},
     )
     .unwrap();
-    let later = voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db"))
+    let mut store =
+        voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db")).unwrap();
+    let first_observed = store
+        .summary(snapshot)
         .unwrap()
+        .unwrap()
+        .observation
+        .unwrap()
+        .completed_at;
+    index.observation.as_mut().unwrap().completed_at = first_observed + 1;
+    let later = store
         .save(&index, &std::sync::atomic::AtomicBool::new(false), &[])
         .unwrap();
+    drop(store);
     std::fs::remove_file(extra).unwrap();
+    let trend = call(
+        &client,
+        "voldiq_trend",
+        json!({"snapshot_id":later,"limit":100}),
+    )
+    .await;
+    assert_ne!(trend.is_error, Some(true));
+    let trend = &trend.structured_content.unwrap()["result"];
+    assert_eq!(trend["points"].as_array().unwrap().len(), 1);
+    assert_eq!(trend["points"][0]["snapshot"], snapshot);
+    assert_eq!(trend["next_offset"], 1);
+    assert!(trend["forecast"].is_null() && trend.get("volume").is_none());
+    let second = call(
+        &client,
+        "voldiq_trend",
+        json!({"snapshot_id":later,"offset":1}),
+    )
+    .await;
+    let second = &second.structured_content.unwrap()["result"];
+    assert_eq!(second["points"][0]["delta"], "5");
+    assert_eq!(second["points"][0]["previous"], snapshot);
+    assert!(second["next_offset"].is_null());
+    let anchored = call(&client, "voldiq_trend", json!({"snapshot_id":snapshot})).await;
+    let anchored = &anchored.structured_content.unwrap()["result"];
+    assert_eq!(anchored["points"][0]["logical"], "11");
+    assert!(anchored["next_offset"].is_null());
+    for args in [
+        json!({"snapshot_id":later,"days":14}),
+        json!({"snapshot_id":later,"volume":true}),
+    ] {
+        let invalid = call(&client, "voldiq_trend", args).await;
+        assert_eq!(
+            invalid.structured_content.unwrap()["error"]["code"],
+            "invalid_arguments"
+        );
+    }
     let day = call(
         &client,
         "voldiq_calendar",
@@ -628,6 +675,7 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
             json!({"snapshot_id":foreign,"month":"2024-02"}),
         ),
         ("voldiq_diary", json!({"snapshot_id":foreign})),
+        ("voldiq_trend", json!({"snapshot_id":foreign})),
         ("voldiq_space_account", json!({"snapshot_id":foreign})),
         (
             "voldiq_export_csv",
@@ -962,6 +1010,11 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     .await;
     assert_eq!(
         revoked_space.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
+    );
+    let revoked_trend = call(&client, "voldiq_trend", json!({"snapshot_id":snapshot})).await;
+    assert_eq!(
+        revoked_trend.structured_content.unwrap()["error"]["code"],
         "not_authorized_or_unavailable"
     );
     assert_eq!(

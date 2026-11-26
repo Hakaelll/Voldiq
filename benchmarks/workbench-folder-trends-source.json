@@ -1,0 +1,127 @@
+{
+  "checkedUtc": "2026-11-26T17:44:15.5594569Z",
+  "startedUtc": "2026-11-26T17:30:29.81368Z",
+  "checkoutCommit": "8fc4bd8931cc6c88722288c06eae020369990fa9",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.423
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 9.206
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.801
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 8.705
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 723.2
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 82.381
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "756A90A9DED18AD46FC6FA8072393FF8EE609490AC907E48303121608EBE3958"
+    },
+    {
+      "path": "docs/MCP.md",
+      "sha256": "66BD368E20145339E9F64C3BE68B8849F78E2E8E1E51170DB8A8D168F696CDFB"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "81032E81C1958E6090696ABDE905A100F6DED82647546DE91E52F739F5DB80C9"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "3F6DDC8BC375D67D3515FF1EE49DC8B3C7ED102BD5DBB28CF9F5C6F7457F446B"
+    },
+    {
+      "path": "crates/voldiq-core/src/service.rs",
+      "sha256": "0714EEB41E845A2EE75AB28DE0DA7481BAAEF4EE937594D316C597F74FA5C681"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots.rs",
+      "sha256": "17635417FF5AB967C0E32D3C2396E2B422EBFEF92022366C0BBB27E008039AF8"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/trends.rs",
+      "sha256": "75957CD60CAA3180C843CBC53EEFB0809B0994A7350598467850F88DB5DBDA99"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "2852B7DB99E63EAC57D92656143087F5347BD959ED76EF1C8903C953C1041954"
+    },
+    {
+      "path": "crates/voldiq-headless/src/main.rs",
+      "sha256": "2B768FFEB3A0419FC497A5610FCA7717A559BAB47BD8A5FAB2520CCAB45AEB51"
+    },
+    {
+      "path": "crates/voldiq-headless/src/mcp.rs",
+      "sha256": "4640D1D6B04868950AD4FEB67C82ED685B473C6A9DD7CC9CC2F6EAD7C60FA2E5"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/headless.rs",
+      "sha256": "05C011BD2E338F014AD19F94EC0B4BD0C13972092233E550CECB7151F2872099"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/mcp.rs",
+      "sha256": "CA380EADF02CD7FDF41511FC879320E0F35A96E750F4B6781C3ECF2E56252C65"
+    },
+    {
+      "path": "frontend/components/HistoryTrends.svelte",
+      "sha256": "B5BD1EEBCF85D8C11354E1223A3D5B017EC9D19639CBCD5AE95299E868EAA11F"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "67FF34F51250213082CD23AF0ACF4157F487466CB0118F37FEA321AE78DCB741"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "serverMarkup": {
+    "scope": "SSR of the production History Trends template initialized with owned synthetic data.",
+    "storedProjectionBytes": "1073741824",
+    "binary": "1 GiB",
+    "decimal": "1.1 GB",
+    "sampleDays": 8,
+    "labelledMeasurementBasis": true,
+    "dashedProjection": true,
+    "nativeInteraction": "Manual",
+    "forecastTextContrastOnWorkspace": {
+      "light": 5.23,
+      "dark": 8.79
+    }
+  },
+  "finalFrontend": {
+    "checkedUtc": "2026-11-26T17:44:41.045503Z",
+    "command": "pnpm build",
+    "exitCode": 0,
+    "cssSha256": "67FF34F51250213082CD23AF0ACF4157F487466CB0118F37FEA321AE78DCB741",
+    "builtAsset": "index-BblLOsig.css",
+    "builtAssetSha256": "0A3177C6774704786B84485D26FEE18ABAEFD4CB520CB75637AECE1EB7889C7B"
+  }
+}

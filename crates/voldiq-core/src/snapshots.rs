@@ -16,7 +16,9 @@ pub use activity::{
 };
 pub(crate) use budget_history::HistoryPoint;
 pub use retention::{RetentionPreview, RetentionResult, RetentionSettings};
-pub use trends::{TrendChanges, TrendReport, TrendRequest};
+pub use trends::{
+    FolderTrend, TrendChanges, TrendPage, TrendPageRequest, TrendReport, TrendRequest,
+};
 pub use visual::{Accounting, VisualFrame, VisualPair};
 #[cfg(windows)]
 mod resume;

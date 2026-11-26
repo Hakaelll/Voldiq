@@ -80,6 +80,7 @@ This example forwards an environment variable by name, without embedding its val
 | `voldiq_calendar` | Metadata | Stored UTC modification cohorts or a bounded day page; unknown dates, outside-month records and coverage remain explicit |
 | `voldiq_diary` | Metadata | Adjacent retained observations through an authorized anchor; baselines, qualified comparisons and opaque historical context IDs |
 | `voldiq_compare` | Metadata | Recorded logical-size differences between two independently authorized compatible captures, with paged entries and coverage/accounting qualification |
+| `voldiq_trend` | Metadata | Paged logical folder measurements and a qualified projection through an authorized snapshot |
 | `voldiq_plan_prepare` | PreparePlans + Metadata | Immutable manifest from exact snapshot node IDs, freshly checked against disk |
 | `voldiq_plan_get` | Metadata | Owned manifest, lifecycle state and bounded result summary |
 | `voldiq_plan_request_approval` | RequestApproval + Metadata | Records a pending request, then returns `needs_human_approval` |
@@ -219,6 +220,14 @@ Metadata and explicitly permitted note content stay local until the client recei
 These checks control operations through Voldiq. They do not sandbox an agent that independently has filesystem access under the same Windows account. Local SQLite state and hashes are not claimed tamper-proof against such a process. No tool treats file names, notes or other indexed text as instructions.
 
 Verification status: transport, sixteen analysis tools and six plan tools are implemented. Real CLI and official SDK clients check shared space-account/budget/comparison reads, exact-hash execution/cancellation intents, absence of a human channel, rejected approval injection, replay and unchanged owned source files. A core dispatch fixture exercises independent human approval, helper refusal, persisted result and closed-session denial. Native provisioning, review, event presentation and the full elevated/Shell route await manual acceptance. User clients are not configured.
+
+## Folder trends and forecasts
+
+Use CLI `trend <snapshot_id> [days] [offset] [limit]` or MCP `voldiq_trend` with `snapshot_id`, optional `days`, `offset` and `limit`. Choose 7, 30, 90 or 365 days. The default interval is 30 days. Each result uses the anchor's stored root, native identity and exclusion group. Save order determines which captures are eligible through the anchor. Within that group the newest distinct observation sets the end of the interval.
+
+The core retains at most 240 distinct measurements. Points are ordered by measurement time and use decimal byte strings. `next_offset` pages that retained series and is null at the end. Keep the same anchor and interval between requests. The default page size is 50, capped by the connection's policy and a maximum of 100. Retention edits can change the available points between calls. `limited` indicates the retained-series cap. `missing_dates` reports omitted captures without a known observation date.
+
+The forecast uses the full retained interval. It includes the projection time, a logical-byte estimate, an observed-rate range, sample count and confidence when the same desktop model finds adequate recent, compatible growth. Otherwise `forecast` is null. The response describes the authorized folder's logical usage. Volume capacity and free-space counters remain in the desktop volume view. Cancellation discards the partial response.
 
 ## Recorded calendar and diary reads
 

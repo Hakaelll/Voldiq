@@ -305,6 +305,17 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     assert!(diary.status.success());
     let diary: Value = serde_json::from_slice(&diary.stdout).unwrap();
     assert_eq!(diary["result"]["events"][0]["detail"]["delta"], "5");
+    let trend = run(&["trend", &snapshot.to_string(), "7", "0", "1"]);
+    assert!(trend.status.success());
+    let trend: Value = serde_json::from_slice(&trend.stdout).unwrap();
+    assert_eq!(trend["schema_version"], 1);
+    assert_eq!(trend["result"]["points"][0]["logical"], "7");
+    assert!(trend["result"]["next_offset"].is_null());
+    assert!(trend["result"].get("volume").is_none());
+    assert_eq!(
+        run(&["trend", &snapshot.to_string(), "14"]).status.code(),
+        Some(2)
+    );
     let compared = run(&[
         "compare",
         &snapshot.to_string(),

@@ -3013,6 +3013,27 @@ main {
   flex: 1 1 160px;
   accent-color: var(--accent-fill);
 }
+.folder-projection {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr));
+  gap: 10px 20px;
+  margin: 16px 0 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.folder-projection dt {
+  color: var(--secondary);
+  font-size: 12px;
+}
+.folder-projection dd {
+  margin: 5px 0 0;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+.folder-projection > div:first-child dd {
+  color: color-mix(in srgb, var(--chart-violet) 85%, var(--text));
+  font-weight: 600;
+}
 .trend-folder-columns {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));

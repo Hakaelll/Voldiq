@@ -4627,11 +4627,14 @@ fn budget_history_uses_measurements_and_real_scoped_image_samples() {
         )
         .unwrap()
         .unwrap();
-    assert_eq!(trend.points.len(), 8);
-    assert_eq!(trend.points[7].snapshot, ids[7]);
-    assert_eq!(trend.points[7].delta.as_deref(), Some("100"));
-    assert_eq!(trend.points[7].previous, Some(ids[6]));
-    let forecast = trend.forecast.unwrap();
+    assert_eq!(trend.folder.points.len(), 8);
+    assert_eq!(trend.folder.points[7].snapshot, ids[7]);
+    assert_eq!(trend.folder.points[7].delta.as_deref(), Some("100"));
+    assert_eq!(trend.folder.points[7].previous, Some(ids[6]));
+    let wire = serde_json::to_value(&trend).unwrap();
+    assert_eq!(wire["points"].as_array().unwrap().len(), 8);
+    assert!(wire.get("folder").is_none() && wire.get("volume").is_some());
+    let forecast = trend.folder.forecast.unwrap();
     assert_eq!(
         (forecast.at, forecast.samples, forecast.logical.as_str()),
         (now + 7 * 86400, 8, "1816")
@@ -4664,8 +4667,11 @@ fn budget_history_uses_measurements_and_real_scoped_image_samples() {
         )
         .unwrap()
         .unwrap();
-    assert_eq!(later.points.last().unwrap().delta.as_deref(), Some("-1"));
-    assert!(later.forecast.is_none());
+    assert_eq!(
+        later.folder.points.last().unwrap().delta.as_deref(),
+        Some("-1")
+    );
+    assert!(later.folder.forecast.is_none());
     {
         let connection = rusqlite::Connection::open(state.path().join("snapshots.db")).unwrap();
         for (day, id) in ids.iter().chain([&regressed]).enumerate() {
@@ -4714,6 +4720,72 @@ fn budget_history_uses_measurements_and_real_scoped_image_samples() {
             )
             .unwrap();
         assert!(read().points.is_empty());
+    }
+    {
+        use voldiq_core::{
+            agents::{Capability, Limits, Policy, Registry},
+            service::AgentService,
+            snapshots::TrendPageRequest,
+        };
+        let mut registry = Registry::open(&state.path().join("agents.db")).unwrap();
+        let grant = registry
+            .provision(
+                "Trend fixture",
+                Policy::new(
+                    vec![source.path().to_owned()],
+                    vec![],
+                    vec![Capability::Metadata],
+                    Limits {
+                        page_size: 2,
+                        ..Default::default()
+                    },
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        let principal = registry.authenticate(grant.credential.expose()).unwrap();
+        let service = AgentService::new(state.path().to_owned(), principal).unwrap();
+        let query = |snapshot_id, offset| TrendPageRequest {
+            snapshot_id,
+            days: 30,
+            offset,
+            limit: 100,
+        };
+        let first = service.trend(query(ids[7], 0), &cancel).unwrap().unwrap();
+        assert_eq!(first.next_offset, Some(2));
+        assert_eq!(first.folder.points[0].logical, "416");
+        let last = service.trend(query(ids[7], 6), &cancel).unwrap().unwrap();
+        assert_eq!(last.next_offset, None);
+        assert_eq!(last.folder.points[1].snapshot, ids[7]);
+        assert_eq!(last.folder.points[1].logical, "1116");
+        let agent_forecast = first.folder.forecast.unwrap();
+        assert_eq!(
+            (agent_forecast.logical.as_str(), agent_forecast.at),
+            ("1816", now + 7 * 86400)
+        );
+        assert_eq!(
+            last.folder.forecast.as_ref().unwrap().logical,
+            agent_forecast.logical
+        );
+        let disclosed = serde_json::to_value(&last).unwrap();
+        assert!(disclosed.get("volume").is_none());
+        assert!(
+            service
+                .trend(query(regressed, 0), &cancel)
+                .unwrap()
+                .unwrap()
+                .folder
+                .forecast
+                .is_none()
+        );
+        assert!(
+            service
+                .trend(query(ids[7], 0), &AtomicBool::new(true))
+                .unwrap()
+                .is_none()
+        );
+        registry.revoke(grant.id).unwrap();
+        assert!(service.trend(query(ids[7], 0), &cancel).is_err());
     }
     std::fs::write(folder.join("growth.bin"), [3; 800]).unwrap();
     let mut index = history.load(*ids.last().unwrap(), &cancel).unwrap();

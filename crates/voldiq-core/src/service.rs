@@ -6,7 +6,7 @@ use crate::{
     jobs::{Job, JobState, Jobs},
     operations::Coordinator,
     scanner,
-    snapshots::Store,
+    snapshots::{Store, TrendPage, TrendPageRequest, TrendRequest},
 };
 use serde::Serialize;
 use std::{
@@ -694,6 +694,40 @@ impl AgentService {
                 5.min(page_size),
                 cancel,
             )
+        })
+    }
+
+    pub fn trend(
+        &self,
+        request: TrendPageRequest,
+        cancel: &AtomicBool,
+    ) -> Result<Option<TrendPage>> {
+        self.read_activity(request.snapshot_id, cancel, |store, page_size| {
+            if !request.valid() {
+                return Err(Error::Invalid(
+                    "Choose 7, 30, 90 or 365 days, offset up to 240 and a limit from 1 to 100."
+                        .into(),
+                ));
+            }
+            let Some(mut folder) = store.folder_trend_through(
+                TrendRequest {
+                    snapshot: request.snapshot_id,
+                    days: request.days,
+                },
+                cancel,
+            )?
+            else {
+                return Ok(None);
+            };
+            let total = folder.points.len();
+            let start = request.offset.min(total);
+            let end = (start + request.limit.min(page_size)).min(total);
+            folder.points.truncate(end);
+            folder.points.drain(..start);
+            Ok(Some(TrendPage {
+                folder,
+                next_offset: (end < total).then_some(end),
+            }))
         })
     }
 

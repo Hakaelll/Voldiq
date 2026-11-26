@@ -17,15 +17,59 @@ pub struct TrendRequest {
     pub days: u16,
 }
 
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct TrendPageRequest {
+    pub snapshot_id: i64,
+    #[serde(default = "default_trend_days")]
+    pub days: u16,
+    #[serde(default)]
+    pub offset: usize,
+    #[serde(default = "default_trend_limit")]
+    pub limit: usize,
+}
+
+impl TrendPageRequest {
+    pub fn valid(&self) -> bool {
+        self.snapshot_id > 0
+            && supported_days(self.days)
+            && self.offset <= MAX_POINTS
+            && (1..=100).contains(&self.limit)
+    }
+}
+
+fn default_trend_days() -> u16 {
+    30
+}
+fn default_trend_limit() -> usize {
+    50
+}
+fn supported_days(days: u16) -> bool {
+    matches!(days, 7 | 30 | 90 | 365)
+}
+
+#[derive(Serialize)]
+pub struct TrendPage {
+    #[serde(flatten)]
+    pub folder: FolderTrend,
+    pub next_offset: Option<usize>,
+}
+
 #[derive(Serialize)]
 pub struct TrendReport {
+    #[serde(flatten)]
+    pub folder: FolderTrend,
+    pub volume: super::volume_history::VolumeTrend,
+}
+
+#[derive(Serialize)]
+pub struct FolderTrend {
     pub anchor: i64,
     pub root: String,
     pub points: Vec<TrendPoint>,
     pub limited: bool,
     pub missing_dates: bool,
     pub forecast: Option<TrendForecast>,
-    pub volume: super::volume_history::VolumeTrend,
 }
 
 #[derive(Serialize)]
@@ -99,16 +143,44 @@ fn inconsistent() -> Error {
 
 impl Store {
     pub fn trend(&self, request: TrendRequest, cancel: &AtomicBool) -> Result<Option<TrendReport>> {
-        if !matches!(request.days, 7 | 30 | 90 | 365) {
+        let tx = self.connection.unchecked_transaction()?;
+        let Some((root, folder)) = Self::read_folder_trend(&tx, &request, i64::MAX, cancel)? else {
+            return Ok(None);
+        };
+        let volume = super::volume_history::trend(&tx, root, request.days, cancel)?;
+        Ok((!cancel.load(Ordering::Relaxed)).then_some(TrendReport { folder, volume }))
+    }
+
+    pub(crate) fn folder_trend_through(
+        &self,
+        request: TrendRequest,
+        cancel: &AtomicBool,
+    ) -> Result<Option<FolderTrend>> {
+        let tx = self.connection.unchecked_transaction()?;
+        Ok(
+            Self::read_folder_trend(&tx, &request, request.snapshot, cancel)?
+                .map(|(_, folder)| folder),
+        )
+    }
+
+    fn read_folder_trend(
+        tx: &rusqlite::Transaction<'_>,
+        request: &TrendRequest,
+        through: i64,
+        cancel: &AtomicBool,
+    ) -> Result<Option<(i64, FolderTrend)>> {
+        if !supported_days(request.days) {
             return Err(Error::Invalid("Choose a supported trend interval.".into()));
         }
-        let tx = self.connection.unchecked_transaction()?;
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
         let (root, path, latest, missing_dates) = tx.query_row(
             "SELECT r.id,r.path,
-             (SELECT MAX(o.observed_at) FROM snapshots o WHERE o.root_id=r.id),
-             EXISTS(SELECT 1 FROM snapshots o WHERE o.root_id=r.id AND o.observed_at IS NULL)
+             (SELECT MAX(o.observed_at) FROM snapshots o WHERE o.root_id=r.id AND o.id<=?2),
+             EXISTS(SELECT 1 FROM snapshots o WHERE o.root_id=r.id AND o.id<=?2 AND o.observed_at IS NULL)
              FROM snapshots s JOIN snapshot_roots r ON r.id=s.root_id WHERE s.id=?1",
-            [request.snapshot],
+            [request.snapshot, through],
             |row| {
                 Ok((
                     row.get::<_, i64>(0)?,
@@ -118,34 +190,33 @@ impl Store {
                 ))
             },
         )?;
-        let volume = super::volume_history::trend(&tx, root, request.days, cancel)?;
-        let mut report = TrendReport {
+        let mut report = FolderTrend {
             anchor: request.snapshot,
             root: decode(&path)?.to_string_lossy().into_owned(),
             points: Vec::new(),
             limited: false,
             missing_dates,
             forecast: None,
-            volume,
         };
         if cancel.load(Ordering::Relaxed) {
             return Ok(None);
         }
         let Some(latest) = latest else {
-            return Ok(Some(report));
+            return Ok(Some((root, report)));
         };
         let mut query = tx.prepare(
             "SELECT s.id,s.logical,s.complete,s.observed_at,s.observed_complete,s.engine_version,s.accounting_version
-             FROM snapshots s WHERE s.root_id=?1 AND s.observed_at BETWEEN ?2 AND ?3
-             AND s.id=(SELECT x.id FROM snapshots x WHERE x.root_id=s.root_id AND x.observed_at=s.observed_at ORDER BY x.id DESC LIMIT 1)
-             ORDER BY s.observed_at DESC,s.id DESC LIMIT ?4",
+             FROM snapshots s WHERE s.root_id=?1 AND s.observed_at BETWEEN ?2 AND ?3 AND s.id<=?4
+             AND s.id=(SELECT x.id FROM snapshots x WHERE x.root_id=s.root_id AND x.observed_at=s.observed_at AND x.id<=?4 ORDER BY x.id DESC LIMIT 1)
+             ORDER BY s.observed_at DESC,s.id DESC LIMIT ?5",
         )?;
         let start = latest
             .saturating_sub(i64::from(request.days) * DAY as i64)
             .max(0);
-        let rows = query.query_map(params![root, start, latest, MAX_POINTS as i64 + 1], |row| {
-            measurement(row, 0)
-        })?;
+        let rows = query.query_map(
+            params![root, start, latest, through, MAX_POINTS as i64 + 1],
+            |row| measurement(row, 0),
+        )?;
         let mut measured = Vec::new();
         for row in rows {
             if cancel.load(Ordering::Relaxed) {
@@ -174,7 +245,7 @@ impl Store {
             });
         }
         report.forecast = forecast(&measured);
-        Ok(Some(report))
+        Ok((!cancel.load(Ordering::Relaxed)).then_some((root, report)))
     }
 
     pub fn trend_changes(

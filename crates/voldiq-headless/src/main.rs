@@ -37,7 +37,7 @@ type CliError = (&'static str, String, i32);
 async fn run(args: &mut Vec<String>) -> Result<Option<Value>, CliError> {
     if args.is_empty() || args == &["--help"] {
         return Ok(Some(success(
-            json!({"commands":["capabilities","translate <description>","scan <root> [--wait]","query <snapshot_id> [JSON filters]","stats <snapshot_id>","applications <snapshot_id> [JSON scope/sort/page/file filters]","libraries <snapshot_id> <games|media> [JSON scope/page]","export <snapshot_id> <JSON CSV request>","space <snapshot_id>","history [offset] [limit]","compare <before_id> <after_id> [offset] [limit]","calendar <snapshot_id> <YYYY-MM> [day] [offset] [limit]","diary <snapshot_id> [offset] [limit]","details <snapshot_id> <node_id>","folder <snapshot_id> <node_id> [--note]","budget <snapshot_id> <node_id>","jobs <job_id>","cancel <job_id>","plan prepare <snapshot_id> <JSON node IDs>","plan offload <snapshot_id> <JSON node IDs> <JSON destination/originals request>","plan restore <archive_snapshot_id> <JSON transfer_plan_id/node_ids request>","plan get <plan_id>","plan request <plan_id>","plan execute <plan_id> <manifest_hash>","plan cancel <plan_id> <manifest_hash>","plan audit <plan_id> [after_sequence] [limit]","mcp serve --stdio"],"state":"--state <directory> before command (default: Voldiq local application data)","authentication":"Human-provisioned VOLDIQ_AGENT_TOKEN environment variable. No credential arguments or approval bypass."}),
+            json!({"commands":["capabilities","translate <description>","scan <root> [--wait]","query <snapshot_id> [JSON filters]","stats <snapshot_id>","applications <snapshot_id> [JSON scope/sort/page/file filters]","libraries <snapshot_id> <games|media> [JSON scope/page]","export <snapshot_id> <JSON CSV request>","space <snapshot_id>","history [offset] [limit]","compare <before_id> <after_id> [offset] [limit]","trend <snapshot_id> [days] [offset] [limit]","calendar <snapshot_id> <YYYY-MM> [day] [offset] [limit]","diary <snapshot_id> [offset] [limit]","details <snapshot_id> <node_id>","folder <snapshot_id> <node_id> [--note]","budget <snapshot_id> <node_id>","jobs <job_id>","cancel <job_id>","plan prepare <snapshot_id> <JSON node IDs>","plan offload <snapshot_id> <JSON node IDs> <JSON destination/originals request>","plan restore <archive_snapshot_id> <JSON transfer_plan_id/node_ids request>","plan get <plan_id>","plan request <plan_id>","plan execute <plan_id> <manifest_hash>","plan cancel <plan_id> <manifest_hash>","plan audit <plan_id> [after_sequence] [limit]","mcp serve --stdio"],"state":"--state <directory> before command (default: Voldiq local application data)","authentication":"Human-provisioned VOLDIQ_AGENT_TOKEN environment variable. No credential arguments or approval bypass."}),
         )));
     }
     let directory = if args.first().is_some_and(|arg| arg == "--state") {
@@ -210,6 +210,38 @@ async fn run(args: &mut Vec<String>) -> Result<Option<Value>, CliError> {
                 move |service, cancel| {
                     service.compare_snapshots(before, after, offset, limit, cancel)
                 },
+            )
+            .await?
+        }
+        ("trend", 2..=5) => {
+            let request = voldiq_core::snapshots::TrendPageRequest {
+                snapshot_id: number(&args[1])?,
+                days: args
+                    .get(2)
+                    .map(|value| value.parse())
+                    .transpose()
+                    .map_err(|_| arguments())?
+                    .unwrap_or(30),
+                offset: args
+                    .get(3)
+                    .map(|value| value.parse())
+                    .transpose()
+                    .map_err(|_| arguments())?
+                    .unwrap_or(0),
+                limit: args
+                    .get(4)
+                    .map(|value| value.parse())
+                    .transpose()
+                    .map_err(|_| arguments())?
+                    .unwrap_or(50),
+            };
+            if !request.valid() {
+                return Err(arguments());
+            }
+            read_history(
+                service.clone(),
+                ("trend_cancelled", "Trend query cancelled."),
+                move |service, cancel| service.trend(request, cancel),
             )
             .await?
         }
