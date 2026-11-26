@@ -565,39 +565,37 @@ impl Store {
     }
 
     pub fn list(&self, offset: usize, limit: usize) -> Result<Vec<Snapshot>> {
-        let mut statement = self.connection.prepare("SELECT s.id,r.path,s.captured,s.logical,s.allocated,s.files,s.entries,s.complete,s.errors,s.root_id,s.observed_at,s.observed_complete,s.engine_version,s.accounting_version
-            FROM snapshots s JOIN snapshot_roots r ON r.id=s.root_id ORDER BY s.id DESC LIMIT ?1 OFFSET ?2")?;
+        let mut statement = self.connection.prepare(&format!(
+            "{SNAPSHOT_SUMMARY} ORDER BY s.id DESC LIMIT ?1 OFFSET ?2"
+        ))?;
         let rows = statement.query_map(
             params![
                 position_integer(limit.clamp(1, 100))?,
                 position_integer(offset)?
             ],
-            |row| {
-                let path: Vec<u8> = row.get(1)?;
-                Ok((
-                    Snapshot {
-                        observation: read_observation(row, 10)?,
-                        id: row.get(0)?,
-                        root_key: row.get(9)?,
-                        root: String::new(),
-                        captured: unsigned(row, 2)?,
-                        logical: unsigned(row, 3)?,
-                        allocated: unsigned(row, 4)?,
-                        files: unsigned(row, 5)?,
-                        entries: unsigned(row, 6)?,
-                        complete: row.get(7)?,
-                        errors: unsigned(row, 8)?,
-                    },
-                    path,
-                ))
-            },
+            read_summary,
         )?;
-        rows.map(|row| {
-            let (mut snapshot, path) = row?;
-            snapshot.root = decode(&path)?.to_string_lossy().into_owned();
-            Ok(snapshot)
-        })
-        .collect()
+        rows.map(|row| decode_summary(row?)).collect()
+    }
+
+    pub fn summary(&self, id: i64) -> Result<Option<Snapshot>> {
+        self.connection
+            .query_row(
+                &format!("{SNAPSHOT_SUMMARY} WHERE s.id=?1"),
+                [id],
+                read_summary,
+            )
+            .optional()?
+            .map(decode_summary)
+            .transpose()
+    }
+
+    pub fn contains(&self, id: i64) -> Result<bool> {
+        Ok(self.connection.query_row(
+            "SELECT EXISTS(SELECT 1 FROM snapshots WHERE id=?1)",
+            [id],
+            |row| row.get(0),
+        )?)
     }
 
     pub fn load(&self, id: i64, cancel: &AtomicBool) -> Result<Index> {
@@ -1038,6 +1036,33 @@ fn read_observation(
         rusqlite::types::Type::Integer,
         Box::new(Error::Invalid("Invalid measurement provenance.".into())),
     ))
+}
+
+const SNAPSHOT_SUMMARY: &str = "SELECT s.id,r.path,s.captured,s.logical,s.allocated,s.files,s.entries,s.complete,s.errors,s.root_id,s.observed_at,s.observed_complete,s.engine_version,s.accounting_version
+    FROM snapshots s JOIN snapshot_roots r ON r.id=s.root_id";
+
+fn read_summary(row: &rusqlite::Row<'_>) -> rusqlite::Result<(Snapshot, Vec<u8>)> {
+    Ok((
+        Snapshot {
+            observation: read_observation(row, 10)?,
+            id: row.get(0)?,
+            root_key: row.get(9)?,
+            root: String::new(),
+            captured: unsigned(row, 2)?,
+            logical: unsigned(row, 3)?,
+            allocated: unsigned(row, 4)?,
+            files: unsigned(row, 5)?,
+            entries: unsigned(row, 6)?,
+            complete: row.get(7)?,
+            errors: unsigned(row, 8)?,
+        },
+        row.get(1)?,
+    ))
+}
+
+fn decode_summary((mut snapshot, path): (Snapshot, Vec<u8>)) -> Result<Snapshot> {
+    snapshot.root = decode(&path)?.to_string_lossy().into_owned();
+    Ok(snapshot)
 }
 
 fn decode_state(bytes: &[u8]) -> Result<crate::FileState> {

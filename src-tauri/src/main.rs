@@ -38,6 +38,7 @@ mod query_commands;
 mod restore_commands;
 mod scan_control;
 mod schedule_commands;
+mod shared_scan_commands;
 mod snapshot_commands;
 #[cfg(windows)]
 mod video_commands;
@@ -1195,6 +1196,9 @@ fn main() {
             open_windows_recycle_bin,
             save_snapshot,
             list_snapshots,
+            shared_scan_commands::list_shared_scans,
+            shared_scan_commands::cancel_shared_scan,
+            shared_scan_commands::open_shared_scan,
             load_snapshot,
             delete_snapshot,
             snapshot_storage,

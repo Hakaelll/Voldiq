@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Shared scan activity
+
+Overview → Scans from CLI and MCP shows the last eight jobs in the current durable profile. The collapsed panel opens on demand. It shows measured files and logical size, access issues and the recorded job state. Cancel scan requests cooperative cancellation. Open snapshot passes the saved capture to the existing historical loader under the workspace lease.
+
+The shared lease protects active workers and allows recovery of interrupted jobs. Desktop activity leaves the existing per-connection CLI and MCP authorization checks in place. Desktop-origin scans retain their current save workflow. Native keyboard interaction and scaling remain manual.
+
+All six project checks passed with eight routine tests. Real CLI and MCP scans both produced a saved result in the desktop feed. Owned fixtures checked exact byte serialization, cancellation requests, stale-job recovery, owner isolation and missing snapshots. The rendered disclosure used escaped paths and distinguished running, saved and interrupted jobs. [Verification record](../benchmarks/workbench-shared-scan-activity-source.json)
+
 ## Historical map layout and colors
 
 Comparison and Playback give the map a larger plot as the window height allows. The Size and File type choices stay available while captures load. Both maps in a comparison use one size scale. Other contents uses a separate neutral color, and the color choice leaves the measured areas intact. GIF and WebM capture the active color choice and unit setting when the export starts.

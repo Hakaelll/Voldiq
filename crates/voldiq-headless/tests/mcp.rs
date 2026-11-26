@@ -1,6 +1,11 @@
 use rmcp::{ServiceExt, model::CallToolRequestParams, transport::TokioChildProcess};
 use serde_json::{Value, json};
 use voldiq_core::agents::{Capability, Limits, Policy, Registry};
+use voldiq_core::{
+    Progress, ScanPhase,
+    jobs::{JobState, Jobs},
+    operations::Lease,
+};
 
 async fn call(
     client: &rmcp::service::RunningService<rmcp::RoleClient, ()>,
@@ -100,6 +105,8 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         || tool.name.contains("shell")));
     let status = call(&client, "voldiq_capabilities", json!({})).await;
     assert_ne!(status.is_error, Some(true));
+    assert!(Jobs::recent_for_desktop(state.path()).unwrap().is_empty());
+    assert!(!state.path().join("jobs.db").exists());
     let start = call(&client, "voldiq_scan_start", json!({"root": source.path()})).await;
     assert_ne!(start.is_error, Some(true));
     let id = start.structured_content.unwrap()["result"]["job_id"]
@@ -117,6 +124,70 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         assert!(tokio::time::Instant::now() < deadline, "{job}");
         tokio::time::sleep(std::time::Duration::from_millis(25)).await;
     };
+    let desktop = Jobs::recent_for_desktop(state.path()).unwrap();
+    assert_eq!(desktop.len(), 1);
+    assert_eq!(desktop[0].id, id.to_string());
+    assert_eq!(desktop[0].state, JobState::Completed);
+    assert_eq!(desktop[0].snapshot_id, Some(snapshot));
+    assert_eq!(desktop[0].progress.as_ref().unwrap().logical, "11");
+    let visible = serde_json::to_value(&desktop[0]).unwrap();
+    assert!(visible.get("owner").is_none() && visible.get("snapshot_id").is_none());
+    let history = voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db")).unwrap();
+    assert!(history.contains(snapshot).unwrap());
+    assert_eq!(history.summary(snapshot).unwrap().unwrap().logical, 11);
+    assert!(!history.contains(i64::MAX).unwrap());
+    assert!(history.summary(i64::MAX).unwrap().is_none());
+    drop(history);
+
+    let isolated = tempfile::tempdir().unwrap();
+    let lease = Lease::acquire(isolated.path()).unwrap();
+    let mut journal = Jobs::open(isolated.path()).unwrap();
+    let running = journal.begin(&lease, 17, source.path()).unwrap();
+    assert!(
+        !journal
+            .progress(
+                17,
+                running,
+                &Progress {
+                    previous: false,
+                    phase: ScanPhase::Scanning,
+                    entries: 1,
+                    files: 1,
+                    logical: u64::MAX,
+                    elapsed_ms: 1,
+                    errors: 0,
+                    method: "Owned fixture".into(),
+                }
+            )
+            .unwrap()
+    );
+    let desktop = Jobs::recent_for_desktop(isolated.path()).unwrap();
+    assert_eq!(desktop[0].state, JobState::Running);
+    assert_eq!(
+        desktop[0].progress.as_ref().unwrap().logical,
+        "18446744073709551615"
+    );
+    assert!(Jobs::snapshot_for_desktop(&lease, running).is_err());
+    assert!(journal.get(18, running).is_err());
+    Jobs::cancel_for_desktop(isolated.path(), running).unwrap();
+    assert!(journal.cancellation_requested(17, running).unwrap());
+    drop(lease);
+    let desktop = Jobs::recent_for_desktop(isolated.path()).unwrap();
+    assert_eq!(desktop[0].state, JobState::Interrupted);
+    assert!(desktop[0].finished.is_some());
+    assert!(Jobs::cancel_for_desktop(isolated.path(), running).is_err());
+    let lease = Lease::acquire(isolated.path()).unwrap();
+    let completed = journal.begin(&lease, 18, source.path()).unwrap();
+    journal
+        .finish(18, completed, JobState::Completed, Some(snapshot))
+        .unwrap();
+    assert_eq!(
+        Jobs::snapshot_for_desktop(&lease, completed).unwrap(),
+        snapshot
+    );
+    assert!(Jobs::snapshot_for_desktop(&lease, running).is_err());
+    drop(lease);
+
     let stats = call(&client, "voldiq_stats", json!({"snapshot_id":snapshot})).await;
     assert!(tools.iter().any(|tool| tool.name == "voldiq_applications"));
     #[cfg(windows)]

@@ -23,6 +23,7 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
                 vec![
                     Capability::Metadata,
                     Capability::Export,
+                    Capability::Scan,
                     Capability::PreparePlans,
                     Capability::RequestApproval,
                     Capability::ExecuteApproved,
@@ -505,4 +506,16 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
         std::fs::read(source.path().join("selected.data")).unwrap(),
         b"fixture"
     );
+    let output = run(&["scan", source.path().to_str().unwrap(), "--wait"]);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    let result: Value = serde_json::from_slice(&output.stdout).unwrap();
+    let scan = &result["result"];
+    let desktop = voldiq_core::jobs::Jobs::recent_for_desktop(state.path()).unwrap();
+    assert_eq!(desktop.len(), 1);
+    assert_eq!(desktop[0].id, scan["id"].as_i64().unwrap().to_string());
+    assert_eq!(desktop[0].snapshot_id, scan["snapshot_id"].as_i64());
 }

@@ -262,6 +262,9 @@ impl AgentService {
                 })
                 .unwrap_or_else(|_| crate::applications::Capture::unavailable()),
         );
+        if jobs.cancellation_requested(self.principal.id(), id)? {
+            return jobs.finish(self.principal.id(), id, JobState::Cancelled, None);
+        }
         let evidence = if registry
             .policy(&self.principal, Capability::ReadContent)
             .is_ok()
@@ -280,7 +283,7 @@ impl AgentService {
             None
         };
         registry.authorize_index(&self.principal, &index)?;
-        if cancel.load(Ordering::Relaxed) {
+        if cancel.load(Ordering::Relaxed) || jobs.cancellation_requested(self.principal.id(), id)? {
             return jobs.finish(self.principal.id(), id, JobState::Cancelled, None);
         }
         let mut store = Store::open(&self.directory.directory().join("snapshots.db"))?;

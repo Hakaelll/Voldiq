@@ -244,6 +244,8 @@ The desktop shell reserves a stable 224px labeled sidebar or a manually selected
 
 Appearance places Binary (GiB) and Decimal (GB) in one labeled Storage units row. Charts, lists and size filters use the selected labels. Changing the unit preserves the byte threshold in a saved search.
 
+Overview adds a collapsed Scans from CLI and MCP row. Its expanded list aligns the recorded path, measured progress, state and available action. It refreshes while the panel is visible. Open snapshot loads a saved result as historical analysis. Cancel scan shows the recorded cancellation request until the worker reports a final state.
+
 History comparison and playback give the map a plot sized to the window height. Two inline radio options choose Size or File type. The size colors share the comparison or playback byte scale. Other contents keeps its own neutral swatch. Changing colors keeps the same area, scope and playback position. Animated exports use the colors and display units selected at submission.
 
 The populated overview follows `interface/01-overview-root.png` and `02-overview-folder.png`: a 248px summary column with measured capacity, index totals and largest items, followed by a dominant map and file-type legend. The summary narrows to 210px below 1100px; below 840px the sections stack without hiding largest items. Map height scales from 360px to 600px. The capacity strip remains only in the unscanned overview. Other data views use their shared header without an extra capacity strip. The file list retains its 36px logical rows and existing bounded virtualization.

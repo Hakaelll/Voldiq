@@ -1299,6 +1299,60 @@ main {
   gap: 20px;
   padding: 0 20px 20px;
 }
+.shared-scans > summary {
+  padding: 10px 0;
+}
+.shared-scans > summary span,
+.shared-scan-state .active {
+  color: var(--accent);
+}
+.shared-scans p {
+  margin: 0 0 12px;
+  color: var(--secondary);
+  font-size: 13px;
+}
+.shared-scans ul {
+  margin: 0 0 12px;
+  padding: 0;
+  list-style: none;
+}
+.shared-scans li {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 9rem;
+  align-items: center;
+  gap: 6px 18px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+.shared-scans li strong {
+  font-weight: 600;
+}
+.shared-scan-root,
+.shared-scan-state {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.shared-scan-root strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.shared-scans li span {
+  color: var(--secondary);
+}
+.shared-scan-action {
+  justify-self: end;
+}
+@media (max-width: 840px) {
+  .shared-scans li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .shared-scan-root {
+    grid-column: 1 / -1;
+  }
+}
 .map-controls {
   display: flex;
   align-items: center;

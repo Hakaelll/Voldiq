@@ -108,7 +108,7 @@ pub struct Issue {
     pub message: String,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ScanPhase {
     Scanning,
@@ -117,7 +117,7 @@ pub enum ScanPhase {
     Failed,
 }
 
-#[derive(Clone, Debug, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Progress {
     pub previous: bool,
     pub phase: ScanPhase,

@@ -10,6 +10,7 @@
   import Overview from './components/Overview.svelte';
   import StorageMap from './components/StorageMap.svelte';
   import ScanWelcome from './components/ScanWelcome.svelte';
+  import SharedScans from './components/SharedScans.svelte';
   import ScanSchedules from './components/ScanSchedules.svelte';
   import ScanPauseControl from './components/ScanPauseControl.svelte';
   import type { ScanControlView } from './lib/scan-control';
@@ -2017,6 +2018,9 @@
             >{/if}
         </div>{/if}
 
+      {#if view === 'overview' && isTauri() && storageMode !== null && storageMode !== 'ephemeral'}
+        <SharedScans blocked={busy} onbusy={(value) => (analysisBusy = value)} onload={loadSnapshot} />
+      {/if}
       {#if view === 'settings'}
         <section class="settings-panel">
           <ProtectedFolders />
