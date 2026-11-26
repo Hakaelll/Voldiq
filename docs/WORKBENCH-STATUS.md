@@ -8,6 +8,8 @@ The shared lease protects active workers and allows recovery of interrupted jobs
 
 All six project checks passed with eight routine tests. Real CLI and MCP scans both produced a saved result in the desktop feed. Owned fixtures checked exact byte serialization, cancellation requests, stale-job recovery, owner isolation and missing snapshots. The rendered disclosure used escaped paths and distinguished running, saved and interrupted jobs. [Verification record](../benchmarks/workbench-shared-scan-activity-source.json)
 
+The Windows preview reached ready with zero TCP listeners. 10 embedded non-HTML assets matched the production web build. The unsigned NSIS installer measures 12,047,368 bytes. Cleanup removed 3,081,276,000 logical bytes of inactive release artifacts and 99,289,600 bytes of closed previews. The current preview and installer were preserved. [Startup](../benchmarks/native-shared-scan-activity-preview.json) · [Default listener](../benchmarks/shared-scan-activity-default-listener.json) · [Distribution](../benchmarks/distribution-shared-scan-activity.json) · [Post-clean checks](../benchmarks/workspace-footprint-shared-scan-activity.json)
+
 ## Historical map layout and colors
 
 Comparison and Playback give the map a larger plot as the window height allows. The Size and File type choices stay available while captures load. Both maps in a comparison use one size scale. Other contents uses a separate neutral color, and the color choice leaves the measured areas intact. GIF and WebM capture the active color choice and unit setting when the export starts.
