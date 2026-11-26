@@ -138,9 +138,47 @@ pub(super) async fn open(state: &[String], no_motion: bool) -> io::Result<()> {
             }
             "4" => args.extend(["volumes".into(), "0".into(), "12".into()]),
             "5" => args.extend(["history".into(), "0".into(), "12".into()]),
+            "7" | "8" => {
+                let (command, id_prompt, field, field_prompt) = if choice == "7" {
+                    (
+                        "duplicate-analysis",
+                        "  Snapshot ID (see Scan history) > ",
+                        "scope",
+                        "  Folder ID (Enter for the scan root) > ",
+                    )
+                } else {
+                    (
+                        "duplicate-results",
+                        "  Duplicate analysis job ID > ",
+                        "group",
+                        "  Group number (Enter to list groups) > ",
+                    )
+                };
+                let Some(id) = ask(&mut input, &mut out, id_prompt)? else {
+                    break;
+                };
+                if id.is_empty() {
+                    continue;
+                }
+                let Some(scope) = ask(&mut input, &mut out, field_prompt)? else {
+                    break;
+                };
+                let mut options = json!({});
+                if !scope.is_empty() {
+                    let Ok(value) = scope.parse::<u32>() else {
+                        writeln!(out, "  Enter a numeric {field} ID.")?;
+                        continue;
+                    };
+                    options[field] = json!(value);
+                }
+                if choice == "8" {
+                    options["limit"] = json!(12);
+                }
+                args.extend([command.into(), id, options.to_string()]);
+            }
             "" => continue,
             _ => {
-                writeln!(out, "  Choose 1-6, ?, H, R or 0.")?;
+                writeln!(out, "  Choose 1-8, ?, H, R or 0.")?;
                 continue;
             }
         }
@@ -170,8 +208,13 @@ fn menu(out: &mut impl Write, terminal: &Terminal) -> io::Result<()> {
         (2, "Search a snapshot"),
         (3, "Duplicate candidates"),
         (6, "Verify exact duplicates"),
+        (7, "Analyze a folder for duplicates"),
     ];
-    let browsing = [(4, "Authorized volumes"), (5, "Scan history")];
+    let browsing = [
+        (4, "Authorized volumes"),
+        (5, "Scan history"),
+        (8, "Duplicate analysis results"),
+    ];
     for (section, entries) in [
         ("Analyze", analysis.as_slice()),
         ("Browse", browsing.as_slice()),
@@ -328,6 +371,61 @@ fn show(out: &mut impl Write, terminal: &Terminal, choice: &str, result: &Value)
                 label(&result["compared_files"]),
                 label(&result["aliases_omitted"])
             )
+        }
+        "7" => {
+            heading(
+                out,
+                terminal,
+                &format!("Duplicate analysis #{} complete", label(&result["id"])),
+            )?;
+            writeln!(out, "  [8] Open the groups and file IDs for this job.")
+        }
+        "8" => {
+            heading(
+                out,
+                terminal,
+                &format!(
+                    "Duplicate analysis #{}  |  Verified results",
+                    label(&result["job_id"])
+                ),
+            )?;
+            if result["kind"] == "members" {
+                for node in items(&result["node_ids"]) {
+                    writeln!(out, "  File #{}", label(node))?;
+                }
+            } else {
+                let rows = items(&result["groups"]);
+                if rows.is_empty() {
+                    writeln!(out, "  No verified duplicate groups in the analyzed scope.")?;
+                }
+                for group in rows {
+                    writeln!(
+                        out,
+                        "  Group {:<6}  {:>10}  {} files",
+                        label(&group["group"]),
+                        size_label(bytes(&group["logical_bytes"])),
+                        label(&group["distinct_files"])
+                    )?;
+                }
+            }
+            if result["recorded_complete"].as_bool() == Some(false)
+                || result["unavailable_files"]
+                    .as_u64()
+                    .is_some_and(|count| count > 0)
+            {
+                writeln!(
+                    out,
+                    "  Partial evidence  |  {} unavailable files",
+                    label(&result["unavailable_files"])
+                )?;
+            }
+            if !result["next_offset"].is_null() {
+                writeln!(
+                    out,
+                    "  More rows are available with the duplicate-results command."
+                )?;
+            }
+            Ok(())
         }
         "4" => {
             heading(out, terminal, "Authorized volumes")?;

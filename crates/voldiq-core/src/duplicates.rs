@@ -1,5 +1,6 @@
 mod candidates;
 pub(crate) mod persistence;
+pub mod scope;
 mod verification;
 pub(crate) use candidates::candidate_page;
 pub use candidates::{CandidatePage, CandidateRequest};

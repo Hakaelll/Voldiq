@@ -192,6 +192,20 @@ struct DuplicateCandidatesArgs {
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct DuplicateAnalysisArgs {
+    snapshot_id: i64,
+    #[serde(default)]
+    options: voldiq_core::duplicates::scope::ScopeRequest,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct DuplicateResultsArgs {
+    job_id: i64,
+    #[serde(default)]
+    options: voldiq_core::duplicates::scope::ResultRequest,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct ExecutionArgs {
     plan_id: String,
     manifest_hash: String,
@@ -545,6 +559,31 @@ fn invoke(
                 })?;
             serde_json::to_value(result).map_err(unavailable)
         }
+        "voldiq_duplicate_analysis_start" => {
+            let args: DuplicateAnalysisArgs = parse(args)?;
+            if args.snapshot_id <= 0 || !args.options.valid() {
+                return Err(super::failure(
+                    "invalid_arguments",
+                    "Use a snapshot ID and a valid minimum size.",
+                ));
+            }
+            let id = service
+                .start_duplicate_analysis(args.snapshot_id, args.options)
+                .map_err(unavailable)?;
+            Ok(json!({"job_id":id}))
+        }
+        "voldiq_duplicate_analysis_results" => {
+            let args: DuplicateResultsArgs = parse(args)?;
+            if args.job_id <= 0 || !args.options.valid() {
+                return Err(super::failure(
+                    "invalid_arguments",
+                    "Use a job ID and bounded result pages.",
+                ));
+            }
+            service
+                .duplicate_analysis_results(args.job_id, &args.options)
+                .map_err(unavailable)
+        }
         "voldiq_plan_get" => {
             let args: PlanArgs = parse(args)?;
             serde_json::to_value(service.plan_get(&args.plan_id).map_err(plan_unavailable)?)
@@ -776,8 +815,8 @@ fn tools() -> Vec<Tool> {
     [
         ("voldiq_capabilities", "Read actual connection capabilities, limits and implementation status.", json!({}), json!([])),
         ("voldiq_scan_start", "Start one authorized metadata scan. Returns a job ID; poll voldiq_job_get. Does not read file content.", json!({"root":{"type":"string","maxLength":32000}}), json!(["root"])),
-        ("voldiq_job_get", "Read this connection's durable scan status and snapshot ID.", json!({"job_id":integer}), json!(["job_id"])),
-        ("voldiq_job_cancel", "Request cooperative cancellation of this connection's active scan.", json!({"job_id":integer}), json!(["job_id"])),
+        ("voldiq_job_get", "Read this connection's durable scan or duplicate analysis status.", json!({"job_id":integer}), json!(["job_id"])),
+        ("voldiq_job_cancel", "Request cooperative cancellation of this connection's active scan or duplicate analysis.", json!({"job_id":integer}), json!(["job_id"])),
         ("voldiq_stats", "Read logical path bytes and unique known allocation from an authorized snapshot. Unknown allocation is null. Set display_units to include labelled sizes alongside exact bytes.", json!({"snapshot_id":integer,"display_units":{"enum":["binary","decimal"]}}), json!(["snapshot_id"])),
         ("voldiq_space_account", "Explain known indexed file allocation, logical path bytes, cloud/reparse metadata and coverage in one authorized stored capture. Requires Metadata; current root identity and exclusion coverage are checked again before return. Whole-volume counters and residuals are withheld because a folder grant does not grant volume scope. No content read, file action or approval. Request cancellation is cooperative.", json!({"snapshot_id":integer}), json!(["snapshot_id"])),
         ("voldiq_query", "Page an authorized indexed snapshot using explicit structured filters; changing view does not scan.", json!({"snapshot_id":integer,"query":query}), json!(["snapshot_id"])),
@@ -800,6 +839,8 @@ fn tools() -> Vec<Tool> {
         ("voldiq_plan_get", "Read this connection's exact manifest and current state. An approved row is not execution authority.", json!({"plan_id":plan_id}), json!(["plan_id"])),
         ("voldiq_duplicate_candidates", "List equally sized distinct file identities recorded in an authorized snapshot. Scope accepts an indexed folder ID. Set logical_bytes to page the members of that size. Uses recorded metadata and omits protected or unverified entries. Content equality and recoverable bytes remain unknown.", json!({"snapshot_id":integer,"options":{"type":"object","additionalProperties":false,"properties":{"scope":{"type":"integer","minimum":0,"maximum":4294967295u64},"min_bytes":{"type":"string","pattern":"^(0|[1-9][0-9]{0,19})$"},"logical_bytes":{"type":"string","pattern":"^(0|[1-9][0-9]{0,19})$"},"offset":{"type":"integer","minimum":0,"maximum":250000},"limit":{"type":"integer","minimum":1,"maximum":100}}}}), json!(["snapshot_id"])),
         ("voldiq_verify_duplicates", "Verify selected snapshot files by streaming their current local contents. Requires Metadata and ReadContent. Uses pinned recorded identities, excludes cloud and protected files, collapses hard links, and caps file reads at 256 MiB. Groups contain only matching distinct file IDs.", json!({"snapshot_id":integer,"node_ids":{"type":"array","minItems":2,"maxItems":64,"uniqueItems":true,"items":{"type":"integer","minimum":1,"maximum":4294967295u64}}}), json!(["snapshot_id","node_ids"])),
+        ("voldiq_duplicate_analysis_start", "Start exact duplicate analysis for an authorized snapshot folder. Requires Metadata and ReadContent. Poll the returned job ID with voldiq_job_get.", json!({"snapshot_id":integer,"options":{"type":"object","additionalProperties":false,"properties":{"scope":{"type":"integer","minimum":0,"maximum":4294967295u64},"min_bytes":{"type":"string","pattern":"^(0|[1-9][0-9]{0,19})$"}}}}), json!(["snapshot_id"])),
+        ("voldiq_duplicate_analysis_results", "Page completed exact groups or a single group's member IDs for this connection's duplicate analysis job.", json!({"job_id":integer,"options":{"type":"object","additionalProperties":false,"properties":{"group":{"type":"integer","minimum":1,"maximum":125000},"offset":{"type":"integer","minimum":0,"maximum":250000},"limit":{"type":"integer","minimum":1,"maximum":100}}}}), json!(["job_id"])),
         ("voldiq_transfers", "Page recorded transfer and restore operations for this connection's current credential and policy. Use next_before for the next page. Publication counts describe records only.", json!({"before":plan_id,"limit":{"type":"integer","minimum":1,"maximum":25,"default":25}}), json!([])),
         ("voldiq_transfer_files", "Page recorded file phases and publication evidence for an owned transfer or restore. Use next_after for the next page. Opt-in hashes require ReadContent. Restore preparation requires fresh archive evidence.", json!({"plan_id":plan_id,"after":{"type":"integer","minimum":0,"maximum":4294967295u64},"limit":{"type":"integer","minimum":1,"maximum":25,"default":25},"include_hashes":{"type":"boolean","default":false}}), json!(["plan_id"])),
         ("voldiq_plan_validate", "Check the current metadata evidence of this connection's exact plan ID and manifest hash. Requires PreparePlans. Returns status, observed lifecycle state and time. Reports no new paths and makes no changes to plan state or approval. Execution revalidates independently.", json!({"plan_id":plan_id,"manifest_hash":plan_id}), json!(["plan_id","manifest_hash"])),

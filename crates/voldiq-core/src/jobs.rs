@@ -1,4 +1,4 @@
-//! Durable owner-scoped scan status under the shared operation lease. No job auto-retry.
+//! Durable owner-scoped analysis status under the shared operation lease.
 use crate::{
     Error, Progress, Result, ScanPhase,
     operations::{Coordinator, Lease},
@@ -11,6 +11,8 @@ use std::{
 };
 
 const DESKTOP_OWNER: i64 = 0;
+mod duplicate;
+pub(crate) use duplicate::DuplicateRun;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -54,6 +56,8 @@ pub struct Job {
     pub snapshot_id: Option<i64>,
     pub cancel_requested: bool,
     pub progress: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duplicate_analysis: Option<crate::duplicates::scope::ScopeRequest>,
 }
 
 #[derive(Serialize)]
@@ -188,8 +192,12 @@ impl Jobs {
         connection.busy_timeout(Duration::from_secs(1))?;
         match connection.query_row("PRAGMA user_version", [], |row| row.get::<_, u32>(0))? {
             0 => return Ok(None),
-            1 => {}
-            _ => return Err(Error::Invalid("Unsupported scan jobs schema.".into())),
+            2 => {}
+            1 => {
+                drop(connection);
+                return Self::open(directory.directory()).map(Some);
+            }
+            _ => return Err(Error::Invalid("Unsupported jobs schema.".into())),
         }
         Ok(Some(Self {
             connection,
@@ -220,7 +228,7 @@ impl Jobs {
     fn recent(&self) -> Result<Vec<DesktopJob>> {
         let mut statement = self.connection.prepare(
             "SELECT id,root,state,started,finished,snapshot_id,cancel_requested,progress,owner
-             FROM scan_jobs ORDER BY id DESC LIMIT 8",
+             FROM scan_jobs WHERE duplicate_request IS NULL ORDER BY id DESC LIMIT 8",
         )?;
         let mut rows = statement.query([])?;
         let mut jobs = Vec::new();
@@ -262,7 +270,7 @@ impl Jobs {
         }
         jobs.connection
             .query_row(
-                "SELECT snapshot_id FROM scan_jobs WHERE id=?1 AND state='completed' AND snapshot_id IS NOT NULL",
+                "SELECT snapshot_id FROM scan_jobs WHERE id=?1 AND state='completed' AND snapshot_id IS NOT NULL AND duplicate_request IS NULL",
                 [id],
                 |row| row.get(0),
             )
@@ -274,7 +282,7 @@ impl Jobs {
         let reader = Self::read_existing(directory)?.ok_or_else(unavailable)?;
         let jobs = Self::open(reader._directory.directory())?;
         if jobs.connection.execute(
-            "UPDATE scan_jobs SET cancel_requested=1 WHERE id=?1 AND state='running' AND owner!=?2",
+            "UPDATE scan_jobs SET cancel_requested=1 WHERE id=?1 AND state='running' AND owner!=?2 AND duplicate_request IS NULL",
             params![id, DESKTOP_OWNER],
         )? != 1
         {
@@ -306,8 +314,15 @@ impl Jobs {
                 snapshot_id INTEGER, cancel_requested INTEGER NOT NULL DEFAULT 0, progress TEXT);
                 CREATE INDEX scan_jobs_owner ON scan_jobs(owner,id);
                 PRAGMA user_version=1;")?;
-        } else if version != 1 {
-            return Err(Error::Invalid("Unsupported scan jobs schema.".into()));
+        } else if !(1..=2).contains(&version) {
+            return Err(Error::Invalid("Unsupported jobs schema.".into()));
+        }
+        if version < 2 {
+            tx.execute_batch(
+                "ALTER TABLE scan_jobs ADD COLUMN duplicate_request TEXT;
+                 ALTER TABLE scan_jobs ADD COLUMN duplicate_report TEXT;
+                 PRAGMA user_version=2;",
+            )?;
         }
         tx.commit()?;
         Ok(Self {
@@ -318,6 +333,16 @@ impl Jobs {
     }
 
     pub fn begin(&mut self, lease: &Lease, owner: i64, root: &Path) -> Result<i64> {
+        self.begin_run(lease, owner, root, None)
+    }
+
+    fn begin_run(
+        &mut self,
+        lease: &Lease,
+        owner: i64,
+        root: &Path,
+        run: Option<&DuplicateRun>,
+    ) -> Result<i64> {
         if lease.directory_identity() != self.directory_identity {
             return Err(Error::Invalid(
                 "Operation lease belongs to another workspace.".into(),
@@ -342,12 +367,14 @@ impl Jobs {
         )?;
         tx.execute("DELETE FROM scan_jobs WHERE id IN (SELECT id FROM scan_jobs WHERE state!='running' ORDER BY id DESC LIMIT -1 OFFSET 9999)", [])?;
         tx.execute(
-            "INSERT INTO scan_jobs(owner,root,state,started) VALUES(?1,?2,'running',?3)",
+            "INSERT INTO scan_jobs(owner,root,state,started,snapshot_id,duplicate_request) VALUES(?1,?2,'running',?3,?4,?5)",
             params![
                 owner,
                 serde_json::to_string(root)
                     .map_err(|_| Error::Invalid("Scan root is not representable.".into()))?,
-                now()?
+                now()?,
+                run.map(|run| run.snapshot),
+                run.map(serde_json::to_string).transpose().map_err(|_| unavailable())?,
             ],
         )?;
         let id = tx.last_insert_rowid();
@@ -421,13 +448,13 @@ impl Jobs {
     }
 
     pub fn get(&self, owner: i64, id: i64) -> Result<Job> {
-        let mut statement = self.connection.prepare("SELECT id,root,state,started,finished,snapshot_id,cancel_requested,progress FROM scan_jobs WHERE id=?1 AND owner=?2")?;
+        let mut statement = self.connection.prepare("SELECT id,root,state,started,finished,snapshot_id,cancel_requested,progress,duplicate_request FROM scan_jobs WHERE id=?1 AND owner=?2")?;
         let mut rows = statement.query(params![id, owner])?;
-        decode(rows.next()?.ok_or_else(unavailable)?)
+        decode_agent(rows.next()?.ok_or_else(unavailable)?)
     }
 
     pub fn list(&self, owner: i64, offset: usize, limit: usize) -> Result<Vec<Job>> {
-        let mut statement = self.connection.prepare("SELECT id,root,state,started,finished,snapshot_id,cancel_requested,progress FROM scan_jobs WHERE owner=?1 ORDER BY id DESC LIMIT ?2 OFFSET ?3")?;
+        let mut statement = self.connection.prepare("SELECT id,root,state,started,finished,snapshot_id,cancel_requested,progress,duplicate_request FROM scan_jobs WHERE owner=?1 ORDER BY id DESC LIMIT ?2 OFFSET ?3")?;
         let mut rows = statement.query(params![
             owner,
             limit.clamp(1, 500) as i64,
@@ -435,7 +462,7 @@ impl Jobs {
         ])?;
         let mut jobs = Vec::new();
         while let Some(row) = rows.next()? {
-            jobs.push(decode(row)?);
+            jobs.push(decode_agent(row)?);
         }
         Ok(jobs)
     }
@@ -459,7 +486,17 @@ fn decode(row: &rusqlite::Row<'_>) -> Result<Job> {
             .map(|json| serde_json::from_str(&json))
             .transpose()
             .map_err(|_| unavailable())?,
+        duplicate_analysis: None,
     })
+}
+
+fn decode_agent(row: &rusqlite::Row<'_>) -> Result<Job> {
+    let mut job = decode(row)?;
+    if let Some(run) = duplicate::decode_run(row.get(8)?)? {
+        job.snapshot_id = Some(run.snapshot);
+        job.duplicate_analysis = Some(run.request);
+    }
+    Ok(job)
 }
 
 fn now() -> Result<i64> {

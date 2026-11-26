@@ -37,7 +37,7 @@ impl CandidateRequest {
     }
 }
 
-fn bytes(text: &str) -> Option<u64> {
+pub(super) fn bytes(text: &str) -> Option<u64> {
     if text.len() > 20 {
         return None;
     }

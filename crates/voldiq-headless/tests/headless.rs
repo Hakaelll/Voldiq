@@ -773,6 +773,35 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     assert!(text.contains("Exact duplicates  |  Selected files"));
     assert!(text.contains(&format!("#{}  #{}", expected[0], expected[1])));
 
+    let analysis = |args: &[&str]| {
+        let output = Command::new(env!("CARGO_BIN_EXE_voldiq-cli"))
+            .arg("--state")
+            .arg(state.path())
+            .args(args)
+            .env("VOLDIQ_AGENT_TOKEN", read.credential.expose())
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stdout)
+        );
+        serde_json::from_slice::<Value>(&output.stdout).unwrap()["result"].clone()
+    };
+    let job = analysis(&["duplicate-analysis", &snapshot, r#"{"min_bytes":"16384"}"#]);
+    assert_eq!(job["state"], "completed");
+    let job_id = job["id"].as_i64().unwrap().to_string();
+    let report = analysis(&["duplicate-results", &job_id]);
+    assert_eq!(report["aliases_omitted"], 1);
+    assert_eq!(report["bytes_read"], "73728");
+    assert_eq!(
+        report["groups"],
+        json!([{"group":1,"logical_bytes":"16384","distinct_files":2}])
+    );
+    let text = console(&read.credential, &format!("8\n{job_id}\n\n0\n"));
+    assert!(text.contains("Verified results"));
+    assert!(text.contains("2 files"));
+
     std::fs::write(&second, &data).unwrap();
     let stale = verify();
     assert_eq!(stale.status.code(), Some(4));

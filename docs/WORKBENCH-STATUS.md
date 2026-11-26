@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Folder duplicate analysis jobs
+
+The CLI and MCP now start a folder analysis from an authorized snapshot. MCP returns a durable job ID. The CLI prints the ID and waits, or opens the job and its verified groups in the console. The shared job store publishes a completed report atomically. It pages group counts and member IDs and refuses reports from cancelled, interrupted or unauthorized jobs.
+
+The retained CLI and real MCP SDK fixtures verified content groups, group and member pages, aliases, owner isolation, revocation and report reads from another process. A disposable Windows fixture migrated a version-one job store, checked a real cancellation and stopped a worker process before reopening its job as interrupted. Both stopped jobs withheld results. A separate subfolder job read two matching files and excluded an identical file outside the folder. The desktop scan activity preserved its existing record. Native keyboard and visual acceptance remain manual. [Source verification](../benchmarks/workbench-duplicate-analysis-source.json)
+
 ## Detailed ASCII logo
 
 The console logo now follows the supplied Voldiq icon more closely. Light rims separate the three dark filled disks. A bright hub and two radial separators define a blue sector. The tilted shape still rotates around the vertical axis. The original and revised settled poses were rendered at the same terminal width and font. The Windows pseudoterminal verified the separate blue mark and cyan menu, replay, and monochrome static output. The Windows console preview stayed open. [Verification](../benchmarks/workbench-logo-refinement-source.json)

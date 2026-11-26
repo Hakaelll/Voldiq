@@ -51,6 +51,10 @@ pub enum Error {
         "Choose fewer candidates. Verification supports up to 256 MiB of file reads per request."
     )]
     DuplicateVerificationLimit,
+    #[error(
+        "The analysis reached its file-count or 32 GiB read limit. Choose a narrower folder or raise the minimum size."
+    )]
+    DuplicateScopeLimit,
     #[error("{0}")]
     Invalid(String),
     #[error(transparent)]

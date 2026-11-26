@@ -47,7 +47,7 @@ type CliError = (&'static str, String, i32);
 async fn run(args: &mut Vec<String>, human: bool) -> Result<Option<Value>, CliError> {
     if args.is_empty() || args == &["--help"] {
         return Ok(Some(success(
-            json!({"commands":["console [--no-motion]","capabilities","volumes [offset] [limit]","translate <description>","scan <root> [--wait]","query <snapshot_id> [JSON filters]","stats <snapshot_id>","duplicate-candidates <snapshot_id> [JSON options]","verify-duplicates <snapshot_id> <JSON node IDs>","applications <snapshot_id> [JSON scope/sort/page/file filters]","libraries <snapshot_id> <games|media> [JSON scope/page]","export <snapshot_id> <JSON CSV request>","space <snapshot_id>","transfers [JSON before/limit]","transfer-files <JSON plan_id/after/limit/include_hashes>","history [offset] [limit]","compare <before_id> <after_id> [offset] [limit]","trend <snapshot_id> [days] [offset] [limit]","calendar <snapshot_id> <YYYY-MM> [day] [offset] [limit]","diary <snapshot_id> [offset] [limit]","details <snapshot_id> <node_id>","folder <snapshot_id> <node_id> [--note]","budget <snapshot_id> <node_id>","jobs <job_id>","cancel <job_id>","plan prepare <snapshot_id> <JSON node IDs>","plan offload <snapshot_id> <JSON node IDs> <JSON destination/originals request>","plan restore <archive_snapshot_id> <JSON transfer_plan_id/node_ids request>","plan get <plan_id>","plan validate <plan_id> <manifest_hash>","plan request <plan_id>","plan execute <plan_id> <manifest_hash>","plan cancel <plan_id> <manifest_hash>","plan audit <plan_id> [after_sequence] [limit]","mcp serve --stdio"],"state":"--state <directory> before command (default: Voldiq local application data)","authentication":"Human-provisioned VOLDIQ_AGENT_TOKEN environment variable. No credential arguments or approval bypass."}),
+            json!({"commands":["console [--no-motion]","capabilities","volumes [offset] [limit]","translate <description>","scan <root> [--wait]","query <snapshot_id> [JSON filters]","stats <snapshot_id>","duplicate-candidates <snapshot_id> [JSON options]","verify-duplicates <snapshot_id> <JSON node IDs>","duplicate-analysis <snapshot_id> [JSON scope/min_bytes]","duplicate-results <job_id> [JSON group/offset/limit]","applications <snapshot_id> [JSON scope/sort/page/file filters]","libraries <snapshot_id> <games|media> [JSON scope/page]","export <snapshot_id> <JSON CSV request>","space <snapshot_id>","transfers [JSON before/limit]","transfer-files <JSON plan_id/after/limit/include_hashes>","history [offset] [limit]","compare <before_id> <after_id> [offset] [limit]","trend <snapshot_id> [days] [offset] [limit]","calendar <snapshot_id> <YYYY-MM> [day] [offset] [limit]","diary <snapshot_id> [offset] [limit]","details <snapshot_id> <node_id>","folder <snapshot_id> <node_id> [--note]","budget <snapshot_id> <node_id>","jobs <job_id>","cancel <job_id>","plan prepare <snapshot_id> <JSON node IDs>","plan offload <snapshot_id> <JSON node IDs> <JSON destination/originals request>","plan restore <archive_snapshot_id> <JSON transfer_plan_id/node_ids request>","plan get <plan_id>","plan validate <plan_id> <manifest_hash>","plan request <plan_id>","plan execute <plan_id> <manifest_hash>","plan cancel <plan_id> <manifest_hash>","plan audit <plan_id> [after_sequence] [limit]","mcp serve --stdio"],"state":"--state <directory> before command (default: Voldiq local application data)","authentication":"Human-provisioned VOLDIQ_AGENT_TOKEN environment variable. No credential arguments or approval bypass."}),
         )));
     }
     let directory = if args.first().is_some_and(|arg| arg == "--state") {
@@ -116,16 +116,7 @@ async fn run(args: &mut Vec<String>, human: bool) -> Result<Option<Value>, CliEr
                     json!({"schema_version":1,"job_id":id,"state":"running"})
                 );
             }
-            let waiting = service.clone();
-            let mut worker = tokio::task::spawn_blocking(move || waiting.wait(id));
-            let job = tokio::select! {
-                result = &mut worker => result.map_err(|_| operation())?.map_err(|_| operation())?,
-                signal = tokio::signal::ctrl_c() => {
-                    signal.map_err(|_| operation())?;
-                    service.cancel(id).map_err(|_| operation())?;
-                    worker.await.map_err(|_| operation())?.map_err(|_| operation())?
-                }
-            };
+            let job = wait_for_job(&service, id).await?;
             if job.state == voldiq_core::jobs::JobState::Cancelled {
                 return Err((
                     "scan_cancelled",
@@ -421,6 +412,56 @@ async fn run(args: &mut Vec<String>, human: bool) -> Result<Option<Value>, CliEr
             )
             .await?
         }
+        ("duplicate-analysis", 2 | 3) => {
+            let snapshot = number(&args[1])?;
+            let request: voldiq_core::duplicates::scope::ScopeRequest =
+                serde_json::from_str(args.get(2).map_or("{}", String::as_str))
+                    .map_err(|_| arguments())?;
+            if !request.valid() {
+                return Err(arguments());
+            }
+            let id = service
+                .start_duplicate_analysis(snapshot, request)
+                .map_err(|_| operation())?;
+            if human {
+                eprintln!("  Duplicate analysis #{id} started. Press Ctrl+C to cancel.");
+            } else {
+                eprintln!(
+                    "{}",
+                    json!({"schema_version":1,"job_id":id,"state":"running"})
+                );
+            }
+            let job = wait_for_job(&service, id).await?;
+            if job.state == voldiq_core::jobs::JobState::Cancelled {
+                return Err((
+                    "duplicate_analysis_cancelled",
+                    "Duplicate analysis cancelled.".into(),
+                    130,
+                ));
+            }
+            if job.state != voldiq_core::jobs::JobState::Completed {
+                return Err((
+                    "duplicate_analysis_failed",
+                    format!(
+                        "Duplicate analysis failed or was interrupted. Run jobs {id} to inspect its status."
+                    ),
+                    4,
+                ));
+            }
+            serde_json::to_value(job).map_err(|_| operation())?
+        }
+        ("duplicate-results", 2 | 3) => {
+            let id = number(&args[1])?;
+            let request: voldiq_core::duplicates::scope::ResultRequest =
+                serde_json::from_str(args.get(2).map_or("{}", String::as_str))
+                    .map_err(|_| arguments())?;
+            if !request.valid() {
+                return Err(arguments());
+            }
+            service
+                .duplicate_analysis_results(id, &request)
+                .map_err(|_| operation())?
+        }
         ("budget", 3) => serde_json::to_value(
             service
                 .folder_budget(
@@ -548,6 +589,23 @@ async fn run(args: &mut Vec<String>, human: bool) -> Result<Option<Value>, CliEr
         _ => return Err(arguments()),
     };
     Ok(Some(success(value)))
+}
+
+async fn wait_for_job(service: &AgentService, id: i64) -> Result<voldiq_core::jobs::Job, CliError> {
+    let waiting = service.clone();
+    let mut worker = tokio::task::spawn_blocking(move || waiting.wait(id));
+    tokio::select! {
+        result = &mut worker => result,
+        signal = tokio::signal::ctrl_c() => {
+            signal.map_err(|_| operation())?;
+            if service.cancel(id).is_err()
+                && service.job(id).map_err(|_| operation())?.state == voldiq_core::jobs::JobState::Running
+            {
+                return Err(operation());
+            }
+            worker.await
+        }
+    }.map_err(|_| operation())?.map_err(|_| operation())
 }
 
 async fn read_history<T: serde::Serialize + Send + 'static>(

@@ -158,6 +158,8 @@ The menu separates analysis from browsing. Accented key markers identify actions
 
 The Duplicate candidates action lists byte-size groups or the file IDs and names for an exact size. Verify exact duplicates accepts those IDs and shows groups confirmed by a content check. Empty verification results name the selected scope. A changed or unavailable entry leaves the request without a verification result.
 
+The console starts a folder analysis from a snapshot and shows its job ID. Duplicate analysis results opens the job's verified groups or the file IDs in a group. Partial evidence and additional pages have explicit labels.
+
 ## Light and dark workspaces
 
 Vivid+Co informs the dark workspace. Obsidian and ivory set the large surfaces and foreground. Dark controls use thin outlines, short radii and restrained violet-blue focus accents. The strong colors belong to data.

@@ -1185,6 +1185,8 @@ async fn verify_recorded_libraries(
     let duplicate = root.join("duplicate-first.data");
     std::fs::write(&duplicate, b"matches").unwrap();
     std::fs::write(root.join("duplicate-second.data"), b"matches").unwrap();
+    std::fs::write(root.join("duplicate-third.data"), b"another!").unwrap();
+    std::fs::write(root.join("duplicate-fourth.data"), b"another!").unwrap();
 
     let provisioned = registry
         .provision(
@@ -1322,6 +1324,60 @@ async fn verify_recorded_libraries(
         json!([{"logical_bytes":"7","node_ids":ids}])
     );
     assert_eq!(result["bytes_read"], "14");
+
+    let started = call(
+        &client,
+        "voldiq_duplicate_analysis_start",
+        json!({"snapshot_id":snapshot,"options":{"scope":0,"min_bytes":"7"}}),
+    )
+    .await;
+    assert_ne!(started.is_error, Some(true), "{started:?}");
+    let duplicate_job = started.structured_content.unwrap()["result"]["job_id"]
+        .as_i64()
+        .unwrap();
+    let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(15);
+    loop {
+        let status = call(&client, "voldiq_job_get", json!({"job_id":duplicate_job}))
+            .await
+            .structured_content
+            .unwrap();
+        if status["result"]["state"] != "running" {
+            assert_eq!(status["result"]["state"], "completed", "{status}");
+            assert_eq!(status["result"]["snapshot_id"], snapshot);
+            assert_eq!(status["result"]["progress"]["sampled"], 4);
+            assert_eq!(status["result"]["duplicate_analysis"]["scope"], 0);
+            break;
+        }
+        assert!(tokio::time::Instant::now() < deadline, "{status}");
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+    let groups = run(&["duplicate-results", &duplicate_job.to_string()]);
+    assert_eq!(groups["result"]["total"], 2);
+    assert_eq!(groups["result"]["next_offset"], 1);
+    assert_eq!(
+        groups["result"]["groups"],
+        json!([{"group":1,"logical_bytes":"8","distinct_files":2}])
+    );
+    let members = call(
+        &client,
+        "voldiq_duplicate_analysis_results",
+        json!({"job_id":duplicate_job,"options":{"group":2,"offset":1}}),
+    )
+    .await
+    .structured_content
+    .unwrap();
+    assert_eq!(members["result"]["node_ids"], json!([ids[1]]));
+    let foreign = call(
+        metadata_client,
+        "voldiq_job_get",
+        json!({"job_id":duplicate_job}),
+    )
+    .await;
+    assert_eq!(
+        foreign.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
+    );
+
     std::fs::write(&duplicate, b"changed").unwrap();
     let stale = call(&client, "voldiq_verify_duplicates", request.clone()).await;
     assert_eq!(
@@ -1330,6 +1386,16 @@ async fn verify_recorded_libraries(
     );
 
     registry.revoke(provisioned.id).unwrap();
+    let after_revoke = call(
+        &client,
+        "voldiq_duplicate_analysis_results",
+        json!({"job_id":duplicate_job}),
+    )
+    .await;
+    assert_eq!(
+        after_revoke.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
+    );
     let revoked_duplicate = call(&client, "voldiq_verify_duplicates", request).await;
     assert_eq!(
         revoked_duplicate.structured_content.unwrap()["error"]["code"],

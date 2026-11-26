@@ -19,6 +19,7 @@ use std::{
 };
 
 mod applications;
+mod duplicate_analysis;
 mod duplicate_verification;
 pub use applications::ApplicationPage;
 
@@ -338,8 +339,17 @@ impl AgentService {
     pub fn job(&self, id: i64) -> Result<Job> {
         let registry = self.registry()?;
         registry.policy(&self.principal, Capability::Metadata)?;
-        let job = Jobs::open(self.directory.directory())?.get(self.principal.id(), id)?;
-        registry.authorize(&self.principal, Capability::Metadata, &job.root)?;
+        let jobs = Jobs::open(self.directory.directory())?;
+        let job = jobs.get(self.principal.id(), id)?;
+        if job.duplicate_analysis.is_some() {
+            let run = jobs.duplicate_run(self.principal.id(), id)?;
+            let root = self.authorize_duplicate_run(&registry, &run)?;
+            if root.path() != job.root.as_path() {
+                return Err(denied());
+            }
+        } else {
+            registry.authorize(&self.principal, Capability::Metadata, &job.root)?;
+        }
         if job.state == JobState::Running {
             Jobs::reconcile_abandoned(self.directory.directory(), self.principal.id())?;
             return Jobs::open(self.directory.directory())?.get(self.principal.id(), id);
@@ -348,11 +358,15 @@ impl AgentService {
     }
 
     pub fn cancel(&self, id: i64) -> Result<()> {
-        self.registry()?.policy(&self.principal, Capability::Scan)?;
+        let registry = self.registry()?;
         let jobs = Jobs::open(self.directory.directory())?;
         let job = jobs.get(self.principal.id(), id)?;
-        self.registry()?
-            .authorize(&self.principal, Capability::Scan, &job.root)?;
+        if job.duplicate_analysis.is_some() {
+            let run = jobs.duplicate_run(self.principal.id(), id)?;
+            self.authorize_duplicate_run(&registry, &run)?;
+        } else {
+            registry.authorize(&self.principal, Capability::Scan, &job.root)?;
+        }
         jobs.cancel(self.principal.id(), id)
     }
 

@@ -70,8 +70,8 @@ This example forwards an environment variable by name, without embedding its val
 |---|---|---|
 | `voldiq_capabilities` | Metadata | Actual permissions, limits and execution availability |
 | `voldiq_scan_start` | Scan; metadata needed to read completion | Persistent job ID; one shared scan lease |
-| `voldiq_job_get` | Metadata | Owner-scoped job, progress, terminal state, snapshot ID |
-| `voldiq_job_cancel` | Scan | Cooperative cancellation request for an owned job |
+| `voldiq_job_get` | Metadata, plus ReadContent for duplicate jobs | Owner-scoped job, progress, terminal state, snapshot ID |
+| `voldiq_job_cancel` | Scan for scans or Metadata and ReadContent for duplicate jobs | Cooperative cancellation of an active owned job |
 | `voldiq_stats` | Metadata | Indexed logical bytes, unique known allocation or null, counts and coverage |
 | `voldiq_space_account` | Metadata | Scoped indexed allocation, logical path bytes, cloud/reparse metadata, accounting and coverage; whole-volume context and residual withheld |
 | `voldiq_volumes` | Metadata | Page of granted whole Windows volumes with timestamped space measurements and explicit unavailable values |
@@ -79,6 +79,8 @@ This example forwards an environment variable by name, without embedding its val
 | `voldiq_applications` | Metadata | Current authorized Windows installation claims over scoped indexed files; capped page, dated provenance and exact logical-byte partition |
 | `voldiq_duplicate_candidates` | Metadata | Recorded equal-size groups of distinct file identities and paged member names |
 | `voldiq_verify_duplicates` | Metadata and ReadContent | Matching content groups from selected file IDs in an authorized snapshot, verified against current local files |
+| `voldiq_duplicate_analysis_start` | Metadata and ReadContent | Start an authorized snapshot folder analysis and return its job ID |
+| `voldiq_duplicate_analysis_results` | Metadata and ReadContent | Page a completed job's groups or the member IDs of one group |
 | `voldiq_libraries` | Metadata and ReadContent | Recorded game or media evidence and logical sizes from an authorized snapshot and indexed folder |
 | `voldiq_export_csv` | Metadata + Export | Bounded files/folders CSV page and scope/filter/coverage metadata; full paths require explicit opt-in |
 | `voldiq_query_translate` | Metadata | Offline expression proposal and exact unparsed input spans; no snapshot/query execution |
@@ -180,6 +182,14 @@ Run `verify-duplicates <snapshot_id> <JSON node IDs>` or call `voldiq_verify_dup
 Voldiq opens authorized native files without recalling cloud contents. It checks recorded file identity, change time and size before reading. It collapses hard links, groups equal logical sizes, samples matching candidates and streams complete BLAKE3 hashes when the sample covers only part of a file. Requests have a worst-case budget of 256 MiB including samples and complete reads. Cancel the CLI operation with Ctrl+C or cancel the MCP request. Stale, protected or inaccessible evidence ends the request without a partial result.
 
 The reply gives an observation time, the measured read bytes, comparison counts and groups of matching node IDs. Hashes and raw contents stay local. Results describe the selected files at verification time. Cleanup still uses its explicit plan, approval and current file checks.
+
+## Duplicate analysis jobs
+
+Use `voldiq_duplicate_analysis_start` with `snapshot_id` and optional `options`. Set `scope` to a snapshot folder ID or omit it for the root. `min_bytes` is an exact decimal byte string that defaults to `"1"`. Poll `voldiq_job_get` with the returned `job_id`. The job's progress gives candidates, samples, full hashes and bytes read. Cancel an active job through `voldiq_job_cancel`.
+
+In the CLI, `duplicate-analysis <snapshot_id> [JSON options]` prints the job ID to stderr and waits. Another process using the same valid connection can check it with `jobs <job_id>` or request `cancel <job_id>`. Use `duplicate-results <job_id> [JSON options]` or `voldiq_duplicate_analysis_results` when the job completes. Options `offset` and `limit` page the result. Set `group` to one of the returned group numbers to page its file IDs. The interactive menu offers both analysis and result browsing.
+
+The job uses the recorded scope and opens current regular files through authorized native handles. It collapses hard links, samples equal-size candidates and streams full hashes for matching samples. Report rows identify bytes observed during the job. Snapshot coverage, unavailable files and unverified branches remain explicit. Jobs reaching 250,000 eligible identities or 32 GiB of reads can fail with `limit_reached` and no report. Cancelled and interrupted jobs publish no report. Voldiq retains the latest 12 completed reports and leaves the job state queryable after report expiry. Current credentials, grants and protections govern report access. A worker stopped by process exit is reconciled as interrupted without restarting the analysis.
 
 ## CSV export pages
 

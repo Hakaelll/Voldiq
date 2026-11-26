@@ -1,0 +1,132 @@
+{
+  "checkedUtc": "2026-11-26T21:47:38.4270035Z",
+  "startedUtc": "2026-11-26T21:29:35.010349Z",
+  "checkoutCommit": "4a8e25b550ac74fdde02401e06a70a002e5ec276",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.2
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.7
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.746
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.118
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 584.839
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 481.784
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "6341422224DA066A3603A32BA2BC11F8A8BA9E90FF6FD2457EB972EB11CE624C"
+    },
+    {
+      "path": "docs/MCP.md",
+      "sha256": "540590CA174AE3D757A1C7F1B6A638D3EC0B2EDCC8F9DF1398E8C095ECBD8E9E"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "308C4CEECAE358DCC90FC18261EF4B26D992C6D58F80F69455ECD0A65ADCCF2B"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "7204E506D40E9FB71183A729C373DEE34DC22FD7956DC70B4AA6DA7DFCABB059"
+    },
+    {
+      "path": "crates/voldiq-core/src/lib.rs",
+      "sha256": "3904102B77755662C7B7F3C13CD38C55003FDFFF8705F8DA1EB8EC2E49FC91C2"
+    },
+    {
+      "path": "crates/voldiq-core/src/duplicates.rs",
+      "sha256": "4BA4437B265480128030DEAFBD13E53866AE6005A1FE925BB201891FB1FE8AF4"
+    },
+    {
+      "path": "crates/voldiq-core/src/duplicates/candidates.rs",
+      "sha256": "6289425E2F27B7153F1A71BCEFAAC6531036C00B26ECBE0FAAAB488B256DADF8"
+    },
+    {
+      "path": "crates/voldiq-core/src/duplicates/verification.rs",
+      "sha256": "CA21BCB7766E1BEC66825B7C32B0DB5669DC740A91D4DD4702F035598C3ADB50"
+    },
+    {
+      "path": "crates/voldiq-core/src/duplicates/scope.rs",
+      "sha256": "A1EFE484AE10B82CAD6779C104C967CE7BE12D2D94B572A4DB5F2171E19E8168"
+    },
+    {
+      "path": "crates/voldiq-core/src/duplicates/scope/native.rs",
+      "sha256": "E880771F08F5A261DA662D835CE421B6AC5CDB508ED8AD2A0E52548E8FD130E8"
+    },
+    {
+      "path": "crates/voldiq-core/src/jobs.rs",
+      "sha256": "C246314FB46C901FA67C4158A31F4C170FD1DA6C08BD6194CA2018068682F2CB"
+    },
+    {
+      "path": "crates/voldiq-core/src/jobs/duplicate.rs",
+      "sha256": "F904173C12D77B573D4FB484153D41B7BCB8867115F411E918B5E919C038C95C"
+    },
+    {
+      "path": "crates/voldiq-core/src/service.rs",
+      "sha256": "E9DA45DCE96884D245603A0A5880D8E68D324499B8B3C83319A75FEAB99AE9CA"
+    },
+    {
+      "path": "crates/voldiq-core/src/service/duplicate_analysis.rs",
+      "sha256": "9274419A50FA59A09088B8C3D42FAE3B610769293630409CA15B836D49D84816"
+    },
+    {
+      "path": "crates/voldiq-headless/src/main.rs",
+      "sha256": "287B550A94CF20E8BA88E457A685A4A71ED5CFD4235D948EB238525612C514E8"
+    },
+    {
+      "path": "crates/voldiq-headless/src/console.rs",
+      "sha256": "801112B3A3D66C5A7C62845E7F3852BE6DB0B167914B84B3E4DA8BA3F77C8B9F"
+    },
+    {
+      "path": "crates/voldiq-headless/src/mcp.rs",
+      "sha256": "4138DF2F7645FEF7DECF0F09EC16F8853CB710B3D33F2D47F01F0C8E6578B537"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/headless.rs",
+      "sha256": "BC248404E099EEB9034F06ADD5E0DF3D1D50E0A052E2CF365CFDFF223A8AD58D"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/mcp.rs",
+      "sha256": "D0747EDD603069E3AE4692EF8B6A7FCA95302DA02ECE40879465753F5714B3B5"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "disposableWindowsLifecycle": {
+    "legacyDesktopJobPreserved": true,
+    "cancelledWithoutReport": true,
+    "interruptedWithoutReport": true,
+    "desktopScanCatalogueOnly": true,
+    "subfolderOnly": true
+  }
+}

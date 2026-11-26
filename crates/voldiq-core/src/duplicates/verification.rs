@@ -1,5 +1,5 @@
 use crate::NodeId;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
 pub fn valid_verification_selection(nodes: &[NodeId]) -> bool {
@@ -18,7 +18,7 @@ pub struct Verification {
     pub groups: Vec<VerifiedGroup>,
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize)]
 pub struct VerifiedGroup {
     pub logical_bytes: String,
     pub node_ids: Vec<NodeId>,
@@ -45,11 +45,44 @@ mod native {
 
     const MAX_READ_BYTES: u128 = 256 * 1024 * 1024;
 
-    struct SelectedFile {
-        node: NodeId,
-        handle: File,
-        stamp: Stamp,
+    pub(crate) struct SelectedFile {
+        pub(crate) node: NodeId,
+        pub(crate) handle: File,
+        pub(in crate::duplicates) stamp: Stamp,
         _path: AuthorizedPath,
+    }
+
+    pub(crate) fn open_recorded_file(
+        entry: &crate::Entry,
+        path: AuthorizedPath,
+        protections: &Protections,
+        protected: &HashSet<(u64, u64)>,
+    ) -> Result<SelectedFile> {
+        let recorded = entry.file_state.ok_or_else(denied)?;
+        if path.identity() != recorded.identity || crate::cleanup::record::sensitive(path.path()) {
+            return Err(denied());
+        }
+        let ancestors = path.ancestor_identities()?;
+        if ancestors.iter().any(|id| protected.contains(id)) {
+            return Err(denied());
+        }
+        protections.check_evidence(path.path(), path.identity(), &ancestors)?;
+        let handle = path.open_file_content()?;
+        validate_content_metadata(&handle.metadata()?)?;
+        let (current, identity) = stamp(&handle)?;
+        if current.identity != recorded.identity
+            || current.change_time != recorded.change_time
+            || current.size != entry.logical
+            || identity.cloud != CloudState::NotPlaceholder
+        {
+            return Err(denied());
+        }
+        Ok(SelectedFile {
+            node: entry.id,
+            handle,
+            stamp: current,
+            _path: path,
+        })
     }
 
     pub(crate) fn verify_selection(
@@ -90,7 +123,7 @@ mod native {
             if unique {
                 *sizes.entry(entry.logical).or_default() += 1;
             }
-            selected.push((entry, recorded, unique));
+            selected.push((entry, unique));
         }
         let worst_case: u128 = sizes
             .iter()
@@ -105,38 +138,13 @@ mod native {
         }
 
         let mut files = BTreeMap::<u64, Vec<SelectedFile>>::new();
-        for (entry, recorded, unique) in selected {
+        for (entry, unique) in selected {
             if cancelled() {
                 return Ok(None);
             }
-            let path = authorize(entry.id)?;
-            if path.identity() != recorded.identity
-                || crate::cleanup::record::sensitive(path.path())
-            {
-                return Err(denied());
-            }
-            let ancestors = path.ancestor_identities()?;
-            if ancestors.iter().any(|id| protected.contains(id)) {
-                return Err(denied());
-            }
-            protections.check_evidence(path.path(), path.identity(), &ancestors)?;
-            let handle = path.open_file_content()?;
-            validate_content_metadata(&handle.metadata()?)?;
-            let (current, identity) = stamp(&handle)?;
-            if current.identity != recorded.identity
-                || current.change_time != recorded.change_time
-                || current.size != entry.logical
-                || identity.cloud != CloudState::NotPlaceholder
-            {
-                return Err(denied());
-            }
+            let file = open_recorded_file(entry, authorize(entry.id)?, protections, &protected)?;
             if unique {
-                files.entry(current.size).or_default().push(SelectedFile {
-                    node: entry.id,
-                    handle,
-                    stamp: current,
-                    _path: path,
-                });
+                files.entry(entry.logical).or_default().push(file);
             }
         }
         let mut bytes_read = 0;
@@ -215,4 +223,4 @@ mod native {
 }
 
 #[cfg(windows)]
-pub(crate) use native::verify_selection;
+pub(crate) use native::{open_recorded_file, verify_selection};
