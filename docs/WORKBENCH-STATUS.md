@@ -8,6 +8,8 @@ CSV and Excel reports add formatted size columns alongside exact bytes. The PDF 
 
 All six project checks passed with eight routine tests. The owned reports retained exact logical bytes alongside the decimal CSV and binary CSV/XLSX labels. The MCP SDK flow verified the optional display result. A Svelte rendering check preserved 104,857,600 bytes across unit switches, and a reactive formatter probe covered small, large and unknown values. Windows keyboard interaction and scaling remain manual. [Verification record](../benchmarks/workbench-display-units-source.json)
 
+The Windows preview reached ready with zero TCP listeners. 10 embedded non-HTML assets matched the production web build. The unsigned NSIS installer measures 12,009,570 bytes. Cleanup removed 3,080,250,322 logical bytes of inactive release artifacts and 0 bytes of closed previews. The current preview and installer were preserved. [Startup](../benchmarks/native-display-units-preview.json) · [Default listener](../benchmarks/display-units-default-listener.json) · [Distribution](../benchmarks/distribution-display-units.json) · [Post-clean checks](../benchmarks/workspace-footprint-display-units.json)
+
 ## Cloud recycle review
 
 Select a file in Settings → Cloud accounts and choose Review recycling. The review uses fresh provider metadata and binds the file revision, folder and account to the current read connection. Authorize recycling asks the provider for a separate write grant. Windows then names the provider, file, folder and size for a one-time confirmation. Recovery follows the provider's rules, and changes to a cloud file can affect synced copies.

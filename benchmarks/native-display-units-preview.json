@@ -1,0 +1,114 @@
+{
+  "checkedUtc": "2026-11-26T15:16:07.9201431Z",
+  "sourceCommit": "015b5b51f8bd584bffc87eaf8b93ccb30f133166",
+  "executableSha256": "478A9B0001040342BF9F0943484F1E5696E54FFC943F84838CD840C154DECEF2",
+  "executableBytes": 33100800,
+  "preview": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\478A9B0001040342BF9F0943484F1E5696E54FFC943F84838CD840C154DECEF2\\voldiq.exe",
+  "processId": 16548,
+  "mainWindowHandle": 525394,
+  "observation": "ready",
+  "startupEvents": [
+    {
+      "event": "process-start",
+      "pid": 16548,
+      "unixMs": 1795706166201
+    },
+    {
+      "event": "setup-start",
+      "pid": 16548,
+      "unixMs": 1795706166211
+    },
+    {
+      "event": "snapshot-open-start",
+      "pid": 16548,
+      "unixMs": 1795706166223
+    },
+    {
+      "event": "snapshot-open-end",
+      "pid": 16548,
+      "unixMs": 1795706166239
+    },
+    {
+      "event": "profile-installed",
+      "pid": 16548,
+      "unixMs": 1795706167688
+    },
+    {
+      "event": "setup-end",
+      "pid": 16548,
+      "unixMs": 1795706167688
+    },
+    {
+      "event": "ready",
+      "pid": 16548,
+      "unixMs": 1795706167688
+    },
+    {
+      "event": "page-finished",
+      "pid": 16548,
+      "unixMs": 1795706167825
+    }
+  ],
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "assets/voronoi.worker-DwJ2QmrW.js",
+        "bytes": 5606,
+        "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+      },
+      {
+        "path": "assets/history-video-bbzmrrvG.js",
+        "bytes": 2865,
+        "sha256": "877537D0F7AE95511465F727EE5431B9EA764293E8E07201BE7ACEB131FA3722"
+      },
+      {
+        "path": "assets/history-export-D4FzwSD3.js",
+        "bytes": 3986,
+        "sha256": "41D1EB77A0F99758CB2D402074B66230F9519108592A5F149D2C1416D625CDDC"
+      },
+      {
+        "path": "assets/256x256-BkkuVpWj.png",
+        "bytes": 69723,
+        "sha256": "BE1C9BFF0E4D3E5E88FDFAA71B0A97A9C99EFA625CD062DB6A3F74DB633B0974"
+      },
+      {
+        "path": "assets/svg-surface-D3Yw6xZb.js",
+        "bytes": 6995,
+        "sha256": "16031B0D00F7998ED47803E71C5F769269D4295083881302DD52A7B7F3A450AA"
+      },
+      {
+        "path": "assets/index-9jeQJoTd.js",
+        "bytes": 663893,
+        "sha256": "5359B47E4866C628CBF9604497B369C079874ADBD2D29384152F948DB5C1861C"
+      },
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "8237EEAFD693804BC00BE396E35882FB4960F008B7131A5A470340B0E5CBDD95"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      },
+      {
+        "path": "assets/city.worker-DLxzT0Wm.js",
+        "bytes": 2879,
+        "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+      },
+      {
+        "path": "assets/index-D9AeOx3-.css",
+        "bytes": 127272,
+        "sha256": "D1B71A72665D466467F9FF2E5159D429D2DD0BAB82B3395FB22E793BB40A1B7F"
+      }
+    ]
+  },
+  "scope": "Production native startup and embedded payload/reference checks. Windows rendering, pointer and keyboard interaction, and scaling for the storage units remain manual."
+}
