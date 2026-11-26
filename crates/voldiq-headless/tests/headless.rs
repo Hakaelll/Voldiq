@@ -3,7 +3,7 @@ use std::{
     io::Write,
     process::{Command, Stdio},
 };
-use voldiq_core::agents::{Capability, Limits, Policy, Registry};
+use voldiq_core::agents::{Capability, Credential, Limits, Policy, Registry};
 
 #[test]
 fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
@@ -652,32 +652,134 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     let help: Value = serde_json::from_slice(&piped.stdout).unwrap();
     assert_eq!(help["schema_version"], 1);
     assert_eq!(help["result"]["commands"][0], "console [--no-motion]");
-    let mut console = Command::new(env!("CARGO_BIN_EXE_voldiq-cli"))
-        .arg("--state")
-        .arg(state.path())
-        .args(["console", "--no-motion"])
-        .env("VOLDIQ_AGENT_TOKEN", provisioned.credential.expose())
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
-    write!(
-        console.stdin.take().unwrap(),
-        "5\n2\n{snapshot}\nsame-b\n3\n{snapshot}\n0\n"
-    )
-    .unwrap();
-    let output = console.wait_with_output().unwrap();
-    assert!(output.status.success());
-    assert!(output.stderr.is_empty());
-    let text = String::from_utf8(output.stdout).unwrap();
+    let console = |credential: &Credential, choices: &str| {
+        let mut console = Command::new(env!("CARGO_BIN_EXE_voldiq-cli"))
+            .arg("--state")
+            .arg(state.path())
+            .args(["console", "--no-motion"])
+            .env("VOLDIQ_AGENT_TOKEN", credential.expose())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        console
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(choices.as_bytes())
+            .unwrap();
+        let output = console.wait_with_output().unwrap();
+        assert!(output.status.success());
+        assert!(output.stderr.is_empty());
+        String::from_utf8(output.stdout).unwrap()
+    };
+    let text = console(
+        &provisioned.credential,
+        &format!("5\n2\n{snapshot}\nsame-b\n3\n{snapshot}\n\n3\n{snapshot}\n4\n0\n"),
+    );
     assert_eq!(text.matches("VOLDIQ  /  Disk space analyzer").count(), 1);
     assert!(!text.contains('\x1b'));
     assert!(text.contains(&format!("#{snapshot}")));
     assert!(text.contains("[##############]"));
     assert!(text.contains("same-b.data"));
+    assert!(text.contains("Candidates at 4 bytes"));
     assert!(
         text.lines()
             .any(|row| row.contains("4 B") && row.contains("2 distinct files"))
+    );
+
+    let equal = source.path().join("exact-a.data");
+    let second = source.path().join("exact-b.data");
+    let mut data = vec![b'a'; 16_384];
+    std::fs::write(&equal, &data).unwrap();
+    std::fs::write(&second, &data).unwrap();
+    std::fs::hard_link(&equal, source.path().join("exact-alias.data")).unwrap();
+    data[8192] = b'b';
+    std::fs::write(source.path().join("exact-different.data"), &data).unwrap();
+    let index =
+        voldiq_core::scanner::scan(source.path(), &Default::default(), &cancel, |_| {}).unwrap();
+    let snapshot = voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db"))
+        .unwrap()
+        .save(&index, &cancel, &[])
+        .unwrap()
+        .to_string();
+    let found = run(&["query", &snapshot, r#"{"text":"exact-"}"#]);
+    assert!(found.status.success());
+    let found: Value = serde_json::from_slice(&found.stdout).unwrap();
+    let node = |name: &str| -> u64 {
+        found["result"]["items"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["name"] == name)
+            .unwrap()["id"]
+            .as_u64()
+            .unwrap()
+    };
+    let first = node("exact-a.data");
+    let second_id = node("exact-b.data");
+    let selection = json!([
+        first,
+        node("exact-alias.data"),
+        second_id,
+        node("exact-different.data")
+    ])
+    .to_string();
+    let no_content = run(&["verify-duplicates", &snapshot, &selection]);
+    assert_eq!(no_content.status.code(), Some(4));
+
+    let read = registry
+        .provision(
+            "Exact duplicate fixture",
+            Policy::new(
+                vec![source.path().to_owned()],
+                vec![],
+                vec![Capability::Metadata, Capability::ReadContent],
+                Limits::default(),
+            )
+            .unwrap(),
+        )
+        .unwrap();
+    let verify = || {
+        Command::new(env!("CARGO_BIN_EXE_voldiq-cli"))
+            .arg("--state")
+            .arg(state.path())
+            .args(["verify-duplicates", &snapshot, &selection])
+            .env("VOLDIQ_AGENT_TOKEN", read.credential.expose())
+            .output()
+            .unwrap()
+    };
+    let verified = verify();
+    assert!(
+        verified.status.success(),
+        "{}",
+        String::from_utf8_lossy(&verified.stdout)
+    );
+    let verified: Value = serde_json::from_slice(&verified.stdout).unwrap();
+    assert_eq!(verified["result"]["compared_files"], 3);
+    assert_eq!(verified["result"]["aliases_omitted"], 1);
+    assert_eq!(verified["result"]["bytes_read"], "73728");
+    let mut expected = [first, second_id];
+    expected.sort_unstable();
+    assert_eq!(
+        verified["result"]["groups"],
+        json!([{"logical_bytes":"16384","node_ids":expected}])
+    );
+    let text = console(
+        &read.credential,
+        &format!("6\n{snapshot}\n{first} {second_id}\n0\n"),
+    );
+    assert!(text.contains("Exact duplicates  |  Selected files"));
+    assert!(text.contains(&format!("#{}  #{}", expected[0], expected[1])));
+
+    std::fs::write(&second, &data).unwrap();
+    let stale = verify();
+    assert_eq!(stale.status.code(), Some(4));
+    assert!(
+        serde_json::from_slice::<Value>(&stale.stdout)
+            .unwrap()
+            .get("result")
+            .is_none()
     );
 }

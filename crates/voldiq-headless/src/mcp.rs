@@ -157,7 +157,7 @@ struct LibrariesArgs {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-struct PlanPrepareArgs {
+struct SnapshotSelectionArgs {
     snapshot_id: i64,
     node_ids: Vec<voldiq_core::NodeId>,
 }
@@ -225,6 +225,9 @@ fn unavailable<E>(_: E) -> Value {
 fn query_unavailable(error: voldiq_core::Error) -> Value {
     match error {
         voldiq_core::Error::Query(error) => super::failure("invalid_query", &error.to_string()),
+        error @ voldiq_core::Error::DuplicateVerificationLimit => {
+            super::failure("verification_limit", &error.to_string())
+        }
         error => unavailable(error),
     }
 }
@@ -494,7 +497,7 @@ fn invoke(
             .map_err(unavailable)
         }
         "voldiq_plan_prepare" => {
-            let args: PlanPrepareArgs = parse(args)?;
+            let args: SnapshotSelectionArgs = parse(args)?;
             serde_json::to_value(
                 service
                     .plan_prepare(args.snapshot_id, &args.node_ids)
@@ -517,6 +520,27 @@ fn invoke(
                     super::failure(
                         "duplicate_candidates_cancelled",
                         "Duplicate candidates query cancelled.",
+                    )
+                })?;
+            serde_json::to_value(result).map_err(unavailable)
+        }
+        "voldiq_verify_duplicates" => {
+            let args: SnapshotSelectionArgs = parse(args)?;
+            if args.snapshot_id <= 0
+                || !voldiq_core::duplicates::valid_verification_selection(&args.node_ids)
+            {
+                return Err(super::failure(
+                    "invalid_arguments",
+                    "Select 2–64 distinct file IDs from a snapshot.",
+                ));
+            }
+            let result = service
+                .verify_duplicates(args.snapshot_id, &args.node_ids, cancel)
+                .map_err(query_unavailable)?
+                .ok_or_else(|| {
+                    super::failure(
+                        "duplicate_verification_cancelled",
+                        "Duplicate verification cancelled.",
                     )
                 })?;
             serde_json::to_value(result).map_err(unavailable)
@@ -691,6 +715,7 @@ impl ServerHandler for Server {
                 | "voldiq_libraries"
                 | "voldiq_plan_validate"
                 | "voldiq_duplicate_candidates"
+                | "voldiq_verify_duplicates"
                 | "voldiq_transfers"
                 | "voldiq_transfer_files"
         );
@@ -774,6 +799,7 @@ fn tools() -> Vec<Tool> {
         ("voldiq_plan_prepare_restore", "Prepare an exact read-only restore proposal from this connection's confirmed transfer catalogue and a fresh archive snapshot. node_ids refer to original catalogue nodes. Current archive, original parents and volume scopes are required. To keep both files on collision, set on_collision to keep_both. Request independent Windows desktop approval before asking to execute it.", json!({"snapshot_id":integer,"transfer_plan_id":plan_id,"node_ids":{"type":"array","minItems":1,"maxItems":500,"uniqueItems":true,"items":{"type":"integer","minimum":0,"maximum":4294967295u64}},"on_collision":{"type":"string","enum":["fail","keep_both"],"default":"fail"}}), json!(["snapshot_id","transfer_plan_id","node_ids"])),
         ("voldiq_plan_get", "Read this connection's exact manifest and current state. An approved row is not execution authority.", json!({"plan_id":plan_id}), json!(["plan_id"])),
         ("voldiq_duplicate_candidates", "List equally sized distinct file identities recorded in an authorized snapshot. Scope accepts an indexed folder ID. Set logical_bytes to page the members of that size. Uses recorded metadata and omits protected or unverified entries. Content equality and recoverable bytes remain unknown.", json!({"snapshot_id":integer,"options":{"type":"object","additionalProperties":false,"properties":{"scope":{"type":"integer","minimum":0,"maximum":4294967295u64},"min_bytes":{"type":"string","pattern":"^(0|[1-9][0-9]{0,19})$"},"logical_bytes":{"type":"string","pattern":"^(0|[1-9][0-9]{0,19})$"},"offset":{"type":"integer","minimum":0,"maximum":250000},"limit":{"type":"integer","minimum":1,"maximum":100}}}}), json!(["snapshot_id"])),
+        ("voldiq_verify_duplicates", "Verify selected snapshot files by streaming their current local contents. Requires Metadata and ReadContent. Uses pinned recorded identities, excludes cloud and protected files, collapses hard links, and caps file reads at 256 MiB. Groups contain only matching distinct file IDs.", json!({"snapshot_id":integer,"node_ids":{"type":"array","minItems":2,"maxItems":64,"uniqueItems":true,"items":{"type":"integer","minimum":1,"maximum":4294967295u64}}}), json!(["snapshot_id","node_ids"])),
         ("voldiq_transfers", "Page recorded transfer and restore operations for this connection's current credential and policy. Use next_before for the next page. Publication counts describe records only.", json!({"before":plan_id,"limit":{"type":"integer","minimum":1,"maximum":25,"default":25}}), json!([])),
         ("voldiq_transfer_files", "Page recorded file phases and publication evidence for an owned transfer or restore. Use next_after for the next page. Opt-in hashes require ReadContent. Restore preparation requires fresh archive evidence.", json!({"plan_id":plan_id,"after":{"type":"integer","minimum":0,"maximum":4294967295u64},"limit":{"type":"integer","minimum":1,"maximum":25,"default":25},"include_hashes":{"type":"boolean","default":false}}), json!(["plan_id"])),
         ("voldiq_plan_validate", "Check the current metadata evidence of this connection's exact plan ID and manifest hash. Requires PreparePlans. Returns status, observed lifecycle state and time. Reports no new paths and makes no changes to plan state or approval. Execution revalidates independently.", json!({"plan_id":plan_id,"manifest_hash":plan_id}), json!(["plan_id","manifest_hash"])),

@@ -133,6 +133,11 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     assert!(
         tools
             .iter()
+            .any(|tool| tool.name == "voldiq_verify_duplicates")
+    );
+    assert!(
+        tools
+            .iter()
             .any(|tool| tool.name == "voldiq_transfer_files")
     );
     let transfers = call(&client, "voldiq_transfers", json!({})).await;
@@ -1177,6 +1182,9 @@ async fn verify_recorded_libraries(
     std::fs::write(game.join("game.bin"), [0; 13]).unwrap();
     std::fs::write(root.join("Owned.NEF"), [0; 17]).unwrap();
     std::fs::write(&profile, b"[Version]\nAppVersion=5.12\nVersion=360\n").unwrap();
+    let duplicate = root.join("duplicate-first.data");
+    std::fs::write(&duplicate, b"matches").unwrap();
+    std::fs::write(root.join("duplicate-second.data"), b"matches").unwrap();
 
     let provisioned = registry
         .provision(
@@ -1286,7 +1294,47 @@ async fn verify_recorded_libraries(
     )
     .await;
     assert_eq!(invalid.is_error, Some(true));
+
+    let mut ids = Vec::new();
+    for offset in 0..2 {
+        let page = call(
+            &client,
+            "voldiq_duplicate_candidates",
+            json!({"snapshot_id":snapshot,"options":{"logical_bytes":"7","offset":offset}}),
+        )
+        .await
+        .structured_content
+        .unwrap();
+        ids.push(page["result"]["members"][0]["node_id"].as_u64().unwrap());
+    }
+    ids.sort_unstable();
+    let request = json!({"snapshot_id":snapshot,"node_ids":ids});
+    let denied = call(metadata_client, "voldiq_verify_duplicates", request.clone()).await;
+    assert_eq!(
+        denied.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
+    );
+    let verified = call(&client, "voldiq_verify_duplicates", request.clone()).await;
+    assert_ne!(verified.is_error, Some(true), "{verified:?}");
+    let result = &verified.structured_content.as_ref().unwrap()["result"];
+    assert_eq!(
+        result["groups"],
+        json!([{"logical_bytes":"7","node_ids":ids}])
+    );
+    assert_eq!(result["bytes_read"], "14");
+    std::fs::write(&duplicate, b"changed").unwrap();
+    let stale = call(&client, "voldiq_verify_duplicates", request.clone()).await;
+    assert_eq!(
+        stale.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
+    );
+
     registry.revoke(provisioned.id).unwrap();
+    let revoked_duplicate = call(&client, "voldiq_verify_duplicates", request).await;
+    assert_eq!(
+        revoked_duplicate.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
+    );
     let revoked = call(
         &client,
         "voldiq_libraries",

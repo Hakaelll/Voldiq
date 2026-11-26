@@ -78,6 +78,7 @@ This example forwards an environment variable by name, without embedding its val
 | `voldiq_query` | Metadata | Bounded page with shared structured filters and advanced expression |
 | `voldiq_applications` | Metadata | Current authorized Windows installation claims over scoped indexed files; capped page, dated provenance and exact logical-byte partition |
 | `voldiq_duplicate_candidates` | Metadata | Recorded equal-size groups of distinct file identities and paged member names |
+| `voldiq_verify_duplicates` | Metadata and ReadContent | Matching content groups from selected file IDs in an authorized snapshot, verified against current local files |
 | `voldiq_libraries` | Metadata and ReadContent | Recorded game or media evidence and logical sizes from an authorized snapshot and indexed folder |
 | `voldiq_export_csv` | Metadata + Export | Bounded files/folders CSV page and scope/filter/coverage metadata; full paths require explicit opt-in |
 | `voldiq_query_translate` | Metadata | Offline expression proposal and exact unparsed input spans; no snapshot/query execution |
@@ -171,6 +172,14 @@ Example request: `{"scope":0,"sort":"size","limit":20,"filters":{"expression":"t
 Use `duplicate-candidates <snapshot_id> [JSON options]` in the CLI or pass `snapshot_id` and optional `options` to `voldiq_duplicate_candidates`. An indexed directory `scope` narrows the snapshot. Groups contain at least two distinct file identities and are ordered by descending logical size. A hard link counts once. Pass `logical_bytes` with the exact size of a group to page its members in snapshot order.
 
 Sizes are decimal byte strings. `min_bytes` defaults to `"1"`. Keep the same scope, size and filters when following `next_offset`. The default page is 25, subject to the connection limit. If the folder exceeds 250,000 qualifying identities, choose a narrower folder or raise the minimum size. Protected entries, cloud placeholders and files without sufficient recorded evidence are omitted. `recorded_complete`, `files_without_evidence` and `unverified_branches` describe coverage. `recorded_size_only` denotes candidates from the scan. Content equality and reclaimable allocation remain unknown.
+
+## Verify exact duplicates
+
+Run `verify-duplicates <snapshot_id> <JSON node IDs>` or call `voldiq_verify_duplicates` with `snapshot_id` and `node_ids`. Select 2–64 distinct file IDs from the same snapshot. The connection's page limit also bounds the maximum number of groups that can fit in the selection. Use the candidate member pages or snapshot search to find IDs. The console lists group sizes and file IDs through Duplicate candidates, then accepts the selection through Verify exact duplicates.
+
+Voldiq opens authorized native files without recalling cloud contents. It checks recorded file identity, change time and size before reading. It collapses hard links, groups equal logical sizes, samples matching candidates and streams complete BLAKE3 hashes when the sample covers only part of a file. Requests have a worst-case budget of 256 MiB including samples and complete reads. Cancel the CLI operation with Ctrl+C or cancel the MCP request. Stale, protected or inaccessible evidence ends the request without a partial result.
+
+The reply gives an observation time, the measured read bytes, comparison counts and groups of matching node IDs. Hashes and raw contents stay local. Results describe the selected files at verification time. Cleanup still uses its explicit plan, approval and current file checks.
 
 ## CSV export pages
 

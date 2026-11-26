@@ -1,7 +1,11 @@
 mod candidates;
 pub(crate) mod persistence;
+mod verification;
 pub(crate) use candidates::candidate_page;
 pub use candidates::{CandidatePage, CandidateRequest};
+#[cfg(windows)]
+pub(crate) use verification::verify_selection;
+pub use verification::{Verification, valid_verification_selection};
 #[cfg(windows)]
 pub mod similar;
 
@@ -31,6 +35,7 @@ struct CachedHash {
 }
 
 const CACHE_LIMIT: usize = 250_000;
+const SAMPLE_BYTES: u64 = 8192;
 
 #[derive(Default)]
 pub struct HashCache(HashMap<(u64, u64), CachedHash>);
@@ -397,19 +402,7 @@ fn sample(
     let sample = if let Some(cached) = cached {
         cached.sample
     } else {
-        let mut bytes = vec![0; size.min(8192) as usize];
-        if size <= 8192 {
-            file.read_exact(&mut bytes)?;
-        } else {
-            file.read_exact(&mut bytes[..4096])?;
-            file.seek(SeekFrom::End(-4096))?;
-            file.read_exact(&mut bytes[4096..])?;
-        }
-        *bytes_read += bytes.len() as u64;
-        if stamp(&file)?.0 != before {
-            return Err(Error::Invalid("File changed during sampling.".into()));
-        }
-        let hash = blake3::hash(&bytes);
+        let hash = sample_hash(&mut file, &before, bytes_read)?;
         if cache.0.len() >= CACHE_LIMIT {
             cache.0.clear();
         }
@@ -418,7 +411,7 @@ fn sample(
             CachedHash {
                 stamp: before.clone(),
                 sample: hash,
-                full: (size <= 8192).then_some(hash),
+                full: (size <= SAMPLE_BYTES).then_some(hash),
             },
         );
         hash
@@ -433,6 +426,23 @@ fn sample(
         stamp: before,
         sample,
     })
+}
+
+fn sample_hash(file: &mut File, before: &Stamp, bytes_read: &mut u64) -> Result<blake3::Hash> {
+    let mut bytes = vec![0; before.size.min(SAMPLE_BYTES) as usize];
+    if before.size <= SAMPLE_BYTES {
+        file.read_exact(&mut bytes)?;
+    } else {
+        let half = (SAMPLE_BYTES / 2) as usize;
+        file.read_exact(&mut bytes[..half])?;
+        file.seek(SeekFrom::Start(before.size - half as u64))?;
+        file.read_exact(&mut bytes[half..])?;
+    }
+    *bytes_read += bytes.len() as u64;
+    if stamp(file)?.0 != *before {
+        return Err(Error::Invalid("File changed during sampling.".into()));
+    }
+    Ok(blake3::hash(&bytes))
 }
 
 fn full_hash(
@@ -455,25 +465,9 @@ fn full_hash(
     {
         return Ok(Some((hash, 0, true)));
     }
-    let mut hasher = blake3::Hasher::new();
-    let mut buffer = vec![0_u8; 64 * 1024];
-    let mut count = 0;
-    loop {
-        if cancel.load(Ordering::Relaxed) {
-            return Ok(None);
-        }
-        let length = file.read(&mut buffer)?;
-        if length == 0 {
-            break;
-        }
-        hasher.update(&buffer[..length]);
-        count += length as u64;
-        progress(count);
-    }
-    if count != candidate.stamp.size || stamp(&file)?.0 != candidate.stamp {
-        return Err(Error::Invalid("File changed during hashing.".into()));
-    }
-    let hash = hasher.finalize();
+    let Some((hash, count)) = stream_hash(&mut file, &candidate.stamp, cancel, progress)? else {
+        return Ok(None);
+    };
     if cache.0.len() >= CACHE_LIMIT {
         cache.0.clear();
     }
@@ -486,6 +480,35 @@ fn full_hash(
         },
     );
     Ok(Some((hash, count, false)))
+}
+
+fn stream_hash(
+    file: &mut File,
+    before: &Stamp,
+    cancel: &AtomicBool,
+    mut progress: impl FnMut(u64),
+) -> Result<Option<(blake3::Hash, u64)>> {
+    file.seek(SeekFrom::Start(0))?;
+    let mut hasher = blake3::Hasher::new();
+    let mut buffer = vec![0_u8; 64 * 1024];
+    let mut count = 0;
+    let mut contents = file.take(before.size);
+    loop {
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        let length = contents.read(&mut buffer)?;
+        if length == 0 {
+            break;
+        }
+        hasher.update(&buffer[..length]);
+        count += length as u64;
+        progress(count);
+    }
+    if count != before.size || stamp(contents.into_inner())?.0 != *before {
+        return Err(Error::Invalid("File changed during hashing.".into()));
+    }
+    Ok(Some((hasher.finalize(), count)))
 }
 
 fn record_issue(result: &mut Analysis, path: &Path, error: Error) {

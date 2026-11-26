@@ -78,7 +78,7 @@ pub(super) async fn open(state: &[String], no_motion: bool) -> io::Result<()> {
                 }
                 args.extend(["scan".into(), path, "--wait".into()]);
             }
-            "2" | "3" => {
+            "2" | "3" | "6" => {
                 let Some(snapshot) =
                     ask(&mut input, &mut out, "  Snapshot ID (see Scan history) > ")?
                 else {
@@ -98,19 +98,49 @@ pub(super) async fn open(state: &[String], no_motion: bool) -> io::Result<()> {
                         snapshot,
                         json!({"text":text,"limit":12}).to_string(),
                     ]);
+                } else if choice == "3" {
+                    let Some(size) = ask(
+                        &mut input,
+                        &mut out,
+                        "  Exact size in bytes (Enter to list groups) > ",
+                    )?
+                    else {
+                        break;
+                    };
+                    let options = if size.is_empty() {
+                        json!({"limit":12})
+                    } else {
+                        json!({"logical_bytes":size,"limit":12})
+                    };
+                    args.extend(["duplicate-candidates".into(), snapshot, options.to_string()]);
                 } else {
-                    args.extend([
-                        "duplicate-candidates".into(),
-                        snapshot,
-                        json!({"limit":12}).to_string(),
-                    ]);
+                    let Some(selection) = ask(
+                        &mut input,
+                        &mut out,
+                        "  File IDs from a snapshot, separated by spaces > ",
+                    )?
+                    else {
+                        break;
+                    };
+                    if selection.is_empty() {
+                        continue;
+                    }
+                    let ids = selection
+                        .split_whitespace()
+                        .map(str::parse::<u32>)
+                        .collect::<Result<Vec<_>, _>>();
+                    let Ok(ids) = ids else {
+                        writeln!(out, "  Enter numeric file IDs without the # prefix.")?;
+                        continue;
+                    };
+                    args.extend(["verify-duplicates".into(), snapshot, json!(ids).to_string()]);
                 }
             }
             "4" => args.extend(["volumes".into(), "0".into(), "12".into()]),
             "5" => args.extend(["history".into(), "0".into(), "12".into()]),
             "" => continue,
             _ => {
-                writeln!(out, "  Choose 1-5, ?, H, R or 0.")?;
+                writeln!(out, "  Choose 1-6, ?, H, R or 0.")?;
                 continue;
             }
         }
@@ -139,6 +169,7 @@ fn menu(out: &mut impl Write, terminal: &Terminal) -> io::Result<()> {
         (1, "Scan a folder"),
         (2, "Search a snapshot"),
         (3, "Duplicate candidates"),
+        (6, "Verify exact duplicates"),
     ];
     let browsing = [(4, "Authorized volumes"), (5, "Scan history")];
     for (section, entries) in [
@@ -224,6 +255,27 @@ fn show(out: &mut impl Write, terminal: &Terminal, choice: &str, result: &Value)
             Ok(())
         }
         "3" => {
+            if result["kind"] == "members" {
+                let members = items(&result["members"]);
+                heading(
+                    out,
+                    terminal,
+                    &format!(
+                        "Candidates at {} bytes  |  {} shown",
+                        label(&result["logical_bytes"]),
+                        members.len()
+                    ),
+                )?;
+                for member in members {
+                    writeln!(
+                        out,
+                        "  #{:<8}  {}",
+                        label(&member["node_id"]),
+                        label(&member["name"])
+                    )?;
+                }
+                return writeln!(out, "  [6] Verify selected file IDs by content.");
+            }
             let groups = items(&result["groups"]);
             heading(
                 out,
@@ -241,15 +293,41 @@ fn show(out: &mut impl Write, terminal: &Terminal, choice: &str, result: &Value)
             for group in groups {
                 writeln!(
                     out,
-                    "  {:>10}  {} distinct files",
+                    "  {:>10}  {} distinct files  |  {} bytes",
                     size_label(bytes(&group["logical_bytes"])),
-                    label(&group["distinct_files"])
+                    label(&group["distinct_files"]),
+                    label(&group["logical_bytes"])
                 )?;
             }
             if result["recorded_complete"].as_bool() == Some(false) {
                 writeln!(out, "  Partial snapshot coverage.")?;
             }
             Ok(())
+        }
+        "6" => {
+            let groups = items(&result["groups"]);
+            heading(out, terminal, "Exact duplicates  |  Selected files")?;
+            if groups.is_empty() {
+                writeln!(out, "  No matching contents in this selection.")?;
+            }
+            for group in groups {
+                let ids = items(&group["node_ids"])
+                    .iter()
+                    .map(|node| format!("#{}", label(node)))
+                    .collect::<Vec<_>>();
+                writeln!(
+                    out,
+                    "  {:>10}  {}",
+                    size_label(bytes(&group["logical_bytes"])),
+                    ids.join("  ")
+                )?;
+            }
+            writeln!(
+                out,
+                "  {} files compared  |  {} hard-link aliases omitted",
+                label(&result["compared_files"]),
+                label(&result["aliases_omitted"])
+            )
         }
         "4" => {
             heading(out, terminal, "Authorized volumes")?;

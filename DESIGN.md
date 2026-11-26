@@ -156,6 +156,8 @@ The terminal mark shows three filled disks with curved rims, shaded faces and a 
 
 The menu separates analysis from browsing. Accented key markers identify actions. Section headings and aligned result rows keep attention on measured sizes. Filled ASCII bars show measured volume use or search result size relative to the largest match. Missing measurements use a dashed bar and an explicit unknown label. The console remains legible with color disabled.
 
+The Duplicate candidates action lists byte-size groups or the file IDs and names for an exact size. Verify exact duplicates accepts those IDs and shows groups confirmed by a content check. Empty verification results name the selected scope. A changed or unavailable entry leaves the request without a verification result.
+
 ## Light and dark workspaces
 
 Vivid+Co informs the dark workspace. Obsidian and ivory set the large surfaces and foreground. Dark controls use thin outlines, short radii and restrained violet-blue focus accents. The strong colors belong to data.

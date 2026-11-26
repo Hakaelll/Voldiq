@@ -47,6 +47,10 @@ pub enum Error {
         "A restore output already exists. Choose keep_both to prepare a plan with a different name, or select other files."
     )]
     RestoreCollision,
+    #[error(
+        "Choose fewer candidates. Verification supports up to 256 MiB of file reads per request."
+    )]
+    DuplicateVerificationLimit,
     #[error("{0}")]
     Invalid(String),
     #[error(transparent)]

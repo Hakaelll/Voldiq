@@ -102,6 +102,31 @@ impl AuthorizedPath {
     }
 
     #[cfg(windows)]
+    pub(crate) fn open_file_content(&self) -> Result<File> {
+        use windows::cleanup_io::{LeafAccess, open_leaf};
+        let [.., parent, file] = self.handles.as_slice() else {
+            return Err(denied());
+        };
+        let metadata = file.metadata()?;
+        if !metadata.is_file()
+            || windows::is_reparse(&metadata)
+            || windows::requires_recall(&metadata)
+        {
+            return Err(denied());
+        }
+        // Open only the selected final component, relative to its retained parent.
+        let content = open_leaf(
+            parent,
+            self.path.file_name().ok_or_else(denied)?,
+            LeafAccess::Retain,
+        )?;
+        if windows::file_identity(&content)?.key != self.identity {
+            return Err(denied());
+        }
+        Ok(content)
+    }
+
+    #[cfg(windows)]
     pub(crate) fn directory_handle(&self) -> Result<&File> {
         let file = self.handles.last().ok_or_else(denied)?;
         let metadata = file.metadata()?;

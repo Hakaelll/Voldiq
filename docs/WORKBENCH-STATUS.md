@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Exact duplicate verification for selected files
+
+CLI verify-duplicates and MCP voldiq_verify_duplicates verify a selection from an authorized Windows snapshot. Both check Metadata and ReadContent, open current local files through pinned parents, and use the desktop's shared sample and streaming BLAKE3 functions. The console opens candidate groups to show file IDs and displays the matches confirmed for the selected IDs. The call has a 256 MiB read budget. Whole-folder background verification remains pending.
+
+The retained CLI fixture compared three distinct 16 KiB files with equal first and last samples. One differed in the middle and the other two matched. One hard-link alias was collapsed. The measured sample and complete reads totalled 73,728 bytes. A same-size rewrite and a metadata-only connection were refused. A real MCP SDK client repeated the allowed, stale and revoked checks against owned files. The console listed recorded group members and rendered the exact match for selected IDs. Windows visual acceptance remains manual. [Source verification](../benchmarks/workbench-duplicate-verification-source.json)
+
 ## Interactive ASCII console
 
 The Windows CLI opens with a numbered console menu when started in an interactive terminal. It reuses the authorized scan, snapshot, volume and candidate commands. Three filled ASCII disks rotate around the vertical axis as one tilted piece. Fixed lighting shades the surfaces and the accent marks the top segment. R replays the turn. The menu and bars use color in compatible terminals and honor NO_COLOR. The animation respects the Windows motion preference. Shell commands emit versioned JSON and the MCP transport writes its protocol to stdout.

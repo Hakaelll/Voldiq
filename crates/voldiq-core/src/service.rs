@@ -19,6 +19,7 @@ use std::{
 };
 
 mod applications;
+mod duplicate_verification;
 pub use applications::ApplicationPage;
 
 #[derive(Clone)]
