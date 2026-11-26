@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte';
   import { invoke } from '@tauri-apps/api/core';
+  import { currentStorageUnits } from '../lib/storage-units';
   import Icon from './Icon.svelte';
   import {
     createReportExport,
@@ -95,7 +96,7 @@
     try {
       await exportSession.save(
         { owner: { kind: 'index', id: indexId }, requestId: crypto.randomUUID() },
-        request,
+        { ...request, display_units: currentStorageUnits() },
         format,
       );
     } finally {

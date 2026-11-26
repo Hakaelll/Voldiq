@@ -147,6 +147,7 @@ pub(super) fn prepare(
     }
     request.validate(index)?;
     let selection = ReportSelection {
+        display_units: None,
         items: ReportItems::Files,
         filter: ReportFilter {
             scope: Some(request.scope),

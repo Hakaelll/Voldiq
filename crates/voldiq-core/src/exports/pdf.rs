@@ -3,7 +3,7 @@ mod fonts;
 use super::{
     LogicalTotal, ReportSelection, ReportSummary, StreamOutcome, StreamProgress, ranked_summary,
 };
-use crate::{Error, Result, index::Index};
+use crate::{Error, Result, index::Index, storage_units::StorageUnits};
 use krilla::{
     Document,
     color::rgb,
@@ -84,6 +84,15 @@ fn display(text: &str) -> String {
     result
 }
 
+fn report_bytes(bytes: u128, units: Option<StorageUnits>) -> String {
+    match units {
+        Some(units) if bytes >= 1024 || (bytes >= 1000 && units == StorageUnits::Decimal) => {
+            format!("{} ({bytes} bytes)", units.format(bytes))
+        }
+        _ => format!("{bytes} bytes"),
+    }
+}
+
 fn blocks(summary: &ReportSummary) -> Result<Vec<Block>> {
     let scope = &summary.scope;
     let value = |key: &str| match &scope[key] {
@@ -145,7 +154,8 @@ fn blocks(summary: &ReportSummary) -> Result<Vec<Block>> {
         Block::heading("Matching records"),
         Block::body(match summary.logical {
             LogicalTotal::FilePaths { bytes } => format!(
-                "Observed file-path total: {bytes} bytes. Aliases may repeat the same data; partial records are lower bounds."
+                "Observed file-path total: {}. Aliases may repeat the same data; partial records are lower bounds.",
+                report_bytes(bytes, summary.display_units)
             ),
             LogicalTotal::OverlappingFolders => {
                 "Folder totals overlap. No sum is reported for ancestor and descendant folders."
@@ -167,9 +177,9 @@ fn blocks(summary: &ReportSummary) -> Result<Vec<Block>> {
     for (position, row) in summary.rows.iter().enumerate() {
         let entry = &row.entry;
         result.push(Block::heading(format!(
-            "{:02}   {} bytes{}",
+            "{:02}   {}{}",
             position + 1,
-            entry.logical,
+            report_bytes(entry.logical.into(), summary.display_units),
             if entry.incomplete { " (partial)" } else { "" }
         )));
         result.push(Block::body(format!("Name: {}", display(&entry.name))));
@@ -178,9 +188,12 @@ fn blocks(summary: &ReportSummary) -> Result<Vec<Block>> {
                 "Node {}. Recorded allocation: {}. Modified: {}. Hard-link alias: {}.",
                 entry.id.0,
                 if entry.allocation_known {
-                    format!("{} bytes", entry.allocated)
+                    report_bytes(entry.allocated.into(), summary.display_units)
                 } else if entry.allocated > 0 {
-                    format!("at least {} bytes (partial)", entry.allocated)
+                    format!(
+                        "at least {} (partial)",
+                        report_bytes(entry.allocated.into(), summary.display_units)
+                    )
                 } else {
                     "Unknown".into()
                 },

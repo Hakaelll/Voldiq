@@ -185,6 +185,16 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
             .is_err()
     );
     assert_eq!(stats.structured_content.unwrap()["result"]["logical"], 11);
+    let labelled = call(
+        &client,
+        "voldiq_stats",
+        json!({"snapshot_id":snapshot,"display_units":"decimal"}),
+    )
+    .await;
+    let labelled = &labelled.structured_content.unwrap()["result"];
+    assert_eq!(labelled["logical"], 11);
+    assert_eq!(labelled["display"]["units"], "decimal");
+    assert_eq!(labelled["display"]["logical"], "11 B");
     let exported = call(
         &client,
         "voldiq_export_csv",

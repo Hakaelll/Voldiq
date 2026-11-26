@@ -1387,6 +1387,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             let report = voldiq_core::exports::stream_csv(
                 &saved,
                 &voldiq_core::exports::ReportSelection {
+                    display_units: None,
                     items: voldiq_core::exports::ReportItems::Files,
                     filter: voldiq_core::exports::ReportFilter {
                         expression: search.expression.clone(),
@@ -3295,13 +3296,15 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     ));
 
     let mut export_index = capture(fixture.path());
-    export_index
+    let export_entry = export_index
         .entries
         .iter_mut()
         .find(|entry| entry.kind == voldiq_core::Kind::File)
-        .unwrap()
-        .name = "=1+1\",\n@x".into();
+        .unwrap();
+    export_entry.name = "=1+1\",\n@x".into();
+    export_entry.logical = 1_048_576;
     let request = voldiq_core::exports::CsvRequest {
+        display_units: None,
         items: voldiq_core::exports::ReportItems::Files,
         query: Query {
             text: "=1+1".into(),
@@ -3315,7 +3318,31 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     assert_eq!(exported.rows, 1);
     assert!(exported.csv.contains("\"text: =1+1\"\",\n@x\""));
     assert!(exported.scope_root.is_none());
+    let sized = voldiq_core::exports::CsvRequest {
+        display_units: Some(voldiq_core::storage_units::StorageUnits::Decimal),
+        query: request.query.clone(),
+        items: request.items,
+        include_paths: false,
+    };
+    let sized = voldiq_core::exports::csv(&export_index, &sized, &loading)
+        .unwrap()
+        .unwrap();
+    assert_eq!(sized.rows, 1);
+    assert_eq!(sized.total_matching, exported.total_matching);
+    assert!(
+        sized
+            .csv
+            .starts_with("node_id,kind,name,logical_bytes,recorded_allocated_bytes,")
+    );
+    assert!(
+        sized
+            .csv
+            .contains("path_exact,logical_display,allocated_display\r\n")
+    );
+    assert!(sized.csv.contains("\"text: =1+1\"\",\n@x\",1048576,"));
+    assert!(sized.csv.contains(",\"text: 1 MB\","));
     let path_request = voldiq_core::exports::CsvRequest {
+        display_units: None,
         include_paths: true,
         query: request.query.clone(),
         items: request.items,
@@ -3331,6 +3358,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             .is_none()
     );
     let streaming = voldiq_core::exports::ReportSelection {
+        display_units: Some(voldiq_core::storage_units::StorageUnits::Binary),
         items: voldiq_core::exports::ReportItems::Files,
         filter: voldiq_core::exports::ReportFilter {
             text: "=1+1".into(),
@@ -3348,12 +3376,14 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     let encoded = String::from_utf8(encoded).unwrap();
     assert!(encoded.starts_with("record_type,node_id,kind,name,"));
     assert!(encoded.contains("\"text: =1+1\"\",\n@x\""));
+    assert!(encoded.contains("\"text: 1 MiB\""));
     assert!(encoded.contains("\"\"root_path\"\":null"));
     assert!(encoded.contains("\r\ncomplete,"));
     assert!(exported.query["text"].is_null());
     assert!(!exported.filter_text_included);
     assert_eq!(with_paths.query["text"], "=1+1");
     let private_filter = voldiq_core::exports::ReportSelection {
+        display_units: None,
         items: streaming.items,
         filter: voldiq_core::exports::ReportFilter {
             text: "https://private.invalid/secret".into(),
@@ -3497,6 +3527,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
             assert!(!denied.exists());
         }
         let invalid = voldiq_core::exports::ReportSelection {
+            display_units: None,
             items: streaming.items,
             filter: voldiq_core::exports::ReportFilter {
                 expression: "size:invalid".into(),
@@ -3570,6 +3601,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         assert!(data.contains(" _X000D_"));
         assert!(data.contains("r=\"D2\" t=\"inlineStr\""));
         assert!(data.contains("18446744073709551615"));
+        assert!(data.contains("16 EiB"));
         assert!(data.contains("<c r=\"E2\"/>") && data.contains("<c r=\"G2\"/>"));
         assert!(!metadata.contains(workbook_index.root.to_str().unwrap()));
         assert!(metadata.contains("Withheld") && metadata.contains("filter_text_included"));
@@ -3656,6 +3688,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         export_index.entries.push(entry);
     }
     let all = voldiq_core::exports::ReportSelection {
+        display_units: None,
         items: request.items,
         filter: Default::default(),
         include_paths: false,
@@ -4232,6 +4265,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     let folder_summary = voldiq_core::exports::ranked_summary(
         &first,
         &voldiq_core::exports::ReportSelection {
+            display_units: None,
             items: voldiq_core::exports::ReportItems::Folders,
             filter: Default::default(),
             include_paths: false,
@@ -4248,6 +4282,7 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     export_index.entries[10_000].logical = 1;
     export_index.entries[10_001].logical = 1;
     let no_matches = voldiq_core::exports::ReportSelection {
+        display_units: None,
         items: request.items,
         filter: voldiq_core::exports::ReportFilter {
             min_size: 2,

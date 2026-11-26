@@ -16,22 +16,7 @@ pub(super) fn bytes(value: &str, offset: usize) -> Result<ByteThreshold, QueryEr
         .find(|ch: char| !ch.is_ascii_digit() && ch != '.')
         .unwrap_or(value.len());
     let number = &value[..end];
-    let multiplier: u128 = match value[end..].trim().to_ascii_lowercase().as_str() {
-        "" | "b" => 1,
-        "kb" => 1000,
-        "mb" => 1000_u128.pow(2),
-        "gb" => 1000_u128.pow(3),
-        "tb" => 1000_u128.pow(4),
-        "pb" => 1000_u128.pow(5),
-        "eb" => 1000_u128.pow(6),
-        "kib" => 1 << 10,
-        "mib" => 1 << 20,
-        "gib" => 1 << 30,
-        "tib" => 1 << 40,
-        "pib" => 1 << 50,
-        "eib" => 1 << 60,
-        _ => return Err(error()),
-    };
+    let multiplier = crate::storage_units::multiplier(value[end..].trim()).ok_or_else(error)?;
     let (whole, fraction) = number
         .split_once('.')
         .map_or((number, None), |(w, f)| (w, Some(f)));

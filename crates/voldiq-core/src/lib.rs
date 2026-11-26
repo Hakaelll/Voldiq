@@ -29,6 +29,7 @@ pub mod security;
 pub mod service;
 pub mod snapshots;
 pub mod space;
+pub mod storage_units;
 pub mod transfer;
 pub mod windows;
 pub mod workbench;

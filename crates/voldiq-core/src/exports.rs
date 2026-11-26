@@ -2,6 +2,7 @@
 use crate::{
     Error, Kind, Result,
     index::{Index, Query},
+    storage_units::StorageUnits,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -55,6 +56,15 @@ impl ReportFormat {
 }
 
 const HEADER: &str = "node_id,kind,name,logical_bytes,recorded_allocated_bytes,allocation_known,modified_unix_seconds,path,path_exact";
+const DISPLAY_COLUMNS: [&str; 2] = ["logical_display", "allocated_display"];
+
+fn header(display_units: Option<StorageUnits>) -> String {
+    if display_units.is_some() {
+        format!("{HEADER},{}", DISPLAY_COLUMNS.join(","))
+    } else {
+        HEADER.into()
+    }
+}
 
 #[derive(Clone, Copy, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -71,6 +81,8 @@ pub struct CsvRequest {
     pub query: Query,
     #[serde(default)]
     pub include_paths: bool,
+    #[serde(default)]
+    pub display_units: Option<StorageUnits>,
 }
 
 #[derive(Serialize)]
@@ -84,6 +96,8 @@ pub struct CsvPage {
     pub filter_text_included: bool,
     pub items: ReportItems,
     pub units: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_units: Option<StorageUnits>,
     pub text_encoding: &'static str,
     pub paths_included: bool,
     pub mime: &'static str,
@@ -118,6 +132,7 @@ fn row(
     index: &Index,
     entry: &crate::Entry,
     include_paths: bool,
+    display_units: Option<StorageUnits>,
     cancelled: &AtomicBool,
 ) -> Result<Option<String>> {
     let (path, exact) = if include_paths {
@@ -135,7 +150,7 @@ fn row(
         Kind::Directory => "directory",
         Kind::Link => "link",
     };
-    Ok(Some(format!(
+    let mut record = format!(
         "{},{},{},{},{},{},{},{},{}",
         entry.id.0,
         kind,
@@ -149,7 +164,37 @@ fn row(
             .unwrap_or_default(),
         path,
         exact
-    )))
+    );
+    if let Some(units) = display_units {
+        use std::fmt::Write;
+        let (logical, allocated) = display_sizes(entry, units);
+        write!(
+            record,
+            ",{},{}",
+            text(&logical),
+            allocated
+                .as_ref()
+                .map(|value| text(value))
+                .unwrap_or_default()
+        )
+        .expect("formatting a String cannot fail");
+    }
+    Ok(Some(record))
+}
+
+fn display_sizes(entry: &crate::Entry, units: StorageUnits) -> (String, Option<String>) {
+    let logical = units.format(entry.logical.into());
+    let allocated = if entry.allocation_known {
+        Some(units.format(entry.allocated.into()))
+    } else if entry.allocated > 0 {
+        Some(format!(
+            "At least {} (partial)",
+            units.format(entry.allocated.into())
+        ))
+    } else {
+        None
+    };
+    (logical, allocated)
 }
 
 pub fn csv(index: &Index, request: &CsvRequest, cancelled: &AtomicBool) -> Result<Option<CsvPage>> {
@@ -173,12 +218,19 @@ pub fn csv(index: &Index, request: &CsvRequest, cancelled: &AtomicBool) -> Resul
     if cancelled.load(Ordering::Relaxed) {
         return Ok(None);
     }
-    let mut csv = format!("{HEADER}\r\n");
+    let mut csv = format!("{}\r\n", header(request.display_units));
     for entry in &page.items {
         if cancelled.load(Ordering::Relaxed) {
             return Ok(None);
         }
-        let Some(line) = row(index, entry, request.include_paths, cancelled)? else {
+        let Some(line) = row(
+            index,
+            entry,
+            request.include_paths,
+            request.display_units,
+            cancelled,
+        )?
+        else {
             return Ok(None);
         };
         csv.push_str(&line);
@@ -200,6 +252,7 @@ pub fn csv(index: &Index, request: &CsvRequest, cancelled: &AtomicBool) -> Resul
         scope_incomplete: root.incomplete,
         items: request.items,
         units: "bytes; Unix seconds UTC; recorded allocation requires allocation_known",
+        display_units: request.display_units,
         text_encoding: "Every name/path CSV cell begins with literal text: . Preserve this prefix in spreadsheets; remove exactly one prefix only when decoding as data. Numeric cells contain exact decimal digits; import as text to preserve large integers.",
         paths_included: request.include_paths,
         mime: "text/csv; charset=utf-8",

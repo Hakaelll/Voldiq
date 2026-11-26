@@ -2,7 +2,7 @@ use super::{
     ReportItems, ReportSelection, StreamOutcome, StreamProgress,
     stream::{Record, walk},
 };
-use crate::{Entry, Error, NodeId, Result, index::Index};
+use crate::{Entry, Error, NodeId, Result, index::Index, storage_units::StorageUnits};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 const SHOWN_ROWS: usize = 50;
@@ -23,6 +23,7 @@ pub enum LogicalTotal {
 }
 pub struct ReportSummary {
     pub scope: serde_json::Value,
+    pub display_units: Option<StorageUnits>,
     pub progress: StreamProgress,
     pub rows: Vec<SummaryRow>,
     pub omitted: usize,
@@ -115,6 +116,7 @@ pub fn ranked_summary(
     scope["row_limit"] = SHOWN_ROWS.into();
     Ok(Some(ReportSummary {
         scope,
+        display_units: selection.display_units,
         progress,
         rows,
         omitted,

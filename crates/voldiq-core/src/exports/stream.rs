@@ -1,8 +1,9 @@
-use super::{HEADER, ReportItems, row, text};
+use super::{DISPLAY_COLUMNS, ReportItems, header, row, text};
 use crate::{
     NodeId, Result,
     cloud::CloudFilter,
     index::{Index, Query},
+    storage_units::StorageUnits,
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -34,6 +35,8 @@ pub struct ReportSelection {
     pub filter: ReportFilter,
     #[serde(default)]
     pub include_paths: bool,
+    #[serde(default)]
+    pub display_units: Option<StorageUnits>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
@@ -50,10 +53,21 @@ pub enum StreamOutcome<Progress = StreamProgress> {
     Cancelled(Progress),
 }
 
-fn context(writer: &mut impl Write, kind: &str, data: serde_json::Value) -> Result<()> {
-    let mut columns = vec![String::new(); 11];
+fn context(
+    writer: &mut impl Write,
+    kind: &str,
+    data: serde_json::Value,
+    display_units: Option<StorageUnits>,
+) -> Result<()> {
+    let count = 11
+        + if display_units.is_some() {
+            DISPLAY_COLUMNS.len()
+        } else {
+            0
+        };
+    let mut columns = vec![String::new(); count];
     columns[0] = kind.into();
-    columns[10] = text(&data.to_string());
+    columns[count - 1] = text(&data.to_string());
     writer.write_all(columns.join(",").as_bytes())?;
     writer.write_all(b"\r\n")?;
     Ok(())
@@ -72,11 +86,24 @@ pub fn stream_csv(
             Record::Scope(mut data) => {
                 data["format"] = "csv".into();
                 data["text_encoding"] = "Name/path/context cells retain literal text: prefixes; keep them in spreadsheet workflows. Import large numeric values as text.".into();
-                writer.write_all(format!("record_type,{HEADER},context_json\r\n").as_bytes())?;
-                context(writer, "scope", data)?;
+                writer.write_all(
+                    format!(
+                        "record_type,{},context_json\r\n",
+                        header(request.display_units)
+                    )
+                    .as_bytes(),
+                )?;
+                context(writer, "scope", data, request.display_units)?;
             }
             Record::Item(entry) => {
-                let Some(line) = row(index, entry, request.include_paths, cancelled)? else {
+                let Some(line) = row(
+                    index,
+                    entry,
+                    request.include_paths,
+                    request.display_units,
+                    cancelled,
+                )?
+                else {
                     return Ok(false);
                 };
                 writer.write_all(b"item,")?;
@@ -87,6 +114,7 @@ pub fn stream_csv(
                 writer,
                 "complete",
                 serde_json::json!({"rows":state.rows,"inspected":state.inspected}),
+                request.display_units,
             )?,
         }
         Ok(true)
@@ -142,7 +170,7 @@ pub(super) fn walk(
     if cancelled.load(Ordering::Relaxed) {
         return Ok(StreamOutcome::Cancelled(state));
     }
-    if !output(Record::Scope(serde_json::json!({
+    let mut scope = serde_json::json!({
         "schema_version":1, "snapshot_id":index.snapshot_id,
         "generated_at":SystemTime::now().duration_since(UNIX_EPOCH).ok().map(|time|time.as_secs()),
         "observation":index.observation, "root_path":request.include_paths.then(|| index.root.to_string_lossy()),
@@ -151,7 +179,11 @@ pub(super) fn walk(
         "filter":super::filter_metadata(filter,request.include_paths)?,"filter_text_included":request.include_paths,"items":request.items,"include_paths":request.include_paths,"order":"recorded_index",
         "units":"bytes; Unix seconds UTC",
         "limitations":"Recorded metadata, not a fresh scan or file authority. Names are display strings. Allocation requires allocation_known; blank dates are unknown. Cloud metadata does not establish resident content. A completion record establishes encoder completion only, not durable publication."
-    })))? {
+    });
+    if let Some(units) = request.display_units {
+        scope["display_units"] = serde_json::json!(units);
+    }
+    if !output(Record::Scope(scope))? {
         return Ok(StreamOutcome::Cancelled(state));
     }
     let mut budget = crate::search::GLOB_WORK_LIMIT;

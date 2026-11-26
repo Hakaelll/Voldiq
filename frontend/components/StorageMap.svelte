@@ -9,6 +9,7 @@
 <script lang="ts">
   import { CHART_PAINTS, SIZE_PAINTS, AGE_PAINTS } from '../lib/chart-colors';
   import { onMount, untrack } from 'svelte';
+  import { currentStorageUnits } from '../lib/storage-units';
   import type { GraphicCapture, GraphicView, GraphicScene } from '../lib/graphic-export';
   import {
     createStorageLayout,
@@ -755,6 +756,7 @@
     void matches;
     void colorMode;
     void detail;
+    currentStorageUnits();
     untrack(schedule);
   });
   $effect(() => {

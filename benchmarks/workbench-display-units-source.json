@@ -1,0 +1,178 @@
+{
+  "checkedUtc": "2026-11-26T14:57:41.4037581Z",
+  "startedUtc": "2026-11-26T14:37:24.1425669Z",
+  "checkoutCommit": "4bebf03947e9af289bec2d37417b9fa3ba3011f1",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 3.88
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 26.037
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 2.601
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 17.426
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1002.578
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 164.665
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "E5D5EE258000FBD9CE62EDEC55C3C100C4E4C98BC6E894935C4E4E381B534611"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "866115EE0E5BBD192635D4894A25633A43A131F23750A00772EE8362E31E08C1"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "867382A1FF3F3B63707B20B7F24503AB65DFBFEC077EE551060D79C0EBCE8CDE"
+    },
+    {
+      "path": "crates/voldiq-core/src/exports.rs",
+      "sha256": "74D443479567A1188492306A6F3D60BB13C8FD2E7FDD2C00A9CC071D972B67C3"
+    },
+    {
+      "path": "crates/voldiq-core/src/exports/graphics.rs",
+      "sha256": "6A8D9E5B60636A5892ABAD80CE4317DC134AC4AF612B4BC7FFE291A7E09B5EA8"
+    },
+    {
+      "path": "crates/voldiq-core/src/exports/pdf.rs",
+      "sha256": "70CD4F18008A0C95EE5F9CEEE54E28C90EC7D0376506418F643BF267AC00F6D2"
+    },
+    {
+      "path": "crates/voldiq-core/src/exports/stream.rs",
+      "sha256": "7356A0B7A9A04C978F4154FCCA5EB682D489F6E2702A60D7F8CC73CF29B3325D"
+    },
+    {
+      "path": "crates/voldiq-core/src/exports/summary.rs",
+      "sha256": "8717D5D33E2C264CACA6488FEE01C593E5DAE3494E53254355F03896AEE94187"
+    },
+    {
+      "path": "crates/voldiq-core/src/exports/xlsx.rs",
+      "sha256": "AB32ED7902956E42210D027A1C46F2D44565FE585D2971CBB663673D7184304B"
+    },
+    {
+      "path": "crates/voldiq-core/src/lib.rs",
+      "sha256": "1AF014783EB8FC047AD387568B35BC1C64AF625087777B58BE8D67071FDC23F9"
+    },
+    {
+      "path": "crates/voldiq-core/src/search/numbers.rs",
+      "sha256": "374E38D20D9138396CF95B2AAB45C13BC0A5006D34CE0A5DF198392A3B5C2CAB"
+    },
+    {
+      "path": "crates/voldiq-core/src/storage_units.rs",
+      "sha256": "086B811420D1F058E37D2C9828D002364B01530EFAE33CBC4B264C6ABBA1E531"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "975BCE0D7A076192E6366B1F0A95A3D85A85B21B57A849BF9AF342479DF8C55E"
+    },
+    {
+      "path": "crates/voldiq-headless/src/mcp.rs",
+      "sha256": "3571CAE381B9ADD651213B0C04A129B6A38F6B61A83B89B1388A8BB597C01781"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/mcp.rs",
+      "sha256": "16B79886D3F4711DA77B1DB24F6634936D0D048953509421AFC49842872C7081"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "5E64CB5A429A42218E46838ED538ADD5825EBAA0FB5F533B376D6CF7FD364E6C"
+    },
+    {
+      "path": "frontend/components/AdvancedSearch.svelte",
+      "sha256": "35545BA8B1D0A669E8A7B4CB1ED8DC9511984A124C235760157C432D5FCAE845"
+    },
+    {
+      "path": "frontend/components/Duplicates.svelte",
+      "sha256": "5EBA23A583A2377332EBA811FADE2E355E27120CE6A45DC2FC1383A0490E882E"
+    },
+    {
+      "path": "frontend/components/MinimumSizeField.svelte",
+      "sha256": "9507F5B99CE286A931AD29593F4570EBCC6B9F33F261981999185CB6F5CC50DA"
+    },
+    {
+      "path": "frontend/components/OfflineSearch.svelte",
+      "sha256": "CB830ACDD5435FD4E18D2A30060DD18AD7C1D6008A12E5B80C69A231C410A58F"
+    },
+    {
+      "path": "frontend/components/ReportExport.svelte",
+      "sha256": "76AD89293ADA3361275C907B5F95D3BD0188282AEDB79FBEB3A3DDDC31ED4836"
+    },
+    {
+      "path": "frontend/components/StorageMap.svelte",
+      "sha256": "196AB1EEA172FCF0E59092C230AC30E100ACDBA42F51C1E529149B2707638C89"
+    },
+    {
+      "path": "frontend/lib/applications.ts",
+      "sha256": "49BDE60261B20CFB336740790F4E28016C4FF28A70A96091E257B6F2F63D4632"
+    },
+    {
+      "path": "frontend/lib/report-export.ts",
+      "sha256": "1C4CADAF4BB317C128F0C70B0011552503BC7A80B5EDED5B06D9C79045C8150F"
+    },
+    {
+      "path": "frontend/lib/storage-units.ts",
+      "sha256": "EDCF408BEB5DCA216E8E7ECEA0A4B403EC25081E898EF2D0580C193DCCF1797D"
+    },
+    {
+      "path": "frontend/lib/types.ts",
+      "sha256": "75828B0A099A42566AA1E8367E188568356E68D28C77056161BCC1F20BDAE34C"
+    },
+    {
+      "path": "frontend/lib/workbench.ts",
+      "sha256": "56D06F765699FAA4A6BA9F8336C72BA7420EDFE06B42392EEFEB0502A50B92A6"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "displayUnitsProbes": {
+    "staticFieldMarkup": {
+      "decimal": "104.8576 MB",
+      "thresholdBytes": 104857600,
+      "rendersWithoutChangingFilter": true,
+      "binary": "100 MiB"
+    },
+    "reactiveLabels": {
+      "decimal": "1 KB",
+      "bytes": 1000,
+      "binary": "1,000 B"
+    },
+    "labelBoundaries": [
+      "999999 B => 1 MB (decimal)",
+      "1073741824 B => 1 GiB (binary)",
+      "1073741824 B => 1.1 GB (decimal)",
+      "18446744073709551615 B => 16 EiB (binary)",
+      "Non-finite => Unknown"
+    ],
+    "nativeInteraction": "Manual"
+  }
+}

@@ -3,6 +3,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import type { IndexId } from '../lib/index-context';
   import type { Query, SearchTranslation } from '../lib/types';
+  import { currentStorageUnits } from '../lib/storage-units';
   import { createQueryRunner } from '../lib/query-runner';
   import {
     settleTranslation,
@@ -105,7 +106,8 @@
         aria-describedby="offline-search-help"
         autocomplete="off"
         spellcheck="false"
-        placeholder="archivos mayores de 1 GiB"
+        placeholder={'archivos mayores de 1 ' +
+          (currentStorageUnits() === 'decimal' ? 'GB' : 'GiB')}
       />
       <button
         type="submit"

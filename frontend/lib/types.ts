@@ -1,4 +1,5 @@
 import type { TrayOrigin } from './cleanup-tray';
+import { formatStorageBytes } from './storage-units.ts';
 export interface RestorationPreview {
   id: number;
   path: string;
@@ -497,9 +498,7 @@ export function difference(value: number): string {
 }
 
 export function bytes(value: number): string {
-  if (value === 0) return '0 B';
-  const unit = Math.min(4, Math.floor(Math.log(value) / Math.log(1024)));
-  return `${(value / 1024 ** unit).toLocaleString('en', { maximumFractionDigits: unit > 0 ? 1 : 0 })} ${['B', 'KiB', 'MiB', 'GiB', 'TiB'][unit]}`;
+  return formatStorageBytes(value);
 }
 export function date(value: number | null): string {
   return value === null ? 'Unavailable' : new Date(value * 1000).toLocaleString();

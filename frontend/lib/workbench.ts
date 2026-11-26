@@ -59,7 +59,7 @@ export function restoreWorkspace(spec: ViewSpec, currentFolder: number) {
     extension: q.extension ?? '',
     withoutExtension: q.without_extension ?? false,
     cloud: q.cloud ?? null,
-    minSize: (q.min_size ?? 0) / 1048576,
+    minSizeBytes: q.min_size ?? 0,
     largeKind: q.kind === 'directory' ? 'directory' : 'file',
     before:
       q.modified_before === undefined

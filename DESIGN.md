@@ -242,6 +242,8 @@ Page headings use a compact 24px headline; panel and settings headings use title
 
 The desktop shell reserves a stable 224px labeled sidebar or a manually selected 64px icon rail at every desktop breakpoint. The page list and drive summary scroll inside the rail. Settings and the collapse control stay visible in its footer. Theme controls live in Settings. The command palette opens from its sidebar button or Ctrl+K. The independent toolbar search searches the current analysis. The toolbar wraps within a 64px minimum height, with 24px desktop content insets. Settings labels stack at 840px.
 
+Appearance places Binary (GiB) and Decimal (GB) in one labeled Storage units row. Charts, lists and size filters use the selected labels. Changing the unit preserves the byte threshold in a saved search.
+
 The populated overview follows `interface/01-overview-root.png` and `02-overview-folder.png`: a 248px summary column with measured capacity, index totals and largest items, followed by a dominant map and file-type legend. The summary narrows to 210px below 1100px; below 840px the sections stack without hiding largest items. Map height scales from 360px to 600px. The capacity strip remains only in the unscanned overview. Other data views use their shared header without an extra capacity strip. The file list retains its 36px logical rows and existing bounded virtualization.
 
 History uses a 12px control gap and 18px spacing below its toolbar. Snapshot rows have a 68px minimum height, medium vertical padding and panel-gap horizontal padding. Before and After selects wrap with a 180px minimum label width. Its recorded-size graphic is 110px high and uses the existing accent color.

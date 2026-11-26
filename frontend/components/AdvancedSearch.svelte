@@ -5,6 +5,7 @@
   import type { IndexId } from '../lib/index-context';
   import type { Query, SearchInspection } from '../lib/types';
   import { createQueryRunner } from '../lib/query-runner';
+  import { currentStorageUnits } from '../lib/storage-units';
   import {
     settleSearchDraft,
     validatedSearchDraft,
@@ -129,7 +130,9 @@
         autocomplete="off"
         aria-describedby="advanced-search-help advanced-search-status"
         aria-invalid={current?.kind === 'invalid'}
-        placeholder="type:file size>1GiB glob:*.mp4"
+        placeholder={'type:file size>1' +
+          (currentStorageUnits() === 'decimal' ? 'GB' : 'GiB') +
+          ' glob:*.mp4'}
       />
       <button class="primary" type="submit" disabled={!accepted || disabled}>Apply query</button>
       <button type="button" onclick={close}>Cancel</button>

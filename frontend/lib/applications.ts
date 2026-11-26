@@ -1,6 +1,7 @@
 import type { Query, CleanupRulePage } from './types';
 import { detachedQuery } from './workbench.ts';
 import { readReviewPriority } from './review-priority.ts';
+import { formatStorageBytes } from './storage-units.ts';
 
 export type ApplicationSource =
   'current_user64' | 'current_user32' | 'machine64' | 'machine32' | 'supplied_metadata';
@@ -330,17 +331,7 @@ export function readApplicationPage(value: unknown): ApplicationPage {
   return page;
 }
 export function applicationBytes(value: string): string {
-  const bytes = BigInt(value),
-    units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
-  let unit = 0,
-    scale = 1n;
-  while (bytes >= scale * 1024n && unit < units.length - 1) {
-    unit++;
-    scale *= 1024n;
-  }
-  if (!unit) return `${bytes.toLocaleString('en')} B`;
-  const tenths = (bytes * 10n + scale / 2n) / scale;
-  return `${(tenths / 10n).toLocaleString('en')}${tenths % 10n ? '.' + (tenths % 10n) : ''} ${units[unit]}`;
+  return formatStorageBytes(value);
 }
 export const APPLICATION_CHART = {
   width: 900,

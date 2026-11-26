@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MinimumSizeField from './MinimumSizeField.svelte';
   import { getIndexContext, invokeIndexed, type IndexId } from '../lib/index-context';
   import { onMount, onDestroy } from 'svelte';
   import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
@@ -44,7 +45,7 @@
     openGroup = $state<number | null>(null);
   let operation = $state<DuplicateProgress | null>(null),
     jobId = $state<number | null>(null);
-  let minimum = $state(0),
+  let minimumBytes = $state(0),
     loading = $state(false);
   let loadFailed = $state(false),
     groupRetryOffset = $state(0);
@@ -169,7 +170,7 @@
     try {
       const id = await invokeIndexed<number>('start_duplicates', {
         scope,
-        minSize: Math.max(0, minimum || 0) * 1024 * 1024,
+        minSize: minimumBytes,
         progress: channel,
       });
       if (working) jobId = id;
@@ -220,8 +221,11 @@
 {/if}
 <section class="duplicates-view" hidden={mode !== 'exact'}>
   <div class="filter-bar">
-    <label>Minimum MiB<input type="number" min="0" bind:value={minimum} disabled={working} /></label
-    >
+    <MinimumSizeField
+      bytes={minimumBytes}
+      onchange={(bytes) => (minimumBytes = bytes)}
+      disabled={working}
+    />
     <button class="primary" onclick={start} disabled={!enabled || working}
       ><Icon name="duplicate" />Find duplicates</button
     >

@@ -1,5 +1,5 @@
 use super::{
-    ReportSelection, StreamOutcome, StreamProgress,
+    DISPLAY_COLUMNS, ReportSelection, StreamOutcome, StreamProgress, display_sizes,
     stream::{Record, walk},
 };
 use crate::{Error, Kind, Result, index::Index};
@@ -46,6 +46,7 @@ pub fn stream_xlsx<W: Write + Seek>(
         sheets: 0,
         row: 0,
         scope: serde_json::Value::Null,
+        show_display: selection.display_units.is_some(),
     };
     let result = walk(index, selection, cancelled, progress, |record| {
         match record {
@@ -95,6 +96,13 @@ pub fn stream_xlsx<W: Write + Seek>(
                     boolean(&mut book.zip, 'I', row, Some(details.path_exact))?;
                 }
                 boolean(&mut book.zip, 'J', row, Some(entry.incomplete))?;
+                if let Some(units) = selection.display_units {
+                    let (logical, allocated) = display_sizes(entry, units);
+                    string(&mut book.zip, 'K', row, &logical, false)?;
+                    if let Some(allocated) = allocated {
+                        string(&mut book.zip, 'L', row, &allocated, false)?;
+                    }
+                }
                 book.zip.write_all(b"</row>")?;
             }
             Record::Complete(state) => {
@@ -115,6 +123,7 @@ struct Book<W: Write + Seek> {
     sheets: usize,
     row: u32,
     scope: serde_json::Value,
+    show_display: bool,
 }
 impl<W: Write + Seek> Book<W> {
     fn part(&mut self, name: &str) -> Result<()> {
@@ -137,7 +146,12 @@ impl<W: Write + Seek> Book<W> {
             self.zip,
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?><worksheet xmlns=\"{NS}\"><sheetViews><sheetView workbookViewId=\"0\"><pane ySplit=\"1\" topLeftCell=\"A2\" activePane=\"bottomLeft\" state=\"frozen\"/></sheetView></sheetViews><cols><col min=\"1\" max=\"2\" width=\"15\" customWidth=\"1\"/><col min=\"3\" max=\"3\" width=\"48\" customWidth=\"1\"/><col min=\"4\" max=\"7\" width=\"26\" customWidth=\"1\"/><col min=\"8\" max=\"8\" width=\"80\" customWidth=\"1\"/><col min=\"9\" max=\"10\" width=\"18\" customWidth=\"1\"/></cols><sheetData><row r=\"1\">"
         )?;
-        for (position, title) in COLUMNS.iter().enumerate() {
+        let display = if self.show_display {
+            DISPLAY_COLUMNS.as_slice()
+        } else {
+            &[]
+        };
+        for (position, title) in COLUMNS.iter().chain(display).enumerate() {
             string(
                 &mut self.zip,
                 char::from(b'A' + position as u8),
@@ -152,7 +166,8 @@ impl<W: Write + Seek> Book<W> {
     fn end_data(&mut self) -> Result<()> {
         write!(
             self.zip,
-            "</sheetData><autoFilter ref=\"A1:J{}\"/></worksheet>",
+            "</sheetData><autoFilter ref=\"A1:{}{}\"/></worksheet>",
+            if self.show_display { 'L' } else { 'J' },
             self.row
         )?;
         Ok(())

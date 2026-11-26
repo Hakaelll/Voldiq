@@ -1,5 +1,6 @@
 import type { IndexId } from './index-context';
 import type { Query } from './types';
+import type { StorageUnits } from './storage-units.ts';
 export type ReportFormat = 'csv' | 'xlsx' | 'pdf';
 
 export interface ReportProgress {
@@ -26,6 +27,7 @@ export interface ReportSelection {
     | 'cloud'
   >;
   include_paths: boolean;
+  display_units?: StorageUnits;
 }
 export interface ReportEvent<Progress = ReportProgress> {
   owner: ExportOwner;

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invokeIndexed, setIndexContext, type IndexId } from './lib/index-context';
   import { onMount, tick } from 'svelte';
+  import { readStorageUnits, setStorageUnits, type StorageUnits } from './lib/storage-units';
   import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
   import { listen } from '@tauri-apps/api/event';
   import { getCurrentWebview } from '@tauri-apps/api/webview';
@@ -16,6 +17,7 @@
   import ScanProfileSelect from './components/ScanProfileSelect.svelte';
   import { parseScanProfile, type ScanProfile } from './lib/scan-profile';
   import FileTable from './components/FileTable.svelte';
+  import MinimumSizeField from './components/MinimumSizeField.svelte';
   import AdvancedSearch from './components/AdvancedSearch.svelte';
   import SavedWorkspaces from './components/SavedWorkspaces.svelte';
   import CommandPalette from './components/CommandPalette.svelte';
@@ -149,7 +151,7 @@
   let text = $state(''),
     extension = $state(''),
     withoutExtension = $state(false),
-    minSize = $state(100),
+    minSizeBytes = $state(100 * 1_048_576),
     largeKind = $state<'file' | 'directory'>('file'),
     before = $state(''),
     sort = $state<Exclude<NonNullable<Query['sort']>, 'allocated'>>('size');
@@ -179,6 +181,7 @@
   let excluded = $state(''),
     theme = $state('light'),
     sizeMode = $state('logical'),
+    storageUnits = $state<StorageUnits>('binary'),
     reduceMotion = $state(false);
   let search = $state<HTMLInputElement>();
   let refreshToken = 0;
@@ -302,7 +305,7 @@
       extension = next.extension;
       withoutExtension = next.withoutExtension;
       cloudFilter = next.cloud;
-      minSize = next.minSize;
+      minSizeBytes = next.minSizeBytes;
       largeKind = next.largeKind;
       before = next.before;
       sort = next.sort;
@@ -668,7 +671,7 @@
       ...(cloudFilter ? { cloud: cloudFilter } : {}),
       extension: withoutExtension ? '' : extension,
       without_extension: withoutExtension,
-      min_size: view === 'large' ? Math.max(0, minSize) * 1024 * 1024 : 0,
+      min_size: view === 'large' ? minSizeBytes : 0,
       ...(before ? { modified_before: new Date(before).getTime() / 1000 } : {}),
       files_only: view === 'large' && largeKind === 'file',
       ...(view === 'large' ? { kind: largeKind } : {}),
@@ -1442,6 +1445,10 @@
           expanded = value.navigationExpanded;
         if ('sizeMode' in value && (value.sizeMode === 'logical' || value.sizeMode === 'allocated'))
           sizeMode = value.sizeMode;
+        if ('storageUnits' in value) {
+          storageUnits = readStorageUnits(value.storageUnits);
+          setStorageUnits(storageUnits);
+        }
         if ('reduceMotion' in value && typeof value.reduceMotion === 'boolean')
           reduceMotion = value.reduceMotion;
         if ('defaultDrive' in value && typeof value.defaultDrive === 'string')
@@ -1539,6 +1546,12 @@
     document.documentElement.dataset.theme = theme;
     document.documentElement.dataset.motion = reduceMotion ? 'reduced' : 'normal';
   });
+  function chooseStorageUnits(value: StorageUnits): void {
+    storageUnits = value;
+    setStorageUnits(value);
+    savePreferences();
+  }
+
   function savePreferences(): void {
     try {
       localStorage.setItem(
@@ -1548,6 +1561,7 @@
           theme,
           navigationExpanded: expanded,
           sizeMode,
+          storageUnits,
           reduceMotion,
           defaultDrive,
           scanMode,
@@ -2037,6 +2051,31 @@
                 >
               </div>
             </div>
+            <div class="settings-row">
+              <span id="storage-units-label">Storage units</span>
+              <div class="theme-choices" role="group" aria-labelledby="storage-units-label">
+                <label>
+                  <input
+                    type="radio"
+                    name="storage-units"
+                    value="binary"
+                    checked={storageUnits === 'binary'}
+                    onchange={() => chooseStorageUnits('binary')}
+                  />
+                  <span>Binary · GiB</span>
+                </label>
+                <label>
+                  <input
+                    type="radio"
+                    name="storage-units"
+                    value="decimal"
+                    checked={storageUnits === 'decimal'}
+                    onchange={() => chooseStorageUnits('decimal')}
+                  />
+                  <span>Decimal · GB</span>
+                </label>
+              </div>
+            </div>
             <label
               >Treemap size metric<select bind:value={sizeMode} onchange={savePreferences}
                 ><option value="logical">Logical size</option><option value="allocated"
@@ -2494,9 +2533,11 @@
                                 >Folders</option
                               ></select
                             ></label
-                          ><label
-                            >Minimum MiB<input type="number" min="0" bind:value={minSize} /></label
-                          ><label>Modified before<input type="date" bind:value={before} /></label
+                          ><MinimumSizeField
+                            bytes={minSizeBytes}
+                            onchange={(bytes) => (minSizeBytes = bytes)}
+                          />
+                          <label>Modified before<input type="date" bind:value={before} /></label
                           >{/if}<label
                           >Sort<select bind:value={sort}
                             ><option value="size">Largest first</option><option value="name"
@@ -2510,7 +2551,7 @@
                             extension = '';
                             withoutExtension = false;
                             before = '';
-                            minSize = 100;
+                            minSizeBytes = 100 * 1_048_576;
                             largeKind = 'file';
                             searchExpression = '';
                             changeCloudFilter(null);
