@@ -2023,12 +2023,11 @@
       {/if}
       {#if view === 'settings'}
         <section class="settings-panel">
-          <ProtectedFolders />
           <section aria-labelledby="appearance-heading">
             <h2 id="appearance-heading">Appearance</h2>
             <div class="settings-row">
               <span id="theme-label">Theme</span>
-              <div class="theme-choices" role="group" aria-labelledby="theme-label">
+              <div class="theme-choices appearance-themes" role="group" aria-labelledby="theme-label">
                 <label
                   ><input
                     type="radio"
@@ -2095,6 +2094,7 @@
             >
           </section>
           <WindowSettings />
+          <ProtectedFolders />
           <WindowsUpdates />
           <LocalNetwork
             {volumes}

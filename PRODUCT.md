@@ -22,7 +22,7 @@ All analysis runs locally and offline. No account, server, telemetry, advertisin
 
 ## Brand commitments
 
-Voldiq uses the provided stacked-storage logo, including its disc-shaped top and blue segment. The brief pins a white, compact professional interface inspired by Palantir, Linear and the supplied Dub design document. Charts show only measured data.
+Voldiq uses the provided stacked-storage logo, including its disc-shaped top and blue segment. The user chose Vivid+Co as the dark-theme reference and amra for the light theme. Both support the compact Windows workspace described in DESIGN.md. Charts show only measured data.
 
 Visible copy stays minimal: labels, measured states and necessary warnings. Keep implementation explanations, privacy descriptions and extended guidance in documentation.
 

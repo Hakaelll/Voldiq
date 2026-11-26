@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Light and dark workspace redesign
+
+The desktop uses an obsidian and ivory dark workspace inspired by Vivid+Co and a white and periwinkle light workspace inspired by amra. The shared theme styles cover navigation, search, the command palette and chart controls. Settings starts with Appearance and shows both theme swatches. Overview places the selected drive measurement next to its capacity details where space permits. The original commands, scan actions and chart renderers remain available.
+
+Primary action feedback lasts 140 ms and the initial drive reading fades in over 220 ms. Windows and Voldiq reduced-motion settings suppress both. The source probe measured 24 foreground and control pairs per theme. Production welcome markup covered a 25% measured drive, the unavailable state and disabled scan actions during a scan. Windows visual, keyboard and scaling acceptance remains manual. [Source checks and fixtures](../benchmarks/workbench-workspace-themes-source.json)
+
 ## Authorized volumes in CLI and MCP
 
 `voldiq-cli volumes` and MCP `voldiq_volumes` report the Windows volumes covered by the connection's exact drive-root grants. Voldiq pins and rechecks each eligible root and excludes a volume when the policy omits a location on it. Results distinguish measured whole-volume bytes, caller quota counters and unavailable observations. The adapters page the eligible grants under the connection limit.

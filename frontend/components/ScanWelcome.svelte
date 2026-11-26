@@ -97,39 +97,41 @@
           <span>{volume.path} · {volume.filesystem}</span>
         </div>
       </header>
-      {#if percent !== null && space}<div
-          class="drive-ring"
-          style:background={`conic-gradient(from -90deg, var(--chart-blue) 0%, var(--chart-violet) ${percent}%, var(--paper) ${percent}% 100%)`}
-          aria-hidden="true"
-        >
-          <div><strong>{percent.toFixed(1)}<small>%</small></strong><span>Used</span></div>
-        </div>
-        <progress
-          class="sr-only"
-          aria-label="Selected drive space used"
-          value={Number(space.used)}
-          max={Number(space.total)}
-        ></progress>{:else}<p>Volume usage unavailable</p>{/if}
-      <dl>
-        <div>
-          <dt>Used</dt>
-          <dd title={space ? `${space.used} bytes` : undefined}>
-            {space ? bytes(Number(space.used)) : 'Unavailable'}
-          </dd>
-        </div>
-        <div>
-          <dt>Free</dt>
-          <dd title={space ? `${space.free} bytes` : undefined}>
-            {space ? bytes(Number(space.free)) : 'Unavailable'}
-          </dd>
-        </div>
-        <div>
-          <dt>Capacity</dt>
-          <dd title={space ? `${space.total} bytes` : undefined}>
-            {space ? bytes(Number(space.total)) : 'Unavailable'}
-          </dd>
-        </div>
-      </dl>
+      <div class="drive-measurements">
+        {#if percent !== null && space}<div
+            class="drive-ring"
+            style:background={`conic-gradient(from -90deg, var(--chart-blue) 0%, var(--chart-violet) ${percent}%, var(--paper) ${percent}% 100%)`}
+            aria-hidden="true"
+          >
+            <div><strong>{percent.toFixed(1)}<small>%</small></strong><span>Used</span></div>
+          </div>
+          <progress
+            class="sr-only"
+            aria-label="Selected drive space used"
+            value={Number(space.used)}
+            max={Number(space.total)}
+          ></progress>{:else}<p>Volume usage unavailable</p>{/if}
+        <dl>
+          <div>
+            <dt>Used</dt>
+            <dd title={space ? `${space.used} bytes` : undefined}>
+              {space ? bytes(Number(space.used)) : 'Unavailable'}
+            </dd>
+          </div>
+          <div>
+            <dt>Free</dt>
+            <dd title={space ? `${space.free} bytes` : undefined}>
+              {space ? bytes(Number(space.free)) : 'Unavailable'}
+            </dd>
+          </div>
+          <div>
+            <dt>Capacity</dt>
+            <dd title={space ? `${space.total} bytes` : undefined}>
+              {space ? bytes(Number(space.total)) : 'Unavailable'}
+            </dd>
+          </div>
+        </dl>
+      </div>
       {#if callerSpace}<p title={`${callerSpace.available} bytes available to the caller`}>
           Available to you · {bytes(Number(callerSpace.available))}
         </p>{/if}
@@ -140,11 +142,11 @@
 <style>
   .scan-welcome {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(230px, 320px);
+    grid-template-columns: minmax(0, 1fr) minmax(266px, 370px);
     align-items: start;
-    max-width: 1040px;
-    gap: clamp(32px, 6vw, 88px);
-    padding-block: 32px;
+    max-width: 1140px;
+    gap: clamp(28px, 5vw, 80px);
+    padding-block: 36px;
     border-top: 1px solid var(--border);
   }
   .scan-welcome:not(:has(.welcome-drive)) {
@@ -173,17 +175,35 @@
     display: block;
     margin-top: 4px;
   }
+  .drive-measurements {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(112px, 100%), 1fr));
+    align-items: center;
+    gap: 18px;
+    margin-top: 22px;
+  }
+  .drive-measurements > p {
+    grid-column: 1 / -1;
+  }
+  .drive-measurements:not(:has(.drive-ring)) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
   .drive-ring {
-    width: 164px;
-    height: 164px;
-    margin: 24px 0;
+    width: min(100%, 152px);
+    aspect-ratio: 1;
     border-radius: 50%;
-    padding: 12px;
+    padding: 9px;
+    animation: reveal-drive-reading 220ms var(--motion-ease) both;
   }
   .drive-ring > div {
     height: 100%;
     border-radius: 50%;
-    background: var(--workspace);
+    background: radial-gradient(
+      circle at 40% 20%,
+      color-mix(in srgb, var(--chart-violet) 15%, var(--canvas)),
+      var(--canvas) 76%
+    );
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -191,13 +211,13 @@
     gap: 4px;
   }
   .drive-ring strong {
-    font-size: 38px;
-    letter-spacing: -1px;
-    font-weight: 600;
+    font-size: 29px;
+    letter-spacing: -0.03em;
+    font-weight: 500;
     font-variant-numeric: tabular-nums;
   }
   .drive-ring strong small {
-    font-size: 20px;
+    font-size: 14px;
     color: var(--text);
   }
   .drive-ring span {
@@ -207,15 +227,15 @@
   dl {
     margin: 0;
     display: grid;
-    gap: 15px;
+    gap: 8px;
   }
   dl > div {
-    display: flex;
-    justify-content: space-between;
-    gap: 12px;
+    display: grid;
+    gap: 2px;
   }
   dt {
     color: var(--secondary);
+    font-size: 12px;
   }
   dd {
     margin: 0;
@@ -226,13 +246,16 @@
     min-width: 0;
   }
   .welcome-start > h2 {
-    font-size: 23px;
-    letter-spacing: -0.02em;
-    margin-bottom: 8px;
+    font-size: 36px;
+    line-height: 1.12;
+    font-weight: 450;
+    letter-spacing: -0.035em;
+    margin-bottom: 14px;
   }
   .welcome-description {
     max-width: 46ch;
-    margin-bottom: 20px;
+    margin-bottom: 22px;
+    font-size: 15px;
   }
   .welcome-drive > p {
     margin-top: 14px;
@@ -289,9 +312,22 @@
     text-overflow: ellipsis;
     text-align: left;
   }
+  @keyframes reveal-drive-reading {
+    from {
+      opacity: 0.76;
+    }
+    to {
+      opacity: 1;
+    }
+  }
   @media (max-width: 850px) {
     .scan-welcome {
       grid-template-columns: minmax(0, 1fr);
+      gap: 24px;
+      padding-block: 24px;
+    }
+    .welcome-start > h2 {
+      font-size: 31px;
     }
     .welcome-drive {
       border-inline-start: 0;

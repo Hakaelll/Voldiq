@@ -1,33 +1,40 @@
 ---
 name: Voldiq
-description: Compact Windows storage analysis with measured data and a white workspace.
+description: Compact Windows storage analysis with measured data in light and dark workspaces.
 colors:
-  accent: "#2963a6"
-  accent-fill: "#2963a6"
-  accent-hover: "#173784"
-  selected: "#e6edf5"
-  canvas: "#f7f8f9"
-  surface: "#f2f4f6"
-  paper: "#eaedf0"
-  border: "#dfe3e8"
-  strong: "#7b8692"
-  text: "#262d36"
-  secondary: "#525e6b"
-  muted: "#586575"
-  map-surface: "#eff2f5"
-  dark-map-surface: "#111419"
+  accent: "#484a9e"
+  accent-fill: "#484a9e"
+  selected: "#eeedff"
+  canvas: "#ffffff"
+  surface: "#f8f8fa"
+  paper: "#efeff4"
+  border: "#e0e0e6"
+  strong: "#83828b"
+  text: "#141414"
+  secondary: "#555460"
+  muted: "#625f6c"
+  action-fill: "#acafff"
+  action-hover: "#9d9ff3"
+  action-border: "#7678c8"
+  action-text: "#191936"
+  map-surface: "#f3f3f8"
+  dark-map-surface: "#16191e"
   error: "#a32424"
-  dark-canvas: "#0c0e11"
-  dark-surface: "#111318"
-  dark-paper: "#191c22"
-  dark-border: "#2a2e35"
-  dark-strong: "#707070"
-  dark-text: "#ededed"
-  dark-secondary: "#c2c2c2"
-  dark-muted: "#ababab"
-  dark-accent: "#8caff0"
-  dark-accent-fill: "#345787"
-  dark-selected: "#253347"
+  dark-canvas: "#101010"
+  dark-surface: "#171719"
+  dark-paper: "#222226"
+  dark-border: "#343437"
+  dark-strong: "#85858e"
+  dark-text: "#fffdf9"
+  dark-secondary: "#c5c5cc"
+  dark-muted: "#a7abb7"
+  dark-accent: "#b9c6f2"
+  dark-accent-fill: "#45547c"
+  dark-selected: "#292a33"
+  dark-action-fill: "#171719"
+  dark-action-hover: "#29292d"
+  dark-action-border: "#96949a"
+  dark-action-text: "#fffdf9"
   dark-error: "#f29797"
   map-blue: "#3272d1"
   map-violet: "#7a63c6"
@@ -41,8 +48,8 @@ colors:
 typography:
   headline:
     fontFamily: "Segoe UI Variable, Segoe UI, sans-serif"
-    fontSize: "26px"
-    fontWeight: 600
+    fontSize: "28px"
+    fontWeight: 500
     lineHeight: 1.25
     letterSpacing: "-0.02em"
   title:
@@ -76,7 +83,9 @@ typography:
 rounded:
   radius: "6px"
   inset: "3px"
-  dialog: "8px"
+  dialog: "14px"
+  light-navigation: "999px"
+  dark-navigation: "5px"
 spacing:
   tight: "4px"
   small: "8px"
@@ -89,14 +98,14 @@ spacing:
   page: "26px"
 components:
   button-primary:
-    backgroundColor: "{colors.accent-fill}"
-    textColor: "{colors.canvas}"
+    backgroundColor: "{colors.action-fill}"
+    textColor: "{colors.action-text}"
     rounded: "{rounded.radius}"
     padding: "6px 10px"
     height: "32px"
   button-primary-hover:
-    backgroundColor: "{colors.accent-hover}"
-    textColor: "{colors.canvas}"
+    backgroundColor: "{colors.action-hover}"
+    textColor: "{colors.action-text}"
   button-secondary:
     backgroundColor: "{colors.canvas}"
     textColor: "{colors.text}"
@@ -141,9 +150,17 @@ components:
 
 # Design System: Voldiq
 
+## Light and dark workspaces
+
+Vivid+Co informs the dark workspace. Obsidian and ivory set the large surfaces and foreground. Dark controls use thin outlines, short radii and restrained violet-blue focus accents. The strong colors belong to data.
+
+Amra informs the light workspace. White and graphite keep text and shared surfaces clear. Periwinkle identifies the primary action and softly highlights selection. Rounded navigation and chart selectors keep a compact footprint. The measured drive and file-type rings use a slight violet tint inside their existing data marks.
+
+Both themes use the supplied Voldiq mark and the Windows system font. Settings opens with Appearance and shows a swatch for each radio choice. The sidebar's dimensions, collapse behavior and Settings entry remain shared. Primary controls have a short press transition. The initial drive reading uses a 220 ms opacity reveal. Both Windows and Voldiq reduced-motion settings suppress these effects. The command palette and chart selector respond as soon as the user acts.
+
 ## Overview
 
-The unscanned Overview leads with the drive scan and folder picker, followed by up to three recent paths. A divider separates the scan actions from the selected drive's capacity chart and measured bytes. The sections stack below 850px in the same reading order. Missing measurements stay unavailable and scanning starts on request.
+The unscanned Overview leads with the drive scan and folder picker, followed by up to three recent paths. A divider separates scanning from the selected drive. The measured ring sits beside used, free and capacity values where the panel has room, with the observation below. The two sections stack below 850px in the same reading order. Missing measurements stay unavailable and scanning starts on request.
 
 Storage cost is an optional Overview section. The dated tariff table aligns the current and scenario monthly charges. An explicit action can capture the indexed folder's logical size as a billing assumption. The editor opens inline and tariffs stay in the current Overview session.
 
@@ -352,7 +369,7 @@ Describe a search is a collapsed native disclosure inside the Advanced editor. I
 
 Saved opens a compact two-column panel for named views and favorite folders. It saves all applied filters, page/representation, metric, depth, color and an explicit Current folder when loaded or Whole current analysis scope. It stores no transient analysis node IDs or list pagination. Load restores the view within the current analysis and keeps inspection and cleanup-review sets. Create, rename/change scope, replace and remove are distinct actions; secondary management controls stay under a disclosure. Errors expose Reload. Saving preferences is disabled while an operation owns the shared lease. A favorite identifies an observed local directory; Scan is an explicit new scan with native identity revalidation, using the existing scanner. Missing/replaced folders require choosing them again.
 
-Commands and Ctrl+K open a 540px native dialog with one search field. Available actions, pages, charts, saved views and favorite folders appear in compact groups. Icon-led rows share a left edge. Folder paths and prerequisites sit beside the command label, or beneath it on narrow windows. Only the results region scrolls. Typing ranks available entries first, then label matches ahead of details and keywords. The selected row shows an accent edge and a return key hint. It tracks mouse movement and is kept in view when moving with arrow keys. Focus stays in search, Enter runs the highlighted command and Escape closes the dialog. Chart commands open the selected chart in the expanded Explorer. Close returns focus when still owned. Commands retain their ordinary index, operation and revision checks. The sidebar footer gives Settings the labeled slot beside the icon-only collapse control. Ctrl+, opens Settings from the workspace and the command palette.
+Commands and Ctrl+K open a 580px native dialog with one search field. Available actions, pages, charts, saved views and favorite folders appear in compact groups. Icon-led rows share a left edge. Folder paths and prerequisites sit beside the command label, or beneath it on narrow windows. Only the results region scrolls. Typing ranks available entries first, then label matches ahead of details and keywords. The selected row shows an accent edge and a return key hint. It tracks mouse movement and is kept in view when moving with arrow keys. Focus stays in search, Enter runs the highlighted command and Escape closes the dialog. Chart commands open the selected chart in the expanded Explorer. Close returns focus when still owned. Commands retain their ordinary index, operation and revision checks. The sidebar footer gives Settings the labeled slot beside the icon-only collapse control. Ctrl+, opens Settings from the workspace and the command palette.
 
 The empty scan view places a short guide below the active scan controls. Skip tips dismisses it for the current profile. F1 and Help & shortcuts open a compact native dialog with guidance for the current screen. Explorer chart controls have their own shortcut rows when the chart is visible. Escape closes help and returns focus to its opener when possible.
 
@@ -427,7 +444,7 @@ Folder navigation in the map uses a finite 160 ms ease-out transition when a mea
 
 Skyline extends the existing storage explorer with a Canvas 2D architectural view. This section supersedes the earlier rank-colored nested-map description. Treemap and Skyline consume one byte-conserving frontier in fixed coordinates. File-category colors are amber, terracotta, olive, teal, violet and neutral; size and age use sequential teal scales. The default height is descendant modification age with explicit coverage, never last access. The small rooftop equipment and facade windows are deterministic decoration, clipped to their building and removed at small pixel sizes.
 
-The shared light surfaces now use warm whites and graphite text, while the existing blue accent and supplied artwork retain the product identity. Dark tokens stay intact. Controls share a six-pixel radius. Storage representations use a compact segmented control; camera controls remain on the viewport. Page headings use a local 24px size and the visual explorer tightens heading, scan-status and breadcrumb spacing. The rail remains integrated and collapsible. The existing 300px inspector becomes an overlay below1200px, and the paged file list remains available below the map or as a full view. No ambient animation is introduced.
+Storage representations use a compact segmented control, with camera controls on the viewport. The visual explorer keeps the heading, scan status and breadcrumb compact. The integrated rail collapses, and the 300px inspector becomes an overlay below 1200px. The paged file list remains available below the map or as a full view.
 
 The canonical implementation is frontend/styles.css, frontend/components/StorageMap.svelte and frontend/lib/storage-map.ts. Technical details and evidence are documented in docs/SKYLINE.md; that file does not define a second visual system.
 

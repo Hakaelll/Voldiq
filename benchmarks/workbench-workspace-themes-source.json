@@ -1,0 +1,143 @@
+{
+  "checkedUtc": "2026-11-26T18:27:46.6179223Z",
+  "startedUtc": "2026-11-26T18:24:18.608152Z",
+  "checkoutCommit": "07f197897d9249ee98588566a75b8ce1e0113409",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.272
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 7.66
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.785
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.043
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 186.678
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 5.545
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "4EE01A0451DCDAB20C884D1AAA39DDDF048FEDAE38D9881D673262A49075A093"
+    },
+    {
+      "path": "PRODUCT.md",
+      "sha256": "61786757AD93D3DDDF407470CE38B09E49795333DE7BE222E5A38C8FC9ADFEBC"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "F10AF70738342F400F36BCE75678F23D8D4E3EF22AC0148189D08ECB28D97E6A"
+    },
+    {
+      "path": "docs/WORKBENCH-STATUS.md",
+      "sha256": "733DBBD9EA3D88A4A2FAD1E827CBE9C35630EE9D60B835726EAA06298EF2C248"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "E5288122F4813B475E120C90DB2B906E2CBF9E8D105A58893E4947414A465D92"
+    },
+    {
+      "path": "frontend/components/ScanWelcome.svelte",
+      "sha256": "7D4CFD998DE5A57696DA05EAB8713FEBDD57D1563BF5FB1AB5B17A3398D0BD0F"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "E656857A2B51C61DB47718FEE5AACD53A30A6062DEB013A7C0417472D86D92DF"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "themeProof": {
+    "scope": "Literal WCAG color-pair contrasts, Settings source and production welcome template with temporary fixtures",
+    "ratios": {
+      "light": {
+        "text/canvas": 18.42,
+        "text/surface": 17.37,
+        "text/paper": 16.07,
+        "text/selected": 15.96,
+        "text/map-surface": 16.66,
+        "secondary/canvas": 7.44,
+        "secondary/surface": 7.01,
+        "secondary/paper": 6.49,
+        "secondary/selected": 6.44,
+        "secondary/map-surface": 6.72,
+        "muted/canvas": 6.23,
+        "muted/surface": 5.87,
+        "muted/paper": 5.43,
+        "muted/selected": 5.39,
+        "muted/map-surface": 5.63,
+        "accent/canvas": 7.64,
+        "accent/surface": 7.2,
+        "accent/paper": 6.67,
+        "accent/selected": 6.62,
+        "accent/map-surface": 6.91,
+        "action-text/action-fill": 8.37,
+        "action-text/action-hover": 7.04,
+        "action-border/canvas": 3.97,
+        "strong/canvas": 3.8
+      },
+      "dark": {
+        "text/canvas": 18.73,
+        "text/surface": 17.62,
+        "text/paper": 15.6,
+        "text/selected": 14.03,
+        "text/map-surface": 17.34,
+        "secondary/canvas": 11.08,
+        "secondary/surface": 10.43,
+        "secondary/paper": 9.23,
+        "secondary/selected": 8.3,
+        "secondary/map-surface": 10.26,
+        "muted/canvas": 8.29,
+        "muted/surface": 7.8,
+        "muted/paper": 6.91,
+        "muted/selected": 6.21,
+        "muted/map-surface": 7.68,
+        "accent/canvas": 11.26,
+        "accent/surface": 10.59,
+        "accent/paper": 9.38,
+        "accent/selected": 8.43,
+        "accent/map-surface": 10.42,
+        "action-text/action-fill": 17.62,
+        "action-text/action-hover": 14.26,
+        "action-border/canvas": 6.34,
+        "strong/canvas": 5.2
+      }
+    },
+    "measuredRing": "25%",
+    "unreadableRingOmitted": true,
+    "scanActionsDisabledWhileBusy": true,
+    "appearanceFirstAndLabelled": true,
+    "reducedMotionGuards": [
+      "Windows setting",
+      "Voldiq setting"
+    ],
+    "nativeInteraction": "Manual"
+  }
+}
