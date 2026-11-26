@@ -8,6 +8,8 @@ History links a saved snapshot to its exact completed desktop analysis under the
 
 All six project checks passed with eight routine tests. An owned fixture verified the desktop origin, owner-scope refusal, exclusion of old measurements, the saved snapshot linkage after reacquiring the lease and rejection of another profile's lease. The rendered disclosure showed both origins and distinct states for unsaved and unavailable snapshots. [Verification record](../benchmarks/workbench-desktop-scan-activity-source.json)
 
+The Windows preview reached ready with zero TCP listeners. 10 embedded non-HTML assets matched the production web build. The unsigned NSIS installer measures 12,048,347 bytes. Cleanup removed 3,081,451,007 logical bytes of inactive release artifacts and 0 bytes of closed previews. The current preview and installer were preserved. [Startup](../benchmarks/native-desktop-scan-activity-preview.json) · [Default listener](../benchmarks/desktop-scan-activity-default-listener.json) · [Distribution](../benchmarks/distribution-desktop-scan-activity.json) · [Post-clean checks](../benchmarks/workspace-footprint-desktop-scan-activity.json)
+
 ## Shared scan activity
 
 Overview → Scans from CLI and MCP shows the last eight jobs in the current durable profile. The collapsed panel opens on demand. It shows measured files and logical size, access issues and the recorded job state. Cancel scan requests cooperative cancellation. Open snapshot passes the saved capture to the existing historical loader under the workspace lease.
