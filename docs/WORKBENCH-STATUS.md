@@ -6,6 +6,8 @@ The shared catalogue now offers `transfers` and `transfer-files` in the CLI and 
 
 The retained Windows ledger fixture verified an owned operation with one confirmed publication of 22 bytes and another file still pending publication. It exercised list and file cursors, hidden and explicitly included hashes, cancellation and foreign owner rejection. The real CLI and MCP SDK exercised the catalogue's empty and unauthorized results and strict arguments. The rendered fixture covered both empty file states. Cross-volume copy and native interaction acceptance remain deferred. [Source verification](../benchmarks/workbench-agent-transfer-history-source.json)
 
+The Windows preview reached ready with zero TCP listeners. 10 embedded non-HTML assets matched the production web build. The unsigned NSIS installer measures 12,062,103 bytes. Cleanup removed 3,083,520,520 logical bytes of inactive release artifacts and 0 bytes of closed previews. The current preview and installer were preserved. [Startup](../benchmarks/native-agent-transfer-history-preview.json) · [Default listener](../benchmarks/agent-transfer-history-default-listener.json) · [Distribution](../benchmarks/distribution-agent-transfer-history.json) · [Post-clean checks](../benchmarks/workspace-footprint-agent-transfer-history.json)
+
 ## Windows title bar theme
 
 Voldiq applies the saved light or dark preference to the native Windows title bar after loading preferences. Changing Appearance updates the same window. The desktop keeps its standard caption and controls. [Tauri window theme API](https://v2.tauri.app/reference/javascript/api/namespacewindow/#settheme)
