@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Interactive ASCII console
+
+The Windows CLI opens with a numbered console menu when started in an interactive terminal. It reuses the authorized scan, snapshot, volume and candidate commands. Three filled ASCII disks rotate around the vertical axis as one tilted piece. Fixed lighting shades the surfaces and the accent marks the top segment. R replays the turn. The menu and bars use color in compatible terminals and honor NO_COLOR. The animation respects the Windows motion preference. Shell commands emit versioned JSON and the MCP transport writes its protocol to stdout.
+
+The retained CLI fixture rendered an owned snapshot, a search result with a measured ASCII bar and equal-size candidates. Redirected output and the no-motion flag showed a single static logo. The Windows pseudoterminal recorded the animation followed by one styled menu. The renderer produced 31 frames with 27 distinct silhouettes. The visible console preview stayed running. The standalone CLI is 7,452,672 bytes. Cleanup removed 2,479,481,814 logical bytes of inactive release artifacts and preserved the existing desktop installer. Visual acceptance remains manual. [Verification](../benchmarks/workbench-ascii-console-source.json)
+
 ## Authorized duplicate candidates
 
 `duplicate-candidates` in the CLI and `voldiq_duplicate_candidates` in MCP page distinct file identities of the same recorded logical size within an authorized snapshot folder. The shared core checks the active Metadata capability and protection policy before delivering results. The desktop distinguishes sample comparison, full content verification and verified group counts. Exact duplicate discovery through CLI and MCP remains open.

@@ -33,6 +33,12 @@ The executable is `target/release/voldiq-cli.exe`, separate from the desktop `vo
 
 In the desktop application, open Settings, then Agents and permissions. Enter a connection name, allowed existing folders, optional exclusions and limits. Scanning, content reading, planning and execution requests are separate permissions. Export, content, planning and execution are off by default. Review the separate native confirmation dialog. Voldiq reveals the credential once for you to save in the client environment. The section lists connections and their last use, and provides rotation and revocation. This UI is source-checked; native interaction acceptance remains manual. The CLI and MCP do not expose provisioning, rotation or approval grants. Do not create credentials by editing a database or configuration file.
 
+## Interactive console
+
+Run the executable without arguments in an interactive terminal or run `voldiq-cli console`. Use the numbered menu to scan a folder, search a snapshot, see duplicate candidates, list authorized volumes or find snapshot IDs. Press `?` for the menu, `H` for the shell command reference, `R` to replay the logo and `0` to exit. The menu uses the connection from `VOLDIQ_AGENT_TOKEN` and accepts `--state <directory>` before `console`.
+
+The tilted stacked-disk mark turns once on startup in a supported terminal. Use `console --no-motion` or set `VOLDIQ_REDUCE_MOTION` for the static mark. The Windows accessibility preference and redirected output also select the static mark. Set `NO_COLOR` for monochrome output. Shell commands and `--help` emit versioned JSON. The MCP stdio command writes the protocol to stdout.
+
 ## Connect a stdio client
 
 Supply a separately human-provisioned connection credential through the client's process environment as `VOLDIQ_AGENT_TOKEN`. Never put it in arguments, Git, logs or reports. Each connection has its own credential and explicit root/exclusion/capability/limit policy. Revocation and rotation take effect on subsequent calls, including an already connected client.

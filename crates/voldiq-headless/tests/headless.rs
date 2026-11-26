@@ -1,5 +1,8 @@
 use serde_json::{Value, json};
-use std::process::Command;
+use std::{
+    io::Write,
+    process::{Command, Stdio},
+};
 use voldiq_core::agents::{Capability, Limits, Policy, Registry};
 
 #[test]
@@ -641,4 +644,40 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     assert!(names.contains(&"same-a.data") || names.contains(&"same-a-alias.data"));
     let invalid = run(&["duplicate-candidates", &snapshot, r#"{"min_bytes":"04"}"#]);
     assert_eq!(invalid.status.code(), Some(2));
+
+    let piped = Command::new(env!("CARGO_BIN_EXE_voldiq-cli"))
+        .output()
+        .unwrap();
+    assert!(piped.status.success());
+    let help: Value = serde_json::from_slice(&piped.stdout).unwrap();
+    assert_eq!(help["schema_version"], 1);
+    assert_eq!(help["result"]["commands"][0], "console [--no-motion]");
+    let mut console = Command::new(env!("CARGO_BIN_EXE_voldiq-cli"))
+        .arg("--state")
+        .arg(state.path())
+        .args(["console", "--no-motion"])
+        .env("VOLDIQ_AGENT_TOKEN", provisioned.credential.expose())
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    write!(
+        console.stdin.take().unwrap(),
+        "5\n2\n{snapshot}\nsame-b\n3\n{snapshot}\n0\n"
+    )
+    .unwrap();
+    let output = console.wait_with_output().unwrap();
+    assert!(output.status.success());
+    assert!(output.stderr.is_empty());
+    let text = String::from_utf8(output.stdout).unwrap();
+    assert_eq!(text.matches("VOLDIQ  /  Disk space analyzer").count(), 1);
+    assert!(!text.contains('\x1b'));
+    assert!(text.contains(&format!("#{snapshot}")));
+    assert!(text.contains("[##############]"));
+    assert!(text.contains("same-b.data"));
+    assert!(
+        text.lines()
+            .any(|row| row.contains("4 B") && row.contains("2 distinct files"))
+    );
 }

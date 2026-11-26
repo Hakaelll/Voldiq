@@ -1,3 +1,4 @@
+mod console;
 mod mcp;
 
 use serde_json::{Value, json};
@@ -15,8 +16,17 @@ fn failure(code: &str, message: &str) -> Value {
 #[tokio::main(worker_threads = 2)]
 async fn main() {
     let mut args: Vec<String> = std::env::args().skip(1).collect();
+    if let Some((state, no_motion)) = console::requested(&args) {
+        if let Err(error) = console::open(state, no_motion).await
+            && error.kind() != std::io::ErrorKind::BrokenPipe
+        {
+            eprintln!("Could not use the Voldiq console: {error}");
+            std::process::exit(4);
+        }
+        return;
+    }
     let stdio = args.iter().any(|arg| arg == "mcp");
-    let result = run(&mut args).await;
+    let result = run(&mut args, false).await;
     match result {
         Ok(Some(value)) => println!("{value}"),
         Ok(None) => {}
@@ -34,10 +44,10 @@ async fn main() {
 
 type CliError = (&'static str, String, i32);
 
-async fn run(args: &mut Vec<String>) -> Result<Option<Value>, CliError> {
+async fn run(args: &mut Vec<String>, human: bool) -> Result<Option<Value>, CliError> {
     if args.is_empty() || args == &["--help"] {
         return Ok(Some(success(
-            json!({"commands":["capabilities","volumes [offset] [limit]","translate <description>","scan <root> [--wait]","query <snapshot_id> [JSON filters]","stats <snapshot_id>","duplicate-candidates <snapshot_id> [JSON options]","applications <snapshot_id> [JSON scope/sort/page/file filters]","libraries <snapshot_id> <games|media> [JSON scope/page]","export <snapshot_id> <JSON CSV request>","space <snapshot_id>","transfers [JSON before/limit]","transfer-files <JSON plan_id/after/limit/include_hashes>","history [offset] [limit]","compare <before_id> <after_id> [offset] [limit]","trend <snapshot_id> [days] [offset] [limit]","calendar <snapshot_id> <YYYY-MM> [day] [offset] [limit]","diary <snapshot_id> [offset] [limit]","details <snapshot_id> <node_id>","folder <snapshot_id> <node_id> [--note]","budget <snapshot_id> <node_id>","jobs <job_id>","cancel <job_id>","plan prepare <snapshot_id> <JSON node IDs>","plan offload <snapshot_id> <JSON node IDs> <JSON destination/originals request>","plan restore <archive_snapshot_id> <JSON transfer_plan_id/node_ids request>","plan get <plan_id>","plan validate <plan_id> <manifest_hash>","plan request <plan_id>","plan execute <plan_id> <manifest_hash>","plan cancel <plan_id> <manifest_hash>","plan audit <plan_id> [after_sequence] [limit]","mcp serve --stdio"],"state":"--state <directory> before command (default: Voldiq local application data)","authentication":"Human-provisioned VOLDIQ_AGENT_TOKEN environment variable. No credential arguments or approval bypass."}),
+            json!({"commands":["console [--no-motion]","capabilities","volumes [offset] [limit]","translate <description>","scan <root> [--wait]","query <snapshot_id> [JSON filters]","stats <snapshot_id>","duplicate-candidates <snapshot_id> [JSON options]","applications <snapshot_id> [JSON scope/sort/page/file filters]","libraries <snapshot_id> <games|media> [JSON scope/page]","export <snapshot_id> <JSON CSV request>","space <snapshot_id>","transfers [JSON before/limit]","transfer-files <JSON plan_id/after/limit/include_hashes>","history [offset] [limit]","compare <before_id> <after_id> [offset] [limit]","trend <snapshot_id> [days] [offset] [limit]","calendar <snapshot_id> <YYYY-MM> [day] [offset] [limit]","diary <snapshot_id> [offset] [limit]","details <snapshot_id> <node_id>","folder <snapshot_id> <node_id> [--note]","budget <snapshot_id> <node_id>","jobs <job_id>","cancel <job_id>","plan prepare <snapshot_id> <JSON node IDs>","plan offload <snapshot_id> <JSON node IDs> <JSON destination/originals request>","plan restore <archive_snapshot_id> <JSON transfer_plan_id/node_ids request>","plan get <plan_id>","plan validate <plan_id> <manifest_hash>","plan request <plan_id>","plan execute <plan_id> <manifest_hash>","plan cancel <plan_id> <manifest_hash>","plan audit <plan_id> [after_sequence] [limit]","mcp serve --stdio"],"state":"--state <directory> before command (default: Voldiq local application data)","authentication":"Human-provisioned VOLDIQ_AGENT_TOKEN environment variable. No credential arguments or approval bypass."}),
         )));
     }
     let directory = if args.first().is_some_and(|arg| arg == "--state") {
@@ -98,10 +108,14 @@ async fn run(args: &mut Vec<String>) -> Result<Option<Value>, CliError> {
             let id = service
                 .start_scan(std::path::Path::new(&args[1]))
                 .map_err(|_| operation())?;
-            eprintln!(
-                "{}",
-                json!({"schema_version":1,"job_id":id,"state":"running"})
-            );
+            if human {
+                eprintln!("  Scan #{id} started. Press Ctrl+C to cancel.");
+            } else {
+                eprintln!(
+                    "{}",
+                    json!({"schema_version":1,"job_id":id,"state":"running"})
+                );
+            }
             let waiting = service.clone();
             let mut worker = tokio::task::spawn_blocking(move || waiting.wait(id));
             let job = tokio::select! {

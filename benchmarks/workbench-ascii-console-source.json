@@ -1,0 +1,104 @@
+{
+  "checkedUtc": "2026-11-26T20:43:00.9696497Z",
+  "startedUtc": "2026-11-26T20:39:26.4994122Z",
+  "checkoutCommit": "dda083faeb405268c39ac3c0b3ac8bb3d6c635c5",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.141
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 7.669
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.773
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.065
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 192.904
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 5.892
+    }
+  ],
+  "inputs": [
+    {
+      "path": "Cargo.lock",
+      "sha256": "7A5B91FEFB34D0A75D5118E535937EA7C509B1E4FDBD928C84E25693414E8DA1"
+    },
+    {
+      "path": "DESIGN.md",
+      "sha256": "9F6DE13876832A36CE781B664E4635184812FC5DB4F287BA35411D59E4438CA1"
+    },
+    {
+      "path": "crates/voldiq-headless/Cargo.toml",
+      "sha256": "39FFEDA4D0B03A21AFEB35A4030EAD41BBA3B0E1EAD85BFD6A13729436B125D1"
+    },
+    {
+      "path": "crates/voldiq-headless/src/main.rs",
+      "sha256": "6AC3942DF7584179A92867E85116FD6D50C6B4EE7F2C4CB18DFF3EA6E719E9D1"
+    },
+    {
+      "path": "crates/voldiq-headless/src/console.rs",
+      "sha256": "3B8780697851DDEE46F11F6AE7EC6BD3ACD8C0AE5FAF21469AB0E7D2E501D439"
+    },
+    {
+      "path": "crates/voldiq-headless/src/console/logo.rs",
+      "sha256": "7DB7FB10C1BAF6AC47D8A0CEE8C4AF04C672AF04FB8D12B704900F397AA9CA8F"
+    },
+    {
+      "path": "crates/voldiq-headless/src/console/terminal.rs",
+      "sha256": "502AC8F4F1DF2F6CF378CBCEAA195954CE0578CB9A147A86D3BC5B42CE20D016"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/headless.rs",
+      "sha256": "9C689A831D55182C642BA5BD6270BF4BAC63DE4666B2BF41770F7B47596F4E6E"
+    },
+    {
+      "path": "docs/MCP.md",
+      "sha256": "0AB5D57F559F8FA3015A3068F8FD630B982AD6E627002EE6F38CBA58F3D197EE"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "273C54400A3F085107DB32F493D9D603C3C7FB7347EBD94629361661ADBA1181"
+    }
+  ],
+  "console": {
+    "cliBytes": 7452672,
+    "sha256": "2B10F5BC6718B0BE4232657A81A2878D1D3CD7C316A33FB238387D44D6AF957C",
+    "jsonHelp": true,
+    "pipeStatic": true,
+    "previewPid": 7012,
+    "previewRunning": true,
+    "terminalMotion": true,
+    "terminalScreens": 31,
+    "styledTerminal": true,
+    "monochromeStatic": true,
+    "replay": true,
+    "geometry": {
+      "rendererFrames": 31,
+      "distinctSilhouettes": 27,
+      "filledCells": 392,
+      "elapsedMs": 1260
+    }
+  },
+  "inactiveReleaseBytesRemoved": 2479481814
+}
