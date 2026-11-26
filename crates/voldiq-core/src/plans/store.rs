@@ -6,7 +6,10 @@ use crate::{
     index::Index,
 };
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
-use std::path::Path;
+use std::{
+    path::Path,
+    sync::atomic::{AtomicBool, Ordering},
+};
 mod requests;
 pub use requests::{Enqueue, ExecutionRequest};
 
@@ -312,6 +315,59 @@ impl Store {
     pub fn get(&mut self, context: &PlanContext<'_>, id: &str, now: i64) -> Result<View> {
         context.check(Capability::Metadata)?;
         Ok(self.load(context, id, now)?.view)
+    }
+
+    /// Informational preflight, with no state transition, reservation or approval grant.
+    pub(crate) fn validate(
+        &self,
+        context: &PlanContext<'_>,
+        id: &str,
+        hash: &str,
+        cancel: &AtomicBool,
+    ) -> Result<Option<Validation>> {
+        context.check(Capability::PreparePlans)?;
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        let stored = self.read(context, id)?;
+        if stored.view.hash != hash {
+            return Err(denied());
+        }
+        let started = now()?;
+        let outcome = validation_status(&stored.view, started)?;
+        let material_matches = outcome == ValidationStatus::Matches
+            && self.check_material(context, &stored, cancel).is_ok()
+            && self.check_quota(&stored.view.manifest.action).is_ok();
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        let current = self.read(context, id)?;
+        if current.view.hash != hash {
+            return Err(denied());
+        }
+        let checked_at = now()?;
+        let mut status = validation_status(&current.view, checked_at)?;
+        if status == ValidationStatus::Matches
+            && (!material_matches || self.validate_protection_binding(&current).is_err())
+        {
+            status = ValidationStatus::EvidenceUnavailable;
+        }
+        if context.binding()? != current.binding {
+            return Err(denied());
+        }
+        Ok((!cancel.load(Ordering::Relaxed)).then_some(Validation {
+            status,
+            state: state_at(&current.view, checked_at),
+            checked_at,
+        }))
+    }
+
+    fn check_quota(&self, action: &Action) -> Result<()> {
+        if !matches!(action, Action::Offload(_)) {
+            return Ok(());
+        }
+        let tx = self.connection.unchecked_transaction()?;
+        super::catalogue::vault::admit(&tx, action)
     }
 
     pub fn request(&mut self, context: &PlanContext<'_>, id: &str, now: i64) -> Result<View> {
@@ -809,12 +865,7 @@ impl Store {
             stored.view.approval_expires = None;
         }
         let view = &stored.view;
-        if !view.state.terminal()
-            && view.state != State::Executing
-            && (now >= view.manifest.expires
-                || (view.state == State::Approved
-                    && view.approval_expires.is_none_or(|expires| now >= expires)))
-        {
+        if view.state != State::Expired && state_at(view, now) == State::Expired {
             self.change(view, State::Expired, now, "expired")?;
             stored.view.state = State::Expired;
             stored.view.approval_expires = None;
@@ -836,39 +887,42 @@ impl Store {
         stored: &Stored,
         now: i64,
     ) -> Result<()> {
-        let checked = (|| {
-            self.validate_protection_binding(stored)?;
-            let entries = &stored.view.manifest.entries;
-            let _pins = entries
-                .iter()
-                .map(|entry| context.path(Path::new(&entry.path)))
-                .collect::<Result<Vec<_>>>()?;
-            stored
-                .record
-                .validate(self.directory.identity())
-                .and_then(|()| match &stored.view.manifest.action {
-                    Action::Recycle => Ok(()),
-                    Action::Offload(plan) => plan
-                        .check(
-                            context,
-                            self.directory.path(),
-                            &stored.record.scope().root,
-                            entries,
-                        )
-                        .map(|_| ()),
-                    Action::Restore(plan) => plan.check(
-                        context,
-                        self.directory.path(),
-                        &stored.record.scope().root,
-                        entries,
-                    ),
-                })
-        })();
+        let checked = self.check_material(context, stored, &AtomicBool::new(false));
         if checked.is_err() {
             self.change(&stored.view, State::Invalidated, now, "invalidated")?;
             return Err(invalid());
         }
         checked
+    }
+
+    fn check_material(
+        &self,
+        context: &PlanContext<'_>,
+        stored: &Stored,
+        cancel: &AtomicBool,
+    ) -> Result<()> {
+        self.validate_protection_binding(stored)?;
+        let entries = &stored.view.manifest.entries;
+        let mut pins = Vec::with_capacity(entries.len());
+        for entry in entries {
+            if cancel.load(Ordering::Relaxed) {
+                return Err(invalid());
+            }
+            pins.push(context.path(Path::new(&entry.path))?);
+        }
+        stored
+            .record
+            .validate_with_cancel(self.directory.identity(), cancel)?;
+        if cancel.load(Ordering::Relaxed) {
+            return Err(invalid());
+        }
+        let state = self.directory.path();
+        let source = &stored.record.scope().root;
+        match &stored.view.manifest.action {
+            Action::Recycle => Ok(()),
+            Action::Offload(plan) => plan.check(context, state, source, entries).map(|_| ()),
+            Action::Restore(plan) => plan.check(context, state, source, entries),
+        }
     }
 
     fn change(&mut self, view: &View, state: State, now: i64, event: &str) -> Result<()> {
@@ -879,6 +933,34 @@ impl Store {
         audit(&tx, &view.manifest.id, now, event)?;
         tx.commit()?;
         Ok(())
+    }
+}
+
+fn state_at(view: &View, at: i64) -> State {
+    if !view.state.terminal()
+        && view.state != State::Executing
+        && (at >= view.manifest.expires
+            || (view.state == State::Approved
+                && view.approval_expires.is_none_or(|expires| at >= expires)))
+    {
+        State::Expired
+    } else {
+        view.state
+    }
+}
+
+fn validation_status(view: &View, at: i64) -> Result<ValidationStatus> {
+    if at < view.manifest.created {
+        return Err(invalid());
+    }
+    match state_at(view, at) {
+        State::Draft | State::AwaitingApproval | State::Approved if view.execution_available => {
+            Ok(ValidationStatus::Matches)
+        }
+        State::Draft | State::AwaitingApproval | State::Approved => {
+            Ok(ValidationStatus::Unsupported)
+        }
+        _ => Ok(ValidationStatus::Closed),
     }
 }
 

@@ -829,6 +829,24 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     assert_ne!(prepared.is_error, Some(true));
     let prepared = prepared.structured_content.unwrap();
     let plan_id = prepared["result"]["manifest"]["id"].as_str().unwrap();
+    let hash = prepared["result"]["hash"].as_str().unwrap();
+    let execution = json!({"plan_id":plan_id,"manifest_hash":hash});
+    assert!(tools.iter().any(|tool| tool.name == "voldiq_plan_validate"));
+    let validation = call(&client, "voldiq_plan_validate", execution.clone()).await;
+    assert_ne!(validation.is_error, Some(true));
+    let validation = validation.structured_content.unwrap();
+    assert_eq!(validation["result"]["status"], "matches");
+    assert_eq!(validation["result"]["state"], "draft");
+    let injected_validation = call(
+        &client,
+        "voldiq_plan_validate",
+        json!({"plan_id":plan_id,"manifest_hash":hash,"approved":true}),
+    )
+    .await;
+    assert_eq!(
+        injected_validation.structured_content.unwrap()["error"]["code"],
+        "invalid_arguments"
+    );
     assert_eq!(
         prepared["result"]["manifest"]["entries"][0]["logical_bytes"],
         "11"
@@ -866,8 +884,6 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
             .iter()
             .all(|event| event["event"] != "approved")
     );
-    let hash = prepared["result"]["hash"].as_str().unwrap();
-    let execution = json!({"plan_id":plan_id,"manifest_hash":hash});
     assert!(tools.iter().any(|tool| tool.name == "voldiq_plan_execute"));
     assert!(tools.iter().any(|tool| tool.name == "voldiq_plan_cancel"));
     let no_human = call(&client, "voldiq_plan_execute", execution.clone()).await;
@@ -876,6 +892,15 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         "needs_human_approval"
     );
     let desktop = voldiq_core::plans::Desktop::open(state.path()).unwrap();
+    let validation = desktop.validate(plan_id, hash).unwrap();
+    assert_eq!(
+        validation.status,
+        voldiq_core::plans::ValidationStatus::Matches
+    );
+    assert_eq!(
+        validation.state,
+        voldiq_core::plans::State::AwaitingApproval
+    );
     desktop.approve(plan_id, hash).unwrap();
     let invalid = call(
         &client,
@@ -1045,6 +1070,16 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
             .await
             .is_error,
         Some(true)
+    );
+    let revoked_plan = call(
+        &client,
+        "voldiq_plan_validate",
+        json!({"plan_id":plan_id,"manifest_hash":hash}),
+    )
+    .await;
+    assert_eq!(
+        revoked_plan.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
     );
     client.cancel().await.unwrap();
 }

@@ -5,7 +5,7 @@ use std::{
         atomic::{AtomicBool, Ordering},
     },
 };
-use voldiq_core::plans::{Desktop, Review, ReviewPage, State, View};
+use voldiq_core::plans::{Desktop, Review, ReviewPage, State, Validation, View};
 
 #[derive(Clone)]
 pub struct PlanReviews {
@@ -365,6 +365,22 @@ pub async fn get_agent_plan(
     let desktop = reviews.desktop()?;
     tauri::async_runtime::spawn_blocking(move || {
         desktop.review(&id).map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn validate_agent_plan(
+    reviews: tauri::State<'_, PlanReviews>,
+    id: String,
+    hash: String,
+) -> Result<Validation, String> {
+    let desktop = reviews.desktop()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        desktop
+            .validate(&id, &hash)
+            .map_err(|error| error.to_string())
     })
     .await
     .map_err(|error| error.to_string())?

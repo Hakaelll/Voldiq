@@ -469,6 +469,19 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     );
     let plan: Value = serde_json::from_slice(&output.stdout).unwrap();
     let id = plan["result"]["manifest"]["id"].as_str().unwrap();
+    let hash = plan["result"]["hash"].as_str().unwrap();
+    let checked = run(&["plan", "validate", id, hash]);
+    assert!(checked.status.success());
+    let checked: Value = serde_json::from_slice(&checked.stdout).unwrap();
+    assert_eq!(checked["result"]["status"], "matches");
+    assert_eq!(checked["result"]["state"], "draft");
+    assert!(checked["result"]["checked_at"].is_i64());
+    assert_eq!(
+        run(&["plan", "validate", id, &"0".repeat(64)])
+            .status
+            .code(),
+        Some(4)
+    );
     assert_eq!(
         plan["result"]["manifest"]["entries"][0]["logical_bytes"],
         "7"
@@ -488,7 +501,6 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
         serde_json::from_slice::<Value>(&run(&["plan", "get", id]).stdout).unwrap()["result"]["state"],
         "awaiting_approval"
     );
-    let hash = plan["result"]["hash"].as_str().unwrap();
     assert_eq!(run(&["plan", "execute", id, hash]).status.code(), Some(5));
     assert_eq!(
         run(&["plan", "execute", id, hash, "--yes"]).status.code(),
@@ -506,6 +518,10 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     let replay: Value =
         serde_json::from_slice(&run(&["plan", "execute", id, hash]).stdout).unwrap();
     assert_eq!(replay["result"]["dispatch"], "existing");
+    let closed: Value =
+        serde_json::from_slice(&run(&["plan", "validate", id, hash]).stdout).unwrap();
+    assert_eq!(closed["result"]["status"], "closed");
+    assert_eq!(closed["result"]["state"], "cancelled");
     let events: Value = serde_json::from_slice(&run(&["plan", "audit", id]).stdout).unwrap();
     assert_eq!(
         events["result"]
@@ -538,4 +554,26 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     assert_eq!(desktop.len(), 1);
     assert_eq!(desktop[0].id, scan["id"].as_i64().unwrap().to_string());
     assert_eq!(desktop[0].snapshot_id, scan["snapshot_id"].as_i64());
+
+    let second = run(&[
+        "plan",
+        "prepare",
+        &snapshot.to_string(),
+        &format!("[{node}]"),
+    ]);
+    assert!(second.status.success());
+    let second: Value = serde_json::from_slice(&second.stdout).unwrap();
+    let id = second["result"]["manifest"]["id"].as_str().unwrap();
+    let hash = second["result"]["hash"].as_str().unwrap();
+    let file = source.path().join("selected.data");
+    std::fs::write(&file, b"changed fixture").unwrap();
+    let outdated = run(&["plan", "validate", id, hash]);
+    assert!(outdated.status.success());
+    let outdated: Value = serde_json::from_slice(&outdated.stdout).unwrap();
+    assert_eq!(outdated["result"]["status"], "evidence_unavailable");
+    assert_eq!(outdated["result"]["state"], "draft");
+    let audit: Value = serde_json::from_slice(&run(&["plan", "audit", id]).stdout).unwrap();
+    assert_eq!(audit["result"].as_array().unwrap().len(), 1);
+    assert_eq!(audit["result"][0]["event"], "draft");
+    assert_eq!(std::fs::read(file).unwrap(), b"changed fixture");
 }

@@ -1132,6 +1132,7 @@ fn main() {
             agent_commands::revoke_agent_connection,
             plan_commands::list_agent_plans,
             plan_commands::get_agent_plan,
+            plan_commands::validate_agent_plan,
             plan_commands::list_transfer_records,
             plan_commands::transfer_destinations,
             #[cfg(windows)]

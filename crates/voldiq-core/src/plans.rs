@@ -185,6 +185,22 @@ pub struct View {
     pub execution_available: bool,
 }
 
+#[derive(Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ValidationStatus {
+    Matches,
+    EvidenceUnavailable,
+    Unsupported,
+    Closed,
+}
+
+#[derive(Serialize)]
+pub struct Validation {
+    pub status: ValidationStatus,
+    pub state: State,
+    pub checked_at: i64,
+}
+
 #[derive(Serialize)]
 pub struct AuditEvent {
     pub sequence: i64,

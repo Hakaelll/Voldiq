@@ -1,11 +1,14 @@
 //! Human-only facade, intentionally absent from the headless service and tool catalogue.
-use super::{Action, HumanAuthority, Originals, State, Store, View, invalid, now};
+use super::{Action, HumanAuthority, Originals, State, Store, Validation, View, invalid, now};
 use crate::{
     Result,
     agents::{Capability, Registry},
 };
 use serde::Serialize;
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::atomic::AtomicBool,
+};
 
 pub struct Desktop {
     directory: PathBuf,
@@ -377,6 +380,17 @@ impl Desktop {
             desktop_owned,
             plan,
         })
+    }
+
+    pub fn validate(&self, id: &str, hash: &str) -> Result<Validation> {
+        let registry = Registry::open(&self.directory.join("agents.db"))?;
+        let store = Store::open(&self.directory)?;
+        let owner = store.review_owner(&self.human, id)?;
+        let principal = registry.human_principal(owner)?;
+        let context = registry.plan_context(&principal, Capability::PreparePlans)?;
+        store
+            .validate(&context, id, hash, &AtomicBool::new(false))?
+            .ok_or_else(invalid)
     }
 
     /// Caller must obtain a separate human confirmation for the exact displayed hash.

@@ -1,0 +1,134 @@
+{
+  "checkedUtc": "2026-11-26T19:00:32.3612872Z",
+  "startedUtc": "2026-11-26T18:39:22.1336209Z",
+  "checkoutCommit": "3a2b455791c43135bc1504534068be0d8a0ad733",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.109
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.894
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.839
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.282
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 718.658
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 534.417
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "A24E75345EE4352D50448A813C57CCF4ACD0F856F31B79ECEDCAAC7E20A2824A"
+    },
+    {
+      "path": "docs/AGENT-PLANS.md",
+      "sha256": "5F8161509EECBA821AA7C5DEA77B63E8FC2DF074A6D38D732434FD6791556869"
+    },
+    {
+      "path": "docs/MCP.md",
+      "sha256": "18CC8EFC319DBACAF3BCF9B3794F03753BBB5477D5ACF1CF3055ED08D96538BA"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "3AF34D6010C84890A0EB60FF7E490933B421A32EF279216F5089B5021F9A56C9"
+    },
+    {
+      "path": "docs/WORKBENCH-STATUS.md",
+      "sha256": "4175F54A3533EA92B221AE90C372A7812D3306ED6029F4D259706B169B8716B0"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "6F0452003EA2C3D86C5F876065975A93B43CD042D71264B113FFCBEC3D4BDE36"
+    },
+    {
+      "path": "crates/voldiq-core/src/cleanup/record.rs",
+      "sha256": "98E8B3218110D74D7A82D2F93F4A524C0E2192F8D535AD841682E298C3FA90A2"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans.rs",
+      "sha256": "4A3DFCA93095719F3C6988A5DFD4DB149F60EACE0C727F7AA205CE0634514E1D"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/desktop.rs",
+      "sha256": "92DC439E28CAAC80E8F3A8B2176DAA041D30669C977668335D8DEBE56B495B42"
+    },
+    {
+      "path": "crates/voldiq-core/src/plans/store.rs",
+      "sha256": "A41BA95131EC466FD46A98EE3C7FEB8ED299C37BDEE8789CA4AB7281A95D1E65"
+    },
+    {
+      "path": "crates/voldiq-core/src/service.rs",
+      "sha256": "0B354023D79FC92879FE35A95E3A9A59DE9A9322513CA77BE30905CF5D114937"
+    },
+    {
+      "path": "crates/voldiq-headless/src/main.rs",
+      "sha256": "4EB927341793981AE7D49263F214440BC6D27DB4D88995D03DF587BD716B25DE"
+    },
+    {
+      "path": "crates/voldiq-headless/src/mcp.rs",
+      "sha256": "6B92368335C9E77FF84AC612CEE43B1741CDE5CF64607A0678882969216171B4"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/headless.rs",
+      "sha256": "7CC99CF8C16CE653D2DE6229E864C3F679FE16446FB9FC904A761199824AE241"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/mcp.rs",
+      "sha256": "32C05C16559FD053D753B5C8906FDBF7A82123D856B4EFA4F3986A0F052F9E5A"
+    },
+    {
+      "path": "frontend/components/AgentPlanReview.svelte",
+      "sha256": "C093008BADFD81064178C54FF4C19F4F5643E001700F497CA748D0FF9C85D66E"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "91A2F24DB9006DA0D31168A2B745380B9DCBE10E746C92FB3908EBD65DAC0723"
+    },
+    {
+      "path": "src-tauri/src/plan_commands.rs",
+      "sha256": "3965F2FBB041D6F181564A9A1478F442913C9990E4EBF31E5C5036D08A8F5C3C"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "serverMarkup": {
+    "scope": "Svelte server markup using fixture-initialized copies of AgentPlanReview",
+    "matching": true,
+    "unavailable": true,
+    "staleHashHidden": true,
+    "separateApprovalButton": true,
+    "nativeInteraction": "Manual"
+  },
+  "finalFrontend": {
+    "sourceSha256": "C093008BADFD81064178C54FF4C19F4F5643E001700F497CA748D0FF9C85D66E",
+    "asset": "assets/index-DumXIk27.js",
+    "assetSha256": "0F02E3D060E2298B836BD7F5F533142DD2F396A5B58DE32DD11B2CE85A483149"
+  }
+}

@@ -2,7 +2,11 @@
 use super::{Plan, PlannedFile, Stamp, capture_parents, protected_identities, validate_file};
 use crate::{Error, NodeId, Result, index::Index, snapshots::Scope, windows};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, path::PathBuf, sync::atomic::AtomicBool};
+use std::{
+    collections::HashSet,
+    path::PathBuf,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 #[derive(Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -186,8 +190,17 @@ impl Record {
     }
 
     pub(crate) fn validate(&self, state_directory: (u64, u64)) -> Result<()> {
+        self.validate_with_cancel(state_directory, &AtomicBool::new(false))
+    }
+
+    pub(crate) fn validate_with_cancel(
+        &self,
+        state_directory: (u64, u64),
+        cancel: &AtomicBool,
+    ) -> Result<()> {
         if self.files.is_empty()
             || self.files.len() > 500
+            || cancel.load(Ordering::Relaxed)
             || windows::identity(&self.root)?.key != self.root_identity
         {
             return Err(invalid());
@@ -203,15 +216,15 @@ impl Record {
         }
         let mut unique = HashSet::new();
         for file in &self.files {
-            if !unique.insert(file.id)
+            if cancel.load(Ordering::Relaxed)
+                || !unique.insert(file.id)
                 || !file.path.starts_with(&self.root)
                 || file.digest.is_some()
                 || sensitive(&file.path)
             {
                 return Err(invalid());
             }
-            let parents =
-                capture_parents(&file.path, &protected, &excluded, &AtomicBool::new(false))?;
+            let parents = capture_parents(&file.path, &protected, &excluded, cancel)?;
             if parents != file.parents {
                 return Err(invalid());
             }

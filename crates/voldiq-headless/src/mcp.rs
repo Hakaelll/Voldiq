@@ -496,6 +496,16 @@ fn invoke(
             serde_json::to_value(service.plan_get(&args.plan_id).map_err(plan_unavailable)?)
                 .map_err(unavailable)
         }
+        "voldiq_plan_validate" => {
+            let args: ExecutionArgs = parse(args)?;
+            let result = service
+                .plan_validate(&args.plan_id, &args.manifest_hash, cancel)
+                .map_err(plan_unavailable)?
+                .ok_or_else(|| {
+                    super::failure("validation_cancelled", "Plan validation cancelled.")
+                })?;
+            serde_json::to_value(result).map_err(unavailable)
+        }
         "voldiq_plan_prepare_offload" => {
             let args: OffloadArgs = parse(args)?;
             serde_json::to_value(
@@ -621,6 +631,7 @@ impl ServerHandler for Server {
                 | "voldiq_export_csv"
                 | "voldiq_applications"
                 | "voldiq_libraries"
+                | "voldiq_plan_validate"
         );
         let cancel = Arc::new(AtomicBool::new(false));
         let _cancel_on_drop = CancelReadOnDrop(cancel.clone());
@@ -701,6 +712,7 @@ fn tools() -> Vec<Tool> {
         ("voldiq_plan_prepare_offload", "Prepare a read-only, exact cross-volume transfer proposal. Source, destination and destination volume root must be explicitly authorized. Request independent Windows desktop approval of the exact plan before asking to execute it.", json!({"snapshot_id":integer,"node_ids":{"type":"array","minItems":1,"maxItems":500,"uniqueItems":true,"items":{"type":"integer","minimum":0,"maximum":4294967295u64}},"destination":{"type":"string","minLength":1,"maxLength":32768},"originals":{"type":"string","enum":["keep","recycle_after_verification"]}}), json!(["snapshot_id","node_ids","destination","originals"])) ,
         ("voldiq_plan_prepare_restore", "Prepare an exact read-only restore proposal from this connection's confirmed transfer catalogue and a fresh archive snapshot. node_ids refer to original catalogue nodes. Current archive, original parents and volume scopes are required. To keep both files on collision, set on_collision to keep_both. Request independent Windows desktop approval before asking to execute it.", json!({"snapshot_id":integer,"transfer_plan_id":plan_id,"node_ids":{"type":"array","minItems":1,"maxItems":500,"uniqueItems":true,"items":{"type":"integer","minimum":0,"maximum":4294967295u64}},"on_collision":{"type":"string","enum":["fail","keep_both"],"default":"fail"}}), json!(["snapshot_id","transfer_plan_id","node_ids"])),
         ("voldiq_plan_get", "Read this connection's exact manifest and current state. An approved row is not execution authority.", json!({"plan_id":plan_id}), json!(["plan_id"])),
+        ("voldiq_plan_validate", "Check the current metadata evidence of this connection's exact plan ID and manifest hash. Requires PreparePlans. Returns status, observed lifecycle state and time. Reports no new paths and makes no changes to plan state or approval. Execution revalidates independently.", json!({"plan_id":plan_id,"manifest_hash":plan_id}), json!(["plan_id","manifest_hash"])),
         ("voldiq_plan_execute", "Queue one exact human-approved recycling plan in the open Voldiq desktop. Requires ExecuteApproved and a live independent human session; cannot approve, expand or permanently delete. Poll plan_get for actual results; repeat calls do not repeat execution.", json!({"plan_id":plan_id,"manifest_hash":{"type":"string","pattern":"^[a-f0-9]{64}$"}}), json!(["plan_id","manifest_hash"])),
         ("voldiq_plan_cancel", "Cancel this connection's exact queued plan or request a running worker to stop safely. Inspect plan_get for actual partial or unknown outcomes. Cannot purge the bin or undo unrelated work.", json!({"plan_id":plan_id,"manifest_hash":{"type":"string","pattern":"^[a-f0-9]{64}$"}}), json!(["plan_id","manifest_hash"])),
         ("voldiq_plan_request_approval", "Queue this exact plan for independent human review in Voldiq. Returns needs_human_approval; poll voldiq_plan_get. Cannot approve or execute files.", json!({"plan_id":plan_id}), json!(["plan_id"])),

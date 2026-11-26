@@ -114,6 +114,17 @@ impl AgentService {
         )
     }
 
+    pub fn plan_validate(
+        &self,
+        id: &str,
+        hash: &str,
+        cancel: &AtomicBool,
+    ) -> Result<Option<crate::plans::Validation>> {
+        let registry = self.registry()?;
+        let context = registry.plan_context(&self.principal, Capability::PreparePlans)?;
+        crate::plans::Store::open(self.directory.directory())?.validate(&context, id, hash, cancel)
+    }
+
     pub fn plan_prepare_offload(
         &self,
         snapshot: i64,

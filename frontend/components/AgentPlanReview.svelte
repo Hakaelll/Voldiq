@@ -78,10 +78,21 @@
     | { kind: 'loading'; id: string }
     | { kind: 'ready'; review: Review }
     | { kind: 'error'; message: string };
+  interface Validation {
+    status: 'matches' | 'evidence_unavailable' | 'unsupported' | 'closed';
+    state: PlanState;
+    checked_at: number;
+  }
+  type CheckTarget = { id: string; hash: string; state: PlanState };
+  type EvidenceCheck = CheckTarget & (
+    { kind: 'result'; result: Validation } | { kind: 'error' }
+  );
   let items = $state<Summary[]>([]),
     offset = $state(0),
     nextOffset = $state<number | null>(null);
   let selection = $state<Selection>({ kind: 'none' });
+  let evidenceCheck = $state<EvidenceCheck | null>(null),
+    checking = $state<CheckTarget | null>(null);
   let loading = $state(false),
     busy = $state(false),
     error = $state(''),
@@ -99,7 +110,8 @@
   });
   const exactBytes = (value: string): string => `${BigInt(value).toLocaleString()} bytes`;
   const stateLabel = (value: PlanState): string => value.replaceAll('_', ' ');
-  const restoreAction = (plan: Plan): boolean => typeof plan.manifest.action === 'object' && 'restore' in plan.manifest.action;
+  const restoreAction = (plan: Plan): boolean =>
+    typeof plan.manifest.action === 'object' && 'restore' in plan.manifest.action;
 
   async function refresh(): Promise<void> {
     if (!native || loading || busy) return;
@@ -131,6 +143,7 @@
     selection = { kind: 'loading', id };
     error = '';
     notice = '';
+    evidenceCheck = null;
     try {
       const review = await invoke<Review>('get_agent_plan', { id });
       if (alive && current === request) selection = { kind: 'ready', review };
@@ -138,16 +151,62 @@
       if (alive && current === request) selection = { kind: 'error', message: String(problem) };
     }
   }
+  async function checkEvidence(): Promise<void> {
+    if (selection.kind !== 'ready' || busy || checking) return;
+    const { manifest, hash, state } = selection.review.plan;
+    const target = { id: manifest.id, hash, state };
+    const current = request;
+    checking = target;
+    evidenceCheck = null;
+    try {
+      const result = await invoke<Validation>('validate_agent_plan', { id: manifest.id, hash });
+      if (alive && current === request) evidenceCheck = { ...target, kind: 'result', result };
+    } catch {
+      if (alive && current === request) evidenceCheck = { ...target, kind: 'error' };
+    } finally {
+      if (alive) checking = null;
+    }
+  }
+  function validationMessage(plan: Plan): string {
+    if (checking?.id === plan.manifest.id && checking.hash === plan.hash) {
+      return 'Checking current evidence…';
+    }
+    if (
+      !evidenceCheck ||
+      evidenceCheck.id !== plan.manifest.id ||
+      evidenceCheck.hash !== plan.hash ||
+      evidenceCheck.state !== plan.state
+    ) {
+      return 'Voldiq checks the exact selection again before execution.';
+    }
+    if (evidenceCheck.kind === 'error')
+      return 'Could not check this plan. Refresh requests and try again.';
+    const result = evidenceCheck.result;
+    switch (result.status) {
+      case 'matches':
+        return `Evidence matched at ${date(result.checked_at)}.`;
+      case 'evidence_unavailable':
+        return 'Current evidence differs from the plan or could not be verified.';
+      case 'unsupported':
+        return 'Prepare a new plan with current evidence.';
+      case 'closed':
+        return `Plan is ${stateLabel(result.state)}. Refresh requests for its current status.`;
+    }
+  }
   async function decide(action: 'approve' | 'reject' | 'cancel' | 'start'): Promise<void> {
     if (selection.kind !== 'ready' || busy) return;
     const review = selection.review;
     ++request;
+    evidenceCheck = null;
     busy = true;
     error = '';
     notice = '';
     try {
       if (action === 'start') {
-        await invoke('start_desktop_transfer', { id: review.plan.manifest.id, hash: review.plan.hash });
+        await invoke('start_desktop_transfer', {
+          id: review.plan.manifest.id,
+          hash: review.plan.hash,
+        });
         if (alive) notice = 'Queued. Voldiq will recheck the plan before starting.';
         return;
       }
@@ -184,6 +243,7 @@
     if (loading || busy) return;
     offset = value;
     selection = { kind: 'none' };
+    evidenceCheck = null;
     ++request;
     void refresh();
   }
@@ -208,8 +268,8 @@
     <button onclick={refresh} disabled={!native || loading || busy}>Refresh requests</button>
   </div>
   <p class="description">
-    Review exact file selections from this device and local connections. Approval is separate from execution
-    and lasts at most two minutes.
+    Review exact file selections from this device and local connections. Approval is separate from
+    execution and lasts at most two minutes.
   </p>
   <p class="description">
     Permitted connections may request an exact approved batch while Voldiq is open. Recycling uses
@@ -457,9 +517,11 @@
                     >{/if}
                   {#if restore}{@const restored = restore.files.find(
                       (file) => file.source_id === entry.id,
-                    )}{@const output = restore.groups.flatMap((group) => group.outputs).find(
-                      (candidate) => candidate.id === entry.id,
-                    )}{#if restored && output}<small>Original path: {restored.original_path}</small>
+                    )}{@const output = restore.groups
+                      .flatMap((group) => group.outputs)
+                      .find((candidate) => candidate.id === entry.id)}{#if restored && output}<small
+                        >Original path: {restored.original_path}</small
+                      >
                       <small>Restore as: {output.name}</small><small
                         >Expected BLAKE3: <code>{restored.content_blake3}</code></small
                       >{/if}{/if}
@@ -479,9 +541,13 @@
         <dl>
           <div>
             <dt>Source analysis</dt>
-            <dd>{manifest.source_snapshot === 0
-              ? restore ? 'Selected archive files' : 'Live desktop analysis'
-              : `Snapshot #${manifest.source_snapshot}`}</dd>
+            <dd>
+              {manifest.source_snapshot === 0
+                ? restore
+                  ? 'Selected archive files'
+                  : 'Live desktop analysis'
+                : `Snapshot #${manifest.source_snapshot}`}
+            </dd>
           </div>
           <div>
             <dt>Captured exclusions</dt>
@@ -572,6 +638,19 @@
               Result details are unavailable here. Review the local operation journal.
             </p>{/if}
         </section>{/if}
+      {#if plan.execution_available && (plan.state === 'awaiting_approval' || plan.state === 'approved')}
+        <div class="evidence-check">
+          <button
+            class="quiet-action"
+            disabled={!native ||
+              checking !== null ||
+              busy ||
+              now >= (plan.approval_expires ?? manifest.expires)}
+            onclick={checkEvidence}>Check evidence</button
+          >
+          <p role="status">{validationMessage(plan)}</p>
+        </div>
+      {/if}
       <div class="decisions">
         {#if !plan.execution_available}<p role="note">
             Prepare a new plan with current transfer evidence to approve execution.
@@ -590,16 +669,21 @@
             onclick={() => decide('cancel')}>Request stop</button
           >{/if}
         {#if review.desktop_owned && plan.state === 'approved'}
-          <button class="primary" disabled={busy || now >= (plan.approval_expires ?? 0)}
-            onclick={() => decide('start')}>{restore ? 'Start restoration' : 'Start transfer'}</button>
+          <button
+            class="primary"
+            disabled={busy || now >= (plan.approval_expires ?? 0)}
+            onclick={() => decide('start')}
+            >{restore ? 'Start restoration' : 'Start transfer'}</button
+          >
         {:else}<button
-          class="primary"
-          disabled={busy ||
-            !plan.execution_available ||
-            plan.state !== 'awaiting_approval' ||
-            now >= manifest.expires}
-          onclick={() => decide('approve')}>{busy ? 'Working…' : 'Review and approve plan'}</button
-        >{/if}
+            class="primary"
+            disabled={busy ||
+              !plan.execution_available ||
+              plan.state !== 'awaiting_approval' ||
+              now >= manifest.expires}
+            onclick={() => decide('approve')}
+            >{busy ? 'Working…' : 'Review and approve plan'}</button
+          >{/if}
       </div>
     </article>
   {/if}
@@ -736,6 +820,17 @@
   }
   .decisions {
     justify-content: flex-end;
+  }
+  .evidence-check {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    padding-block: 8px;
+    border-top: 1px solid var(--border);
+  }
+  .evidence-check p {
+    font-size: 13px;
   }
   .unavailable {
     padding: 12px;

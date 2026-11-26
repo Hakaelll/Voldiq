@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Exact plan evidence checks
+
+CLI `plan validate`, MCP `voldiq_plan_validate` and Check evidence in Cleanup → Agent plans check an exact plan ID and manifest hash. They share the approval path's current native metadata, protection, destination and transfer quota checks. The response reports a timestamped observation and the current lifecycle. The evidence check leaves plan state and approval unchanged, and the execution path performs its own validation.
+
+The real CLI verified a matching draft, a wrong hash, a cancelled plan and changed source evidence with the original draft audit intact. The real MCP SDK verified the match, rejected approval injection and denied a revoked connection. The desktop facade validated a plan awaiting approval. Fixture-rendered markup covered the inline match and unavailable states and suppressed a stale hash. Native interaction and scaling remain manual. [Source checks and fixtures](../benchmarks/workbench-plan-validation-source.json)
+
 ## Light and dark workspace redesign
 
 The desktop uses an obsidian and ivory dark workspace inspired by Vivid+Co and a white and periwinkle light workspace inspired by amra. The shared theme styles cover navigation, search, the command palette and chart controls. Settings starts with Appearance and shows both theme swatches. Overview places the selected drive measurement next to its capacity details where space permits. The original commands, scan actions and chart renderers remain available.
