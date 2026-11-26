@@ -4,6 +4,10 @@
 
 Voldiq applies the saved light or dark preference to the native Windows title bar after loading preferences. Changing Appearance updates the same window. The desktop keeps its standard caption and controls. [Tauri window theme API](https://v2.tauri.app/reference/javascript/api/namespacewindow/#settheme)
 
+The Windows frame reports the dark preference in the verified preview. Visual review at both themes and Windows scaling remains manual. [DWM observation](../benchmarks/native-title-theme-dwm.json)
+
+The Windows preview reached ready with zero TCP listeners. 10 embedded non-HTML assets matched the production web build. The unsigned NSIS installer measures 12,056,207 bytes. Cleanup removed 3,083,101,677 logical bytes of inactive release artifacts and 0 bytes of closed previews. The current preview and installer were preserved. [Startup](../benchmarks/native-title-theme-preview.json) · [Default listener](../benchmarks/native-title-theme-default-listener.json) · [Distribution](../benchmarks/distribution-native-title-theme.json) · [Post-clean checks](../benchmarks/workspace-footprint-native-title-theme.json)
+
 ## Exact plan evidence checks
 
 CLI `plan validate`, MCP `voldiq_plan_validate` and Check evidence in Cleanup → Agent plans check an exact plan ID and manifest hash. They share the approval path's current native metadata, protection, destination and transfer quota checks. The response reports a timestamped observation and the current lifecycle. The evidence check leaves plan state and approval unchanged, and the execution path performs its own validation.

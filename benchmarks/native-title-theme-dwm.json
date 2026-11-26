@@ -1,0 +1,10 @@
+{
+  "checkedUtc": "2026-11-26T19:12:05.2152970Z",
+  "sourceCommit": "f69112018c206ae568ba4e7b521bef1281a338b7",
+  "executableSha256": "FC95850A1A1868CAE3B50350F71D3D196737A15F66133120AEC59DE0FF3A4D36",
+  "processId": 3728,
+  "attribute": 20,
+  "hresult": 0,
+  "immersiveDarkFrame": true,
+  "scope": "Read-only DWM attribute of the explicitly launched Voldiq window. Colors, persistence under both preferences, and scaling are separate observations."
+}
