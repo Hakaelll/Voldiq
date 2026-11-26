@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Cylindrical ASCII mark
+
+The terminal mark now uses one filled silhouette with three curved silver rims. The larger frame makes the oval hub, two separators and blue sector easier to distinguish on the top face. The whole tilted cylinder rotates under a fixed light. A narrow terminal shows a shorter wordmark while retaining the full turn at standard 80 × 24 size.
+
+Before and after were rendered from the Rust frame writer in the same terminal font. The writer produced 31 frames with 28 distinct silhouettes, reached the same settled view and stayed within its redraw area. Five widths from 28 to 120 columns preserved the blue sector and fit the logo. The optimized Windows CLI replayed that same settled drawing in monochrome and its visible console preview opened successfully. [Verification](../benchmarks/workbench-logo-icon-source.json)
+
 ## Folder duplicate analysis jobs
 
 The CLI and MCP now start a folder analysis from an authorized snapshot. MCP returns a durable job ID. The CLI prints the ID and waits, or opens the job and its verified groups in the console. The shared job store publishes a completed report atomically. It pages group counts and member IDs and refuses reports from cancelled, interrupted or unauthorized jobs.

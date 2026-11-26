@@ -8,34 +8,16 @@ use std::{
 
 const WORDMARK: &str = "VOLDIQ  /  Disk space analyzer";
 const DENSITY: &[u8] = b" .:-=+*#%@";
-const REST_YAW: f64 = 0.13;
-const LEAN: f64 = 0.14;
-const LAYERS: [Cylinder; 4] = [
-    Cylinder {
-        radius: 0.78,
-        bottom: -0.78,
-        top: 0.43,
-    },
-    Cylinder {
-        radius: 0.99,
-        bottom: -0.85,
-        top: -0.49,
-    },
-    Cylinder {
-        radius: 1.0,
-        bottom: -0.43,
-        top: -0.05,
-    },
-    Cylinder {
-        radius: 1.0,
-        bottom: 0.02,
-        top: 0.45,
-    },
-];
+const REST_YAW: f64 = -0.08;
+const LEAN: f64 = 0.17;
+const TOP: f64 = 0.53;
+const BASE: f64 = -0.78;
+const RIMS: [f64; 3] = [TOP, 0.08, -0.37];
+const RIM_WIDTH: f64 = 0.135;
 
 pub(super) fn write(out: &mut impl Write, terminal: &Terminal) -> io::Result<()> {
-    let columns = terminal.width.saturating_sub(3).clamp(1, 48);
-    let rows = (columns * 20).div_ceil(48);
+    let columns = terminal.width.saturating_sub(3).clamp(1, 56);
+    let rows = (columns * 21).div_ceil(56);
     if terminal.motion && columns >= 26 && terminal.height > rows + 2 {
         const FRAMES: u32 = 30;
         const INTERVAL: Duration = Duration::from_millis(42);
@@ -76,7 +58,7 @@ fn draw(
         yaw: yaw.sin_cos(),
         lean: LEAN.sin_cos(),
     };
-    let (sin_elevation, cos_elevation) = 0.43_f64.sin_cos();
+    let (sin_elevation, cos_elevation) = 0.48_f64.sin_cos();
     let direction = pose.local(Vec3 {
         x: 0.0,
         y: cos_elevation,
@@ -94,27 +76,35 @@ fn draw(
         light,
     };
     let beside_mark = columns + WORDMARK.len() + 7 <= terminal.width;
-    let width = 2.64 / columns as f64;
-    let height = 2.62 / rows as f64;
+    let width = 2.34 / columns as f64;
+    let height = 2.52 / rows as f64;
     let mut frame = String::with_capacity((columns + 4) * rows);
     for row in 0..rows {
         frame.push_str("  ");
-        let vertical = 1.18 - (row as f64 + 0.5) * height;
+        let vertical = 1.17 - (row as f64 + 0.5) * height;
         let mut tinted = false;
         for column in 0..columns {
-            let horizontal = (column as f64 + 0.5) * width - 1.32;
+            let horizontal = (column as f64 + 0.5) * width - 1.17;
             let mut intensity = 0.0;
             let mut tinted_samples = 0;
+            let mut light_samples = 0;
             for x in [horizontal - width * 0.25, horizontal + width * 0.25] {
                 for y in [vertical - height * 0.25, vertical + height * 0.25] {
                     let (tone, sector) = view.sample(x, y);
                     intensity += tone;
                     tinted_samples += u8::from(sector);
+                    light_samples += u8::from(tone >= 0.77 && !sector);
                 }
             }
-            let sector = tinted_samples >= 2;
-            let lit_cell =
-                (intensity.clamp(0.0, 4.0) * (DENSITY.len() - 1) as f64 / 4.0).round() as usize;
+            let sector = tinted_samples >= 2 && light_samples < 2;
+            let coverage = intensity / 4.0;
+            // Keep thin white details legible where they cover half a character cell.
+            let tone = if light_samples >= 2 && !sector {
+                coverage.max(0.75)
+            } else {
+                coverage
+            };
+            let lit_cell = (tone * (DENSITY.len() - 1) as f64).round() as usize;
             if sector != tinted {
                 frame.push_str(if sector {
                     terminal.logo_sector
@@ -138,7 +128,12 @@ fn draw(
     }
     out.write_all(frame.as_bytes())?;
     if settled && !beside_mark {
-        writeln!(out, "  {}{WORDMARK}{}", terminal.strong, terminal.reset)?;
+        let mark = if WORDMARK.len() + 2 < terminal.width {
+            WORDMARK
+        } else {
+            "VOLDIQ"
+        };
+        writeln!(out, "  {}{mark}{}", terminal.strong, terminal.reset)?;
     }
     Ok(())
 }
@@ -162,12 +157,7 @@ impl View {
             origin,
             direction: self.direction,
         };
-        LAYERS
-            .iter()
-            .enumerate()
-            .filter_map(|(layer, cylinder)| cylinder.hit(ray).map(|hit| (layer, hit)))
-            .min_by(|(_, first), (_, second)| first.distance.total_cmp(&second.distance))
-            .map_or((0.0, false), |(layer, hit)| shade(layer, hit, self.light))
+        ray.hit().map_or((0.0, false), |hit| shade(hit, self.light))
     }
 }
 
@@ -211,86 +201,57 @@ impl Ray {
             z: self.origin.z + distance * self.direction.z,
         }
     }
-}
 
-struct Cylinder {
-    radius: f64,
-    bottom: f64,
-    top: f64,
-}
+    fn hit(self) -> Option<Hit> {
+        let distance = (TOP - self.origin.z) / self.direction.z;
+        let top = self.at(distance);
+        if top.x * top.x + top.y * top.y <= 1.0 {
+            return Some(Hit::Face(top));
+        }
 
-struct Hit {
-    distance: f64,
-    point: Vec3,
-    face: bool,
-}
-
-impl Cylinder {
-    fn hit(&self, ray: Ray) -> Option<Hit> {
-        let distance = (self.top - ray.origin.z) / ray.direction.z;
-        let top = ray.at(distance);
-        let radius_squared = self.radius * self.radius;
-        let face = (top.x * top.x + top.y * top.y <= radius_squared).then_some(Hit {
-            distance,
-            point: top,
-            face: true,
-        });
-
-        let a = ray.direction.x * ray.direction.x + ray.direction.y * ray.direction.y;
-        let b = ray.origin.x * ray.direction.x + ray.origin.y * ray.direction.y;
-        let c = ray.origin.x * ray.origin.x + ray.origin.y * ray.origin.y - radius_squared;
+        let a = self.direction.x * self.direction.x + self.direction.y * self.direction.y;
+        let b = self.origin.x * self.direction.x + self.origin.y * self.direction.y;
+        let c = self.origin.x * self.origin.x + self.origin.y * self.origin.y - 1.0;
         let discriminant = b * b - a * c;
         if discriminant < 0.0 {
-            return face;
+            return None;
         }
-        let distance = (-b - discriminant.sqrt()) / a;
-        let side = ray.at(distance);
-        if (self.bottom..=self.top).contains(&side.z)
-            && face.as_ref().is_none_or(|hit| distance < hit.distance)
-        {
-            return Some(Hit {
-                distance,
-                point: side,
-                face: false,
-            });
-        }
-        face
+        let side = self.at((-b - discriminant.sqrt()) / a);
+        (BASE..=TOP).contains(&side.z).then_some(Hit::Wall(side))
     }
 }
 
-fn shade(layer: usize, hit: Hit, light: Vec3) -> (f64, bool) {
-    let point = hit.point;
-    let shine = (point.x * light.x + point.y * light.y).max(0.0);
-    if layer == 0 {
-        return (0.08 + shine * 0.10, false);
-    }
-    let shape = &LAYERS[layer];
-    let top_disc = layer == LAYERS.len() - 1;
-    if hit.face && top_disc {
-        let radius = point.x.hypot(point.y);
-        let separator = point.y + point.x * 0.22;
-        if radius < 0.26
-            || (point.y > 0.0 && point.x.abs() < 0.043)
-            || (point.x > 0.0 && separator.abs() < 0.048)
-        {
-            return (0.96, false);
+enum Hit {
+    Face(Vec3),
+    Wall(Vec3),
+}
+
+fn shade(hit: Hit, light: Vec3) -> (f64, bool) {
+    let shine = |point: Vec3| (point.x * light.x + point.y * light.y).max(0.0);
+    match hit {
+        Hit::Face(point) => {
+            let edge = point.y + point.x * 0.34;
+            let hub = point.x.hypot(point.y) <= 0.24;
+            let upright_line = point.y > 0.0 && point.x.abs() <= 0.038;
+            let radial_line = point.x > 0.0 && edge.abs() <= 0.066;
+            if hub || upright_line || radial_line {
+                return (1.0, false);
+            }
+            if point.x > 0.0 && edge > 0.0 {
+                return (0.79 + 0.10 * shine(point), true);
+            }
+            (0.27 + 0.09 * shine(point), false)
         }
-        if point.x > 0.0 && separator > 0.0 {
-            return (0.68 + shine * 0.26, true);
+        Hit::Wall(point) => {
+            let shine = shine(point);
+            let rim = RIMS
+                .iter()
+                .any(|&top| (top - RIM_WIDTH..=top).contains(&point.z));
+            if rim {
+                return (0.77 + 0.23 * shine, false);
+            }
+            let height = (point.z - BASE) / (TOP - BASE);
+            (0.18 + 0.12 * shine + 0.05 * height, false)
         }
-        if radius > 0.94 {
-            return (0.79 + shine * 0.17, false);
-        }
-        return (0.22 + shine * 0.20, false);
     }
-    if hit.face {
-        return (0.66 + shine * 0.16, false);
-    }
-    if point.z > shape.top - 0.081 {
-        return (0.87 + shine * 0.12, false);
-    }
-    if layer == 1 && point.z < shape.bottom + 0.052 {
-        return (0.49 + shine * 0.16, false);
-    }
-    (0.21 + shine * 0.22, false)
 }
