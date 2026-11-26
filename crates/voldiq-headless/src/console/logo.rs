@@ -8,34 +8,34 @@ use std::{
 
 const WORDMARK: &str = "VOLDIQ  /  Disk space analyzer";
 const DENSITY: &[u8] = b" .:-=+*#%@";
-const REST_YAW: f64 = 0.64;
-const LEAN: f64 = 0.19;
+const REST_YAW: f64 = 0.13;
+const LEAN: f64 = 0.14;
 const LAYERS: [Cylinder; 4] = [
     Cylinder {
-        radius: 0.76,
-        bottom: -0.69,
+        radius: 0.78,
+        bottom: -0.78,
         top: 0.43,
     },
     Cylinder {
         radius: 0.99,
-        bottom: -0.7,
-        top: -0.41,
+        bottom: -0.85,
+        top: -0.49,
     },
     Cylinder {
         radius: 1.0,
-        bottom: -0.30,
-        top: -0.01,
+        bottom: -0.43,
+        top: -0.05,
     },
     Cylinder {
         radius: 1.0,
-        bottom: 0.09,
-        top: 0.46,
+        bottom: 0.02,
+        top: 0.45,
     },
 ];
 
 pub(super) fn write(out: &mut impl Write, terminal: &Terminal) -> io::Result<()> {
-    let columns = terminal.width.saturating_sub(3).clamp(1, 42);
-    let rows = (columns * 18).div_ceil(42);
+    let columns = terminal.width.saturating_sub(3).clamp(1, 48);
+    let rows = (columns * 20).div_ceil(48);
     if terminal.motion && columns >= 26 && terminal.height > rows + 2 {
         const FRAMES: u32 = 30;
         const INTERVAL: Duration = Duration::from_millis(42);
@@ -76,7 +76,7 @@ fn draw(
         yaw: yaw.sin_cos(),
         lean: LEAN.sin_cos(),
     };
-    let (sin_elevation, cos_elevation) = 0.48_f64.sin_cos();
+    let (sin_elevation, cos_elevation) = 0.43_f64.sin_cos();
     let direction = pose.local(Vec3 {
         x: 0.0,
         y: cos_elevation,
@@ -95,11 +95,11 @@ fn draw(
     };
     let beside_mark = columns + WORDMARK.len() + 7 <= terminal.width;
     let width = 2.64 / columns as f64;
-    let height = 2.48 / rows as f64;
+    let height = 2.62 / rows as f64;
     let mut frame = String::with_capacity((columns + 4) * rows);
     for row in 0..rows {
         frame.push_str("  ");
-        let vertical = 1.17 - (row as f64 + 0.5) * height;
+        let vertical = 1.18 - (row as f64 + 0.5) * height;
         let mut tinted = false;
         for column in 0..columns {
             let horizontal = (column as f64 + 0.5) * width - 1.32;
@@ -117,7 +117,7 @@ fn draw(
                 (intensity.clamp(0.0, 4.0) * (DENSITY.len() - 1) as f64 / 4.0).round() as usize;
             if sector != tinted {
                 frame.push_str(if sector {
-                    terminal.accent
+                    terminal.logo_sector
                 } else {
                     terminal.reset
                 });
@@ -259,37 +259,38 @@ impl Cylinder {
 }
 
 fn shade(layer: usize, hit: Hit, light: Vec3) -> (f64, bool) {
-    let mut sector = false;
-    let intensity = if hit.face {
-        let radius = hit.point.x.hypot(hit.point.y);
-        let gloss =
-            (1.0 - (hit.point.x * light.x + hit.point.y * light.y + 0.25).abs() * 1.5).max(0.0);
-        if layer != LAYERS.len() - 1 {
-            0.35 + gloss * 0.19
-        } else if radius < 0.14 {
-            0.95
-        } else if radius < 0.22 {
-            0.43
-        } else if radius > 0.95 {
-            0.78 + gloss * 0.2
-        } else {
-            sector = (hit.point.y.atan2(hit.point.x) + 0.85).abs() < 0.49;
-            if sector {
-                0.36 + gloss * 0.29
-            } else {
-                0.69 + gloss * 0.24
-            }
+    let point = hit.point;
+    let shine = (point.x * light.x + point.y * light.y).max(0.0);
+    if layer == 0 {
+        return (0.08 + shine * 0.10, false);
+    }
+    let shape = &LAYERS[layer];
+    let top_disc = layer == LAYERS.len() - 1;
+    if hit.face && top_disc {
+        let radius = point.x.hypot(point.y);
+        let separator = point.y + point.x * 0.22;
+        if radius < 0.26
+            || (point.y > 0.0 && point.x.abs() < 0.043)
+            || (point.x > 0.0 && separator.abs() < 0.048)
+        {
+            return (0.96, false);
         }
-    } else {
-        let shape = &LAYERS[layer];
-        let diffuse = ((hit.point.x * light.x + hit.point.y * light.y) / shape.radius).max(0.0);
-        if layer == 0 {
-            0.12 + 0.12 * diffuse
-        } else {
-            let lip = (1.0 - (shape.top - hit.point.z) / 0.075).max(0.0);
-            let shadow = (1.0 - (hit.point.z - shape.bottom) / 0.1).max(0.0);
-            0.23 + layer as f64 * 0.033 + 0.43 * diffuse + 0.18 * lip - 0.13 * shadow
+        if point.x > 0.0 && separator > 0.0 {
+            return (0.68 + shine * 0.26, true);
         }
-    };
-    (intensity, sector)
+        if radius > 0.94 {
+            return (0.79 + shine * 0.17, false);
+        }
+        return (0.22 + shine * 0.20, false);
+    }
+    if hit.face {
+        return (0.66 + shine * 0.16, false);
+    }
+    if point.z > shape.top - 0.081 {
+        return (0.87 + shine * 0.12, false);
+    }
+    if layer == 1 && point.z < shape.bottom + 0.052 {
+        return (0.49 + shine * 0.16, false);
+    }
+    (0.21 + shine * 0.22, false)
 }

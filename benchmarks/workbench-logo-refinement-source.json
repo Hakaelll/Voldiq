@@ -1,0 +1,74 @@
+{
+  "checkedUtc": "2026-11-26T21:17:21.9127049Z",
+  "startedUtc": "2026-11-26T21:13:32.122245Z",
+  "checkoutCommit": "89b2e6098d92ab38b9adffcfa1792dfdfa532b0a",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.089
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.215
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.749
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.106
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 207.391
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 6.216
+    }
+  ],
+  "inputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "48642BFA6DA8C3A4AA1E951B3806BE9EB4E142CA4C0CA397E0237AD46D4495C1"
+    },
+    {
+      "path": "crates/voldiq-headless/src/console/logo.rs",
+      "sha256": "7A1DD694B080857A881F88CACE097EAF9B4C1102E8DECF9802D59DD5EA3E8885"
+    },
+    {
+      "path": "crates/voldiq-headless/src/console/terminal.rs",
+      "sha256": "5D8C72CAED99EC64CC5E137A26737461E021C6EEB6CB65AC70D42254C26003E3"
+    }
+  ],
+  "logo": {
+    "previewPid": 16228,
+    "previewRunning": true,
+    "sha256": "D8E0A2F903BD6ACDE52AE3F5562FE505325BCAFFA8C997B8E0710A66547007C1",
+    "cliBytes": 7560704,
+    "blueSector": true,
+    "cyanMenu": true,
+    "replayed": true,
+    "monochromeStatic": true,
+    "terminalScreens": 31,
+    "comparison": "Before and after from the actual renderer at 80 columns with the same monospace font and background.",
+    "geometry": {
+      "rendererFrames": 31,
+      "distinctSilhouettes": 29,
+      "filledCells": 558,
+      "elapsedMs": 1260
+    }
+  }
+}

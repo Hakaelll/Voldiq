@@ -152,7 +152,7 @@ components:
 
 ## Terminal console
 
-The terminal mark shows three filled disks with curved rims, shaded faces and a colored top segment in supported terminals. The whole tilted piece turns around the vertical axis under a fixed light. It settles after one turn on startup and can be replayed with R. Windows' animation preference and the console's static option show the settled view.
+The terminal mark follows the original Voldiq icon. Dark filled disk faces are separated by light curved rims. A light central hub and two radial lines frame the blue segment on the top disc. The blue is reserved for the mark and uses a different terminal color from the cyan command keys. The whole tilted piece turns around the vertical axis under a fixed light. It settles after one turn on startup and can be replayed with R. Windows' animation preference and the console's static option show the settled view.
 
 The menu separates analysis from browsing. Accented key markers identify actions. Section headings and aligned result rows keep attention on measured sizes. Filled ASCII bars show measured volume use or search result size relative to the largest match. Missing measurements use a dashed bar and an explicit unknown label. The console remains legible with color disabled.
 

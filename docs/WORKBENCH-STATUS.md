@@ -1,5 +1,9 @@
 # Storage workbench status
 
+## Detailed ASCII logo
+
+The console logo now follows the supplied Voldiq icon more closely. Light rims separate the three dark filled disks. A bright hub and two radial separators define a blue sector. The tilted shape still rotates around the vertical axis. The original and revised settled poses were rendered at the same terminal width and font. The Windows pseudoterminal verified the separate blue mark and cyan menu, replay, and monochrome static output. The Windows console preview stayed open. [Verification](../benchmarks/workbench-logo-refinement-source.json)
+
 ## Exact duplicate verification for selected files
 
 CLI verify-duplicates and MCP voldiq_verify_duplicates verify a selection from an authorized Windows snapshot. Both check Metadata and ReadContent, open current local files through pinned parents, and use the desktop's shared sample and streaming BLAKE3 functions. The console opens candidate groups to show file IDs and displays the matches confirmed for the selected IDs. The call has a 256 MiB read budget. Whole-folder background verification remains pending.
