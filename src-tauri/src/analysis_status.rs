@@ -11,6 +11,7 @@ pub(crate) struct LoadedAnalysis {
     pub id: IndexId,
     pub index: SharedIndex,
     pub analyzed_at: Option<u64>,
+    pub desktop_capture: Option<voldiq_core::jobs::DesktopCapture>,
 }
 
 #[derive(Serialize)]
@@ -19,6 +20,7 @@ pub(crate) struct ScanProgress {
     #[serde(flatten)]
     pub progress: Progress,
     pub analyzed_at: Option<u64>,
+    pub activity_unavailable: bool,
 }
 
 pub(crate) fn analyzed_at(

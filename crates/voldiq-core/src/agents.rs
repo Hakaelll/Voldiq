@@ -251,7 +251,7 @@ impl Registry {
         let id = self
             .connection
             .query_row(
-                "SELECT id FROM agents WHERE credential_hash=?1 AND revoked=0 AND desktop=0",
+                "SELECT id FROM agents WHERE credential_hash=?1 AND revoked=0 AND desktop=0 AND id>0",
                 [&hash],
                 |row| row.get(0),
             )

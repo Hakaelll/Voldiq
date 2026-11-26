@@ -7,11 +7,13 @@
   type Scan = {
     id: string;
     root: string;
+    origin: 'desktop' | 'headless';
     state: 'running' | 'completed' | 'cancelled' | 'failed' | 'interrupted';
     started: number;
     finished: number | null;
     cancel_requested: boolean;
     saved_result: boolean;
+    snapshot_recorded: boolean;
     progress: {
       phase: 'scanning' | 'complete' | 'cancelled' | 'failed';
       files: number;
@@ -85,7 +87,8 @@
         if (scan.cancel_requested) return 'Cancellation requested';
         return scan.progress?.phase === 'complete' ? 'Finishing scan' : 'Scanning';
       case 'completed':
-        return scan.saved_result ? 'Saved snapshot' : 'Completed · snapshot unavailable';
+        if (scan.saved_result) return 'Saved snapshot';
+        return scan.snapshot_recorded ? 'Completed · snapshot unavailable' : 'Completed · no saved snapshot';
       case 'cancelled':
         return 'Cancelled';
       case 'failed':
@@ -96,7 +99,7 @@
   }
 
   async function requestStop(scan: Scan): Promise<void> {
-    if (action || readError || scan.cancel_requested || scan.state !== 'running') return;
+    if (action || readError || scan.origin !== 'headless' || scan.cancel_requested || scan.state !== 'running') return;
     action = { id: scan.id, kind: 'stop' };
     problem = '';
     try {
@@ -160,19 +163,19 @@
 </script>
 
 <details class="shared-scans overview-diagnostics" bind:open={expanded}>
-  <summary bind:this={summary}>Scans from CLI and MCP{#if expanded && activeScan}<span> · Active</span>{/if}</summary>
+  <summary bind:this={summary}>Scan activity{#if expanded && activeScan}<span> · Active</span>{/if}</summary>
   {#if expanded}
     {#if readError}<p role="alert">Scan activity is unavailable. <button class="quiet-action" onclick={() => (refresh += 1)}>Retry</button></p>{/if}
     {#if problem}<p role="alert">{problem}</p>{/if}
     {#if scans === null && !readError}<p role="status">Loading scan activity…</p>
-    {:else if scans?.length === 0}<p>No scans from CLI or MCP in this profile.</p>
+    {:else if scans?.length === 0}<p>No recorded scans in this profile.</p>
     {:else if scans}
       <ul aria-label="Recent scans">
         {#each scans as scan (scan.id)}
           <li>
             <div class="shared-scan-root">
               <strong title={scan.root}>{scan.root}</strong>
-              <span>{date(scan.finished ?? scan.started)}</span>
+              <span>{scan.origin === 'desktop' ? 'Voldiq' : 'CLI / MCP'} · {date(scan.finished ?? scan.started)}</span>
             </div>
             <div class="shared-scan-state">
               <strong class:active={scan.state === 'running'}>{status(scan)}</strong>
@@ -183,7 +186,7 @@
             <div class="shared-scan-action">
               {#if action?.kind === 'open' && action.id === scan.id}
                 <button class="quiet-action" onclick={stopOpening} disabled={operationId === null || stopping}>{stopping ? 'Stopping…' : 'Cancel opening'}</button>
-              {:else if scan.state === 'running' && !scan.cancel_requested}
+              {:else if scan.origin === 'headless' && scan.state === 'running' && !scan.cancel_requested}
                 <button class="quiet-action" onclick={() => requestStop(scan)} disabled={action !== null || readError}>Cancel scan</button>
               {:else if scan.saved_result}
                 <button class="quiet-action" onclick={() => open(scan)} disabled={blocked || activeScan || action !== null || readError}>Open snapshot</button>

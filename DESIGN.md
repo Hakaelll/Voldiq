@@ -244,7 +244,7 @@ The desktop shell reserves a stable 224px labeled sidebar or a manually selected
 
 Appearance places Binary (GiB) and Decimal (GB) in one labeled Storage units row. Charts, lists and size filters use the selected labels. Changing the unit preserves the byte threshold in a saved search.
 
-Overview adds a collapsed Scans from CLI and MCP row. Its expanded list aligns the recorded path, measured progress, state and available action. It refreshes while the panel is visible. Open snapshot loads a saved result as historical analysis. Cancel scan shows the recorded cancellation request until the worker reports a final state.
+Overview has a collapsed Scan activity row. Its expanded list aligns the recorded path, origin, measured progress, state and available action. It refreshes while the panel is visible. Desktop scans use the main scan controls for cancellation. CLI and MCP rows can request cancellation in the list. Open snapshot loads a saved result as historical analysis. The list distinguishes a completed unsaved scan from a saved snapshot that has since become unavailable.
 
 History comparison and playback give the map a plot sized to the window height. Two inline radio options choose Size or File type. The size colors share the comparison or playback byte scale. Other contents keeps its own neutral swatch. Changing colors keeps the same area, scope and playback position. Animated exports use the colors and display units selected at submission.
 

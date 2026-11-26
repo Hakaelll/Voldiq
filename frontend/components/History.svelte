@@ -51,7 +51,7 @@
   let comparisonLoading = $state(false),
     comparisonProblem = $state('');
   let retentionOpen = $state(false),
-    retentionResult = $state('');
+    historyNotice = $state('');
   let deleting = $state<number | null>(null);
   let loadState = $state<'loading' | 'ready' | 'unavailable'>(isTauri() ? 'loading' : 'ready');
   let region: HTMLDivElement;
@@ -185,11 +185,15 @@
   }
   async function save(): Promise<void> {
     await mutate(async () => {
-      const saved = await invokeIndexed<number | null>('save_snapshot', {
+      historyNotice = '';
+      const saved = await invokeIndexed<{ id: number; activity_link_failed: boolean } | null>('save_snapshot', {
         operation: operationChannel(),
       });
       finishOperation();
-      if (saved !== null && alive) await refresh(0);
+      if (saved !== null && alive) {
+        if (saved.activity_link_failed) historyNotice = 'Snapshot saved. Scan activity could not be updated.';
+        await refresh(0);
+      }
     }, true);
   }
   async function configureRetention(
@@ -218,7 +222,7 @@
       finishOperation();
       if (result !== null && alive) {
         await refresh(0);
-        retentionResult = `Removed ${result.removed} saved captures. ${result.remaining_eligible} remain eligible in that history group.`;
+        historyNotice = `Removed ${result.removed} saved captures. ${result.remaining_eligible} remain eligible in that history group.`;
         await tick();
         if (alive && document.activeElement === document.body)
           (region.querySelector<HTMLInputElement>('.snapshot-row input:checked') ?? region).focus();
@@ -449,7 +453,7 @@
             />{/key}{/if}
       </details>{/if}
   </details>
-  {#if retentionResult}<p role="status">{retentionResult}</p>{/if}
+  {#if historyNotice}<p role="status">{historyNotice}</p>{/if}
   {#if loadState !== 'ready'}
     <section class="panel history-empty" aria-live="polite">
       <h2>{loadState === 'loading' ? 'Loading…' : 'History unavailable'}</h2>

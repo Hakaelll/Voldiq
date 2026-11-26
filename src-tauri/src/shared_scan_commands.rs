@@ -11,6 +11,7 @@ use voldiq_core::{
 pub struct SharedScan {
     #[serde(flatten)]
     job: DesktopJob,
+    snapshot_recorded: bool,
     saved_result: bool,
 }
 
@@ -47,7 +48,11 @@ pub async fn list_shared_scans(
                     .transpose()
                     .map_err(|error| error.to_string())?
                     .unwrap_or(false);
-                Ok(SharedScan { job, saved_result })
+                Ok(SharedScan {
+                    snapshot_recorded: job.snapshot_id.is_some(),
+                    job,
+                    saved_result,
+                })
             })
             .collect()
     })

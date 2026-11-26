@@ -3,7 +3,7 @@ use serde_json::{Value, json};
 use voldiq_core::agents::{Capability, Limits, Policy, Registry};
 use voldiq_core::{
     Progress, ScanPhase,
-    jobs::{JobState, Jobs},
+    jobs::{DesktopScan, JobState, Jobs, ScanOrigin},
     operations::Lease,
 };
 
@@ -128,6 +128,7 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     assert_eq!(desktop.len(), 1);
     assert_eq!(desktop[0].id, id.to_string());
     assert_eq!(desktop[0].state, JobState::Completed);
+    assert_eq!(desktop[0].origin, ScanOrigin::Headless);
     assert_eq!(desktop[0].snapshot_id, Some(snapshot));
     assert_eq!(desktop[0].progress.as_ref().unwrap().logical, "11");
     let visible = serde_json::to_value(&desktop[0]).unwrap();
@@ -186,6 +187,63 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         snapshot
     );
     assert!(Jobs::snapshot_for_desktop(&lease, running).is_err());
+    drop(lease);
+
+    let lease = Lease::acquire(isolated.path()).unwrap();
+    let mut local = DesktopScan::begin(&lease, source.path()).unwrap();
+    let previous = Progress {
+        previous: true,
+        phase: ScanPhase::Scanning,
+        entries: 10,
+        files: 9,
+        logical: 200,
+        elapsed_ms: 0,
+        errors: 0,
+        method: "Owned fixture".into(),
+    };
+    local.observe(&previous).unwrap();
+    let activity = Jobs::recent_for_desktop(isolated.path()).unwrap();
+    let local_id = activity[0].id.parse::<i64>().unwrap();
+    assert_eq!(activity[0].origin, ScanOrigin::Desktop);
+    assert_eq!(activity[0].state, JobState::Running);
+    assert!(activity[0].progress.is_none());
+    assert!(journal.get(18, local_id).is_err());
+    assert!(Jobs::cancel_for_desktop(isolated.path(), local_id).is_err());
+    let measured = Progress {
+        previous: false,
+        phase: ScanPhase::Complete,
+        entries: 2,
+        files: 1,
+        logical: 11,
+        ..previous
+    };
+    let capture = local
+        .finish(JobState::Completed, Some(&measured))
+        .unwrap()
+        .unwrap();
+    assert!(Jobs::snapshot_for_desktop(&lease, local_id).is_err());
+    drop(lease);
+
+    // Saving a capture reacquires the profile lease after the scan worker leaves.
+    let stop = std::sync::atomic::AtomicBool::new(false);
+    let mut store =
+        voldiq_core::snapshots::Store::open(&isolated.path().join("snapshots.db")).unwrap();
+    let index =
+        voldiq_core::scanner::scan(source.path(), &Default::default(), &stop, |_| {}).unwrap();
+    let lease = Lease::acquire(isolated.path()).unwrap();
+    let saved = store.save(&index, &stop, &[]).unwrap();
+    let other = tempfile::tempdir().unwrap();
+    assert!(
+        capture
+            .link_snapshot(&Lease::acquire(other.path()).unwrap(), saved)
+            .is_err()
+    );
+    capture.link_snapshot(&lease, saved).unwrap();
+    assert_eq!(Jobs::snapshot_for_desktop(&lease, local_id).unwrap(), saved);
+    assert_eq!(store.summary(saved).unwrap().unwrap().logical, 11);
+    let activity = Jobs::recent_for_desktop(isolated.path()).unwrap();
+    assert_eq!(activity[0].snapshot_id, Some(saved));
+    assert_eq!(activity[0].progress.as_ref().unwrap().logical, "11");
     drop(lease);
 
     let stats = call(&client, "voldiq_stats", json!({"snapshot_id":snapshot})).await;

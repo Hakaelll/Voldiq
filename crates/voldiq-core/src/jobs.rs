@@ -7,8 +7,10 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension, TransactionBehavior, pa
 use serde::{Deserialize, Serialize};
 use std::{
     path::{Path, PathBuf},
-    time::{Duration, SystemTime, UNIX_EPOCH},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
+
+const DESKTOP_OWNER: i64 = 0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -59,12 +61,20 @@ pub struct DesktopJob {
     pub id: String,
     pub root: PathBuf,
     pub state: JobState,
+    pub origin: ScanOrigin,
     pub started: i64,
     pub finished: Option<i64>,
     #[serde(skip)]
     pub snapshot_id: Option<i64>,
     pub cancel_requested: bool,
     pub progress: Option<DesktopProgress>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ScanOrigin {
+    Desktop,
+    Headless,
 }
 
 #[derive(Serialize)]
@@ -79,6 +89,81 @@ pub struct Jobs {
     connection: Connection,
     directory_identity: (u64, u64),
     _directory: Coordinator,
+}
+
+pub struct DesktopScan {
+    jobs: Jobs,
+    id: i64,
+    last_update: Option<Instant>,
+}
+
+#[derive(Clone, Copy)]
+pub struct DesktopCapture {
+    job: i64,
+    directory_identity: (u64, u64),
+}
+
+impl DesktopScan {
+    pub fn begin(lease: &Lease, root: &Path) -> Result<Self> {
+        let mut jobs = Jobs::open(lease.directory())?;
+        let id = jobs.begin(lease, DESKTOP_OWNER, root)?;
+        Ok(Self {
+            jobs,
+            id,
+            last_update: None,
+        })
+    }
+
+    pub fn observe(&mut self, progress: &Progress) -> Result<()> {
+        if progress.previous
+            || self
+                .last_update
+                .is_some_and(|last| last.elapsed() < Duration::from_secs(1))
+        {
+            return Ok(());
+        }
+        self.last_update = Some(Instant::now());
+        self.jobs.progress(DESKTOP_OWNER, self.id, progress)?;
+        Ok(())
+    }
+
+    pub fn finish(
+        self,
+        state: JobState,
+        progress: Option<&Progress>,
+    ) -> Result<Option<DesktopCapture>> {
+        self.jobs.finish_with_progress(
+            DESKTOP_OWNER,
+            self.id,
+            state,
+            None,
+            progress.filter(|update| {
+                !update.previous && (update.phase != ScanPhase::Cancelled || update.entries > 0)
+            }),
+        )?;
+        Ok((state == JobState::Completed).then_some(DesktopCapture {
+            job: self.id,
+            directory_identity: self.jobs.directory_identity,
+        }))
+    }
+}
+
+impl DesktopCapture {
+    /// Attach a capture from the same immutable desktop analysis after the snapshot commit.
+    pub fn link_snapshot(&self, lease: &Lease, snapshot: i64) -> Result<()> {
+        if self.directory_identity != lease.directory_identity() || snapshot <= 0 {
+            return Err(unavailable());
+        }
+        let jobs = Jobs::open(lease.directory())?;
+        if jobs.connection.execute(
+            "UPDATE scan_jobs SET snapshot_id=?1 WHERE id=?2 AND owner=?3 AND state='completed'",
+            params![snapshot, self.job, DESKTOP_OWNER],
+        )? != 1
+        {
+            return Err(unavailable());
+        }
+        Ok(())
+    }
 }
 
 impl Jobs {
@@ -134,7 +219,7 @@ impl Jobs {
 
     fn recent(&self) -> Result<Vec<DesktopJob>> {
         let mut statement = self.connection.prepare(
-            "SELECT id,root,state,started,finished,snapshot_id,cancel_requested,progress
+            "SELECT id,root,state,started,finished,snapshot_id,cancel_requested,progress,owner
              FROM scan_jobs ORDER BY id DESC LIMIT 8",
         )?;
         let mut rows = statement.query([])?;
@@ -154,6 +239,11 @@ impl Jobs {
                 id: job.id.to_string(),
                 root: job.root,
                 state: job.state,
+                origin: if row.get::<_, i64>(8)? == DESKTOP_OWNER {
+                    ScanOrigin::Desktop
+                } else {
+                    ScanOrigin::Headless
+                },
                 started: job.started,
                 finished: job.finished,
                 snapshot_id: job.snapshot_id.filter(|_| job.state == JobState::Completed),
@@ -184,8 +274,8 @@ impl Jobs {
         let reader = Self::read_existing(directory)?.ok_or_else(unavailable)?;
         let jobs = Self::open(reader._directory.directory())?;
         if jobs.connection.execute(
-            "UPDATE scan_jobs SET cancel_requested=1 WHERE id=?1 AND state='running'",
-            [id],
+            "UPDATE scan_jobs SET cancel_requested=1 WHERE id=?1 AND state='running' AND owner!=?2",
+            params![id, DESKTOP_OWNER],
         )? != 1
         {
             return Err(unavailable());
@@ -307,11 +397,26 @@ impl Jobs {
         state: JobState,
         snapshot_id: Option<i64>,
     ) -> Result<()> {
+        self.finish_with_progress(owner, id, state, snapshot_id, None)
+    }
+
+    fn finish_with_progress(
+        &self,
+        owner: i64,
+        id: i64,
+        state: JobState,
+        snapshot_id: Option<i64>,
+        progress: Option<&Progress>,
+    ) -> Result<()> {
         if state == JobState::Running || (state != JobState::Completed && snapshot_id.is_some()) {
             return Err(unavailable());
         }
-        if self.connection.execute("UPDATE scan_jobs SET state=?1,finished=?2,snapshot_id=?3 WHERE id=?4 AND owner=?5 AND state='running'",
-            params![state.as_str(),now()?,snapshot_id,id,owner])? != 1 { return Err(unavailable()); }
+        let progress = progress
+            .map(serde_json::to_string)
+            .transpose()
+            .map_err(|_| unavailable())?;
+        if self.connection.execute("UPDATE scan_jobs SET state=?1,finished=?2,snapshot_id=?3,progress=COALESCE(?4,progress) WHERE id=?5 AND owner=?6 AND state='running'",
+            params![state.as_str(),now()?,snapshot_id,progress,id,owner])? != 1 { return Err(unavailable()); }
         Ok(())
     }
 

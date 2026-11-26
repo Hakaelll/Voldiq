@@ -1997,10 +1997,10 @@
                       : 'Cancelled · partial results'
                   : 'Scan failed'}</span
           ><span
-            >{operation.files.toLocaleString()} files · {bytes(operation.logical)} logical · {(
+          >{operation.files.toLocaleString()} files · {bytes(operation.logical)} logical · {(
               operation.elapsed_ms / 1000
             ).toFixed(1)} s</span
-          >{#if operation.phase === 'scanning' && pauseStatus.observed === 'paused' && pauseStatus.activity !== 'resume'}<span
+          >{#if operation.activity_unavailable}<span>Scan activity unavailable</span>{/if}{#if operation.phase === 'scanning' && pauseStatus.observed === 'paused' && pauseStatus.activity !== 'resume'}<span
               >Last reported progress</span
             >{/if}{#if operation.errors > 0}<button class="quiet-action" onclick={inspectIssues}
               >{operation.errors} access issues</button

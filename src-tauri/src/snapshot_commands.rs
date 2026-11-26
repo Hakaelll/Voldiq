@@ -132,17 +132,17 @@ pub async fn save_snapshot(
     app: tauri::AppHandle,
     engine: State<'_, Arc<Engine>>,
     database: State<'_, SnapshotDatabase>,
-) -> Result<Option<i64>, String> {
+) -> Result<Option<SavedSnapshot>, String> {
     let engine = engine.inner().clone();
     let active_operation = engine.begin()?;
     let id = active_operation.id;
     let cancel = active_operation.cancel.clone();
-    let index = engine.index_for(index_id)?;
+    let analysis = engine.analysis_for(index_id)?;
     operation.send(id).map_err(|error| error.to_string())?;
     let store = database.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = active_operation;
-        let index = index.read().map_err(|e| e.to_string())?;
+        let index = analysis.index.read().map_err(|e| e.to_string())?;
         if index.snapshot_id.is_some() {
             return Err("Rescan before saving a new snapshot.".into());
         }
@@ -157,13 +157,24 @@ pub async fn save_snapshot(
             .map_err(|error| error.to_string())?
             .save_with_libraries(&index, &cancel, &caches, evidence.as_ref());
         match saved {
-            Ok(id) => Ok(Some(id)),
+            Ok(id) => Ok(Some(SavedSnapshot {
+                id,
+                activity_link_failed: analysis
+                    .desktop_capture
+                    .is_some_and(|capture| capture.link_snapshot(&_operation._lease, id).is_err()),
+            })),
             Err(_) if cancel.load(Ordering::Relaxed) => Ok(None),
             Err(error) => Err(error.to_string()),
         }
     })
     .await
     .map_err(|e| e.to_string())?
+}
+
+#[derive(serde::Serialize)]
+pub struct SavedSnapshot {
+    id: i64,
+    activity_link_failed: bool,
 }
 
 #[tauri::command]

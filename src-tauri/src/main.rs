@@ -59,6 +59,7 @@ use snapshot_commands::*;
 use voldiq_core::{
     NodeId, Progress, ScanOptions, ScanPhase,
     duplicates::{self, Analysis, HashCache},
+    jobs::{DesktopCapture, DesktopScan, JobState},
     scanner::{self, SharedIndex},
     windows::Volume,
 };
@@ -144,12 +145,15 @@ impl Engine {
         })
     }
     fn index_for(&self, expected: IndexId) -> Result<SharedIndex, String> {
+        Ok(self.analysis_for(expected)?.index)
+    }
+    fn analysis_for(&self, expected: IndexId) -> Result<analysis_status::LoadedAnalysis, String> {
         self.index
             .lock()
             .map_err(|error| error.to_string())?
             .as_ref()
             .filter(|loaded| loaded.id == expected)
-            .map(|loaded| loaded.index.clone())
+            .cloned()
             .ok_or_else(|| "Analysis changed. Refresh the view before continuing.".into())
     }
     fn index_id(&self) -> Result<Option<IndexId>, String> {
@@ -186,8 +190,19 @@ impl Engine {
             id,
             index,
             analyzed_at,
+            desktop_capture: None,
         });
         Ok(id)
+    }
+
+    fn attach_desktop_capture(&self, id: IndexId, capture: DesktopCapture) -> Result<(), String> {
+        let mut slot = self.index.lock().map_err(|error| error.to_string())?;
+        let analysis = slot
+            .as_mut()
+            .filter(|loaded| loaded.id == id)
+            .ok_or("Analysis changed before its activity could be linked.")?;
+        analysis.desktop_capture = Some(capture);
+        Ok(())
     }
 }
 
@@ -304,6 +319,18 @@ fn launch_scan(
         let _pinned_root = pinned_root;
         let mut final_progress = None;
         let path = PathBuf::from(path);
+        let mut activity_unavailable = false;
+        let mut activity = if engine.mode == profile::Mode::Ephemeral {
+            None
+        } else {
+            match DesktopScan::begin(&_operation._lease, &path) {
+                Ok(activity) => Some(activity),
+                Err(_) => {
+                    activity_unavailable = true;
+                    None
+                }
+            }
+        };
         let start = std::time::Instant::now();
         let can_resume = options.mode == voldiq_core::ScanMode::Auto
             && previous.is_none()
@@ -347,11 +374,17 @@ fn launch_scan(
                 &cancel,
                 |update| {
                     if update.phase == ScanPhase::Scanning {
+                        if let Some(activity) = activity.as_mut()
+                            && activity.observe(&update).is_err()
+                        {
+                            activity_unavailable = true;
+                        }
                         let analyzed_at = if update.previous { previous_date } else { None };
                         let _ = progress.send(analysis_status::ScanProgress {
                             index_id: engine.index_id().ok().flatten(),
                             progress: update,
                             analyzed_at,
+                            activity_unavailable,
                         });
                     } else {
                         final_progress = Some(update);
@@ -365,6 +398,7 @@ fn launch_scan(
             .map(Some)
         };
         let mut failure = None;
+        let mut published = None;
         match result {
             Ok(Some(index)) => {
                 let captured =
@@ -387,12 +421,39 @@ fn launch_scan(
                         std::time::SystemTime::now(),
                     )
                 });
-                if let Err(error) = captured.and_then(|_| engine.publish(index, date, true)) {
-                    failure = Some(error);
+                match captured.and_then(|_| engine.publish(index, date, true)) {
+                    Ok(index_id) => published = Some(index_id),
+                    Err(error) => failure = Some(error),
                 }
             }
             Ok(None) => {}
             Err(error) => failure = Some(error.to_string()),
+        }
+        if let Some(activity) = activity {
+            let state = match final_progress.as_ref() {
+                Some(update)
+                    if update.phase == ScanPhase::Complete
+                        && !update.previous
+                        && published.is_some() =>
+                {
+                    JobState::Completed
+                }
+                Some(update) if update.phase == ScanPhase::Cancelled && failure.is_none() => {
+                    JobState::Cancelled
+                }
+                _ => JobState::Failed,
+            };
+            match activity.finish(state, final_progress.as_ref()) {
+                Ok(Some(capture)) => {
+                    if let Some(id) = published
+                        && engine.attach_desktop_capture(id, capture).is_err()
+                    {
+                        activity_unavailable = true;
+                    }
+                }
+                Ok(None) => {}
+                Err(_) => activity_unavailable = true,
+            }
         }
         let (index_id, analyzed_at) = engine
             .index
@@ -420,6 +481,7 @@ fn launch_scan(
                     method: error,
                 },
                 analyzed_at,
+                activity_unavailable,
             });
         } else if let Some(update) = final_progress {
             #[cfg(windows)]
@@ -429,6 +491,7 @@ fn launch_scan(
                 index_id,
                 progress: update,
                 analyzed_at,
+                activity_unavailable,
             });
             #[cfg(windows)]
             if notify {

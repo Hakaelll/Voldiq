@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Desktop scans in shared activity
+
+Overview → Scan activity groups interactive desktop, CLI and MCP scans in the last eight durable job records. It shows which scans are still running, finished without a saved snapshot, or have a saved snapshot that can be opened. Desktop scans retain their normal pause and cancellation controls. Temporary sessions skip the durable activity record.
+
+History links a saved snapshot to its exact completed desktop analysis under the profile lease. A snapshot remains saved if the activity link fails, with a notice in History. The job record never copies measurements from a previous analysis into a newly started scan. Keyboard interaction and scaling remain manual in Windows.
+
+All six project checks passed with eight routine tests. An owned fixture verified the desktop origin, owner-scope refusal, exclusion of old measurements, the saved snapshot linkage after reacquiring the lease and rejection of another profile's lease. The rendered disclosure showed both origins and distinct states for unsaved and unavailable snapshots. [Verification record](../benchmarks/workbench-desktop-scan-activity-source.json)
+
 ## Shared scan activity
 
 Overview → Scans from CLI and MCP shows the last eight jobs in the current durable profile. The collapsed panel opens on demand. It shows measured files and logical size, access issues and the recorded job state. Cancel scan requests cooperative cancellation. Open snapshot passes the saved capture to the existing historical loader under the workspace lease.

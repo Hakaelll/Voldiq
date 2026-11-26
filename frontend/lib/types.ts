@@ -216,6 +216,7 @@ export interface Issue {
   message: string;
 }
 export interface Progress {
+  activity_unavailable?: boolean;
   index_id: number | null;
   analyzed_at: number | null;
   previous: boolean;
