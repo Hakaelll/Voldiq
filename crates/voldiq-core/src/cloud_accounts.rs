@@ -2,6 +2,7 @@
 mod browser;
 mod credential;
 mod loopback;
+pub mod recycle;
 
 pub use browser::{BrowserAccount, BrowserProvider};
 
@@ -18,6 +19,7 @@ use zeroize::Zeroizing;
 
 const LOGIN: &str = "https://login.microsoftonline.com/common/oauth2/v2.0/";
 const SCOPE: &str = "https://graph.microsoft.com/Files.Read offline_access";
+const RECYCLE_SCOPE: &str = "https://graph.microsoft.com/Files.ReadWrite";
 const GRAPH: &str = "https://graph.microsoft.com/v1.0/";
 const MAX_BODY: u64 = 1024 * 1024;
 const PAGE_SIZE: usize = 80;
@@ -246,7 +248,7 @@ impl Account {
                     .pending
                     .as_ref()
                     .ok_or_else(|| invalid("Start OneDrive sign-in again."))?;
-                open_in_browser(&pending.authorization.verification_uri)?;
+                pending.open()?;
             }
             Action::Cancel => self.pending = None,
             Action::Revoke => {
@@ -289,12 +291,8 @@ impl Account {
             }
         } else if let Some(pending) = &self.pending {
             View::Waiting {
-                code: pending.authorization.user_code.clone(),
-                retry_seconds: pending
-                    .next
-                    .saturating_duration_since(Instant::now())
-                    .as_secs()
-                    + 1,
+                code: pending.code().into(),
+                retry_seconds: pending.retry_seconds(),
             }
         } else if saved {
             View::Saved
@@ -304,6 +302,61 @@ impl Account {
     }
 
     fn begin(&mut self, client_id: String) -> Result<()> {
+        self.pending = Some(Pending::request(client_id, SCOPE)?);
+        Ok(())
+    }
+
+    fn poll(&mut self, store: &credential::Store) -> Result<Option<Active>> {
+        let Some(pending) = &mut self.pending else {
+            return Ok(None);
+        };
+        let client = client()?;
+        let Some(tokens) = pending.poll(&client, "Files.Read")? else {
+            return Ok(None);
+        };
+        let pending = self.pending.take().expect("pending sign-in");
+        let mut active = Active::open(&client, &tokens, None)?;
+        active.sealed = store.save(
+            None,
+            &pending.client_id,
+            &active.drive.id,
+            tokens.refresh_token.as_deref(),
+        )?;
+        Ok(Some(active))
+    }
+
+    pub fn recycle_source(&self, directory: &Path, id: &str) -> Result<recycle::Source> {
+        let active = self
+            .active
+            .as_ref()
+            .ok_or_else(|| invalid("Open OneDrive first."))?;
+        let store = credential::Store::open(directory);
+        let selected = recycle::Selection::capture(
+            &active.page,
+            active.folders.last().map(|(id, _)| id.as_str()),
+            id,
+            active.expires,
+            &store,
+            &active.sealed,
+        )?;
+        let credential: credential::Credential = credential::unseal(&active.sealed)?;
+        if credential.drive_id != active.drive.id {
+            return Err(invalid("The OneDrive identity changed."));
+        }
+        recycle::Source::new(
+            recycle::Provider::OneDrive,
+            store,
+            active.sealed.clone(),
+            credential.drive_id.clone(),
+            recycle::Login::Microsoft(credential.client_id.clone()),
+            selected,
+            &active.access,
+        )
+    }
+}
+
+impl Pending {
+    fn request(client_id: String, scope: &str) -> Result<Self> {
         let client_id = client_id.trim().to_ascii_lowercase();
         let parts = client_id.split('-');
         if !parts.clone().map(str::len).eq([8, 4, 4, 4, 12])
@@ -318,7 +371,7 @@ impl Account {
         let (status, authorization) = oauth::<DeviceAuthorization>(
             &client()?,
             "devicecode",
-            &[("client_id", &client_id), ("scope", SCOPE)],
+            &[("client_id", &client_id), ("scope", scope)],
         )?;
         if !status.is_success()
             || !matches!(
@@ -340,53 +393,58 @@ impl Account {
         }
         let now = Instant::now();
         let interval = Duration::from_secs(authorization.interval);
-        self.pending = Some(Pending {
+        Ok(Self {
             client_id,
             next: now + interval,
             interval,
             expires: now + Duration::from_secs(authorization.expires_in),
             authorization,
-        });
-        Ok(())
+        })
     }
 
-    fn poll(&mut self, store: &credential::Store) -> Result<Option<Active>> {
-        let Some(pending) = &mut self.pending else {
-            return Ok(None);
-        };
+    fn code(&self) -> &str {
+        &self.authorization.user_code
+    }
+
+    fn retry_seconds(&self) -> u64 {
+        self.next
+            .saturating_duration_since(Instant::now())
+            .as_secs()
+            + 1
+    }
+
+    fn open(&self) -> Result<()> {
+        open_in_browser(&self.authorization.verification_uri)
+    }
+
+    fn poll(&mut self, client: &Client, required: &str) -> Result<Option<Tokens>> {
         let now = Instant::now();
-        if now < pending.next {
+        if now >= self.expires {
+            return Err(invalid("Microsoft sign-in expired. Start sign-in again."));
+        }
+        if now < self.next {
             return Ok(None);
         }
-        pending.next = now + pending.interval;
-        let client = client()?;
+        self.next = now + self.interval;
         let (status, reply) = oauth(
-            &client,
+            client,
             "token",
             &[
                 ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
-                ("client_id", &pending.client_id),
-                ("device_code", &pending.authorization.device_code),
+                ("client_id", &self.client_id),
+                ("device_code", &self.authorization.device_code),
             ],
         )?;
         match reply {
             TokenReply::Failed { error } if error == "authorization_pending" => Ok(None),
             TokenReply::Failed { error } if error == "slow_down" => {
-                pending.interval += Duration::from_secs(5);
-                pending.next = Instant::now() + pending.interval;
+                self.interval += Duration::from_secs(5);
+                self.next = Instant::now() + self.interval;
                 Ok(None)
             }
             reply => {
-                let pending = self.pending.take().expect("pending sign-in");
-                let tokens = checked_tokens(status, reply)?;
-                let mut active = Active::open(&client, &tokens, None)?;
-                active.sealed = store.save(
-                    None,
-                    &pending.client_id,
-                    &active.drive.id,
-                    tokens.refresh_token.as_deref(),
-                )?;
-                Ok(Some(active))
+                self.expires = now;
+                checked_tokens(status, reply, required).map(Some)
             }
         }
     }
@@ -413,26 +471,7 @@ impl Active {
     fn open(client: &Client, tokens: &Tokens, expected_drive: Option<&str>) -> Result<Self> {
         let access = Zeroizing::new(tokens.access_token.clone());
         let expires = Instant::now() + Duration::from_secs(tokens.expires_in);
-        let mut url = Url::parse(GRAPH)
-            .expect("Graph base URL")
-            .join("me/drives")
-            .expect("drive URL");
-        url.query_pairs_mut()
-            .append_pair("$select", "id,driveType,quota");
-        let drives: Drives = graph(client, &access, url)?;
-        let mut matches = drives.value.into_iter().filter(|drive| {
-            valid_id(&drive.id)
-                && matches!(drive.drive_type.as_str(), "personal" | "business")
-                && expected_drive.is_none_or(|id| id == drive.id)
-        });
-        let drive = matches.next().ok_or_else(|| {
-            invalid("Microsoft did not return an existing OneDrive for this connection.")
-        })?;
-        if matches.next().is_some() || (expected_drive.is_none() && drives.next.is_some()) {
-            return Err(invalid(
-                "Microsoft returned multiple OneDrive candidates. This connection requires one existing drive.",
-            ));
-        }
+        let drive = current_drive(client, &access, expected_drive)?;
         let (page, next) = folder_page(client, &access, &drive.id, &[], None, 1)?;
         Ok(Self {
             sealed: Vec::new(),
@@ -499,6 +538,30 @@ impl Active {
         self.next = next;
         Ok(())
     }
+}
+
+fn current_drive(client: &Client, access: &str, expected_drive: Option<&str>) -> Result<Drive> {
+    let mut url = Url::parse(GRAPH)
+        .expect("Graph base URL")
+        .join("me/drives")
+        .expect("drive URL");
+    url.query_pairs_mut()
+        .append_pair("$select", "id,driveType,quota");
+    let drives: Drives = graph(client, access, url)?;
+    let mut matches = drives.value.into_iter().filter(|drive| {
+        valid_id(&drive.id)
+            && matches!(drive.drive_type.as_str(), "personal" | "business")
+            && expected_drive.is_none_or(|id| id == drive.id)
+    });
+    let drive = matches.next().ok_or_else(|| {
+        invalid("Microsoft did not return an existing OneDrive for this connection.")
+    })?;
+    if matches.next().is_some() || (expected_drive.is_none() && drives.next.is_some()) {
+        return Err(invalid(
+            "Microsoft returned multiple OneDrive candidates. This connection requires one existing drive.",
+        ));
+    }
+    Ok(drive)
 }
 
 #[derive(Deserialize)]
@@ -631,6 +694,7 @@ fn client() -> Result<Client> {
     Client::builder()
         .https_only(true)
         .redirect(Policy::none())
+        .retry(reqwest::retry::never())
         .timeout(Duration::from_secs(15))
         .build()
         .map_err(|_| invalid("The cloud connection could not be initialized."))
@@ -705,33 +769,17 @@ fn refresh(client: &Client, credential: &credential::Credential) -> Result<Token
             ("scope", SCOPE),
         ],
     )?;
-    checked_tokens(status, reply)
+    checked_tokens(status, reply, "Files.Read")
 }
 
-fn checked_tokens(status: StatusCode, reply: TokenReply) -> Result<Tokens> {
+fn checked_tokens(status: StatusCode, reply: TokenReply, required: &str) -> Result<Tokens> {
     match reply {
         TokenReply::Authorized(tokens)
             if status.is_success()
                 && tokens.token_type.eq_ignore_ascii_case("bearer")
                 && (1..=86_400).contains(&tokens.expires_in)
                 && !tokens.access_token.is_empty()
-                && tokens.scope.split_whitespace().all(|scope| {
-                    matches!(
-                        scope,
-                        "Files.Read"
-                            | "https://graph.microsoft.com/Files.Read"
-                            | "openid"
-                            | "profile"
-                            | "email"
-                            | "offline_access"
-                    )
-                })
-                && tokens.scope.split_whitespace().any(|scope| {
-                    matches!(
-                        scope,
-                        "Files.Read" | "https://graph.microsoft.com/Files.Read"
-                    )
-                }) =>
+                && microsoft_scope(&tokens.scope, required) =>
         {
             Ok(tokens)
         }
@@ -744,9 +792,25 @@ fn checked_tokens(status: StatusCode, reply: TokenReply) -> Result<Tokens> {
             ))
         }
         _ => Err(invalid(
-            "Microsoft did not grant the expected OneDrive read access. Check the app registration.",
+            "Microsoft did not grant the expected OneDrive access. Check the app registration.",
         )),
     }
+}
+
+fn microsoft_scope(observed: &str, required: &str) -> bool {
+    let scopes = || {
+        observed.split_whitespace().map(|scope| {
+            scope
+                .strip_prefix("https://graph.microsoft.com/")
+                .unwrap_or(scope)
+        })
+    };
+    scopes().any(|scope| scope == required)
+        && scopes().all(|scope| {
+            scope == required
+                || matches!(scope, "openid" | "profile" | "email" | "offline_access")
+                || (required == "Files.ReadWrite" && scope == "Files.Read")
+        })
 }
 
 fn open_in_browser(url: &str) -> Result<()> {

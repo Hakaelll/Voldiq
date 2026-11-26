@@ -4,6 +4,7 @@
   import { applicationBytes as formatBytes } from '../lib/applications';
   import { trayPercent } from '../lib/cleanup-tray';
   import Icon from './Icon.svelte';
+  import CloudRecycle from './CloudRecycle.svelte';
 
   type Item = {
     id: string;
@@ -74,6 +75,8 @@
   let clientId = $state('');
   let clientSecret = $state('');
   let confirmRevoke = $state(false);
+  let selectedFile = $state<Item | null>(null);
+  let fileActions = $state<HTMLElement>();
   let revokeFocus = $state<HTMLButtonElement>();
   let destination = $state<HTMLElement>();
   let connected = $derived(view?.kind === 'connected' ? view : null);
@@ -100,8 +103,25 @@
     return () => clearTimeout(timer);
   });
 
+  $effect(() => {
+    if (!expanded) selectedFile = null;
+  });
+
   async function run(action: Action): Promise<void> {
     if (busy) return;
+    if (
+      [
+        'browse',
+        'enter_folder',
+        'parent',
+        'first_page',
+        'next_page',
+        'disconnect',
+        'revoke',
+      ].includes(action.kind)
+    ) {
+      selectedFile = null;
+    }
     const previous = view?.kind;
     busy = action.kind;
     error = '';
@@ -146,6 +166,17 @@
     confirmRevoke = required;
     await tick();
     revokeFocus?.focus({ preventScroll: true });
+  }
+
+  async function selectFile(item: Item): Promise<void> {
+    selectedFile = item;
+    await tick();
+    fileActions?.focus({ preventScroll: true });
+  }
+
+  async function recycleComplete(): Promise<void> {
+    await run({ kind: 'first_page' });
+    status = 'The provider confirmed recycling.';
   }
 </script>
 
@@ -278,6 +309,13 @@
             >
           {/if}
         </div>
+        {#if selectedFile}
+          <div bind:this={fileActions} role="region" aria-label="Selected cloud file" tabindex="-1">
+            {#key selectedFile.id}
+              <CloudRecycle {provider} item={selectedFile} onrecycled={recycleComplete} />
+            {/key}
+          </div>
+        {/if}
         {#if connected.page.items.length}
           <!-- svelte-ignore a11y_no_noninteractive_tabindex (Keyboard users need to scroll the named folder list.) -->
           <div class="items" role="region" aria-label={name + ' folder contents'} tabindex="0">
@@ -292,6 +330,14 @@
                         disabled={busy !== null}
                         onclick={() => void run({ kind: 'enter_folder', id: item.id })}
                         >{item.name}</button
+                      >
+                    {:else if item.kind === 'file'}
+                      <button
+                        class="quiet-action"
+                        class:selected={selectedFile?.id === item.id}
+                        aria-pressed={selectedFile?.id === item.id}
+                        disabled={busy !== null}
+                        onclick={() => void selectFile(item)}>{item.name}</button
                       >
                     {:else}
                       <span>{item.name}</span>
@@ -546,6 +592,10 @@
     padding-inline: 2px 5px;
     text-align: start;
     overflow-wrap: anywhere;
+  }
+  .item-name button.selected {
+    color: var(--accent);
+    font-weight: 600;
   }
   .item-kind,
   .pages {

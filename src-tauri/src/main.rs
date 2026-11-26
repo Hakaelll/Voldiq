@@ -1049,6 +1049,8 @@ fn main() {
             #[cfg(windows)]
             cloud_commands::cloud_account,
             #[cfg(windows)]
+            cloud_commands::cloud_recycle,
+            #[cfg(windows)]
             lan_commands::local_network_addresses,
             #[cfg(windows)]
             lan_commands::lan_sharing,

@@ -1,6 +1,6 @@
 use super::{
     Action, Item, ItemKind, MAX_DEPTH, PAGE_SIZE, Page, Quota, Tokens, View, client, credential,
-    decode, invalid, loopback, open_in_browser, send_form,
+    decode, invalid, loopback, open_in_browser, recycle, send_form,
 };
 use crate::Result;
 use reqwest::{StatusCode, blocking::Client};
@@ -15,6 +15,8 @@ use zeroize::{Zeroize, Zeroizing};
 
 const GOOGLE_SCOPE: &str = "https://www.googleapis.com/auth/drive.metadata.readonly";
 const DROPBOX_SCOPE: &str = "account_info.read files.metadata.read";
+const DROPBOX_WRITE_SCOPE: &str = "account_info.read files.metadata.read files.content.write";
+const GOOGLE_WRITE_SCOPE: &str = "https://www.googleapis.com/auth/drive";
 const DROPBOX_PORT: u16 = 27716;
 const GOOGLE_FILES: &str = "https://www.googleapis.com/drive/v3/files";
 const DROPBOX_API: &str = "https://api.dropboxapi.com/2/";
@@ -33,10 +35,12 @@ impl BrowserProvider {
         }
     }
 
-    fn scope(self) -> &'static str {
-        match self {
-            Self::GoogleDrive => GOOGLE_SCOPE,
-            Self::Dropbox => DROPBOX_SCOPE,
+    fn scope(self, permission: Permission) -> &'static str {
+        match (self, permission) {
+            (Self::GoogleDrive, Permission::Read) => GOOGLE_SCOPE,
+            (Self::Dropbox, Permission::Read) => DROPBOX_SCOPE,
+            (Self::GoogleDrive, Permission::Recycle) => GOOGLE_WRITE_SCOPE,
+            (Self::Dropbox, Permission::Recycle) => DROPBOX_WRITE_SCOPE,
         }
     }
 
@@ -48,19 +52,25 @@ impl BrowserProvider {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum Permission {
+    Read,
+    Recycle,
+}
+
 pub struct BrowserAccount {
     provider: BrowserProvider,
     pending: Option<Pending>,
     active: Option<Active>,
 }
 
-struct Pending {
+pub(super) struct Pending {
     callback: loopback::Pending,
     registration: Registration,
 }
 
-#[derive(Deserialize, Serialize)]
-struct Registration {
+#[derive(Clone, Deserialize, Serialize)]
+pub(super) struct Registration {
     client_id: String,
     client_secret: Option<String>,
 }
@@ -127,7 +137,7 @@ impl BrowserAccount {
                 if saved.is_some() || self.pending.is_some() {
                     return Err(invalid("Finish the current connection first."));
                 }
-                self.pending = Some(begin(provider, registration)?);
+                self.pending = Some(begin(provider, registration, Permission::Read)?);
             }
             Action::Cancel => self.pending = None,
             Action::Poll => {
@@ -199,9 +209,43 @@ impl BrowserAccount {
             View::Disconnected
         })
     }
+
+    pub fn recycle_source(&self, directory: &Path, id: &str) -> Result<recycle::Source> {
+        let active = self
+            .active
+            .as_ref()
+            .ok_or_else(|| invalid("Open the cloud account first."))?;
+        let store = credential::Store::browser(directory, self.provider);
+        let selected = recycle::Selection::capture(
+            &active.page,
+            active.folders.last().map(|(id, _)| id.as_str()),
+            id,
+            active.expires,
+            &store,
+            &active.sealed,
+        )?;
+        let credential: Credential = credential::unseal(&active.sealed)?;
+        let provider = match self.provider {
+            BrowserProvider::GoogleDrive => recycle::Provider::GoogleDrive,
+            BrowserProvider::Dropbox => recycle::Provider::Dropbox,
+        };
+        recycle::Source::new(
+            provider,
+            store,
+            active.sealed.clone(),
+            credential.account_id.clone(),
+            recycle::Login::Browser(self.provider, credential.registration.clone()),
+            selected,
+            &active.access,
+        )
+    }
 }
 
-fn begin(provider: BrowserProvider, mut registration: Registration) -> Result<Pending> {
+pub(super) fn begin(
+    provider: BrowserProvider,
+    mut registration: Registration,
+    permission: Permission,
+) -> Result<Pending> {
     registration.client_id = registration.client_id.trim().into();
     let id = &registration.client_id;
     let valid_id = (8..=256).contains(&id.len())
@@ -211,13 +255,18 @@ fn begin(provider: BrowserProvider, mut registration: Registration) -> Result<Pe
     let valid_secret = registration.client_secret.as_ref().is_none_or(|secret| {
         (1..=256).contains(&secret.len()) && secret.bytes().all(|byte| byte.is_ascii_graphic())
     });
-    let (endpoint, extra, port, host) = match provider {
+    let access_type = if permission == Permission::Read {
+        "offline"
+    } else {
+        "online"
+    };
+    let (endpoint, option, port, host) = match provider {
         BrowserProvider::GoogleDrive
             if valid_id && valid_secret && id.ends_with(".apps.googleusercontent.com") =>
         {
             (
                 "https://accounts.google.com/o/oauth2/v2/auth",
-                [("access_type", "offline"), ("prompt", "consent")].as_slice(),
+                "access_type",
                 0,
                 "127.0.0.1",
             )
@@ -227,7 +276,7 @@ fn begin(provider: BrowserProvider, mut registration: Registration) -> Result<Pe
         {
             (
                 "https://www.dropbox.com/oauth2/authorize",
-                [("token_access_type", "offline")].as_slice(),
+                "token_access_type",
                 DROPBOX_PORT,
                 "localhost",
             )
@@ -239,13 +288,15 @@ fn begin(provider: BrowserProvider, mut registration: Registration) -> Result<Pe
         }
     };
     let mut url = Url::parse(endpoint).expect("provider authorization URL");
-    url.query_pairs_mut()
-        .extend_pairs([
-            ("client_id", id.as_str()),
-            ("response_type", "code"),
-            ("scope", provider.scope()),
-        ])
-        .extend_pairs(extra.iter().copied());
+    url.query_pairs_mut().extend_pairs([
+        ("client_id", id.as_str()),
+        ("response_type", "code"),
+        ("scope", provider.scope(permission)),
+        (option, access_type),
+    ]);
+    if matches!(provider, BrowserProvider::GoogleDrive) {
+        url.query_pairs_mut().append_pair("prompt", "consent");
+    }
     Ok(Pending {
         callback: loopback::Pending::open(url, port, host)?,
         registration,
@@ -258,6 +309,7 @@ fn exchange<'a>(
     registration: &'a Registration,
     mut fields: Vec<(&'a str, &'a str)>,
     renewal: bool,
+    permission: Permission,
 ) -> Result<Tokens> {
     fields.push(("client_id", &registration.client_id));
     if let Some(secret) = &registration.client_secret {
@@ -270,15 +322,13 @@ fn exchange<'a>(
         ));
     }
     let tokens: Tokens = decode(response)?;
-    let required = provider.scope();
+    let required = provider.scope(permission);
     if !tokens.token_type.eq_ignore_ascii_case("bearer")
         || !(1..=86_400).contains(&tokens.expires_in)
         || tokens.access_token.is_empty()
         || (!(renewal && tokens.scope.is_empty()) && !valid_scope(required, &tokens.scope))
     {
-        return Err(invalid(
-            "The provider did not grant the expected read-only access.",
-        ));
+        return Err(invalid("The provider did not grant the expected access."));
     }
     Ok(tokens)
 }
@@ -302,9 +352,16 @@ fn fresh_tokens(
         ("refresh_token", credential.refresh_token.as_str()),
     ];
     if matches!(provider, BrowserProvider::Dropbox) {
-        fields.push(("scope", provider.scope()));
+        fields.push(("scope", provider.scope(Permission::Read)));
     }
-    exchange(client, provider, &credential.registration, fields, true)
+    exchange(
+        client,
+        provider,
+        &credential.registration,
+        fields,
+        true,
+        Permission::Read,
+    )
 }
 
 fn activate(
@@ -314,18 +371,7 @@ fn activate(
     code: &str,
 ) -> Result<Active> {
     let client = client()?;
-    let tokens = exchange(
-        &client,
-        provider,
-        &pending.registration,
-        vec![
-            ("grant_type", "authorization_code"),
-            ("code", code),
-            ("redirect_uri", pending.callback.redirect_uri()),
-            ("code_verifier", pending.callback.verifier()),
-        ],
-        false,
-    )?;
+    let tokens = pending.exchange(&client, provider, code, Permission::Read)?;
     let refresh_token = tokens
         .refresh_token
         .as_ref()
@@ -341,6 +387,41 @@ fn activate(
     let mut active = Active::open(&client, provider, &tokens, quota)?;
     active.sealed = store.put(None, &credential)?;
     Ok(active)
+}
+
+impl Pending {
+    fn exchange(
+        &self,
+        client: &Client,
+        provider: BrowserProvider,
+        code: &str,
+        permission: Permission,
+    ) -> Result<Tokens> {
+        exchange(
+            client,
+            provider,
+            &self.registration,
+            vec![
+                ("grant_type", "authorization_code"),
+                ("code", code),
+                ("redirect_uri", self.callback.redirect_uri()),
+                ("code_verifier", self.callback.verifier()),
+            ],
+            false,
+            permission,
+        )
+    }
+
+    pub(super) fn poll_recycle(
+        &self,
+        client: &Client,
+        provider: BrowserProvider,
+    ) -> Result<Option<Tokens>> {
+        self.callback
+            .result()?
+            .map(|code| self.exchange(client, provider, &code, Permission::Recycle))
+            .transpose()
+    }
 }
 
 fn resume(store: &credential::Store, provider: BrowserProvider, sealed: &[u8]) -> Result<Active> {
@@ -474,7 +555,7 @@ impl Active {
     }
 }
 
-fn account_metadata(
+pub(super) fn account_metadata(
     client: &Client,
     provider: BrowserProvider,
     access: &str,
@@ -677,7 +758,7 @@ fn valid_item(id: &str, name: &str) -> bool {
         && (1..=2048).contains(&name.len())
 }
 
-fn dropbox<T: DeserializeOwned>(
+pub(super) fn dropbox<T: DeserializeOwned>(
     client: &Client,
     access: &str,
     route: &str,

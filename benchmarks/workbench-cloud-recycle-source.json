@@ -1,0 +1,119 @@
+{
+  "checkedUtc": "2026-11-26T14:18:44.5216882Z",
+  "startedUtc": "2026-11-26T14:03:03.9900087Z",
+  "checkoutCommit": "49bac9b2b37694b6eee53dc0aed9d98929a46b04",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 16.872
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 67.026
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 2.501
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 37.176
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 767.385
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 49.341
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "06AB940F23B133D48218838DF075BBE3A58FF85878CA93EFE6082C855908C7CD"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "4F2E8DFBDB4D7BC2C2815079864768316FE5485408A636CB9697F8EEF2585C7A"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "B9EFF5E86879F9FD57B520B4074AAADBFF389B8251FBF85584DDABA4711EA666"
+    },
+    {
+      "path": "crates/voldiq-core/src/cloud_accounts.rs",
+      "sha256": "BCB0CAC31F52144FB289ED9976077D25DBD6D908A138F266BD47C816DBBBFEF5"
+    },
+    {
+      "path": "crates/voldiq-core/src/cloud_accounts/browser.rs",
+      "sha256": "7195AFB29A71F4C290457863D65B71F013D44BC0D9BBA0BD281320367D2A2D92"
+    },
+    {
+      "path": "crates/voldiq-core/src/cloud_accounts/recycle.rs",
+      "sha256": "F3445AA4B79BDE19EBDEC5A37FE2D4DBE444D8DE5A6DB05EE9C65066FD3E9CC6"
+    },
+    {
+      "path": "crates/voldiq-core/src/cloud_accounts/recycle/provider.rs",
+      "sha256": "5967A3D103B14021ABFF212885555572B55E17A7AA58E632C3E3287225A232BF"
+    },
+    {
+      "path": "src-tauri/src/cloud_commands.rs",
+      "sha256": "77A4ED23DB3465CC56ECC604A1D2B306CEBBA4CDAD604C0B6F4DC342961B2517"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "86B8A249E2892E7D4D2BCC5309864094D6216A89121FF98035E3EAAEDC9505B5"
+    },
+    {
+      "path": "frontend/components/CloudAccount.svelte",
+      "sha256": "E8F4B8D0B12A4773BC248A3E7B60159A7D0A069A3B98C3B333B50F27B218534D"
+    },
+    {
+      "path": "frontend/components/CloudRecycle.svelte",
+      "sha256": "116167AD16E9FAF870397D4D208A9D453EBD4B3F9B9EF5CA87C4C2FBEDB7D649"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "settingsMarkup": {
+    "scope": "Svelte server markup and source checks",
+    "checks": [
+      "literal remote filename",
+      "review as initial action",
+      "native confirmation after separate permission",
+      "exact review ID and synced-copy warning",
+      "selected-file keyboard semantics and current-folder reload"
+    ]
+  },
+  "windowsFixtures": {
+    "passed": true,
+    "tests": 2,
+    "ignored": 0,
+    "fixtureSources": [
+      {
+        "name": "probe_request.rs",
+        "sha256": "77F1A42A0DDA7130094A2AAFF50C0D4EB4E7CB211F0FF16F1CCACF305E430BEC"
+      },
+      {
+        "name": "probe_session.rs",
+        "sha256": "9127C01F61BDA8D4CB7BA884DE154CA8ED9BA8E0E49CDD88570333AC36CC8805"
+      }
+    ],
+    "scope": "Built real provider request objects without sending them. Tested Windows DPAPI and journal state with fake credentials, native review decline, exact identity, stale and expired review, replay refusal, SQLite writer contention, and redacted receipts on disposable data."
+  }
+}

@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Cloud recycle review
+
+Select a file in Settings → Cloud accounts and choose Review recycling. The review uses fresh provider metadata and binds the file revision, folder and account to the current read connection. Authorize recycling asks the provider for a separate write grant. Windows then names the provider, file, folder and size for a one-time confirmation. Recovery follows the provider's rules, and changes to a cloud file can affect synced copies.
+
+The write grant stays in memory. The app checks the account again, verifies the exact file and checks the deadline after writing the durable submission intent. The request uses Graph If-Match, Dropbox parent_rev or a Google Drive v2 trash-label update with a strong ETag. Google Drive must report an owned eligible file. The journal stores an opaque review ID, provider, time and outcome. A timeout or missing result leaves the outcome unconfirmed and requires a fresh review. [OneDrive recycling](https://learn.microsoft.com/en-us/graph/api/driveitem-delete?view=graph-rest-1.0) · [Dropbox recovery](https://help.dropbox.com/delete-restore/recover-deleted-files-folders) · [Google Drive v2 metadata patch](https://developers.google.com/workspace/drive/api/reference/rest/v2/files/patch)
+
+The six project checks passed with eight routine tests. The disposable Windows checks validated conditional request shapes, provider ownership and revision checks, one-time review use, wrong provider and ID, stale read credentials, deadline expiration while SQLite held its writer lock, and journal redaction. Svelte server markup verified the literal filename and initial review action. Live grants, provider recycling, navigation by keyboard and Windows scaling remain manual. [Project and fixture checks](../benchmarks/workbench-cloud-recycle-source.json)
+
 ## Google Drive and Dropbox metadata
 
 Settings → Cloud accounts now shows all three providers. Only one provider row opens at a time, with the same quota and folder layout. Google Drive requires a Desktop app client with Drive API enabled and authorization for `drive.metadata.readonly`. Dropbox requires a public scoped app with `account_info.read`, `files.metadata.read` and the redirect URI `http://localhost:27716/oauth/callback`. Choose Full Dropbox if you want files outside an App Folder registration. The app opens the system browser for consent and listens on loopback only during sign-in. [Google desktop setup](https://developers.google.com/identity/protocols/oauth2/native-app) · [Google Drive scopes](https://developers.google.com/workspace/drive/api/guides/api-specific-auth) · [Dropbox authorization](https://docs.dropboxapi.com/dropbox-api/docs/get-started/authorization)
