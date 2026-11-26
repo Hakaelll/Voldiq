@@ -946,5 +946,95 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
         assert_eq!(unavailable["availability"], "observation_time_unavailable");
         assert!(unavailable["recorded_at"].is_null());
         assert!(unavailable.get("total").is_none());
+
+        let review = source.path().join("empty-review");
+        let excluded = review.join("excluded-parent/hidden-child");
+        std::fs::create_dir_all(&excluded).unwrap();
+        for name in [
+            "first-empty",
+            "nested/second-empty",
+            "populated-later",
+            "replaced",
+            "partial",
+            "protected",
+        ] {
+            std::fs::create_dir_all(review.join(name)).unwrap();
+        }
+        let mut index = voldiq_core::scanner::scan(
+            source.path(),
+            &voldiq_core::ScanOptions {
+                mode: voldiq_core::ScanMode::Directory,
+                exclusions: vec![excluded.to_string_lossy().into_owned()],
+                ..Default::default()
+            },
+            &cancel,
+            |_| {},
+        )
+        .unwrap();
+        index
+            .entries
+            .iter_mut()
+            .find(|entry| entry.name == "partial")
+            .unwrap()
+            .incomplete = true;
+        index.observation.as_mut().unwrap().complete = false;
+        let folder_snapshot = snapshots.save(&index, &cancel, &[]).unwrap().to_string();
+        std::fs::write(
+            review.join("populated-later/hidden-new.txt"),
+            b"new since scan",
+        )
+        .unwrap();
+        std::fs::rename(review.join("replaced"), review.join("original-directory")).unwrap();
+        std::fs::create_dir(review.join("replaced")).unwrap();
+        voldiq_core::metadata::Store::open(state.path())
+            .unwrap()
+            .protect_folder(&review.join("protected"))
+            .unwrap();
+
+        let directory = analysis(&[
+            "query",
+            &folder_snapshot,
+            r#"{"text":"empty-review","kind":"directory"}"#,
+        ]);
+        let scope = directory["items"][0]["id"].as_u64().unwrap();
+        let mut cursor = Value::Null;
+        let mut verified = Vec::new();
+        let mut unverified = 0;
+        for _ in 0..3 {
+            let options = json!({"scope":scope,"after":cursor,"limit":1}).to_string();
+            let page = analysis(&["empty-folders", &folder_snapshot, &options]);
+            assert_eq!(page["scope"], scope);
+            assert_eq!(page["availability"], "observed");
+            assert_eq!(page["scan_complete"], false);
+            assert_eq!(page["risk"], "informational");
+            assert!(page.get("reclaimable").is_none());
+            assert!(
+                page["checked_at"].as_u64().unwrap() >= page["scan_observed_at"].as_u64().unwrap()
+            );
+            let rows = page["items"].as_array().unwrap();
+            assert!(rows.len() <= 1);
+            verified.extend(
+                rows.iter()
+                    .map(|row| row["relative_path"].as_str().unwrap().to_owned()),
+            );
+            unverified += page["unverified_folders"].as_u64().unwrap();
+            cursor = page["next_after"].clone();
+            if cursor.is_null() {
+                break;
+            }
+        }
+        assert!(cursor.is_null());
+        verified.sort_unstable();
+        assert_eq!(verified, ["first-empty", r"nested\second-empty"]);
+        assert_eq!(unverified, 3);
+        assert!(review.join("populated-later/hidden-new.txt").is_file());
+        assert!(excluded.is_dir() && review.join("protected").is_dir());
+        let console_text = console(
+            &read.credential,
+            &format!("9\n{folder_snapshot}\n5\n{scope}\n0\n"),
+        );
+        assert!(console_text.contains("Empty folders  |  Checked on disk"));
+        assert!(console_text.contains("2 verified on this page"));
+        assert!(console_text.contains("first-empty") && !console_text.contains("populated-later"));
     }
 }

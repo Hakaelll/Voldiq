@@ -46,6 +46,7 @@
   import CleanupTray from './components/CleanupTray.svelte';
   import { addToTray, type TrayGroup, type TraySource, type TrayTarget } from './lib/cleanup-tray';
   import CleanupRules from './components/CleanupRules.svelte';
+  import EmptyFolders from './components/EmptyFolders.svelte';
   import {
     defaultReviewWeights,
     readReviewWeights,
@@ -227,6 +228,7 @@
   let requestedPlanId = $state<string | null>(null);
   const cleanupSections = [
     { id: 'candidates', label: 'Candidates' },
+    { id: 'empty-folders', label: 'Empty folders' },
     { id: 'activity', label: 'Activity' },
     { id: 'requests', label: 'Agent plans' },
     { id: 'transfers', label: 'Transfers' },
@@ -2217,6 +2219,16 @@
                 {busy}
                 onrestore={(receipt) => {
                   if (!busy && !cleanupPreview && restoreReceipt === null) restoreReceipt = receipt;
+                }}
+              />
+            {:else if cleanupSection === 'empty-folders'}
+              <EmptyFolders
+                {indexId}
+                {revision}
+                enabled={ready && !busy && !historical && operation?.phase !== 'scanning'}
+                onopen={(id) => {
+                  view = 'explorer';
+                  void open(id);
                 }}
               />
             {:else if cleanupSection === 'windows'}

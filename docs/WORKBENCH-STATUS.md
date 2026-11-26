@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Confirmed empty folders
+
+Cleanup, the console, CLI and MCP check indexed empty-looking directories on disk. The shared rule pins each candidate's native identity, applies protections and excludes uncertain branches. It checks immediate directory entries, including hidden names, and reports scope-relative paths and the time of the check. The desktop list opens a result in Explorer. The result is informational and omits a byte estimate.
+
+The retained CLI and official SDK flows use owned directories and exercise paging, additions after the scan, replaced native identities, partial and excluded branches, protection and revoked access. The separate Windows probe checks native enumeration through end of directory. Svelte markup was rendered for the populated, unscanned, unavailable and empty continuation states. Native pointer, keyboard and scaling acceptance remain manual. [Source verification](../benchmarks/workbench-empty-folders-source.json)
+
 ## Authorized cleanup candidates from saved analyses
 
 The CLI, console menu and MCP expose the same four cleanup recipes with recorded evidence. The service checks the grant, directory identity, exclusion coverage and current protected folders. It intersects the rule location with the requested indexed folder. Pages include versioned criteria, exact recorded logical bytes and the review score breakdown. Allocation charge, unavailable ages and partial coverage remain distinct. Current file use and actual recoverable bytes require live verification.

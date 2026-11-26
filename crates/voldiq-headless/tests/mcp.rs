@@ -1097,6 +1097,62 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
         )
         .await;
     }
+    #[cfg(windows)]
+    {
+        let empty_folder = source.path().join("rpc-empty-review/rpc-empty");
+        std::fs::create_dir_all(&empty_folder).unwrap();
+        let cancel = std::sync::atomic::AtomicBool::new(false);
+        let index = voldiq_core::scanner::scan(source.path(), &Default::default(), &cancel, |_| {})
+            .unwrap();
+        let observation = voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db"))
+            .unwrap()
+            .save(&index, &cancel, &[])
+            .unwrap();
+        let folder = call(
+            &client,
+            "voldiq_query",
+            json!({
+                "snapshot_id":observation,"query":{"text":"rpc-empty-review","kind":"directory"}
+            }),
+        )
+        .await
+        .structured_content
+        .unwrap();
+        let scope = folder["result"]["items"][0]["id"].as_u64().unwrap();
+        let empty = call(
+            &client,
+            "voldiq_empty_folders",
+            json!({"snapshot_id":observation,"options":{"scope":scope,"limit":100}}),
+        )
+        .await;
+        assert_ne!(empty.is_error, Some(true), "{empty:?}");
+        let empty = empty.structured_content.unwrap();
+        assert_eq!(empty["result"]["availability"], "observed");
+        assert_eq!(empty["result"]["items"].as_array().unwrap().len(), 1);
+        assert_eq!(empty["result"]["items"][0]["relative_path"], "rpc-empty");
+        assert!(empty["result"]["items"][0].get("path").is_none());
+        std::fs::write(empty_folder.join("added.txt"), b"added after capture").unwrap();
+        let changed = call(
+            &client,
+            "voldiq_empty_folders",
+            json!({"snapshot_id":observation,"options":{"scope":scope}}),
+        )
+        .await;
+        assert_eq!(
+            changed.structured_content.unwrap()["result"]["items"],
+            json!([])
+        );
+        let invalid = call(
+            &client,
+            "voldiq_empty_folders",
+            json!({"snapshot_id":observation,"options":{"path":source.path()}}),
+        )
+        .await;
+        assert_eq!(
+            invalid.structured_content.unwrap()["error"]["code"],
+            "invalid_arguments"
+        );
+    }
     registry.revoke(provisioned.id).unwrap();
     for (name, args) in [
         (
@@ -1190,6 +1246,16 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
     .await;
     assert_eq!(
         revoked_cleanup.structured_content.unwrap()["error"]["code"],
+        "not_authorized_or_unavailable"
+    );
+    let revoked_folders = call(
+        &client,
+        "voldiq_empty_folders",
+        json!({"snapshot_id":snapshot}),
+    )
+    .await;
+    assert_eq!(
+        revoked_folders.structured_content.unwrap()["error"]["code"],
         "not_authorized_or_unavailable"
     );
     assert_eq!(

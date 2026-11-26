@@ -277,6 +277,32 @@ export const applicationCacheQueries = createQueryRunner<
     }),
 });
 
+export type EmptyFolderPage =
+  | { availability: 'unsupported' | 'scan_observation_unavailable' }
+  | {
+      availability: 'observed';
+      scan_complete: boolean;
+      checked_at: number;
+      unverified_folders: number;
+      next_after: NodeId | null;
+      items: { node_id: NodeId; relative_path: string }[];
+    };
+
+export const emptyFolderQueries = createQueryRunner<
+  EmptyFolderPage,
+  { indexId: IndexId; request: { after: NodeId | null; limit: number } },
+  'empty_folders'
+>('empty_folders', {
+  run: async (_family, requestId, input) =>
+    invoke<EmptyFolderPage | null>('query_empty_folders', {
+      ...input,
+      epoch: await querySession(),
+      requestId,
+    }),
+  cancel: async (family, requestId) =>
+    invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+});
+
 export const recoveryQueries = createQueryRunner<RecoveryReport, { indexId: IndexId }>(
   'recovery_copies',
   {

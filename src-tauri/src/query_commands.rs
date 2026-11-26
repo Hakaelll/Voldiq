@@ -42,6 +42,7 @@ pub(crate) enum QueryFamily {
     SystemStorage,
     SnapshotTrend,
     SnapshotTrendChanges,
+    EmptyFolders,
 }
 
 #[derive(Default)]
@@ -58,7 +59,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 25],
+    slots: [Slot; 26],
 }
 
 impl QueryFamily {
@@ -89,6 +90,7 @@ impl QueryFamily {
             Self::SystemStorage => 22,
             Self::SnapshotTrend => 23,
             Self::SnapshotTrendChanges => 24,
+            Self::EmptyFolders => 25,
         }
     }
 }
@@ -1032,6 +1034,50 @@ pub(crate) async fn query_application_cache(
                     .map(Some)
                     .map_err(|error: voldiq_core::Error| error.to_string())
             }
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn query_empty_folders(
+    index_id: IndexId,
+    request: voldiq_core::cleanup::empty_folders::Request,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<voldiq_core::cleanup::empty_folders::Page>, String> {
+    let directory = engine.operations.clone();
+    run_query(
+        index_id,
+        epoch,
+        QueryFamily::EmptyFolders,
+        request_id,
+        engine.inner().clone(),
+        move |index, cancelled| {
+            let mut notes = voldiq_core::metadata::Store::open(directory.directory())
+                .map_err(|error| error.to_string())?;
+            let protections = notes.protections().map_err(|error| error.to_string())?;
+            let page = voldiq_core::cleanup::empty_folders::query(
+                index,
+                &request,
+                50,
+                &protections,
+                cancelled,
+            )
+            .map_err(|error| error.to_string())?;
+            if cancelled.load(Ordering::Relaxed) {
+                return Ok(None);
+            }
+            if notes
+                .protections()
+                .map_err(|error| error.to_string())?
+                .fingerprint()
+                != protections.fingerprint()
+            {
+                return Err("Folder protections changed. Refresh the results.".into());
+            }
+            Ok(page)
         },
     )
     .await

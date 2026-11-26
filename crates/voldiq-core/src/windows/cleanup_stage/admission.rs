@@ -103,65 +103,79 @@ fn source_identity(file: &File) -> io::Result<(StageIdentity, u32)> {
 }
 
 pub(super) fn contents(directory: &File, expected: Option<&StageEntry>) -> io::Result<()> {
-    let mut buffer = vec![0u64; 512];
-    if unsafe {
-        GetFileInformationByHandleEx(
-            directory.as_raw_handle(),
-            FileFullDirectoryRestartInfo,
-            buffer.as_mut_ptr().cast(),
-            4096,
-        )
-    } == 0
-    {
-        let error = io::Error::last_os_error();
-        if error.raw_os_error() == Some(ERROR_NO_MORE_FILES as i32) && expected.is_none() {
-            return Ok(());
-        }
-        return Err(error);
-    }
+    let mut buffer = [0u64; 512];
     let expected: Option<Vec<u16>> = expected.map(|entry| entry.0.encode_utf16().collect());
-    let mut offset = 0usize;
-    let mut found = 0;
+    let mut found = false;
+    let mut dots = [false; 2];
+    let mut class = FileFullDirectoryRestartInfo;
     loop {
-        if offset > 4096 - size_of::<FILE_FULL_DIR_INFO>()
-            || !offset.is_multiple_of(align_of::<FILE_FULL_DIR_INFO>())
+        buffer.fill(0);
+        if unsafe {
+            GetFileInformationByHandleEx(
+                directory.as_raw_handle(),
+                class,
+                buffer.as_mut_ptr().cast(),
+                4096,
+            )
+        } == 0
         {
-            return Err(invalid("Invalid stage directory information."));
-        }
-        let pointer = unsafe {
-            buffer
-                .as_ptr()
-                .cast::<u8>()
-                .add(offset)
-                .cast::<FILE_FULL_DIR_INFO>()
-        };
-        let bytes = unsafe { (*pointer).FileNameLength as usize };
-        let header = offset_of!(FILE_FULL_DIR_INFO, FileName);
-        if bytes == 0 || bytes % 2 != 0 || bytes > 4096 - offset - header {
-            return Err(invalid("Invalid stage directory name."));
-        }
-        let name = unsafe {
-            std::slice::from_raw_parts(ptr::addr_of!((*pointer).FileName).cast::<u16>(), bytes / 2)
-        };
-        if name != [46] && name != [46, 46] {
-            if expected.as_deref() != Some(name) || found != 0 {
-                return Err(io::Error::new(
-                    io::ErrorKind::AlreadyExists,
-                    "Stage contains unexpected entries.",
-                ));
+            let error = io::Error::last_os_error();
+            if error.raw_os_error() == Some(ERROR_NO_MORE_FILES as i32) {
+                break;
             }
-            found += 1;
+            return Err(error);
         }
-        let next = unsafe { (*pointer).NextEntryOffset as usize };
-        if next == 0 {
-            break;
+        class = FileFullDirectoryInfo;
+        let mut offset = 0usize;
+        loop {
+            if offset > 4096 - size_of::<FILE_FULL_DIR_INFO>()
+                || !offset.is_multiple_of(align_of::<FILE_FULL_DIR_INFO>())
+            {
+                return Err(invalid("Invalid directory information."));
+            }
+            let pointer = unsafe {
+                buffer
+                    .as_ptr()
+                    .cast::<u8>()
+                    .add(offset)
+                    .cast::<FILE_FULL_DIR_INFO>()
+            };
+            let bytes = unsafe { (*pointer).FileNameLength as usize };
+            let header = offset_of!(FILE_FULL_DIR_INFO, FileName);
+            if bytes == 0 || bytes % 2 != 0 || bytes > 4096 - offset - header {
+                return Err(invalid("Invalid directory name."));
+            }
+            let name = unsafe {
+                std::slice::from_raw_parts(
+                    ptr::addr_of!((*pointer).FileName).cast::<u16>(),
+                    bytes / 2,
+                )
+            };
+            match name {
+                [46] | [46, 46] => {
+                    if std::mem::replace(&mut dots[name.len() - 1], true) {
+                        return Err(invalid("Directory enumeration did not advance."));
+                    }
+                }
+                _ if !found && expected.as_deref() == Some(name) => found = true,
+                _ => {
+                    return Err(io::Error::new(
+                        io::ErrorKind::AlreadyExists,
+                        "Directory contains unexpected entries.",
+                    ));
+                }
+            }
+            let next = unsafe { (*pointer).NextEntryOffset as usize };
+            if next == 0 {
+                break;
+            }
+            if next < header + bytes || next > 4096 - offset {
+                return Err(invalid("Invalid directory offset."));
+            }
+            offset += next;
         }
-        if next < header + bytes || next > 4096 - offset {
-            return Err(invalid("Invalid stage directory offset."));
-        }
-        offset += next;
     }
-    if found != usize::from(expected.is_some()) {
+    if found != expected.is_some() {
         return Err(io::Error::new(
             io::ErrorKind::NotFound,
             "Expected stage entry is missing.",

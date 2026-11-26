@@ -1,0 +1,143 @@
+{
+  "checkedUtc": "2026-11-26T23:39:58.3837961Z",
+  "startedUtc": "2026-11-26T23:35:05.8432927Z",
+  "checkoutCommit": "d818c174f5307538f0863148009017baad8f9c78",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.075
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.483
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.74
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 6.217
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 202.308
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 73.693
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "DESIGN.md",
+      "sha256": "F4E2BC40162261092CF5029169B071B5EAE5BE47EBCEC320F51E58923A3E4917"
+    },
+    {
+      "path": "docs/MCP.md",
+      "sha256": "F5A57A9A80DE0FEE97A899DAA2D23334F358BEE3D75560B5C289AC8F048DFC74"
+    },
+    {
+      "path": "docs/WORKBENCH-COVERAGE.md",
+      "sha256": "96325C39BAB38344593A3A4E7D858B7797E404B912468C8512EFEEE849D3AE5E"
+    },
+    {
+      "path": "docs/plans/storage-workbench.md",
+      "sha256": "6BC4872BF4A7E286D0AD7B720CE592A8A9852EF1A82B6DE4E2A7B517D78EB131"
+    },
+    {
+      "path": "crates/voldiq-core/src/cleanup.rs",
+      "sha256": "6B619F3C354312A5EC30F0E9DFD2B2BC79DF788F71FC34B5D5C3B168315EA22E"
+    },
+    {
+      "path": "crates/voldiq-core/src/cleanup/empty_folders.rs",
+      "sha256": "2132ADF3165B0D42363962816ED299292BC1BA9388FFF6794804CAF51F422386"
+    },
+    {
+      "path": "crates/voldiq-core/src/metadata.rs",
+      "sha256": "16CA373B57496B2E41259FFBD484C4A48BDAB3E2759F3D6D86B28D28EAC2BBC2"
+    },
+    {
+      "path": "crates/voldiq-core/src/service.rs",
+      "sha256": "A835F68188548162B04139C22253C2B553F0942321733A288225B3B73DF5DAA3"
+    },
+    {
+      "path": "crates/voldiq-core/src/windows/cleanup_stage.rs",
+      "sha256": "CB38850B0C9D3F780F2B44BCA804AFECC8B83C5B50BF36C7548133B311BB6F32"
+    },
+    {
+      "path": "crates/voldiq-core/src/windows/cleanup_stage/admission.rs",
+      "sha256": "443891D0A484D3E2703AF059AF1165062223E8C37D2714656810F3A27E4D887E"
+    },
+    {
+      "path": "crates/voldiq-headless/src/main.rs",
+      "sha256": "E9673AECAF37BF078074C73CBA0B957D37EB2E1E85F48E8151C4C92FE106C1DF"
+    },
+    {
+      "path": "crates/voldiq-headless/src/console.rs",
+      "sha256": "52E0967A881A196EA44C9F328E0E728189BE2E165E64D8D8614819A690F4BDFD"
+    },
+    {
+      "path": "crates/voldiq-headless/src/mcp.rs",
+      "sha256": "EC0818C9E67964ECF0DE37677A1B904E8EBF94C97214295EB8C076236A9D21F0"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/headless.rs",
+      "sha256": "57EC220FA8705751395C775CD3AAAA4A748EDDB93F3553C1F07DB7A61C9ACB7A"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/mcp.rs",
+      "sha256": "EC0B1954EF80D071406916D015B67D16940648E3D3FAA01E4248CC88C7C92FA1"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "B2A873C2A1A0C21EAAD9C09100866A916FF879289CB2514051681BF7E12B655E"
+    },
+    {
+      "path": "src-tauri/src/query_commands.rs",
+      "sha256": "43A8D172E6AD6E8611CC7CAD5F3BCA1AA45B8167E9CB3C8B711EFA611B09E452"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "F262A7709E212F0A16F767478D0207A536A6C24A0741ED14EB479D39D9AD0BAB"
+    },
+    {
+      "path": "frontend/components/EmptyFolders.svelte",
+      "sha256": "55F6352A78501B2401BE27060B4EAF6321EF1B3DEBC52EA860DCF6B504167142"
+    },
+    {
+      "path": "frontend/lib/queries.ts",
+      "sha256": "F1282854FC0371F35ACDE25F79045F24FF39F4FBEA3A3C41D69A8FAE14A5E89B"
+    }
+  ],
+  "behaviorTests": {
+    "frontend": 1,
+    "rust": 7,
+    "ignored": 0
+  },
+  "nativeDirectoryFixture": {
+    "enumerationExhausted": true,
+    "nonemptyHiddenChildObserved": true,
+    "directEntryOnly": true
+  },
+  "uiMarkupFixture": {
+    "source": "Svelte server-rendered markup with controlled state",
+    "results": {
+      "idle": true,
+      "populated": true,
+      "more": true,
+      "unavailable": true
+    }
+  }
+}

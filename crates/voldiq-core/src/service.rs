@@ -500,6 +500,47 @@ impl AgentService {
         request: &crate::cleanup::rules::RecordedRequest,
         cancel: &AtomicBool,
     ) -> Result<Option<crate::cleanup::rules::RecordedPage>> {
+        self.cleanup_metadata(
+            snapshot,
+            request.scope,
+            cancel,
+            |index, page_size, protections| {
+                crate::cleanup::rules::query_snapshot(
+                    index,
+                    rule,
+                    request,
+                    page_size,
+                    protections,
+                    cancel,
+                )
+                .map(Some)
+            },
+        )
+    }
+
+    pub fn empty_folders(
+        &self,
+        snapshot: i64,
+        request: &crate::cleanup::empty_folders::Request,
+        cancel: &AtomicBool,
+    ) -> Result<Option<crate::cleanup::empty_folders::Page>> {
+        self.cleanup_metadata(
+            snapshot,
+            request.scope,
+            cancel,
+            |index, page_size, protections| {
+                crate::cleanup::empty_folders::query(index, request, page_size, protections, cancel)
+            },
+        )
+    }
+
+    fn cleanup_metadata<T>(
+        &self,
+        snapshot: i64,
+        scope: Option<NodeId>,
+        cancel: &AtomicBool,
+        read: impl FnOnce(&Index, usize, &crate::metadata::Protections) -> Result<Option<T>>,
+    ) -> Result<Option<T>> {
         let registry = self.registry()?;
         let context = registry.plan_context(&self.principal, Capability::Metadata)?;
         let (policy, binding) = context.bound_policy(Capability::Metadata)?;
@@ -514,18 +555,11 @@ impl AgentService {
             &self.principal,
             Capability::Metadata,
             &index,
-            request.scope.unwrap_or(NodeId(0)),
+            scope.unwrap_or(NodeId(0)),
         )?;
         let mut notes = crate::metadata::Store::open(self.directory.directory())?;
         let protections = notes.protections()?;
-        let result = crate::cleanup::rules::query_snapshot(
-            &index,
-            rule,
-            request,
-            policy.limits().page_size,
-            &protections,
-            cancel,
-        );
+        let result = read(&index, policy.limits().page_size, &protections);
         if cancel.load(Ordering::Relaxed) {
             return Ok(None);
         }
@@ -536,7 +570,7 @@ impl AgentService {
         {
             return Err(denied());
         }
-        Ok(Some(result))
+        Ok(result)
     }
 
     pub fn translate_query(&self, source: &str) -> Result<crate::search::Translation> {

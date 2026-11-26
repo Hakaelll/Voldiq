@@ -29,6 +29,14 @@ use windows_sys::{
 
 use crate::cleanup::STAGE_DIRECTORY_PREFIX as PREFIX;
 
+pub(crate) fn directory_is_empty(directory: &File) -> io::Result<bool> {
+    match admission::contents(directory, None) {
+        Ok(()) => Ok(true),
+        Err(error) if error.kind() == io::ErrorKind::AlreadyExists => Ok(false),
+        Err(error) => Err(error),
+    }
+}
+
 pub struct StageName(String);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

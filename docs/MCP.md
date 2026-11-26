@@ -184,6 +184,14 @@ The backend intersects the chosen scope with the rule location using native dire
 
 `logical_bytes` counts recorded file paths as exact decimal strings. An individual `recorded_allocation_charge_bytes` is null when the scan did not measure it. Hard-link aliases can have a zero recorded charge. Actual recoverable bytes and current file use require live verification. Each candidate carries a breakdown with coverage, weight and contribution for size, age, regeneration, duplication, provenance and recovery in that order. To override the default weights, provide all six values from 0 to 100 with at least one nonzero. Unobserved signals remain null. Planning and human approval are separate operations.
 
+## Empty folders
+
+Use Cleanup → Empty folders in the desktop app, menu `9` → `5` in the console, `empty-folders <snapshot_id> [JSON options]` in the shell or `voldiq_empty_folders` with `snapshot_id` and optional `options`. CLI and MCP require Metadata and a saved observation of an authorized folder. An indexed directory `scope` narrows the review. Follow `next_after` using `options.after` with the same snapshot and scope. A page can have further folders to check even when it contains no confirmed rows.
+
+The rule starts with indexed directories that had no children in the scan. Windows pins each eligible directory and verifies its immediate entries, including names hidden by normal Explorer settings. Incomplete observations, excluded children, changed identities and blocked directories cannot become confirmed results. The `checked_at` timestamp is the end of this page's check. A directory can gain entries after that time. Paths in the response are relative to the selected scope and contain directory names only.
+
+The rule is informational. It reports folder emptiness at the time of the check and omits recoverable byte estimates. The desktop can open the indexed folder in Explorer. CLI and MCP expose no folder mutation or cleanup-plan authority through this output.
+
 ## Duplicate candidates
 
 Use `duplicate-candidates <snapshot_id> [JSON options]` in the CLI or pass `snapshot_id` and optional `options` to `voldiq_duplicate_candidates`. An indexed directory `scope` narrows the snapshot. Groups contain at least two distinct file identities and are ordered by descending logical size. A hard link counts once. Pass `logical_bytes` with the exact size of a group to page its members in snapshot order.

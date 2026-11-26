@@ -200,6 +200,13 @@ struct CleanupCandidatesArgs {
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+struct EmptyFoldersArgs {
+    snapshot_id: i64,
+    #[serde(default)]
+    options: voldiq_core::cleanup::empty_folders::Request,
+}
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
 struct DuplicateAnalysisArgs {
     snapshot_id: i64,
     #[serde(default)]
@@ -565,6 +572,25 @@ fn invoke(
                 })?;
             serde_json::to_value(result).map_err(unavailable)
         }
+        "voldiq_empty_folders" => {
+            let args: EmptyFoldersArgs = parse(args)?;
+            if args.snapshot_id <= 0 || !args.options.valid() {
+                return Err(super::failure(
+                    "invalid_arguments",
+                    "Use a snapshot ID and a bounded empty folder page.",
+                ));
+            }
+            let result = service
+                .empty_folders(args.snapshot_id, &args.options, cancel)
+                .map_err(unavailable)?
+                .ok_or_else(|| {
+                    super::failure(
+                        "empty_folders_cancelled",
+                        "Empty folder verification cancelled.",
+                    )
+                })?;
+            serde_json::to_value(result).map_err(unavailable)
+        }
         "voldiq_verify_duplicates" => {
             let args: SnapshotSelectionArgs = parse(args)?;
             if args.snapshot_id <= 0
@@ -782,6 +808,7 @@ impl ServerHandler for Server {
                 | "voldiq_plan_validate"
                 | "voldiq_duplicate_candidates"
                 | "voldiq_cleanup_candidates"
+                | "voldiq_empty_folders"
                 | "voldiq_verify_duplicates"
                 | "voldiq_transfers"
                 | "voldiq_transfer_files"
@@ -875,6 +902,7 @@ fn tools() -> Vec<Tool> {
         ("voldiq_plan_get", "Read this connection's exact manifest and current state. An approved row is not execution authority.", json!({"plan_id":plan_id}), json!(["plan_id"])),
         ("voldiq_duplicate_candidates", "List equally sized distinct file identities recorded in an authorized snapshot. Scope accepts an indexed folder ID. Set logical_bytes to page the members of that size. Uses recorded metadata and omits protected or unverified entries. Content equality and recoverable bytes remain unknown.", json!({"snapshot_id":integer,"options":{"type":"object","additionalProperties":false,"properties":{"scope":{"type":"integer","minimum":0,"maximum":4294967295u64},"min_bytes":{"type":"string","pattern":"^(0|[1-9][0-9]{0,19})$"},"logical_bytes":{"type":"string","pattern":"^(0|[1-9][0-9]{0,19})$"},"offset":{"type":"integer","minimum":0,"maximum":250000},"limit":{"type":"integer","minimum":1,"maximum":100}}}}), json!(["snapshot_id"])),
         ("voldiq_cleanup_candidates", "Page ranked cleanup candidates from an authorized snapshot folder using a versioned rule and optional score weights. Requires Metadata. Returns recorded names, observed sizes and review signals. Current use, recovery and recoverable bytes require separate verification. No content reads or file operations. Follow next_offset with the same options.", json!({"snapshot_id":integer,"rule":{"enum":["user_temp","old_files","project_temp","browser_cache"]},"options":cleanup_options}), json!(["snapshot_id","rule"])),
+        ("voldiq_empty_folders", "Verify empty directory candidates from an authorized snapshot against current Windows directory handles. Requires Metadata. Returns relative paths and a cursor for bounded verification. Protected, incomplete and excluded branches are omitted. Informational only. Follow next_after as options.after with the same scope.", json!({"snapshot_id":integer,"options":{"type":"object","additionalProperties":false,"properties":{"scope":{"type":"integer","minimum":0,"maximum":4294967295u64},"after":{"type":"integer","minimum":0,"maximum":4294967295u64},"limit":{"type":"integer","minimum":1,"maximum":100}}}}), json!(["snapshot_id"])),
         ("voldiq_verify_duplicates", "Verify selected snapshot files by streaming their current local contents. Requires Metadata and ReadContent. Uses pinned recorded identities, excludes cloud and protected files, collapses hard links, and caps file reads at 256 MiB. Groups contain only matching distinct file IDs.", json!({"snapshot_id":integer,"node_ids":{"type":"array","minItems":2,"maxItems":64,"uniqueItems":true,"items":{"type":"integer","minimum":1,"maximum":4294967295u64}}}), json!(["snapshot_id","node_ids"])),
         ("voldiq_duplicate_analysis_start", "Start exact duplicate analysis for an authorized snapshot folder. Requires Metadata and ReadContent. Poll the returned job ID with voldiq_job_get.", json!({"snapshot_id":integer,"options":{"type":"object","additionalProperties":false,"properties":{"scope":{"type":"integer","minimum":0,"maximum":4294967295u64},"min_bytes":{"type":"string","pattern":"^(0|[1-9][0-9]{0,19})$"}}}}), json!(["snapshot_id"])),
         ("voldiq_duplicate_analysis_results", "Page completed exact groups or a single group's member IDs for this connection's duplicate analysis job.", json!({"job_id":integer,"options":{"type":"object","additionalProperties":false,"properties":{"group":{"type":"integer","minimum":1,"maximum":125000},"offset":{"type":"integer","minimum":0,"maximum":250000},"limit":{"type":"integer","minimum":1,"maximum":100}}}}), json!(["job_id"])),

@@ -158,6 +158,8 @@ The home menu stays beside the logo on a standard 80-column terminal. Its right 
 
 The cleanup candidate menu opens a saved analysis by snapshot and rule. Results align recorded file sizes, IDs and priority scores. The summary states when the evidence is partial or the rule location is unavailable. Recoverable space requires live verification.
 
+Cleanup's Empty folders section presents a flat list of confirmed directories and a date for the current page. The list shows paths relative to the scan and opens each folder in Explorer. Partial coverage and pages with more folders to check stay visible even when the current page is empty.
+
 The Duplicate candidates action lists byte-size groups or the file IDs and names for an exact size. Verify exact duplicates accepts those IDs and shows groups confirmed by a content check. Empty verification results name the selected scope. A changed or unavailable entry leaves the request without a verification result.
 
 The console starts a folder analysis from a snapshot and shows its job ID. Duplicate analysis results opens the job's verified groups or the file IDs in a group. Partial evidence and additional pages have explicit labels.

@@ -278,7 +278,7 @@ fn contains(root: &Path, path: &Path) -> bool {
     path_key(path).starts_with(path_key(root))
 }
 
-fn path_key(path: &Path) -> PathBuf {
+pub(crate) fn path_key(path: &Path) -> PathBuf {
     #[cfg(windows)]
     {
         let path = path.to_string_lossy().to_uppercase();

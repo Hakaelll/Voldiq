@@ -1,5 +1,6 @@
 use crate::{Error, Kind, NodeId, Result, index::Index, windows};
 use serde::{Deserialize, Serialize};
+pub mod empty_folders;
 #[cfg(windows)]
 pub mod execute;
 #[cfg(windows)]

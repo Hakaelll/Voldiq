@@ -1193,6 +1193,7 @@ fn main() {
             query_commands::query_system_storage,
             query_commands::query_applications,
             query_commands::query_application_cache,
+            query_commands::query_empty_folders,
             query_commands::query_cleanup_tray,
             query_commands::query_recovery_copies,
             query_commands::query_device_health,

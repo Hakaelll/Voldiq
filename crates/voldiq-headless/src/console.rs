@@ -185,6 +185,7 @@ pub(super) async fn open(state: &[String], no_motion: bool) -> io::Result<()> {
                 }
                 writeln!(out, "  [1] Old files           [2] User temporary files")?;
                 writeln!(out, "  [3] Project temporary   [4] Browser HTTP cache")?;
+                writeln!(out, "  [5] Empty folders")?;
                 let Some(rule) = ask(&mut input, &mut out, "  Cleanup rule > ")? else {
                     break;
                 };
@@ -193,8 +194,9 @@ pub(super) async fn open(state: &[String], no_motion: bool) -> io::Result<()> {
                     "2" => "user_temp",
                     "3" => "project_temp",
                     "4" => "browser_cache",
+                    "5" => "empty-folders",
                     _ => {
-                        writeln!(out, "  Choose a rule from 1 to 4.")?;
+                        writeln!(out, "  Choose a rule from 1 to 5.")?;
                         continue;
                     }
                 };
@@ -214,12 +216,16 @@ pub(super) async fn open(state: &[String], no_motion: bool) -> io::Result<()> {
                     };
                     options["scope"] = json!(scope);
                 }
-                args.extend([
-                    "cleanup-candidates".into(),
-                    snapshot,
-                    rule.into(),
-                    options.to_string(),
-                ]);
+                if rule == "empty-folders" {
+                    args.extend([rule.into(), snapshot, options.to_string()]);
+                } else {
+                    args.extend([
+                        "cleanup-candidates".into(),
+                        snapshot,
+                        rule.into(),
+                        options.to_string(),
+                    ]);
+                }
             }
             "" => continue,
             _ => {
@@ -485,6 +491,9 @@ fn show(out: &mut impl Write, terminal: &Terminal, choice: &str, result: &Value)
             Ok(())
         }
         "9" => {
+            if result["rule"] == "empty-folders" {
+                return show_empty_folders(out, terminal, result);
+            }
             heading(out, terminal, "Cleanup candidates  |  Saved analysis")?;
             writeln!(out, "  {}", label(&result["description"]))?;
             let notice = match result["availability"].as_str() {
@@ -587,6 +596,51 @@ fn show(out: &mut impl Write, terminal: &Terminal, choice: &str, result: &Value)
             Ok(())
         }
     }
+}
+
+fn show_empty_folders(out: &mut impl Write, terminal: &Terminal, result: &Value) -> io::Result<()> {
+    heading(out, terminal, "Empty folders  |  Checked on disk")?;
+    if result["availability"] != "observed" {
+        return writeln!(
+            out,
+            "  Folder emptiness could not be checked for this analysis."
+        );
+    }
+    writeln!(
+        out,
+        "  {} verified on this page",
+        items(&result["items"]).len()
+    )?;
+    for row in items(&result["items"]) {
+        writeln!(
+            out,
+            "  #{}  {}",
+            label(&row["node_id"]),
+            label(&row["relative_path"])
+        )?;
+    }
+    if result["scan_complete"] == false
+        || result["unverified_folders"]
+            .as_u64()
+            .is_some_and(|number| number > 0)
+    {
+        writeln!(
+            out,
+            "  Partial coverage  |  {} folders on this page could not be verified",
+            label(&result["unverified_folders"])
+        )?;
+    }
+    if !result["next_after"].is_null() {
+        writeln!(
+            out,
+            "  More folders to check. Use empty-folders with after {}.",
+            label(&result["next_after"])
+        )?;
+    }
+    writeln!(
+        out,
+        "  Informational  |  Recoverable space has not been measured."
+    )
 }
 
 fn items(value: &Value) -> &[Value] {
