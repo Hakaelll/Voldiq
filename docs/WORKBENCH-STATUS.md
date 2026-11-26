@@ -6,6 +6,8 @@ The CLI, console menu and MCP expose the same four cleanup recipes with recorded
 
 The retained CLI and official MCP SDK flows verify ranking, scope, pagination, unknown evidence, bad arguments and revocation using owned files. A disposable Windows fixture exercises the shared Chrome and Edge rule, including rejected lookalikes and a protected profile. The positive browser fixture uses synthetic profiles and the shared native rule. [Source verification](../benchmarks/workbench-cleanup-candidates-source.json)
 
+The Windows preview reached ready with zero TCP listeners. 10 embedded non-HTML assets matched the production web build. The unsigned NSIS installer measures 12,054,957 bytes. Cleanup removed 3,090,708,576 logical bytes of inactive release artifacts and 100,054,528 bytes of closed previews. The current preview and installer were preserved. [Startup](../benchmarks/native-cleanup-candidates-preview.json) · [Default listener](../benchmarks/cleanup-candidates-default-listener.json) · [Distribution](../benchmarks/distribution-cleanup-candidates.json) · [Post-clean checks](../benchmarks/workspace-footprint-cleanup-candidates.json)
+
 ## Automatic console logo rotation
 
 The tilted ASCII logo revolves every 14 seconds while the Windows home prompt is idle. The replay command has been removed. A distinct ASCII texture identifies the colored sector in monochrome. Only the logo cells are updated. Key input stops those updates and the native line editor receives the pending input. Resizing stops the old frame updates. Reopening the menu with `?` uses the new width. The static flag, environment setting and Windows accessibility preference remain available.
