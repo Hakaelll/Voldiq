@@ -11,9 +11,10 @@
   } from '../lib/custom-cleanup';
   import type { IndexId } from '../lib/index-context';
   import { customCleanupRuleQueries } from '../lib/queries';
-  import { priorityPoints, type ReviewWeights } from '../lib/review-priority';
+  import type { ReviewWeights } from '../lib/review-priority';
   import { date, type NodeId } from '../lib/types';
   import ReviewPriorityDetails from './ReviewPriorityDetails.svelte';
+  import ReviewPriorityMeter from './ReviewPriorityMeter.svelte';
 
   let {
     indexId,
@@ -449,8 +450,10 @@
                         </div>
                       </div>
                       <details>
-                        <summary>Review priority {priorityPoints(item.priority.points)}/100</summary
-                        >
+                        <summary>
+                          <span>Review priority</span>
+                          <ReviewPriorityMeter priority={item.priority} />
+                        </summary>
                         <ReviewPriorityDetails
                           priority={item.priority}
                           assessedAt={page.assessed_at}
@@ -627,8 +630,12 @@
   }
   .matches summary {
     margin-inline-start: 22px;
+    margin-top: 6px;
     cursor: pointer;
     color: var(--secondary);
+  }
+  .matches summary > span {
+    margin-inline-end: 8px;
   }
   @media (max-width: 860px) {
     .rules-layout.has-list {

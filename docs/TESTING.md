@@ -1,6 +1,6 @@
 # Testing
 
-The routine Windows suite contains eight behavior tests: one frontend case and seven Rust cases. The owner requested this reduction on 2026-11-02, leaving about 4.9% of the former 164 tests. The other 156 cases and their unused fixture helpers were removed. They are not ignored, filtered out or combined into replacement wrappers. Runtime validation and file-operation safeguards remain in the application.
+The owner requested a reduction on 2026-11-02 from 164 tests to eight. That change removed 156 cases and their unused fixture helpers. The current routine Windows suite runs one frontend case and eight Rust cases, including the custom-rule regression added afterward. Runtime validation and file-operation safeguards remain in the application.
 
 ## Retained inventory
 
@@ -8,6 +8,7 @@ The routine Windows suite contains eight behavior tests: one frontend case and s
 |---|---|---|
 | Frontend interaction | `frontend/lib/cleanup-selection.test.ts` | Atomic selection limits, navigation ownership, stale indexed IPC replies, bounded/interrupted map motion, Live lifecycle, CSV/XLSX format dispatch, report scope/paging separation, final receipt, late progress and disposal/cancellation ownership, copy publication uncertainty, invalid byte/count refusal and exact large progress counters |
 | Native authorization | `crates/voldiq-core/tests/agents.rs` | Allowed file identity, sibling and excluded-path denial, renamed exclusions, pinned directories and replaced roots, recorded sensitive-name warnings through metadata-only services, suggestion/plan exclusion and unchanged ordinary-file eligibility |
+| Custom cleanup rules | `crates/voldiq-core/tests/custom_cleanup_rules.rs` | Persisted rule criteria, indexed scope, exclusions, protections and revision checks before preparing cleanup |
 | Saved storage evidence | `crates/voldiq-core/tests/snapshots.rs` | Reopened/cancelled snapshots, migration, playback/comparison/context, ranked remainders, coordinated folder pages, qualified budgets, duplicate hashes, reviewed retention, UTC/null/epoch/placeholder cohorts, retained-capture diary, Live lifecycle, quota/whole-volume counters, signed indexed reconciliation, VSS discovery/date/root evidence, complete CSV streaming and Windows publication/collision/cancellation/owned-temp/protection behavior and XLSX ZIP/XML/literal/integer/unknown/large-record evidence |
 | Duplicate execution | `crates/voldiq-core/src/cleanup/execute/tests.rs` | A changed retained copy prevents deletion; cancellation preserves pending files and retained copies |
 | Interrupted result recording | `crates/voldiq-core/src/cleanup/execute/tests.rs` | A journal write failure stops further removal and retains explicit partial/unknown outcomes |

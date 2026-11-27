@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Cleanup priority bars
+
+Built-in rules, application-cache review and custom rules display the shared score on a fixed 0–100 bar. Evidence coverage appears beside the score. A weighted observation that rounds down to zero displays as less than one percent. A row with no weighted evidence shows a distinct label. The evidence disclosure and file selection remain independent.
+
+The Svelte markup probe covers a missing assessment, an observed zero, a fractional score, full scale and below-one-percent coverage. The existing violet and track tokens give 4.64:1 contrast in light mode and 5.46:1 in dark mode. Native layout, keyboard interaction and scaling remain manual. [Source verification](../benchmarks/workbench-review-priority-source.json)
+
+The Windows copy fixture returned invalid handle during publication under filesystem redirection. The same test binary passed with fresh disposable files outside redirection. The copy implementation and fixture were unchanged.
+
 ## Overview shell and operational summary
 
 The rail separates navigation groups through spacing and a short accent mark on the active destination. It keeps the original Voldiq mark and the expanded and collapsed widths. Overview combines the volume picker, scope heading and compact Scan activity disclosure. The first-scan controls keep the scan profile next to the action it affects.

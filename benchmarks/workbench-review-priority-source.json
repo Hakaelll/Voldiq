@@ -1,0 +1,81 @@
+{
+  "checkedUtc": "2026-11-27T13:51:41.4437051Z",
+  "startedUtc": "2026-11-27T13:44:40.0221415Z",
+  "checkoutCommit": "0a44e2ff7572773ca753dceac38bd9afe66efd12",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 2.616
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 20.032
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1.714
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 14.665
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 296.955
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 85.374
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "frontend/components/CleanupRules.svelte",
+      "sha256": "F3B0072E7DF4E269AAEAA2751B6A2AC1D55CA091AB31E267066FEE56D843A75C"
+    },
+    {
+      "path": "frontend/components/CustomCleanupRules.svelte",
+      "sha256": "33E20367C23E6B42F368A69A3AA632915B9F7382AE501129DDC768806D5E1C9A"
+    },
+    {
+      "path": "frontend/components/ReviewPriorityDetails.svelte",
+      "sha256": "1E59CA831B621DFF72D71DEC1F176A99DF58A08468E2EEF71781EF9A6351B336"
+    },
+    {
+      "path": "frontend/components/ReviewPriorityMeter.svelte",
+      "sha256": "252BFE3DF1A92E47F73AA72FE8F52A4820FE1F6661023887167CD1A5D4B5BF1F"
+    },
+    {
+      "path": "frontend/lib/review-priority.ts",
+      "sha256": "10E311DFFA9129D9836124A2F9E9694D1B50287DF5AB15405C27BA2408E0C20D"
+    }
+  ],
+  "retainedBehaviorTests": 9,
+  "markup": {
+    "states": [
+      "missing",
+      "fractional score",
+      "full scale",
+      "observed zero",
+      "less than one percent"
+    ],
+    "reviewSurfaces": [
+      "built-in and application-cache rules",
+      "custom rules"
+    ],
+    "lightTrackContrast": 4.64,
+    "darkTrackContrast": 5.46,
+    "scope": "Svelte server markup and theme token contrast. Native layout and interaction remain manual."
+  }
+}

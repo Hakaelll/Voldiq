@@ -1,5 +1,6 @@
 <script lang="ts">
   import {
+    priorityCoverage,
     priorityPoints,
     reviewEvidence,
     reviewFactors,
@@ -9,11 +10,12 @@
 
   let { id, priority, assessedAt }: { id?: string; priority: ReviewPriority; assessedAt: number } =
     $props();
+  const coverage = $derived(priorityCoverage(priority));
 </script>
 
 <div {id} class="priority-details">
   <div class="priority-summary">
-    <strong>Evidence coverage {priority.coverage}%</strong>
+    <strong>{coverage === null ? 'No weighted evidence' : `Evidence coverage ${coverage}`}</strong>
     <span>Assessed {date(assessedAt)}</span>
   </div>
   <dl>

@@ -102,3 +102,10 @@ const pointsFormat = new Intl.NumberFormat(undefined, { maximumFractionDigits: 2
 export function priorityPoints(points: number): string {
   return pointsFormat.format(points / 100);
 }
+
+export function priorityCoverage(priority: ReviewPriority): string | null {
+  if (priority.coverage > 0) return `${priority.coverage}%`;
+  return priority.signals.some((signal) => signal.weight > 0 && signal.value !== null)
+    ? '<1%'
+    : null;
+}

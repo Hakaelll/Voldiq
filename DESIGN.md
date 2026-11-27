@@ -221,6 +221,8 @@ Overview, Cleanup, History and the Explorer list share text section controls wit
 
 Cleanup ranks files under a single category picker. The table leads with each file's name, path and modification date, followed by aligned sizes and review priority. A priority opens its evidence beneath the file row. Weight controls stay inside a disclosure and reordering preserves explicit selections.
 
+Built-in and custom rule rows use the same violet priority bar on a fixed 0–100 scale. The score and evidence coverage appear as text beside the bar, with separate labels for missing and below-one-percent weighted evidence. The bar keeps its scale across pages and weight changes. Opening the row reveals the score contributions. The file checkbox remains independent of the evidence control.
+
 Explorer places the path and coverage status next to the page title. The scan uses one compact status row. Idle Live, Folder budget and list filters use compact controls. Expand chart uses the same map surface with more vertical room and exits with Escape. The Treemap fits the available aspect ratio. Labels that fit within a tile use its own foreground color. Theme selection lives in Settings.
 
 Chart types share a visible segmented radio group with a checked surface and visible keyboard focus. Export and Expand chart sit together at the far end. The lower row separates chart gestures from Map settings and Files. The Files disclosure contains List view, Grid view, map items and Inspector where available. Choosing an action collapses that disclosure. The arrangement follows the visual hierarchy of the [TreeMap map toolbar](https://github.com/Prithvi-Web/TreeMap-Disk-Visualizer/blob/main/src/ui/markup/015-view-treemap.html).

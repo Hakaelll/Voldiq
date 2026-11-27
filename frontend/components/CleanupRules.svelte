@@ -7,11 +7,11 @@
   import { bytes, date, type CleanupRulePage } from '../lib/types';
   import Icon from './Icon.svelte';
   import ReviewPriorityDetails from './ReviewPriorityDetails.svelte';
+  import ReviewPriorityMeter from './ReviewPriorityMeter.svelte';
   import type { TraySource } from '../lib/cleanup-tray';
   import { updateCleanupSelection } from '../lib/cleanup-selection';
   import {
     defaultReviewWeights,
-    priorityPoints,
     readReviewWeights,
     reviewFactors,
     type ReviewWeights,
@@ -303,7 +303,7 @@
                       }}
                     /></th
                   ><th>File</th><th class="number">Logical size</th><th class="number">Potential</th
-                  ><th class="number">Review priority</th></tr
+                  ><th class="priority-column">Review priority</th></tr
                 ></thead
               >
               <tbody
@@ -337,10 +337,9 @@
                     >
                     <td class="number">{bytes(item.logical)}</td>
                     <td class="number">{bytes(item.reclaimable)}</td>
-                    <td class="number">
+                    <td class="priority-column">
                       <button
                         class="quiet-action priority-button"
-                        aria-label={`${filename(item.path)}, review priority ${priorityPoints(item.priority.points)} out of 100`}
                         aria-expanded={expandedPriority === item.id}
                         aria-controls={expandedPriority === item.id
                           ? `priority-${item.id}`
@@ -348,7 +347,8 @@
                         onclick={() => {
                           expandedPriority = expandedPriority === item.id ? null : item.id;
                         }}
-                        >{priorityPoints(item.priority.points)}
+                        ><span class="sr-only">Review priority for {filename(item.path)}</span>
+                        <ReviewPriorityMeter priority={item.priority} />
                         <Icon name="expand" size={12} /></button
                       >
                     </td>
@@ -482,10 +482,13 @@
   .weight-error {
     color: var(--error);
   }
+  .priority-column {
+    width: 176px;
+  }
   .priority-button {
-    justify-content: flex-end;
-    min-width: 64px;
-    font-variant-numeric: tabular-nums;
+    width: 100%;
+    justify-content: space-between;
+    padding-inline: 0;
   }
   .priority-button[aria-expanded='true'] {
     color: var(--accent);
