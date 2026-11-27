@@ -2,12 +2,13 @@ use super::terminal::Terminal;
 use std::io::{self, Write};
 
 const DENSITY: &[u8] = b" .:-=+*#%@";
-pub(super) const REST_YAW: f64 = -0.08;
-const LEAN: f64 = 0.17;
-const TOP: f64 = 0.53;
-const BASE: f64 = -0.78;
-const RIMS: [f64; 3] = [TOP, 0.08, -0.37];
-const RIM_WIDTH: f64 = 0.135;
+pub(super) const REST_YAW: f64 = -0.20;
+const LEAN: f64 = 0.19;
+const TOP: f64 = 0.54;
+const BASE: f64 = -0.67;
+const DISK_TOPS: [f64; 3] = [TOP, 0.13, -0.28];
+const DISK_HEIGHT: f64 = 0.39;
+const RIM_WIDTH: f64 = 0.09;
 
 #[derive(Clone, Copy)]
 pub(super) struct Layout {
@@ -22,7 +23,14 @@ pub(super) struct Layout {
 
 pub(super) struct Cell {
     pub(super) glyph: u8,
-    pub(super) sector: bool,
+    pub(super) ink: Ink,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum Ink {
+    Neutral,
+    Shadow,
+    Sector,
 }
 
 pub(super) fn write(
@@ -98,19 +106,19 @@ impl Layout {
 }
 
 fn write_row(frame: &mut String, terminal: &Terminal, cells: impl Iterator<Item = Cell>) {
-    let mut tinted = false;
+    let mut ink = Ink::Neutral;
     for cell in cells {
-        if cell.sector != tinted {
-            frame.push_str(if cell.sector {
-                terminal.logo_sector
-            } else {
-                terminal.reset
+        if cell.ink != ink {
+            frame.push_str(match cell.ink {
+                Ink::Neutral => terminal.reset,
+                Ink::Shadow => terminal.logo_shadow,
+                Ink::Sector => terminal.logo_sector,
             });
-            tinted = cell.sector;
+            ink = cell.ink;
         }
         frame.push(char::from(cell.glyph));
     }
-    if tinted {
+    if ink != Ink::Neutral {
         frame.push_str(terminal.reset);
     }
 }
@@ -129,7 +137,7 @@ impl View {
             yaw: yaw.sin_cos(),
             lean: LEAN.sin_cos(),
         };
-        let (sin_elevation, cos_elevation) = 0.48_f64.sin_cos();
+        let (sin_elevation, cos_elevation) = 0.65_f64.sin_cos();
         let direction = pose.local(Vec3 {
             x: 0.0,
             y: cos_elevation,
@@ -174,7 +182,14 @@ impl View {
         } else {
             DENSITY[lit_cell]
         };
-        Cell { glyph, sector }
+        let ink = if glyph == b' ' || light_samples > 0 && !sector {
+            Ink::Neutral
+        } else if sector {
+            Ink::Sector
+        } else {
+            Ink::Shadow
+        };
+        Cell { glyph, ink }
     }
 
     fn sample(&self, x: f64, y: f64) -> (f64, bool) {
@@ -235,35 +250,62 @@ impl Ray {
     }
 
     fn hit(self) -> Option<Hit> {
-        let distance = (TOP - self.origin.z) / self.direction.z;
-        let top = self.at(distance);
-        if top.x * top.x + top.y * top.y <= 1.0 {
-            return Some(Hit::Face(top));
-        }
-
         let a = self.direction.x * self.direction.x + self.direction.y * self.direction.y;
         let b = self.origin.x * self.direction.x + self.origin.y * self.direction.y;
-        let c = self.origin.x * self.origin.x + self.origin.y * self.origin.y - 1.0;
-        let discriminant = b * b - a * c;
-        if discriminant < 0.0 {
-            return None;
+        let radial = self.origin.x * self.origin.x + self.origin.y * self.origin.y;
+        let side = |radius: f64| {
+            let discriminant = b * b - a * (radial - radius * radius);
+            (discriminant >= 0.0).then(|| {
+                let distance = (-b - discriminant.sqrt()) / a;
+                (distance, self.at(distance))
+            })
+        };
+        let outer = side(1.0)?;
+        let mut nearest = side(0.95)
+            .filter(|(_, point)| (BASE..=TOP).contains(&point.z))
+            .map(|(distance, point)| (distance, Hit::Groove(point)));
+        for top in DISK_TOPS {
+            let distance = (top - self.origin.z) / self.direction.z;
+            let point = self.at(distance);
+            let candidate = if point.x * point.x + point.y * point.y <= 1.0 {
+                Some((distance, Hit::Face { point, top }))
+            } else if (top - DISK_HEIGHT..=top).contains(&outer.1.z) {
+                Some((
+                    outer.0,
+                    Hit::Wall {
+                        point: outer.1,
+                        top,
+                    },
+                ))
+            } else {
+                None
+            };
+            if let Some(candidate) = candidate
+                && nearest.as_ref().is_none_or(|hit| candidate.0 <= hit.0)
+            {
+                nearest = Some(candidate);
+            }
         }
-        let side = self.at((-b - discriminant.sqrt()) / a);
-        (BASE..=TOP).contains(&side.z).then_some(Hit::Wall(side))
+        nearest.map(|(_, hit)| hit)
     }
 }
 
 enum Hit {
-    Face(Vec3),
-    Wall(Vec3),
+    Face { point: Vec3, top: f64 },
+    Wall { point: Vec3, top: f64 },
+    Groove(Vec3),
 }
 
 fn shade(hit: Hit, light: Vec3) -> (f64, bool) {
     let shine = |point: Vec3| (point.x * light.x + point.y * light.y).max(0.0);
     match hit {
-        Hit::Face(point) => {
+        Hit::Face { point, top } => {
+            let radius = point.x.hypot(point.y);
+            if top != TOP || radius >= 0.95 {
+                return (0.83 + 0.17 * shine(point), false);
+            }
             let edge = point.y + point.x * 0.34;
-            let hub = point.x.hypot(point.y) <= 0.24;
+            let hub = radius <= 0.23;
             let upright_line = point.y > 0.0 && point.x.abs() <= 0.038;
             let radial_line = point.x > 0.0 && edge.abs() <= 0.066;
             if hub || upright_line || radial_line {
@@ -272,18 +314,19 @@ fn shade(hit: Hit, light: Vec3) -> (f64, bool) {
             if point.x > 0.0 && edge > 0.0 {
                 return (0.79 + 0.10 * shine(point), true);
             }
-            (0.27 + 0.09 * shine(point), false)
+            (0.16 + 0.09 * shine(point), false)
         }
-        Hit::Wall(point) => {
+        Hit::Wall { point, top } => {
             let shine = shine(point);
-            let rim = RIMS
-                .iter()
-                .any(|&top| (top - RIM_WIDTH..=top).contains(&point.z));
-            if rim {
-                return (0.77 + 0.23 * shine, false);
+            let depth = top - point.z;
+            if depth <= RIM_WIDTH {
+                return (0.79 + 0.21 * shine, false);
             }
-            let height = (point.z - BASE) / (TOP - BASE);
-            (0.18 + 0.12 * shine + 0.05 * height, false)
+            (
+                0.10 + 0.16 * shine + 0.09 * (1.0 - depth / DISK_HEIGHT),
+                false,
+            )
         }
+        Hit::Groove(point) => (0.04 + 0.05 * shine(point), false),
     }
 }

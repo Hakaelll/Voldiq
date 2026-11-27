@@ -1,0 +1,77 @@
+{
+  "checkedUtc": "2026-11-27T01:05:47.6955558Z",
+  "startedUtc": "2026-11-27T00:41:38.3114627Z",
+  "checkoutCommit": "f5eef1f4efb07eb45e1184a5f60bf92a804e9ec5",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 3.901
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 31.706
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 2.396
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 23.696
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1216.157
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 171.398
+    }
+  ],
+  "windowsConsole": {
+    "previewPid": 18420,
+    "previewRunning": true,
+    "cliBytes": 7980544,
+    "sha256": "66693D66BBB1389AB619FBD4253D371808296068D859B0E121CE72F5F147F543",
+    "redirectedStaticMenu": true
+  },
+  "renderer": {
+    "65": {
+      "uniquePoses": 100,
+      "menuStable": true,
+      "promptStable": true,
+      "blueSectorAndShadows": true
+    },
+    "80": {
+      "uniquePoses": 100,
+      "menuStable": true,
+      "promptStable": true,
+      "blueSectorAndShadows": true
+    },
+    "100": {
+      "uniquePoses": 100,
+      "menuStable": true,
+      "promptStable": true,
+      "blueSectorAndShadows": true
+    },
+    "120": {
+      "uniquePoses": 100,
+      "menuStable": true,
+      "promptStable": true,
+      "blueSectorAndShadows": true
+    }
+  },
+  "rendererCycleSeconds": 14,
+  "nativeIdleCapture": "The Windows pseudoconsole did not capture prompt output for either binary in this session."
+}

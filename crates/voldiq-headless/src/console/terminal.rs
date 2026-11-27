@@ -1,3 +1,5 @@
+#[cfg(windows)]
+use super::logo::Ink;
 use super::logo::Layout;
 #[cfg(windows)]
 use windows_sys::Win32::{Foundation::HANDLE, System::Console::*};
@@ -5,6 +7,7 @@ use windows_sys::Win32::{Foundation::HANDLE, System::Console::*};
 pub(super) struct Terminal {
     pub(super) accent: &'static str,
     pub(super) logo_sector: &'static str,
+    pub(super) logo_shadow: &'static str,
     pub(super) strong: &'static str,
     pub(super) quiet: &'static str,
     pub(super) reset: &'static str,
@@ -31,6 +34,7 @@ impl Terminal {
         Self {
             accent: style("\x1b[1;96m"),
             logo_sector: style("\x1b[94m"),
+            logo_shadow: style("\x1b[90m"),
             strong: style("\x1b[1m"),
             quiet: style("\x1b[2m"),
             reset: style("\x1b[0m"),
@@ -67,7 +71,7 @@ impl Terminal {
         let Some(offset) = layout.rows_above_prompt else {
             return;
         };
-        if !self.motion || layout.columns < 26 {
+        if !self.motion || layout.columns < 20 {
             return;
         }
         let input = unsafe { GetStdHandle(STD_INPUT_HANDLE) };
@@ -104,7 +108,9 @@ impl Terminal {
         }
 
         let neutral = start.wAttributes;
-        let blue = (neutral & !0x000f) | FOREGROUND_BLUE | FOREGROUND_INTENSITY;
+        let background = neutral & !0x000f;
+        let blue = background | FOREGROUND_BLUE | FOREGROUND_INTENSITY;
+        let shadow = background | FOREGROUND_INTENSITY;
         let mut frame = Vec::with_capacity(layout.columns * layout.rows);
         let started = Instant::now();
         loop {
@@ -129,10 +135,10 @@ impl Terminal {
                 Char: CHAR_INFO_0 {
                     UnicodeChar: u16::from(cell.glyph),
                 },
-                Attributes: if cell.sector && !self.logo_sector.is_empty() {
-                    blue
-                } else {
-                    neutral
+                Attributes: match cell.ink {
+                    Ink::Sector if !self.logo_sector.is_empty() => blue,
+                    Ink::Shadow if !self.logo_shadow.is_empty() => shadow,
+                    _ => neutral,
                 },
             }));
             // Writing only the logo cells keeps the terminal cursor and the menu in place.

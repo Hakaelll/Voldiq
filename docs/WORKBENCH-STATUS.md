@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Console logo depth and color
+
+The ASCII mark uses three solid disks with recessed seams, a brighter rim and a wider view of the top face. Shadow tones distinguish the disk surfaces from the silver rim, while a blue sector and two radial lines remain visible throughout the turn. The home menu stays beside the mark when it fits. The rotation takes 14 seconds and starts at the idle prompt.
+
+The Windows CLI opened a visible console and the redirected command showed a static logo without the replay option. A source-rendered turn produced 100 distinct frames at each of 65, 80, 100 and 120 columns and kept the menu and prompt stable. The pseudoconsole fixture failed to capture the prompt from both the previous executable and this one in the current session. Native idle input and resizing were last verified on the previous revision. [Source verification and renderer results](../benchmarks/workbench-console-relief-source.json)
+
 ## Confirmed empty folders
 
 Cleanup, the console, CLI and MCP check indexed empty-looking directories on disk. The shared rule pins each candidate's native identity, applies protections and excludes uncertain branches. It checks immediate directory entries, including hidden names, and reports scope-relative paths and the time of the check. The desktop list opens a result in Explorer. The result is informational and omits a byte estimate.
