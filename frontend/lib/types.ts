@@ -89,6 +89,12 @@ export interface DeveloperItem {
   files: number;
   incomplete: boolean;
   allocation_known: boolean;
+  package_context: {
+    status: 'project_associated' | 'shared_store' | 'possible_remnant' | 'protected' | 'unknown';
+    evidence: string;
+    marker_modified: number | null;
+    rule_version: number;
+  } | null;
 }
 export interface DeveloperPage {
   items: DeveloperItem[];

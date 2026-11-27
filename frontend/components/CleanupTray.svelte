@@ -161,7 +161,12 @@
                     >{group.items.length} {group.items.length === 1 ? 'file' : 'files'}</span
                   ></summary
                 >
-                <p>{group.origin.description}</p>
+                <p>
+                  {group.origin.description}
+                  {#if group.origin.reference}
+                    Rule {group.origin.reference.id} · Revision {group.origin.reference.revision}
+                  {/if}
+                </p>
                 {#each folders[at] as folder}
                   <h3 title={folder.path}>{folder.path}</h3>
                   <ul>

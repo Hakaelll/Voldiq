@@ -46,6 +46,7 @@
   import CleanupTray from './components/CleanupTray.svelte';
   import { addToTray, type TrayGroup, type TraySource, type TrayTarget } from './lib/cleanup-tray';
   import CleanupRules from './components/CleanupRules.svelte';
+  import CustomCleanupRules from './components/CustomCleanupRules.svelte';
   import EmptyFolders from './components/EmptyFolders.svelte';
   import {
     defaultReviewWeights,
@@ -228,6 +229,7 @@
   let requestedPlanId = $state<string | null>(null);
   const cleanupSections = [
     { id: 'candidates', label: 'Candidates' },
+    { id: 'custom-rules', label: 'Custom rules' },
     { id: 'empty-folders', label: 'Empty folders' },
     { id: 'activity', label: 'Activity' },
     { id: 'requests', label: 'Agent plans' },
@@ -2229,6 +2231,21 @@
                 onopen={(id) => {
                   view = 'explorer';
                   void open(id);
+                }}
+              />
+            {:else if cleanupSection === 'custom-rules'}
+              <CustomCleanupRules
+                {indexId}
+                {revision}
+                enabled={ready && !busy && !historical && operation?.phase !== 'scanning'}
+                durable={storageMode !== 'ephemeral'}
+                scope={directory?.entry.id === scope ? { id: scope, path: directory.path } : null}
+                weights={reviewWeights}
+                onadd={addTrayFiles}
+                onchanged={(ruleId) => {
+                  trayGroups = trayGroups.filter(
+                    ({ source }) => source.kind !== 'custom' || source.reference.id !== ruleId,
+                  );
                 }}
               />
             {:else if cleanupSection === 'windows'}

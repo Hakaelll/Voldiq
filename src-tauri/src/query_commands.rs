@@ -43,6 +43,7 @@ pub(crate) enum QueryFamily {
     SnapshotTrend,
     SnapshotTrendChanges,
     EmptyFolders,
+    CustomCleanupRule,
 }
 
 #[derive(Default)]
@@ -59,7 +60,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 26],
+    slots: [Slot; 27],
 }
 
 impl QueryFamily {
@@ -91,6 +92,7 @@ impl QueryFamily {
             Self::SnapshotTrend => 23,
             Self::SnapshotTrendChanges => 24,
             Self::EmptyFolders => 25,
+            Self::CustomCleanupRule => 26,
         }
     }
 }
@@ -1021,6 +1023,59 @@ pub(crate) async fn query_application_cache(
                     &voldiq_core::applications::review::Environment {
                         local_data: &local_data,
                         now: voldiq_core::cleanup::rules::now()?,
+                        protections: &protections,
+                        duplicates: duplicates.as_ref().map(|run| &run.analysis),
+                    },
+                    cancelled,
+                )
+            })();
+            if cancelled.load(Ordering::Relaxed) {
+                Ok(None)
+            } else {
+                result
+                    .map(Some)
+                    .map_err(|error: voldiq_core::Error| error.to_string())
+            }
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn query_custom_cleanup_rule(
+    index_id: IndexId,
+    reference: voldiq_core::cleanup::rules::custom::Revision,
+    request: voldiq_core::cleanup::rules::Query,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<voldiq_core::cleanup::rules::custom::Page>, String> {
+    use voldiq_core::cleanup::rules;
+    engine.require_durable_state()?;
+    let directory = engine.operations.clone();
+    let current = engine.index_for(index_id)?;
+    let duplicates = engine
+        .duplicates
+        .lock()
+        .map_err(|error| error.to_string())?
+        .clone()
+        .filter(|run| run.index_id == index_id && Arc::ptr_eq(&run.index, &current));
+    run_query(
+        index_id,
+        epoch,
+        QueryFamily::CustomCleanupRule,
+        request_id,
+        engine.inner().clone(),
+        move |index, cancelled| {
+            let result = (|| {
+                let state = directory.directory();
+                let protections = voldiq_core::metadata::Store::open(state)?.protections()?;
+                rules::custom::Store::open(state)?.query(
+                    index,
+                    reference,
+                    request,
+                    &rules::custom::Environment {
+                        now: rules::now()?,
                         protections: &protections,
                         duplicates: duplicates.as_ref().map(|run| &run.analysis),
                     },

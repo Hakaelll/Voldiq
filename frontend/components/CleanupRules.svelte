@@ -6,13 +6,13 @@
   import { isTauri } from '@tauri-apps/api/core';
   import { bytes, date, type CleanupRulePage } from '../lib/types';
   import Icon from './Icon.svelte';
+  import ReviewPriorityDetails from './ReviewPriorityDetails.svelte';
   import type { TraySource } from '../lib/cleanup-tray';
   import { updateCleanupSelection } from '../lib/cleanup-selection';
   import {
     defaultReviewWeights,
     priorityPoints,
     readReviewWeights,
-    reviewEvidence,
     reviewFactors,
     type ReviewWeights,
   } from '../lib/review-priority';
@@ -354,28 +354,11 @@
                   {#if expandedPriority === item.id}
                     <tr class="priority-row">
                       <td colspan="5">
-                        <div id={`priority-${item.id}`} class="priority-details">
-                          <div class="priority-summary">
-                            <strong>Evidence coverage {item.priority.coverage}%</strong>
-                            <span>Assessed {date(page.assessed_at)}</span>
-                          </div>
-                          <dl>
-                            {#each item.priority.signals as signal, at}
-                              <div>
-                                <dt>{reviewFactors[at][1]}</dt>
-                                <dd>{reviewEvidence[signal.evidence]}</dd>
-                                <dd class="priority-value">
-                                  Weight {signal.weight} · {priorityPoints(signal.points)} pts
-                                </dd>
-                              </div>
-                            {/each}
-                          </dl>
-                          <p>
-                            Coverage reflects how much of the chosen weighting had evidence. A
-                            matching local file provides no backup guarantee. Review the files
-                            before confirming any action.
-                          </p>
-                        </div>
+                        <ReviewPriorityDetails
+                          id={`priority-${item.id}`}
+                          priority={item.priority}
+                          assessedAt={page.assessed_at}
+                        />
                       </td>
                     </tr>
                   {/if}
@@ -510,37 +493,6 @@
   }
   .priority-row {
     background: var(--surface);
-  }
-  .priority-details {
-    max-width: 760px;
-    margin-inline: 30px 0;
-    padding-block: 6px;
-  }
-  .priority-summary {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px 18px;
-  }
-  .priority-summary span,
-  .priority-details dd,
-  .priority-details p {
-    color: var(--secondary);
-  }
-  .priority-details dl {
-    margin: 12px 0;
-  }
-  .priority-details dl div {
-    display: grid;
-    grid-template-columns: 165px minmax(0, 1fr) max-content;
-    gap: 12px;
-    padding-block: 6px;
-    border-bottom: 1px solid var(--border);
-  }
-  .priority-details dd {
-    margin: 0;
-  }
-  .priority-value {
-    font-variant-numeric: tabular-nums;
   }
   .rule-summary {
     padding: 14px 0 20px;

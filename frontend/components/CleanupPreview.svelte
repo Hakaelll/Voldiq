@@ -115,7 +115,11 @@
       <summary>Review sources</summary>
       <ul>
         {#each plan.origins as origin}
-          <li><strong>{origin.label}</strong> · {origin.description} <small>{origin.risk === 'review' ? 'Manual review' : origin.risk}</small></li>
+          <li>
+            <strong>{origin.label}</strong> · {origin.description}
+            {#if origin.reference}Rule {origin.reference.id} · Revision {origin.reference.revision}{/if}
+            <small>{origin.risk === 'review' ? 'Manual review' : origin.risk}</small>
+          </li>
         {/each}
       </ul>
     </details>

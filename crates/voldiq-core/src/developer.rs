@@ -1,9 +1,13 @@
+use crate::metadata::Eligibility;
 use crate::{Kind, NodeId, Result, index::Index};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::sync::atomic::AtomicBool;
 
 pub mod git;
+mod package_context;
+pub use package_context::{Context as PackageContext, Status as PackageStatus};
 
 pub struct CacheLocation {
     pub path: PathBuf,
@@ -134,6 +138,7 @@ pub struct Item {
     pub files: u64,
     pub incomplete: bool,
     pub allocation_known: bool,
+    pub package_context: Option<PackageContext>,
 }
 
 #[derive(Serialize)]
@@ -185,7 +190,9 @@ fn classified(
         .filter_map(|cache| cache.path.file_name())
         .collect();
     let mut markers: HashMap<NodeId, HashSet<&str>> = HashMap::new();
+    let mut packages = package_context::Signals::default();
     for entry in &index.entries {
+        packages.observe(index, entry);
         if entry.kind != Kind::File || entry.incomplete {
             continue;
         }
@@ -227,35 +234,50 @@ fn classified(
             } else {
                 None
             };
-        let classification = cache_classification.or_else(|| match entry.name.as_str() {
-            "target" if has("Cargo.toml") => Some(("Cargo", Category::Build)),
-            "node_modules" if has("package.json") => Some(("Node.js", Category::Dependencies)),
-            "dist" | "build" if has("package.json") => Some(("Node.js", Category::Build)),
-            "build" if has("CMakeLists.txt") => Some(("CMake", Category::Build)),
-            "__pycache__" => Some(("Python", Category::Cache)),
-            ".gradle"
-                if has("build.gradle")
-                    || has("build.gradle.kts")
-                    || has("settings.gradle")
-                    || has("settings.gradle.kts") =>
-            {
-                Some(("Gradle", Category::Cache))
-            }
-            "bin" | "obj"
-                if siblings.is_some_and(|set| {
-                    set.iter()
-                        .any(|name| name.ends_with(".csproj") || name.ends_with(".fsproj"))
-                }) =>
-            {
-                Some((".NET", Category::Build))
-            }
-            _ => None,
-        });
+        let package = packages.classify(index, entry, scope);
+        let classification = cache_classification
+            .or_else(|| {
+                package
+                    .as_ref()
+                    .map(|&(tool, _)| (tool, Category::Dependencies))
+            })
+            .or_else(|| match entry.name.as_str() {
+                "target" if has("Cargo.toml") => Some(("Cargo", Category::Build)),
+                "node_modules" if has("package.json") => Some(("Node.js", Category::Dependencies)),
+                "dist" | "build" if has("package.json") => Some(("Node.js", Category::Build)),
+                "build" if has("CMakeLists.txt") => Some(("CMake", Category::Build)),
+                "__pycache__" => Some(("Python", Category::Cache)),
+                ".gradle"
+                    if has("build.gradle")
+                        || has("build.gradle.kts")
+                        || has("settings.gradle")
+                        || has("settings.gradle.kts") =>
+                {
+                    Some(("Gradle", Category::Cache))
+                }
+                "bin" | "obj"
+                    if siblings.is_some_and(|set| {
+                        set.iter()
+                            .any(|name| name.ends_with(".csproj") || name.ends_with(".fsproj"))
+                    }) =>
+                {
+                    Some((".NET", Category::Build))
+                }
+                _ => None,
+            });
         if let Some((tool, category)) = classification {
             if cache_classification.is_some_and(|(_, category)| category == Category::Dependencies)
             {
                 configured_dependencies.push(entry.id);
             }
+            let package_context = if cache_classification == Some(("NuGet", Category::Dependencies))
+            {
+                Some(PackageContext::shared())
+            } else {
+                package
+                    .filter(|_| cache_classification.is_none())
+                    .map(|(_, context)| context)
+            };
             candidates.push(Item {
                 id: entry.id,
                 path: String::new(),
@@ -266,6 +288,7 @@ fn classified(
                 files: entry.files,
                 incomplete: entry.incomplete,
                 allocation_known: entry.allocation_known,
+                package_context,
             });
         }
     }
@@ -307,6 +330,15 @@ pub(crate) fn project_build_scopes(index: &Index, caches: &[CacheLocation]) -> R
 }
 
 pub fn query_with_caches(index: &Index, query: &Query, caches: &[CacheLocation]) -> Result<Page> {
+    query_with_protections(index, query, caches, None)
+}
+
+pub fn query_with_protections(
+    index: &Index,
+    query: &Query,
+    caches: &[CacheLocation],
+    protections: Option<&crate::metadata::Protections>,
+) -> Result<Page> {
     let (mut candidates, configured_dependencies) = classified(index, query.scope, caches)?;
     // Omit ambiguous aggregate cache rows from totals, retaining their full cleanup exclusions.
     let mut dependency_ancestors = HashSet::new();
@@ -371,8 +403,31 @@ pub fn query_with_caches(index: &Index, query: &Query, caches: &[CacheLocation])
         .skip(query.offset)
         .take(query.limit.clamp(1, 100))
         .collect();
+    let needs_pin = |item: &Item| {
+        item.package_context
+            .as_ref()
+            .is_some_and(|context| context.status == PackageStatus::PossibleRemnant)
+    };
+    let cancel = AtomicBool::new(false);
+    let mask = if items.iter().any(needs_pin) {
+        protections.and_then(|policy| policy.for_index(index, &cancel).ok())
+    } else {
+        None
+    };
     for item in &mut items {
         item.path = index.path(item.id)?.to_string_lossy().into_owned();
+        if let Some(context) = &mut item.package_context
+            && context.status == PackageStatus::PossibleRemnant
+        {
+            match mask
+                .as_ref()
+                .and_then(|mask| mask.eligibility(item.id).ok())
+            {
+                Some(Eligibility::Protected) => context.protected(),
+                Some(Eligibility::Allowed) if index.pin_folder(item.id).is_ok() => {}
+                _ => context.unverified(),
+            }
+        }
     }
     Ok(Page {
         items,

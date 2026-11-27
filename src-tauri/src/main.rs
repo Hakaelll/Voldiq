@@ -885,6 +885,7 @@ async fn query_developer_storage(
     engine: State<'_, Arc<Engine>>,
 ) -> Result<voldiq_core::developer::Page, String> {
     let shared = engine.index_for(index_id)?;
+    let engine = Arc::clone(engine.inner());
     tauri::async_runtime::spawn_blocking(move || {
         let historical = shared
             .read()
@@ -896,9 +897,17 @@ async fn query_developer_storage(
         } else {
             developer_commands::cache_locations(&app)
         };
+        let protections = (!historical && engine.require_durable_state().is_ok())
+            .then(|| engine.protections().ok())
+            .flatten();
         let index = shared.read().map_err(|e| e.to_string())?;
-        voldiq_core::developer::query_with_caches(&index, &query, &caches)
-            .map_err(|e| e.to_string())
+        voldiq_core::developer::query_with_protections(
+            &index,
+            &query,
+            &caches,
+            protections.as_ref(),
+        )
+        .map_err(|e| e.to_string())
     })
     .await
     .map_err(|e| e.to_string())?
@@ -1194,6 +1203,7 @@ fn main() {
             query_commands::query_applications,
             query_commands::query_application_cache,
             query_commands::query_empty_folders,
+            query_commands::query_custom_cleanup_rule,
             query_commands::query_cleanup_tray,
             query_commands::query_recovery_copies,
             query_commands::query_device_health,
@@ -1240,6 +1250,9 @@ fn main() {
             query_commands::open_query_session,
             preview_cleanup_tray,
             query_cleanup_rule,
+            list_custom_cleanup_rules,
+            save_custom_cleanup_rule,
+            remove_custom_cleanup_rule,
             query_recycle_bin,
             discard_cleanup,
             clear_current_analysis,

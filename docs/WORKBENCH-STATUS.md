@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Custom cleanup rules and package context
+
+Cleanup saves versioned rules for a folder from the current analysis. The literal extension, minimum logical size and modification age must all match. The rule rechecks the folder's native identity, protections and the selected files when preparing a tray plan. Editing a rule preserves the folder binding and invalidates older review revisions. The score reuses the saved review weights and shows unavailable signals. Selection and confirmation remain explicit.
+
+Developer Storage distinguishes supported npm and Windows Python layouts associated with projects, configured NuGet global packages and possible remnants. The remnant classification requires a dated install marker, a sibling lockfile, sufficient indexed coverage and current folder verification. Labels explain which evidence was found. Use by current processes, sharing through additional paths and recoverable bytes remain unverified.
+
+The Windows rule test uses owned files and covers save, reopen, matching criteria, protected or excluded paths, Voldiq state, a stale prepared review and replacement of the bound folder. The routine suite keeps eight Rust behavior tests and one frontend flow. A disposable package fixture covered the supported layouts, excluded context, saved protection and changed identities. Svelte markup checks covered a populated rule, editing, an unscanned workspace and ephemeral mode. Native pointer, keyboard and scaling acceptance remain manual. [Source verification](../benchmarks/workbench-custom-rules-source.json)
+
 ## Console logo depth and color
 
 The ASCII mark uses three solid disks with recessed seams, a brighter rim and a wider view of the top face. Shadow tones distinguish the disk surfaces from the silver rim, while a blue sector and two radial lines remain visible throughout the turn. The home menu stays beside the mark when it fits. The rotation takes 14 seconds and starts at the idle prompt.

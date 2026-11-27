@@ -71,6 +71,7 @@ pub struct Plan {
 struct ProtectionFrame {
     directory: crate::operations::Coordinator,
     fingerprint: String,
+    custom_rules: Vec<rules::custom::Revision>,
 }
 
 #[cfg(windows)]
@@ -83,9 +84,22 @@ impl Plan {
         let directory = crate::operations::Coordinator::open(directory)?;
         let protections = crate::metadata::Store::open(directory.directory())?.protections()?;
         self.check_protections(&protections)?;
+        if self.protections.as_ref().is_some_and(|frame| {
+            !frame.custom_rules.is_empty() && frame.directory.identity() != directory.identity()
+        }) {
+            return Err(Error::Invalid(
+                "The custom cleanup preview belongs to a different state directory.".into(),
+            ));
+        }
+        let custom_rules = self
+            .protections
+            .take()
+            .map(|frame| frame.custom_rules)
+            .unwrap_or_default();
         self.protections = Some(ProtectionFrame {
             directory,
             fingerprint: protections.fingerprint().to_owned(),
+            custom_rules,
         });
         Ok(self)
     }
@@ -120,6 +134,9 @@ impl Plan {
                 ));
             }
             self.check_protections(&protections)?;
+            if !frame.custom_rules.is_empty() {
+                rules::custom::verify_persisted_revisions(&frame.directory, &frame.custom_rules)?;
+            }
         }
         Ok(())
     }

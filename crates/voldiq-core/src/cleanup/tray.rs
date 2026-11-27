@@ -19,6 +19,9 @@ pub enum Source {
     BrowserCache {
         application: Option<crate::applications::review::Context>,
     },
+    Custom {
+        reference: super::rules::custom::Revision,
+    },
 }
 
 #[derive(Clone, Deserialize, Serialize)]
@@ -64,6 +67,8 @@ pub struct Origin {
     pub label: &'static str,
     pub description: &'static str,
     pub risk: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reference: Option<super::rules::custom::Revision>,
 }
 
 impl From<super::rules::Rule> for Origin {
@@ -73,6 +78,7 @@ impl From<super::rules::Rule> for Origin {
             label: rule.name,
             description: rule.description,
             risk: rule.risk,
+            reference: None,
         }
     }
 }
@@ -86,12 +92,14 @@ impl Source {
                 label: "Selected files",
                 description: "Explicit selection of regular files.",
                 risk: "review",
+                reference: None,
             },
             Self::Duplicates => Origin {
                 id: "duplicate-files",
                 label: "Exact duplicate copies",
                 description: "Preparation rechecks content and verifies a retained copy.",
                 risk: "review",
+                reference: None,
             },
             Self::UserTemp => USER_TEMP.into(),
             Self::OldFiles => OLD_FILES.into(),
@@ -103,6 +111,10 @@ impl Source {
                 ..BROWSER_CACHE.into()
             },
             Self::BrowserCache { application: None } => BROWSER_CACHE.into(),
+            Self::Custom { reference } => Origin {
+                reference: Some(*reference),
+                ..super::rules::custom::RECIPE.into()
+            },
         }
     }
 }
@@ -170,6 +182,11 @@ pub(super) fn validate(index: &Index, groups: &[Group], cancel: &AtomicBool) -> 
                     .all(|byte| byte.is_ascii_hexdigit()))
         {
             return Err(Error::Invalid("Invalid application review context.".into()));
+        }
+        if let Source::Custom { reference } = &group.source
+            && (reference.id <= 0 || reference.revision <= 0)
+        {
+            return Err(Error::Invalid("Invalid custom rule revision.".into()));
         }
         for &id in &group.selection {
             let entry = index.entry(id)?;

@@ -156,6 +156,12 @@ The terminal mark follows the original Voldiq icon. Three filled disks have brig
 
 The home menu stays beside the logo on a standard 80-column terminal. Its right column holds the wordmark, analysis and browsing actions, shortcuts, access instructions and input prompt. Only the logo moves. Narrow terminals stack the logo and menu when the columns cannot fit. Accented key markers identify actions. Section headings and aligned result rows keep attention on measured sizes. Filled ASCII bars show measured volume use or search result size relative to the largest match. Missing measurements use a dashed bar and an explicit unknown label. The console remains legible with color disabled.
 
+### Custom cleanup rules and package context
+
+Cleanup puts Custom rules beside Candidates. A compact list names saved rules and their folders. The active rule shows its revision and criteria above the matches. Creating a rule binds the current Explorer folder. Editing retains the saved binding. The form and a removal confirmation share the rule pane. Matches use a flat list with separate logical and allocated size labels, an evidence disclosure and an explicit selection for the common tray. The rule list stacks on narrower windows and the evidence uses the existing review weights.
+
+Developer Storage shows package context inside dependency rows. An evidence disclosure names the observed layout and date when available. Possible remnants have incomplete-use and recovery evidence and remain informational. These rows retain the existing method for opening the indexed folder in Explorer.
+
 The cleanup candidate menu opens a saved analysis by snapshot and rule. Results align recorded file sizes, IDs and priority scores. The summary states when the evidence is partial or the rule location is unavailable. Recoverable space requires live verification.
 
 Cleanup's Empty folders section presents a flat list of confirmed directories and a date for the current page. The list shows paths relative to the scan and opens each folder in Explorer. Partial coverage and pages with more folders to check stay visible even when the current page is empty.

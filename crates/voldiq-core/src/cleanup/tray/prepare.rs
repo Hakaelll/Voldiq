@@ -1,5 +1,5 @@
 use super::*;
-use crate::cleanup::{MIXED_REVIEW_RULE, Plan};
+use crate::cleanup::{MIXED_REVIEW_RULE, Plan, rules::custom};
 use std::path::Path;
 
 pub struct Environment<'a> {
@@ -25,6 +25,8 @@ pub fn prepare(
     validate(index, groups, cancel)?;
     let protections = crate::metadata::Store::open(env.state)?.protections()?;
     let mut catalog = None;
+    let mut custom_store = None;
+    let mut revisions = Vec::new();
     let mut parts = Vec::new();
     for group in groups {
         super::super::check_cancelled(cancel)?;
@@ -77,6 +79,18 @@ pub fn prepare(
                     selection,
                     cancel,
                 )
+            }
+            Source::Custom { reference } => {
+                if custom_store.is_none() {
+                    custom_store = Some(custom::Store::open(env.state)?);
+                }
+                revisions.push(*reference);
+                custom_store
+                    .as_ref()
+                    .ok_or_else(|| {
+                        Error::Invalid("Custom cleanup rule store is unavailable.".into())
+                    })?
+                    .prepare(index, *reference, env.now, &protections, selection, cancel)
             }
         }?;
         plan.validate_retained()?;
@@ -140,15 +154,15 @@ pub fn prepare(
         .collect();
     combined.preview.retained.sort();
     combined.validate_retained()?;
-    let plan = combined.with_protections(env.state)?;
-    if plan
+    let mut plan = combined.with_protections(env.state)?;
+    let frame = plan
         .protections
-        .as_ref()
-        .is_none_or(|frame| frame.fingerprint != protections.fingerprint())
-    {
-        return Err(Error::Invalid(
-            "Protections changed while preparing the tray.".into(),
-        ));
+        .as_mut()
+        .filter(|frame| frame.fingerprint == protections.fingerprint())
+        .ok_or_else(|| Error::Invalid("Protections changed while preparing the tray.".into()))?;
+    if let Some(store) = custom_store {
+        store.verify_revisions(&revisions)?;
+        frame.custom_rules = revisions;
     }
     super::super::check_cancelled(cancel)?;
     Ok(Prepared {

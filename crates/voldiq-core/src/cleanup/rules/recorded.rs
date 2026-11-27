@@ -153,11 +153,8 @@ pub(crate) fn query_snapshot(
             limit: request.limit.unwrap_or(page_size).min(page_size),
             weights: request.weights,
         },
-        source,
-        &Environment {
-            temporary: location,
-            local_data: location,
-            caches: &[],
+        Ranking {
+            source,
             now: observation.completed_at,
             protections,
             duplicates: None,

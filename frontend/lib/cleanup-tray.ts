@@ -1,9 +1,11 @@
 import type { ApplicationCleanupContext } from './applications';
+import type { CustomRuleReference } from './custom-cleanup';
 import type { NodeId } from './types';
 
 export type TraySource =
   | { kind: 'manual' | 'duplicates' | 'user_temp' | 'old_files' | 'project_temp' }
-  | { kind: 'browser_cache'; application: ApplicationCleanupContext | null };
+  | { kind: 'browser_cache'; application: ApplicationCleanupContext | null }
+  | { kind: 'custom'; reference: CustomRuleReference };
 
 export interface TrayGroup {
   source: TraySource;
@@ -21,6 +23,7 @@ export interface TrayOrigin {
   label: string;
   description: string;
   risk: string;
+  reference?: CustomRuleReference;
 }
 
 export interface TrayItem {
@@ -59,6 +62,9 @@ export interface TraySummary {
 }
 
 function sourceKey(source: TraySource): string {
+  if (source.kind === 'custom') {
+    return `custom:${source.reference.id}:${source.reference.revision}`;
+  }
   if (source.kind === 'browser_cache' && source.application) {
     return `browser_cache:${source.application.scope}:${source.application.application_id}`;
   }

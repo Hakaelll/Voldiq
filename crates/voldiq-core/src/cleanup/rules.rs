@@ -10,6 +10,7 @@ use std::{
 
 const MINIMUM_AGE: u64 = 7 * 24 * 60 * 60;
 const OLD_FILE_AGE: u64 = 90 * 24 * 60 * 60;
+pub mod custom;
 mod recorded;
 mod scope;
 pub(crate) use recorded::query_snapshot;
@@ -31,16 +32,47 @@ enum RuleSource<'a> {
     OldFiles,
     ProjectTemp(&'a [crate::developer::CacheLocation]),
     BrowserCache(&'a Path, Option<NodeId>),
+    Custom {
+        criteria: &'a custom::Criteria<'a>,
+        state_scope: Option<NodeId>,
+    },
 }
 
 impl RuleSource<'_> {
-    fn kind(self) -> RuleKind {
+    fn kind(self) -> Option<RuleKind> {
         match self {
-            Self::UserTemp => RuleKind::UserTemp,
-            Self::OldFiles => RuleKind::OldFiles,
-            Self::ProjectTemp(_) => RuleKind::ProjectTemp,
-            Self::BrowserCache(..) => RuleKind::BrowserCache,
+            Self::UserTemp => Some(RuleKind::UserTemp),
+            Self::OldFiles => Some(RuleKind::OldFiles),
+            Self::ProjectTemp(_) => Some(RuleKind::ProjectTemp),
+            Self::BrowserCache(..) => Some(RuleKind::BrowserCache),
+            Self::Custom { .. } => None,
         }
+    }
+
+    fn matches_file(self, index: &Index, entry: &crate::Entry) -> bool {
+        match self {
+            Self::Custom {
+                criteria,
+                state_scope,
+            } => {
+                criteria.matches_file(entry)
+                    && !state_scope.is_some_and(|state| index.in_scope(entry.id, state))
+            }
+            _ => self.kind().is_some_and(|kind| matches_rule(entry, kind)),
+        }
+    }
+
+    fn candidate_evidence(self, entry: &crate::Entry, recorded: bool, now: u64) -> Option<bool> {
+        if let Self::Custom { criteria, .. } = self {
+            return criteria
+                .has_evidence(entry)
+                .then(|| criteria.old_enough(entry, now));
+        }
+        let verified = !recorded
+            || (entry.modified.is_some()
+                && entry.file_state.is_some()
+                && entry.cloud == crate::cloud::CloudState::NotPlaceholder);
+        verified.then(|| self.kind().is_some_and(|kind| old_enough(entry, now, kind)))
     }
 }
 
@@ -239,7 +271,7 @@ fn query_scoped(
     score::Model::new(request.weights)?;
     let temporary = temporary.map(verified_root).transpose()?;
     let mut page = Page {
-        rule: kind.metadata(),
+        rule: kind.map_or(custom::RECIPE, RuleKind::metadata),
         root: temporary
             .as_deref()
             .map_or_else(String::new, |path| path.to_string_lossy().into_owned()),
@@ -275,7 +307,18 @@ fn query_scoped(
     page.complete = !index.entry(NodeId(0))?.incomplete
         && !index.entry(scope_id)?.incomplete
         && (binding.whole || matches!(source, RuleSource::BrowserCache(_, Some(_))));
-    let ranked = rank_candidates(index, scope_id, request, source, env, cancel)?;
+    let ranked = rank_candidates(
+        index,
+        scope_id,
+        request,
+        Ranking {
+            source,
+            now,
+            protections: env.protections,
+            duplicates: env.duplicates,
+        },
+        cancel,
+    )?;
     page.unverified_branches = ranked.unverified_branches;
     page.complete &= page.unverified_branches == 0;
     page.total = ranked.total;
@@ -306,18 +349,33 @@ fn recorded_charge(entry: &crate::Entry) -> Option<u64> {
         .then_some(if entry.hard_link { 0 } else { entry.allocated })
 }
 
+struct Ranking<'a> {
+    source: RuleSource<'a>,
+    now: u64,
+    protections: &'a crate::metadata::Protections,
+    duplicates: Option<&'a crate::duplicates::Analysis>,
+}
+
 fn rank_candidates<'a>(
     index: &'a Index,
     scope_id: NodeId,
     request: Query,
-    source: RuleSource<'_>,
-    env: &Environment<'_>,
+    ranking: Ranking<'_>,
     cancel: &AtomicBool,
 ) -> Result<RankedPage<'a>> {
-    let kind = source.kind();
+    let Ranking {
+        source,
+        now,
+        protections,
+        duplicates,
+    } = ranking;
     let model = score::Model::new(request.weights)?;
-    let now = env.now;
-    let mask = env.protections.for_index(index, cancel)?;
+    let mask = protections.for_index(index, cancel)?;
+    if matches!(source, RuleSource::Custom { .. }) && !mask.allows(scope_id) {
+        return Err(Error::Invalid(
+            "The custom rule folder is protected or could not be verified.".into(),
+        ));
+    }
     let mut page = RankedPage {
         unverified_branches: mask.unverified_branches(scope_id)?,
         ..RankedPage::default()
@@ -325,8 +383,8 @@ fn rank_candidates<'a>(
     let mut protected_scopes = Vec::new();
     #[cfg(windows)]
     if matches!(
-        kind,
-        RuleKind::OldFiles | RuleKind::ProjectTemp | RuleKind::BrowserCache
+        source.kind(),
+        Some(RuleKind::OldFiles | RuleKind::ProjectTemp | RuleKind::BrowserCache)
     ) {
         for path in windows::protected_directories()? {
             let path = verified_root(&path)?;
@@ -350,23 +408,21 @@ fn rank_candidates<'a>(
         .iter()
         .take_while(|_| !cancel.load(Ordering::Relaxed))
         .filter(|entry| {
-            matches_rule(entry, kind)
+            source.matches_file(index, entry)
                 && mask.allows(entry.id)
                 && index.in_scope(entry.id, scope_id)
-                && (!matches!(kind, RuleKind::ProjectTemp) || builds.contains(index, entry.id))
-                && (!matches!(kind, RuleKind::BrowserCache)
+                && (!matches!(source, RuleSource::ProjectTemp(_))
+                    || builds.contains(index, entry.id))
+                && (!matches!(source, RuleSource::BrowserCache(..))
                     || entry.parent.is_some_and(|id| browser_scopes.contains(&id)))
                 && !protected_scopes
                     .iter()
                     .any(|&protected| index.in_scope(entry.id, protected))
         })
         .filter(|entry| {
-            let has_evidence = index.snapshot_id.is_none()
-                || (entry.modified.is_some()
-                    && entry.file_state.is_some()
-                    && entry.cloud == crate::cloud::CloudState::NotPlaceholder);
-            page.unverified_files += usize::from(!has_evidence);
-            has_evidence && old_enough(entry, now, kind)
+            let matches = source.candidate_evidence(entry, index.snapshot_id.is_some(), now);
+            page.unverified_files += usize::from(matches.is_none());
+            matches == Some(true)
         })
         .map(|entry| Ranked {
             entry,
@@ -378,10 +434,7 @@ fn rank_candidates<'a>(
     if cancel.load(Ordering::Relaxed) {
         return Err(Error::Invalid("Application cache query cancelled.".into()));
     }
-    if let Some(duplicates) = env
-        .duplicates
-        .filter(|run| run.check_protections(env.protections).is_ok())
-    {
+    if let Some(duplicates) = duplicates.filter(|run| run.check_protections(protections).is_ok()) {
         for group in &duplicates.groups {
             super::check_cancelled(cancel)?;
             let mut identity = None;
@@ -429,7 +482,7 @@ fn rank_candidates<'a>(
             }
         }
     }
-    let browser = matches!(kind, RuleKind::BrowserCache);
+    let browser = matches!(source, RuleSource::BrowserCache(..));
     let facts = |item: &Ranked<'_>| {
         score::Facts::candidate(item.entry, now, browser, item.exact, item.local_copy)
     };

@@ -1,9 +1,10 @@
 use crate::{Engine, analysis_status::IndexId, snapshot_commands::SnapshotDatabase};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tauri::{Manager, State};
 use voldiq_core::{
-    cleanup::{Plan, Preview},
+    NodeId,
+    cleanup::{Plan, Preview, rules::custom},
     scanner::SharedIndex,
     snapshots::schedule::DraftRef,
 };
@@ -155,6 +156,10 @@ pub async fn execute_permanent_cleanup(
         let _operation = operation;
         let mut journal = journal.lock().map_err(|error| error.to_string())?;
         let journal = journal.as_mut().map_err(|error| error.clone())?;
+        session
+            ._plan
+            .validate_protections()
+            .map_err(|error| error.to_string())?;
         let total = session._plan.preview().items.len();
         progress
             .send(CleanupProgress {
@@ -218,6 +223,10 @@ pub async fn execute_recycling_cleanup(
         let _operation = operation;
         let mut journal = journal.lock().map_err(|error| error.to_string())?;
         let journal = journal.as_mut().map_err(|error| error.clone())?;
+        session
+            ._plan
+            .validate_protections()
+            .map_err(|error| error.to_string())?;
         let total = session._plan.preview().items.len();
         progress
             .send(CleanupProgress {
@@ -228,10 +237,6 @@ pub async fn execute_recycling_cleanup(
             .map_err(|error| error.to_string())?;
         if let Owner::Scheduled(reference, hash) = &session.owner {
             use tauri::Emitter;
-            session
-                ._plan
-                .validate_protections()
-                .map_err(|error| error.to_string())?;
             database
                 .lock()?
                 .consume_scheduled_cleanup(&_operation._lease, *reference, hash)
@@ -321,6 +326,7 @@ pub async fn review_scheduled_cleanup(
                 label: "Scheduled cleanup",
                 description: "Files prepared by a supervised policy.",
                 risk: "review",
+                reference: None,
             }],
         })
     })
@@ -337,6 +343,71 @@ pub async fn query_recycle_bin(
     })
     .await
     .map_err(|error| error.to_string())?
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SaveCustomCleanupRule {
+    scope: Option<NodeId>,
+    expected: Option<custom::Revision>,
+    draft: custom::Draft,
+}
+
+#[tauri::command]
+pub async fn list_custom_cleanup_rules(
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Vec<custom::Rule>, String> {
+    engine.require_durable_state()?;
+    let directory = engine.operations.clone();
+    tauri::async_runtime::spawn_blocking(move || custom::Store::open(directory.directory())?.list())
+        .await
+        .map_err(|error| error.to_string())?
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
+pub async fn save_custom_cleanup_rule(
+    index_id: IndexId,
+    request: SaveCustomCleanupRule,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<custom::Rule, String> {
+    engine.require_durable_state()?;
+    let engine = engine.inner().clone();
+    let operation = engine.begin()?;
+    let index = engine.index_for(index_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let index = index.read().map_err(|error| error.to_string())?;
+        custom::Store::open(engine.operations.directory())
+            .and_then(|mut store| {
+                store.save(
+                    &index,
+                    request.scope,
+                    request.expected,
+                    request.draft,
+                    &operation.cancel,
+                )
+            })
+            .map_err(|error| error.to_string())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
+#[tauri::command]
+pub async fn remove_custom_cleanup_rule(
+    reference: custom::Revision,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<(), String> {
+    engine.require_durable_state()?;
+    let engine = engine.inner().clone();
+    let operation = engine.begin()?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let _operation = operation;
+        custom::Store::open(engine.operations.directory())?.remove(reference)
+    })
+    .await
+    .map_err(|error| error.to_string())?
+    .map_err(|error| error.to_string())
 }
 
 #[tauri::command]

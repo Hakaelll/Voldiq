@@ -9,6 +9,7 @@ import type { GameLibraryReport } from './game-libraries';
 import type { MediaLibraryReport } from './media-libraries';
 import type { ApplicationQuery, ApplicationCleanupContext } from './applications';
 import type { TrayGroup, TraySummary, TrayTarget } from './cleanup-tray';
+import type { CustomRulePage, CustomRuleQuery, CustomRuleReference } from './custom-cleanup';
 import { invoke } from '@tauri-apps/api/core';
 import { createQueryRunner, type QueryTransport } from './query-runner';
 import type { CloudFilter, FilePage, Overview, NodeId, SelectedDetails, Query } from './types';
@@ -295,6 +296,21 @@ export const emptyFolderQueries = createQueryRunner<
 >('empty_folders', {
   run: async (_family, requestId, input) =>
     invoke<EmptyFolderPage | null>('query_empty_folders', {
+      ...input,
+      epoch: await querySession(),
+      requestId,
+    }),
+  cancel: async (family, requestId) =>
+    invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+});
+
+export const customCleanupRuleQueries = createQueryRunner<
+  CustomRulePage,
+  { indexId: IndexId; reference: CustomRuleReference; request: CustomRuleQuery },
+  'custom_cleanup_rule'
+>('custom_cleanup_rule', {
+  run: async (_family, requestId, input) =>
+    invoke<CustomRulePage | null>('query_custom_cleanup_rule', {
       ...input,
       epoch: await querySession(),
       requestId,

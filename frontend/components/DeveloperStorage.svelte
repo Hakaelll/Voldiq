@@ -17,6 +17,13 @@
     onerror: (problem: unknown) => void;
   } = $props();
   const labels = { dependencies: 'Dependencies', build: 'Build artifacts', cache: 'Cache' };
+  const packageLabels = {
+    project_associated: 'Project-associated',
+    shared_store: 'Shared store',
+    possible_remnant: 'Possible remnant',
+    protected: 'Protected',
+    unknown: 'Context unknown',
+  };
   let section = $state<'projects' | 'git'>('projects');
   const limit = 50;
   let page = $state<DeveloperPage | null>(null);
@@ -206,7 +213,9 @@
                     >
                     <td
                       ><span class="category-swatch" style:background={colors[item.category]}
-                      ></span>{labels[item.category]}</td
+                      ></span>{item.package_context
+                        ? packageLabels[item.package_context.status]
+                        : labels[item.category]}</td
                     ><td class="number">{bytes(item.logical)}</td><td class="number"
                       >{item.allocation_known ? bytes(item.allocated) : 'Unknown'}</td
                     >
@@ -262,6 +271,18 @@
             <dd>{selected.files.toLocaleString()}</dd>
           </div>
         </dl>
+        {#if selected.package_context}<section class="package-context" aria-label="Package context">
+            <h3>{packageLabels[selected.package_context.status]}</h3>
+            <p>{selected.package_context.evidence}</p>
+            {#if selected.package_context.marker_modified !== null}<p>
+                Install marker modified {new Date(
+                  selected.package_context.marker_modified * 1000,
+                ).toLocaleDateString()}
+              </p>{/if}
+            <p>
+              Current use and actual recoverable space are unknown. Files may be shared or linked.
+            </p>
+          </section>{/if}
         <button
           class="primary open-developer"
           onclick={() => {
@@ -441,6 +462,19 @@
     margin: 0;
     overflow-wrap: anywhere;
     font-variant-numeric: tabular-nums;
+  }
+  .package-context {
+    border-top: 1px solid var(--border);
+    padding: 14px 0;
+    font-size: 13px;
+  }
+  .package-context h3 {
+    font-size: 14px;
+    margin: 0 0 7px;
+  }
+  .package-context p {
+    margin: 5px 0;
+    color: var(--secondary);
   }
   .open-developer {
     width: 100%;
