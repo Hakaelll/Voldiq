@@ -1,0 +1,48 @@
+{
+  "checkedUtc": "2026-11-27T15:03:41.4329749Z",
+  "applied": true,
+  "scope": "Cargo release artifacts in this workspace only. Logical file bytes, not physical allocation or observed volume free-space change.",
+  "target": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\release",
+  "before": {
+    "bytes": 3195020012,
+    "files": 6531
+  },
+  "after": {
+    "bytes": 92795542,
+    "files": 13
+  },
+  "removedBytes": 3102224470,
+  "preserved": [
+    {
+      "path": "voldiq.exe",
+      "bytes": 33902080,
+      "sha256": "7A052D03EACB1A27E869CD4F0B46062A317584682E41B22F499902D56B42F46D"
+    },
+    {
+      "path": "voldiq-cli.exe",
+      "bytes": 8015360,
+      "sha256": "42A469C76489FAABF6B11518A5AF08D842A1E56CCE4884C607E918DC57E4658F"
+    },
+    {
+      "path": "bundle/nsis/Voldiq_0.2.0_x64-setup.exe",
+      "bytes": 12179488,
+      "sha256": "BD8A3EAD59284910732984C979488044123B5D2A60B7E7E40D672B9AE68A4631"
+    },
+    {
+      "path": "nsis/x64/installer.nsi",
+      "bytes": 31049,
+      "sha256": "06116167D63F47331D2EACFEE803377E51A34E00C522A7BEE443128280DD8D88"
+    }
+  ],
+  "removedPaths": [
+    ".fingerprint",
+    "build",
+    "deps",
+    "examples",
+    "incremental",
+    "voldiq.d",
+    "voldiq.pdb",
+    "voldiq_cli.pdb"
+  ],
+  "otherCachesTouched": false
+}
