@@ -211,7 +211,17 @@
   let mapMetrics = $state<OverviewData['map_metrics']>([]);
   let showMapList = $state(false);
   let chartExpanded = $state(false);
-  const chartFocused = $derived(view === 'explorer' && explorerMap && chartExpanded);
+  const visualExplorer = $derived(ready && view === 'explorer' && explorerMap);
+  const chartFocused = $derived(visualExplorer && chartExpanded);
+  const quietScan = $derived(
+    visualExplorer &&
+      operation?.phase === 'complete' &&
+      operation.index_id === indexId &&
+      !operation.previous &&
+      operation.errors === 0 &&
+      !operation.activity_unavailable &&
+      indexSource?.observation?.complete === true,
+  );
   $effect(() => {
     if (view !== 'explorer' || !explorerMap) chartExpanded = false;
   });
@@ -1355,18 +1365,25 @@
       if (token === interactionToken && expectedIndex === indexId) report(problem);
     }
   }
-  async function showFileList(): Promise<void> {
+  async function showFileList(representation: 'table' | 'grid' = 'table'): Promise<void> {
     const token = invalidateInteraction();
     explorerMap = false;
-    fileRepresentation = 'table';
+    fileRepresentation = representation;
     view = 'explorer';
     await tick();
     if (
       token === interactionToken &&
       view === 'explorer' &&
       !explorerMap &&
-      fileRepresentation === 'table'
+      fileRepresentation === representation
     )
+      fileWorkspace?.focus();
+  }
+  async function showExplorerMap(): Promise<void> {
+    const token = invalidateInteraction();
+    explorerMap = true;
+    await tick();
+    if (token === interactionToken && view === 'explorer' && explorerMap)
       fileWorkspace?.focus();
   }
   async function mapCommand(command: MapCommand, expectedIndex: IndexId): Promise<void> {
@@ -1718,7 +1735,7 @@
       >
     </div>
   </aside>
-  <div class="workspace" class:chart-expanded={chartFocused}>
+  <div class="workspace" class:chart-expanded={chartFocused} class:explorer-map-shell={visualExplorer}>
     <header class="toolbar">
       {#if indexedView || (view === 'cleanup' && cleanupSection === 'windows')}<div
           class="toolbar-location"
@@ -1877,10 +1894,10 @@
       </div>{/if}
     <main
       class:file-view={ready && (view === 'explorer' || view === 'large')}
-      class:visual-explorer={ready && view === 'explorer' && explorerMap}
+      class:visual-explorer={visualExplorer}
     >
       <div class="page-heading">
-        <div>
+        <div class="workspace-location">
           <h1 id="workspace-title" tabindex="-1" class:sr-only={chartFocused}>
             {view === 'overview'
               ? 'Storage overview'
@@ -1920,6 +1937,11 @@
               {#if indexedView && directory?.entry.incomplete}
                 <span class="coverage-state" title="Some entries are outside the indexed coverage.">
                   {operation?.phase === 'scanning' ? 'Partial results' : 'Incomplete coverage'}
+                </span>
+              {/if}
+              {#if quietScan && !directory?.entry.incomplete && indexSource?.observation?.complete}
+                <span class="indexed-state" title={`Measured ${date(indexSource.observation.completed_at)}`}>
+                  Scan complete
                 </span>
               {/if}
             </div>
@@ -2025,8 +2047,9 @@
               }}>Dismiss</button
             >{/if}
         </div>{/if}
-      {#if operation && !liveBusy && !liveObservation && (operation.phase === 'scanning' || (view !== 'settings' && view !== 'duplicates' && view !== 'history'))}<div
+      {#if operation && !quietScan && !liveBusy && !liveObservation && (operation.phase === 'scanning' || (view !== 'settings' && view !== 'duplicates' && view !== 'history'))}<div
           class="scan-status"
+          class:explorer-scan-status={visualExplorer}
           aria-live="polite"
         >
           <span
@@ -2544,9 +2567,7 @@
                       aria-label="Storage representation"
                     >
                       <button
-                        onclick={() => {
-                          explorerMap = true;
-                        }}>Map</button
+                        onclick={showExplorerMap}>Map</button
                       >
                       <button
                         aria-pressed={fileRepresentation === 'table'}
@@ -2601,8 +2622,7 @@
                         void showFileList();
                       }}
                       ongrid={() => {
-                        explorerMap = false;
-                        fileRepresentation = 'grid';
+                        void showFileList('grid');
                       }}
                       onback={() => {
                         if (details) details = null;

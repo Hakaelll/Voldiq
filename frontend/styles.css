@@ -3612,9 +3612,10 @@ main {
   display: none;
 }
 .map-list-visible {
-  flex: 0 0 220px;
-  min-height: 0;
+  flex: 0 1 clamp(132px, 26dvh, 208px);
+  min-height: 132px;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 .file-workspace
   .explorer-panel
@@ -3625,23 +3626,60 @@ main {
   min-height: 0;
 }
 .map-workspace .storage-map {
-  flex: 1;
-  min-height: 326px;
+  flex: 1 1 0;
+  min-height: 234px;
 }
 .map-workspace .storage-map .storage-viewport {
   flex: 1;
   height: auto;
-  min-height: 254px;
+  min-height: 186px;
+}
+.map-workspace .storage-map-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  flex-shrink: 0;
 }
 .map-workspace .storage-map-toolbar {
-  flex-shrink: 0;
+  display: contents;
+}
+.map-workspace .map-chart-actions {
+  gap: 2px 5px;
+  margin-inline-start: 0;
+}
+.map-workspace .map-chart-actions button {
+  min-height: 32px;
+  padding-inline: 6px;
+}
+.map-workspace .storage-map-options {
+  margin-inline-start: auto;
+  gap: 2px 8px;
+}
+.map-workspace .map-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 12px;
+  padding-block: 3px 0;
+}
+.map-workspace .map-summary .map-explanation {
+  margin-block: 0;
+}
+.map-workspace .map-category-legend {
+  flex: 1 1 420px;
+  gap: 3px 10px;
+  padding: 3px 0;
+}
+.map-workspace .map-explanation[open] {
+  flex-basis: 100%;
 }
 .map-workspace .filter-bar {
   padding: 8px 0;
 }
 .map-workspace .map-list-visible .table-scroll {
-  min-height: 140px;
-  height: 160px;
+  min-height: 94px;
+  height: 110px;
 }
 .details-panel dd {
   font-variant-numeric: tabular-nums;
@@ -3665,16 +3703,29 @@ main {
   }
 }
 @media (max-height: 820px) {
-  .map-workspace .storage-map-toolbar {
-    gap: 6px;
-    padding: 7px 0;
-  }
   .map-workspace .map-encoding {
     font-size: 11px;
     padding: 4px 0;
   }
-  .map-workspace .map-category-legend {
-    padding: 2px 0 6px;
+}
+@media (min-width: 1050px) and (min-height: 600px) {
+  .map-workspace .storage-map-options > details {
+    position: relative;
+  }
+  .map-workspace .storage-map-options > details[open] {
+    flex-basis: auto;
+  }
+  .map-workspace :is(.map-view-options-body, .map-file-actions) {
+    position: absolute;
+    z-index: 4;
+    top: calc(100% + 3px);
+    inset-inline-end: 0;
+    width: max-content;
+    max-width: 350px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--panel);
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -3690,16 +3741,88 @@ main {
   transition: none;
 }
 .visual-explorer .page-heading {
-  margin-bottom: 8px;
+  align-items: center;
+  gap: 4px 12px;
+  margin-bottom: 5px;
 }
 .visual-explorer {
-  padding-block: 14px 8px;
+  padding-block: 8px 6px;
+}
+.visual-explorer .workspace-location {
+  display: flex;
+  flex: 1 1 340px;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+}
+.visual-explorer .page-heading h1 {
+  font-size: 21px;
+  margin: 0;
+}
+.visual-explorer .page-context {
+  flex: 1 1 auto;
+  margin-top: 0;
+  gap: 2px 9px;
+  font-size: 12px;
+}
+.visual-explorer .page-context .breadcrumbs {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  white-space: nowrap;
+}
+.visual-explorer .page-context .breadcrumbs > * {
+  flex-shrink: 0;
+}
+.visual-explorer .page-context .coverage-state {
+  color: var(--text);
+}
+.visual-explorer .indexed-state::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-inline-end: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  vertical-align: 2px;
+}
+.visual-explorer .page-actions {
+  gap: 4px;
+}
+.visual-explorer .page-actions > button {
+  min-height: 32px;
+  padding-inline: 7px;
+}
+.visual-explorer .page-actions .folder-budget > summary {
+  padding: 4px 5px;
+  gap: 5px;
+}
+.visual-explorer .budget-heading > span {
+  max-width: 100px;
+}
+.visual-explorer .explorer-scan-status {
+  padding-block: 2px 4px;
+  margin-bottom: 4px;
+  gap: 4px 8px;
+}
+.visual-explorer .exploration-bar {
+  padding-bottom: 4px;
+  gap: 4px 9px;
 }
 .visual-explorer .file-workspace {
-  min-height: 326px;
+  min-height: 265px;
 }
 .visual-explorer .file-workspace:has(.map-list-visible) {
-  min-height: 550px;
+  min-height: 410px;
+}
+.explorer-map-shell > .toolbar {
+  min-height: 46px;
+  gap: 5px 10px;
+  padding-block: 6px;
+}
+.explorer-map-shell > .toolbar :is(button, input, select) {
+  min-height: 32px;
 }
 .workspace.chart-expanded > .toolbar {
   display: none;

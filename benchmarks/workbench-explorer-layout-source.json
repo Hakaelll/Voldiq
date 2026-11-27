@@ -1,0 +1,82 @@
+{
+  "checkedUtc": "2026-11-27T02:14:06.9860951Z",
+  "startedUtc": "2026-11-27T02:00:03.6101062Z",
+  "checkoutCommit": "c8082f8ee1bcfd8d2064c7a11f89715a23eea6f7",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.229
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 11.52
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.775
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 7.705
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 244.576
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 577.537
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "F5AB9A2F53ABB2C2D5E86398E966BAF64CD1CAE33DCFEF5FE1AF9877FD8063DF"
+    },
+    {
+      "path": "frontend/components/StorageMap.svelte",
+      "sha256": "C144AB9BC86B0E5E000C6744713B401D99C6E64F7FC374B94CE860C6AEA4A894"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "AFB47FE70EA97FA0DBE347FAB2DD6B5AE5E84B7097883F19384BFB0D3E29F694"
+    }
+  ],
+  "retainedBehaviorTests": 9,
+  "themeTokenContrast": {
+    "light": {
+      "headingOnWorkspace": 18.42,
+      "folderContextAndLegend": 7.44,
+      "chartOptionOnSurface": 7.01,
+      "activeChartOption": 6.62,
+      "mapRecoveryError": 7.41
+    },
+    "dark": {
+      "headingOnWorkspace": 18.73,
+      "folderContextAndLegend": 11.08,
+      "chartOptionOnSurface": 10.43,
+      "activeChartOption": 8.43,
+      "mapRecoveryError": 8.74
+    }
+  },
+  "markupFixture": {
+    "source": "Production Svelte server-rendered StorageMap",
+    "results": {
+      "exploration": true,
+      "expanded": true,
+      "fallback": true,
+      "overview": true
+    }
+  }
+}

@@ -325,6 +325,17 @@
     filesSummary?.focus({ preventScroll: true });
     action?.();
   }
+  function dismissMapDisclosure(disclosure: HTMLDetailsElement): () => void {
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || !disclosure.open) return;
+      event.preventDefault();
+      event.stopPropagation();
+      disclosure.open = false;
+      disclosure.querySelector('summary')?.focus({ preventScroll: true });
+    };
+    disclosure.addEventListener('keydown', onKey);
+    return () => disclosure.removeEventListener('keydown', onKey);
+  }
   function draw(): void {
     if (!canvas || width <= 0 || height <= 0) return;
     const start = performance.now();
@@ -886,8 +897,14 @@
         {/each}
       </div>
       <div class="map-chart-actions" role="group" aria-label="Chart actions">
+        {#if onexpand}
+          <button class="quiet-action" onclick={onlist} aria-label="Open list view">List</button>
+          {#if ongrid}<button class="quiet-action" onclick={ongrid} aria-label="Open grid view">Grid</button>{/if}
+        {/if}
         {#if onexport}<button
             class="quiet-action"
+            title="Export the current chart"
+            aria-label="Export the current chart"
             disabled={exportDisabled ||
               preparing ||
               queryState !== 'ready' ||
@@ -896,7 +913,7 @@
               !!failure}
             onclick={() => {
               captureGraphic();
-            }}><Icon name="external" size={15} />Export</button
+            }}><Icon name="external" size={15} />{onexpand ? 'Export chart' : 'Export'}</button
           >{/if}
         {#if onexpand}<button
             class="quiet-action expand-chart"
@@ -939,7 +956,7 @@
             }}>Lens 2×</button
           >
         </div>{/if}
-      <details class="map-view-options" name={`${rendererGroup}-tools`}>
+      <details class="map-view-options" name={`${rendererGroup}-tools`} {@attach dismissMapDisclosure}>
         <summary>Map settings</summary>
         <div class="map-view-options-body">
           <label
@@ -998,15 +1015,22 @@
           </label>
         </div>
       </details>
-      <details class="map-file-options" name={`${rendererGroup}-tools`} bind:open={fileOptionsOpen}>
-        <summary bind:this={filesSummary}>Files</summary>
+      <details
+        class="map-file-options"
+        name={`${rendererGroup}-tools`}
+        bind:open={fileOptionsOpen}
+        {@attach dismissMapDisclosure}
+      >
+        <summary bind:this={filesSummary}>{onexpand ? 'Map tools' : 'Files'}</summary>
         <div class="map-file-actions">
-          <button class="quiet-action" onclick={() => useFileAction(onlist)}
-            ><Icon name="list" size={14} />List view</button
-          >
-          {#if ongrid}<button class="quiet-action" onclick={() => useFileAction(ongrid)}
-              >Grid view</button
-            >{/if}
+          {#if !onexpand}
+            <button class="quiet-action" onclick={() => useFileAction(onlist)}
+              ><Icon name="list" size={14} />List view</button
+            >
+            {#if ongrid}<button class="quiet-action" onclick={() => useFileAction(ongrid)}
+                >Grid view</button
+              >{/if}
+          {/if}
           {#if onitems}<button
               class="quiet-action"
               aria-expanded={itemsOpen}
@@ -1163,105 +1187,107 @@
         {/if}
       </div>{/if}
   </div>
-  <details class="map-explanation">
-    <summary>Reading the chart</summary>
-    <div class="map-encoding">
-      {#if mode === 'treemap' && lens}<span
-          >Lens 2× magnifies a local area. The base map keeps its byte scale.</span
-        >{/if}
-      {#if mode === 'voronoi' && voronoi?.cells.length && voronoi.totalError !== null && voronoi.maximumError !== null}<span
-        >
-          Approximate weighted Voronoi · <span
-            title="Half the sum of absolute differences between cell area share and byte share."
-            >area discrepancy {(100 * voronoi.totalError).toFixed(3)}%</span
+  <div class="map-summary">
+    <details class="map-explanation">
+      <summary>Reading the chart</summary>
+      <div class="map-encoding">
+        {#if mode === 'treemap' && lens}<span
+            >Lens 2× magnifies a local area. The base map keeps its byte scale.</span
+          >{/if}
+        {#if mode === 'voronoi' && voronoi?.cells.length && voronoi.totalError !== null && voronoi.maximumError !== null}<span
           >
-          · worst cell {(100 * voronoi.maximumError).toFixed(2)}% · {voronoi.groupedEntries} frontier
-          entries grouped · {voronoi.stop === 'converged'
-            ? 'precision target reached'
-            : 'calculation stopped within display tolerance'}.
-          {#if voronoi.groupedEntries}<button onclick={onlist}>Inspect complete item list</button
-            >{/if}
-        </span>{/if}
+            Approximate weighted Voronoi · <span
+              title="Half the sum of absolute differences between cell area share and byte share."
+              >area discrepancy {(100 * voronoi.totalError).toFixed(3)}%</span
+            >
+            · worst cell {(100 * voronoi.maximumError).toFixed(2)}% · {voronoi.groupedEntries} frontier
+            entries grouped · {voronoi.stop === 'converged'
+              ? 'precision target reached'
+              : 'calculation stopped within display tolerance'}.
+            {#if voronoi.groupedEntries}<button onclick={onlist}>Inspect complete item list</button
+              >{/if}
+          </span>{/if}
+        <span
+          >Up to {depth}
+          {depth === 1 ? 'level' : 'levels'} within loaded branches; small groups may remain collapsed.</span
+        >
+        {#if selectionOutside}<span role="status"
+            >The selected item is outside the drawn frontier. Its details remain available.</span
+          >{/if}
+        {#if mode === 'sunburst'}<span
+            >Sector angle represents bytes. Terminal items reach the outer edge and neutral bands show
+            parent folders.</span
+          >{/if}
+        {#if mode === 'circles'}<span
+            >Filled circle area encodes the same frontier bytes at every depth. Parent outlines group
+            folders. {#if radial.kind === 'ready' && layout.total > 0}{(
+                100 *
+                (1 - radial.value.dataFraction)
+              ).toFixed(1)}% of the enclosing circle is packing space, not free disk space.{:else}Packing
+              coverage is unavailable without a positive, drawable total.{/if}</span
+          >{/if}
+        {#if searchState !== 'inactive'}<span
+            >Search highlights matching items and folder groups.</span
+          >{/if}
+        <span
+          >Byte metric: {sizeMode === 'allocated'
+            ? 'unique allocation, not recoverable space'
+            : 'logical bytes'}.</span
+        >
+        {#if cloudFilter}<span
+            >Filtered file bytes · folders group matching descendants. Details and summary totals
+            remain unfiltered.</span
+          >{/if}
+        {#if mode === 'city'}<span
+            >Height = {heightMode === 'modified'
+              ? 'modification age, log scale capped at 10 years'
+              : heightMode === 'files'
+                ? 'descendant files, log scale normalized to this folder'
+                : 'depth relative to this folder'}; relief is visual. Volume ≠ bytes.</span
+          >{/if}
+        <span
+          >Color = {colorMode === 'type'
+            ? 'file category'
+            : colorMode === 'size'
+              ? 'size, local log scale'
+              : 'age bands: 30 / 180 / 365 days / 10 years'}. Unknown ages use neutral color.{#if mode === 'city'}
+            Unknown height metrics keep a low block.{/if}</span
+        >
+        {#if sizeMode === 'allocated' && nodes.some((r) => !r.allocationKnown)}<span
+            >Partial allocation coverage. Unknown bytes are not zero.</span
+          >{/if}
+      </div>
+    </details>
+    <div class="map-category-legend" aria-label="Map color legend">
+      {#if colorMode === 'type'}
+        {#each [...new Map(layout.rects.map( (r) => [categoryLabel(r), { paint: visualPaint(r, colorMode, colorMaximum, now), label: categoryLabel(r) }] )).values()] as item}<span
+            ><i style:background={item.paint.fill}></i>{item.label}</span
+          >{/each}
+      {:else}
+        <span
+          >{colorMode === 'size' ? 'Small' : 'Recent'}
+          {#each colorMode === 'size' ? SIZE_PAINTS : AGE_PAINTS as paint}<i
+              style:background={paint.fill}
+            ></i>{/each}
+          {colorMode === 'size' ? 'Large · folder-relative' : '10+ years'}
+          <i style:background={CHART_PAINTS.unknown.fill}></i>Unknown
+        </span>
+      {/if}
       <span
-        >Up to {depth}
-        {depth === 1 ? 'level' : 'levels'} within loaded branches; small groups may remain collapsed.</span
+        class="map-render-status"
+        title={`Last draw ${drawTime.toFixed(1)} ms. Geometry is cached; idle has no animation loop.`}
+        >{layout.represented.toLocaleString()} files represented
+        {#if mode === 'voronoi'}· {voronoi
+            ? `${voronoi.cells.length} cells · ${Math.max(0, voronoi.cells.length - drawn)} outside draw bounds`
+            : failure
+              ? 'layout unavailable'
+              : 'layout pending'}{:else if layout.rects.length > drawn}· {layout.rects.length - drawn} outside
+          the chart{/if}{#if matches}
+          · {searchTotal === null
+            ? 'Match count unavailable'
+            : `${searchTotal.toLocaleString()} indexed matches`} · {matches.size} highlighted regions{/if}</span
       >
-      {#if selectionOutside}<span role="status"
-          >The selected item is outside the drawn frontier. Its details remain available.</span
-        >{/if}
-      {#if mode === 'sunburst'}<span
-          >Sector angle represents bytes. Terminal items reach the outer edge and neutral bands show
-          parent folders.</span
-        >{/if}
-      {#if mode === 'circles'}<span
-          >Filled circle area encodes the same frontier bytes at every depth. Parent outlines group
-          folders. {#if radial.kind === 'ready' && layout.total > 0}{(
-              100 *
-              (1 - radial.value.dataFraction)
-            ).toFixed(1)}% of the enclosing circle is packing space, not free disk space.{:else}Packing
-            coverage is unavailable without a positive, drawable total.{/if}</span
-        >{/if}
-      {#if searchState !== 'inactive'}<span
-          >Search highlights matching items and folder groups.</span
-        >{/if}
-      <span
-        >Byte metric: {sizeMode === 'allocated'
-          ? 'unique allocation, not recoverable space'
-          : 'logical bytes'}.</span
-      >
-      {#if cloudFilter}<span
-          >Filtered file bytes · folders group matching descendants. Details and summary totals
-          remain unfiltered.</span
-        >{/if}
-      {#if mode === 'city'}<span
-          >Height = {heightMode === 'modified'
-            ? 'modification age, log scale capped at 10 years'
-            : heightMode === 'files'
-              ? 'descendant files, log scale normalized to this folder'
-              : 'depth relative to this folder'}; relief is visual. Volume ≠ bytes.</span
-        >{/if}
-      <span
-        >Color = {colorMode === 'type'
-          ? 'file category'
-          : colorMode === 'size'
-            ? 'size, local log scale'
-            : 'age bands: 30 / 180 / 365 days / 10 years'}. Unknown ages use neutral color.{#if mode === 'city'}
-          Unknown height metrics keep a low block.{/if}</span
-      >
-      {#if sizeMode === 'allocated' && nodes.some((r) => !r.allocationKnown)}<span
-          >Partial allocation coverage. Unknown bytes are not zero.</span
-        >{/if}
     </div>
-  </details>
-  <div class="map-category-legend" aria-label="Map color legend">
-    {#if colorMode === 'type'}
-      {#each [...new Map(layout.rects.map( (r) => [categoryLabel(r), { paint: visualPaint(r, colorMode, colorMaximum, now), label: categoryLabel(r) }] )).values()] as item}<span
-          ><i style:background={item.paint.fill}></i>{item.label}</span
-        >{/each}
-    {:else}
-      <span
-        >{colorMode === 'size' ? 'Small' : 'Recent'}
-        {#each colorMode === 'size' ? SIZE_PAINTS : AGE_PAINTS as paint}<i
-            style:background={paint.fill}
-          ></i>{/each}
-        {colorMode === 'size' ? 'Large · folder-relative' : '10+ years'}
-        <i style:background={CHART_PAINTS.unknown.fill}></i>Unknown
-      </span>
-    {/if}
-    <span
-      class="map-render-status"
-      title={`Last draw ${drawTime.toFixed(1)} ms. Geometry is cached; idle has no animation loop.`}
-      >{layout.represented.toLocaleString()} files represented
-      {#if mode === 'voronoi'}· {voronoi
-          ? `${voronoi.cells.length} cells · ${Math.max(0, voronoi.cells.length - drawn)} outside draw bounds`
-          : failure
-            ? 'layout unavailable'
-            : 'layout pending'}{:else if layout.rects.length > drawn}· {layout.rects.length - drawn} outside
-        the chart{/if}{#if matches}
-        · {searchTotal === null
-          ? 'Match count unavailable'
-          : `${searchTotal.toLocaleString()} indexed matches`} · {matches.size} highlighted regions{/if}</span
-    >
   </div>
   {#if searchState === 'ready' && searchTotal !== null && searchTotal > 0 && matches?.size === 0}<div
       class="map-tool-status"

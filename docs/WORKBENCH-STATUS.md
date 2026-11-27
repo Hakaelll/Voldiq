@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Explorer chart layout
+
+Explorer gives the chart the remaining workspace height. The compact heading combines title, path, coverage and actions. A completed observation without access issues appears in the heading. Active progress, pause and cancellation, access issues and the Live controls keep their distinct states. List, Grid, Export chart and Expand chart are visible at the top of the map. Map settings and Map tools retain the detailed options. Escape dismisses these disclosures and returns focus to their summary. The optional items list has its own bounded scroll area, and short windows can scroll the workspace.
+
+The production component was server-rendered for the standard and expanded Explorer, a failed query and the Overview map. The retained behavior suite and strict source checks cover the shared map and query code. Five text and surface token pairs exceeded 4.5:1 in both themes. Native fit, pointer interactions, keyboard focus and Windows scaling remain manual checks. [Source verification](../benchmarks/workbench-explorer-layout-source.json)
+
 ## Overview measurement and scoped rankings
 
 The main panel reports the index's measurement time and age alongside its file and folder counts. Saved time, coverage, available scanner method, engine version, accounting revision and configured exclusions have named fields. Live publications use the observation from the accepted index. A partial, provisional or unmeasured index keeps an explicit status. Volume counters retain their own measurement.
