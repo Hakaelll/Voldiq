@@ -145,12 +145,21 @@
   let ready = $state(false),
     revision = $state(0),
     scope = $state(0);
+  const emptyFileTypes: FileTypes = {
+    items: [],
+    total_bytes: 0,
+    total_files: 0,
+    total_folders: 0,
+    largest_files: [],
+    largest_folders: [],
+  };
   let directory = $state<Details | null>(null),
     details = $state<SelectedDetails | null>(null);
+  let indexSource = $state.raw<OverviewData['index_source'] | null>(null);
   let fileWorkspace = $state<HTMLDivElement>();
   let detailsPanel = $state<HTMLElement>();
   let children = $state<Page>({ items: [], total: 0 }),
-    types = $state<FileTypes>({ items: [], total_bytes: 0, total_files: 0 });
+    types = $state<FileTypes>(emptyFileTypes);
   let branches = $state<OverviewData['branches']>([]);
   let text = $state(''),
     extension = $state(''),
@@ -827,7 +836,8 @@
     directory = null;
     details = null;
     children = { items: [], total: 0 };
-    types = { items: [], total_bytes: 0, total_files: 0 };
+    types = emptyFileTypes;
+    indexSource = null;
     branches = [];
     advancedOpen = false;
     savedOpen = false;
@@ -872,6 +882,7 @@
         return;
       }
       directory = result.directory;
+      indexSource = result.index_source;
       children = result.children;
       branches = result.branches ?? [];
       mapMetrics = result.map_metrics ?? [];
@@ -1044,7 +1055,13 @@
       document.removeEventListener('focusin', moved);
     }
   }
-  async function open(id: number, pointerNavigation = false): Promise<void> {
+  async function open(
+    id: number,
+    pointerNavigation = false,
+    destination: 'current' | 'explorer' = 'current',
+  ): Promise<void> {
+    const ownerIndex = indexId;
+    const opener = document.activeElement;
     const token = invalidateInteraction();
     invalidateRefresh();
     if (id === -1) {
@@ -1055,14 +1072,42 @@
     mapNavigation = pointerNavigation;
     try {
       const item = await detailQueries.request({ id, indexId }).result;
-      if (!item || token !== interactionToken || !ready) return;
-      if (item.entry.kind === 'directory') {
+      if (!item || token !== interactionToken || ownerIndex !== indexId || !ready) return;
+      const folder = item.entry.kind === 'directory';
+      const target = folder ? id : item.entry.parent;
+      if (folder) {
         text = '';
         details = null;
         await refresh(id, token);
       } else {
+        if (destination === 'explorer' && target !== null && target !== scope) {
+          await refresh(target, token);
+          if (token !== interactionToken || ownerIndex !== indexId || scope !== target) return;
+        }
         if (!explored.has(id)) explore([id], 'replace');
         details = item;
+      }
+      if (
+        destination === 'explorer' &&
+        view === 'overview' &&
+        token === interactionToken &&
+        ownerIndex === indexId &&
+        scope === target
+      ) {
+        const ownsFocus =
+          document.activeElement === opener ||
+          (opener !== null && !opener.isConnected && document.activeElement === document.body);
+        explorerMap = false;
+        fileRepresentation = 'table';
+        view = 'explorer';
+        await tick();
+        if (
+          ownsFocus &&
+          token === interactionToken &&
+          ownerIndex === indexId &&
+          document.activeElement === document.body
+        )
+          (folder ? fileWorkspace : detailsPanel)?.focus({ preventScroll: true });
       }
     } catch (problem) {
       if (token === interactionToken) report(problem);
@@ -1102,7 +1147,8 @@
     directory = null;
     details = null;
     children = { items: [], total: 0 };
-    types = { items: [], total_bytes: 0, total_files: 0 };
+    types = emptyFileTypes;
+    indexSource = null;
     error = '';
     scanPath = path;
     scope = 0;
@@ -1116,7 +1162,7 @@
       logical: 0,
       elapsed_ms: 0,
       errors: 0,
-      method: 'Directory enumeration',
+      method: '',
     };
     const channel = new Channel<Progress>();
     let lastRefresh = 0;
@@ -1245,7 +1291,8 @@
       scope = 0;
       directory = details = null;
       children = { items: [], total: 0 };
-      types = { items: [], total_bytes: 0, total_files: 0 };
+      types = emptyFileTypes;
+      indexSource = null;
       trayGroups = [];
       trayTarget = null;
       trayOpen = false;
@@ -2013,10 +2060,13 @@
                       : 'Cancelled · partial results'
                   : 'Scan failed'}</span
           ><span
-          >{operation.files.toLocaleString()} files · {bytes(operation.logical)} logical · {(
+            >{operation.files.toLocaleString()} files · {bytes(operation.logical)} logical · {(
               operation.elapsed_ms / 1000
             ).toFixed(1)} s</span
-          >{#if operation.activity_unavailable}<span>Scan activity unavailable</span>{/if}{#if operation.phase === 'scanning' && pauseStatus.observed === 'paused' && pauseStatus.activity !== 'resume'}<span
+          >{#if operation.phase === 'scanning' && !operation.previous && operation.method}<span
+              >{operation.method}</span
+            >{/if}{#if operation.activity_unavailable}<span>Scan activity unavailable</span
+            >{/if}{#if operation.phase === 'scanning' && pauseStatus.observed === 'paused' && pauseStatus.activity !== 'resume'}<span
               >Last reported progress</span
             >{/if}{#if operation.errors > 0}<button class="quiet-action" onclick={inspectIssues}
               >{operation.errors} access issues</button
@@ -2388,7 +2438,19 @@
                   paused={busy}
                   {volume}
                   {directory}
-                  {children}
+                  {indexSource}
+                  savedAt={historical && historical.id === indexSource?.snapshot_id
+                    ? historical.captured
+                    : null}
+                  scanMethod={operation &&
+                  operation.index_id === indexId &&
+                  !operation.previous &&
+                  operation.phase !== 'failed'
+                    ? operation.method
+                    : ''}
+                  provisional={operation?.phase === 'scanning' &&
+                    !operation.previous &&
+                    operation.index_id === indexId}
                   {nodes}
                   {mapMode}
                   bind:depth={mapDepth}
@@ -2428,6 +2490,19 @@
                   }}
                   onopen={(id, pointer = false) => {
                     void open(id, pointer);
+                  }}
+                  onopenranked={(id, pointer) => {
+                    void open(id, pointer, 'explorer');
+                  }}
+                  onranklist={async (kind) => {
+                    if (analysisBusy) return;
+                    largeKind = kind;
+                    minSizeBytes = 0;
+                    sort = 'size';
+                    navigate('large');
+                    const owner = interactionToken;
+                    await tick();
+                    if (owner === interactionToken && view === 'large') fileWorkspace?.focus();
                   }}
                   onlist={() => {
                     void showFileList();
@@ -2910,7 +2985,7 @@
         details = null;
         directory = null;
         children = { items: [], total: 0 };
-        types = { items: [], total_bytes: 0, total_files: 0 };
+        types = emptyFileTypes;
       }}
       onerror={report}
     />{/key}{/if}
@@ -2932,7 +3007,7 @@
       details = null;
       directory = null;
       children = { items: [], total: 0 };
-      types = { items: [], total_bytes: 0, total_files: 0 };
+      types = emptyFileTypes;
       revision += 1;
     }}
     onclose={() => {

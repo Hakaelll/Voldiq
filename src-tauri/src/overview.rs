@@ -2,7 +2,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use voldiq_core::{
     NodeId,
     cloud::CloudFilter,
-    index::{Details, FileTypes, Index, Page, Query},
+    index::{Details, FileTypes, Index, Observation, Page, Query},
     map::MapMetric,
     search::CompiledQuery,
 };
@@ -15,6 +15,14 @@ pub(crate) struct Overview {
     pub(crate) branches: Vec<MapBranch>,
     pub(crate) map_metrics: Vec<MapMetric>,
     pub(crate) cloud: Option<CloudFilter>,
+    pub(crate) index_source: IndexSource,
+}
+
+#[derive(serde::Serialize)]
+pub(crate) struct IndexSource {
+    pub(crate) observation: Option<Observation>,
+    pub(crate) snapshot_id: Option<i64>,
+    pub(crate) exclusions: usize,
 }
 
 #[derive(serde::Serialize)]
@@ -138,6 +146,11 @@ pub(crate) fn overview(
         branches,
         map_metrics,
         cloud,
+        index_source: IndexSource {
+            observation: index.observation.clone(),
+            snapshot_id: index.snapshot_id,
+            exclusions: index.exclusions.len(),
+        },
     }))
 }
 

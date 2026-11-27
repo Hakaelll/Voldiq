@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Overview measurement and scoped rankings
+
+The main panel reports the index's measurement time and age alongside its file and folder counts. Saved time, coverage, available scanner method, engine version, accounting revision and configured exclusions have named fields. Live publications use the observation from the accepted index. A partial, provisional or unmeasured index keeps an explicit status. Volume counters retain their own measurement.
+
+Files and Folders show up to ten largest entries across the current scope. The existing cancellable type traversal collects the bounded ranks and resolves only the returned paths. Ranking rows open the indexed folder or the file's parent and inspector. The ranked-list action opens the corresponding kind in Large files. Modifier selection and the shared Explorer navigation ownership checks remain in use.
+
+The retained history test scans owned folders, checks the two counts and verifies recursive ranking, nested scope and cancellation. The production Svelte component was server-rendered with six controlled states, including recorded partial data, a future timestamp, identical names under distinct paths and an empty ranking. Native pointer, keyboard focus and display scaling remain manual. [Source verification](../benchmarks/workbench-dashboard-observation-source.json)
+
 ## Custom cleanup rules and package context
 
 Cleanup saves versioned rules for a folder from the current analysis. The literal extension, minimum logical size and modification age must all match. The rule rechecks the folder's native identity, protections and the selected files when preparing a tray plan. Editing a rule preserves the folder binding and invalidates older review revisions. The score reuses the saved review weights and shows unavailable signals. Selection and confirmation remain explicit.

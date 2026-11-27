@@ -198,12 +198,26 @@ export interface FileTypes {
   items: FileType[];
   total_bytes: number;
   total_files: number;
+  total_folders: number;
+  largest_files: { entry: Entry; path: string }[];
+  largest_folders: { entry: Entry; path: string }[];
+}
+export interface AnalysisObservation {
+  completed_at: number;
+  complete: boolean;
+  engine_version: string;
+  accounting_version: number;
 }
 export interface Overview {
   cloud: CloudFilter | null;
   directory: Details;
   children: Page;
   types: FileTypes;
+  index_source: {
+    observation: AnalysisObservation | null;
+    snapshot_id: number | null;
+    exclusions: number;
+  };
   branches: { parent: NodeId; items: Entry[] }[];
   map_metrics: {
     id: NodeId;
@@ -299,12 +313,7 @@ export interface DuplicateItem {
 }
 
 export interface Snapshot {
-  observation: {
-    completed_at: number;
-    complete: boolean;
-    engine_version: string;
-    accounting_version: number;
-  } | null;
+  observation: AnalysisObservation | null;
   id: number;
   root_key: number;
   root: string;

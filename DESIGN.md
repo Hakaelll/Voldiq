@@ -182,6 +182,10 @@ Both themes use the supplied Voldiq mark and the Windows system font. Settings o
 
 The unscanned Overview leads with the drive scan and folder picker, followed by up to three recent paths. A divider separates scanning from the selected drive. The measured ring sits beside used, free and capacity values where the panel has room, with the observation below. The two sections stack below 850px in the same reading order. Missing measurements stay unavailable and scanning starts on request.
 
+The indexed summary pairs the selected folder’s logical size and counts with the measurement date and relative age. A disclosure explains coverage and exposes the recorded engine version, accounting revision and configured exclusions where available. A saved snapshot shows its save date separately and provisional scans identify their status. Whole-volume counters keep their own observation.
+
+Largest items offers Files and Folders in the existing text section controls. Each list shows up to ten items across the indexed scope, with bars proportional to the largest item in that list. An item's path distinguishes identical names. A plain activation opens the file’s parent and inspector or the indexed folder in Explorer. Modifier selection remains available. Browse ranking opens the existing searchable ranking for the chosen kind.
+
 Storage cost is an optional Overview section. The dated tariff table aligns the current and scenario monthly charges. An explicit action can capture the indexed folder's logical size as a billing assumption. The editor opens inline and tariffs stay in the current Overview session.
 
 Libraries shares the Overview section navigation. Games and Media use a flat list with the application and measured subcategories. The shared manual folder list reports separate indexed totals and explains potential overlap. Unknown media folders receive size information only.

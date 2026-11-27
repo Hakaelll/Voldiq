@@ -1,0 +1,80 @@
+{
+  "checkedUtc": "2026-11-27T01:55:04.9428164Z",
+  "startedUtc": "2026-11-27T01:37:19.2931402Z",
+  "checkoutCommit": "726b04f49295e9d9cc139ee28e4d8ef2a78fef1f",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.161
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 8.492
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.739
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 7.603
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 947.804
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 99.825
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/index.rs",
+      "sha256": "5E0B2D071892BC9AF1B1EC4F9D7A270D1DEE81CD8605B693EEA0847455716BDB"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "9A7D8B56B3F3D98025A85F9C4B22D850C5DBFECE8FDBF9F51944E85869413C41"
+    },
+    {
+      "path": "src-tauri/src/overview.rs",
+      "sha256": "02EF839EE35D6D980ADD1005F4D343CC7427CD8CFA0CBBF2B9D0CB7A1E165519"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "F6F9214678C94AA7BF9877C350CAD7FF2B7CBB15BF566B72972FE402E26C790B"
+    },
+    {
+      "path": "frontend/components/Overview.svelte",
+      "sha256": "B248C58B670E4291A02FEBA34DED280E5C34824BD9308052DCF7578C2B2CBBDD"
+    },
+    {
+      "path": "frontend/lib/types.ts",
+      "sha256": "10976AE67036E3228A4F1CF741F9C67FEC755023C454F8DB4D1B5978D4AEE500"
+    }
+  ],
+  "retainedBehaviorTests": 9,
+  "markupFixture": {
+    "source": "Production Overview server markup with controlled measurements",
+    "results": {
+      "complete": true,
+      "recordedPartial": true,
+      "provisional": true,
+      "unknown": true,
+      "futureClock": true,
+      "emptyRanking": true
+    }
+  }
+}

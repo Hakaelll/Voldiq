@@ -128,6 +128,28 @@ pub struct FileTypes {
     pub items: Vec<FileType>,
     pub total_bytes: u64,
     pub total_files: u64,
+    pub total_folders: u64,
+    pub largest_files: Vec<RankedEntry>,
+    pub largest_folders: Vec<RankedEntry>,
+}
+
+#[derive(Serialize)]
+pub struct RankedEntry {
+    pub entry: Entry,
+    pub path: String,
+}
+
+fn retain_largest<'a>(ranking: &mut Vec<&'a Entry>, entry: &'a Entry) {
+    const LIMIT: usize = 10;
+    let key = |entry: &Entry| (std::cmp::Reverse(entry.logical), entry.id.0);
+    if ranking.len() == LIMIT {
+        if key(entry) >= key(ranking[LIMIT - 1]) {
+            return;
+        }
+        ranking.pop();
+    }
+    let insertion = ranking.partition_point(|current| key(current) < key(entry));
+    ranking.insert(insertion, entry);
 }
 
 impl Index {
@@ -513,11 +535,16 @@ impl Index {
             std::collections::HashMap::<Option<std::borrow::Cow<'_, str>>, (u64, u64)>::new();
         let mut total_bytes = 0;
         let mut total_files = 0;
+        let mut total_folders = 0;
+        let mut largest_files = Vec::new();
+        let mut largest_folders = Vec::new();
         for (position, entry) in self.entries.iter().enumerate() {
             if position % 256 == 0 && cancelled() {
                 return Ok(None);
             }
-            if !entry.is_metadata_file() {
+            let file = entry.is_metadata_file();
+            let folder = entry.id != scope && entry.is_metadata_directory();
+            if !file && !folder {
                 continue;
             }
             match self.scope_matches(entry.id, scope, &mut cancelled) {
@@ -525,6 +552,12 @@ impl Index {
                 Some(false) => continue,
                 Some(true) => {}
             }
+            if folder {
+                total_folders += 1;
+                retain_largest(&mut largest_folders, entry);
+                continue;
+            }
+            retain_largest(&mut largest_files, entry);
             let ext = std::path::Path::new(&entry.name)
                 .extension()
                 .map(|extension| {
@@ -574,10 +607,32 @@ impl Index {
         if cancelled() {
             return Ok(None);
         }
+        let mut ranked = |entries: Vec<&Entry>| -> Result<Option<Vec<RankedEntry>>> {
+            let mut items = Vec::with_capacity(entries.len());
+            for entry in entries {
+                let Some(path) = self.path_cancellable(entry.id, &mut cancelled)? else {
+                    return Ok(None);
+                };
+                items.push(RankedEntry {
+                    entry: entry.clone(),
+                    path: path.to_string_lossy().into_owned(),
+                });
+            }
+            Ok(Some(items))
+        };
+        let Some(largest_files) = ranked(largest_files)? else {
+            return Ok(None);
+        };
+        let Some(largest_folders) = ranked(largest_folders)? else {
+            return Ok(None);
+        };
         Ok(Some(FileTypes {
             items: result,
             total_bytes,
             total_files,
+            total_folders,
+            largest_files,
+            largest_folders,
         }))
     }
 

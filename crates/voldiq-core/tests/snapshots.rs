@@ -35,6 +35,40 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
     std::fs::write(fixture.path().join("UPPER.txt"), [5; 7]).unwrap();
     std::fs::write(fixture.path().join("Résumé.txt"), [6; 7]).unwrap();
     let first = capture(fixture.path());
+    let root_types = first.file_types(voldiq_core::NodeId(0)).unwrap();
+    assert_eq!((root_types.total_files, root_types.total_folders), (4, 1));
+    assert_eq!(
+        root_types
+            .largest_files
+            .iter()
+            .map(|result| result.entry.logical)
+            .collect::<Vec<_>>(),
+        [12, 7, 7, 7]
+    );
+    assert_eq!(root_types.largest_files[0].entry.name, "growth");
+    assert_eq!(root_types.largest_folders[0].entry.name, "nested");
+    let nested = first
+        .entries
+        .iter()
+        .find(|entry| entry.name == "nested")
+        .unwrap()
+        .id;
+    let nested_types = first
+        .file_types_cancellable(nested, || false)
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        (nested_types.total_files, nested_types.total_folders),
+        (1, 0)
+    );
+    assert_eq!(nested_types.largest_files[0].entry.name, "growth");
+    assert!(nested_types.largest_folders.is_empty());
+    assert!(
+        first
+            .file_types_cancellable(nested, || true)
+            .unwrap()
+            .is_none()
+    );
     {
         use voldiq_core::{
             operations::Lease,
