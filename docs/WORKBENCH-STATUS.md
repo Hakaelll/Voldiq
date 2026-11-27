@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Applications chart and ranking
+
+Applications gives the scatter plot a 318px minimum height and keeps its axis labels at 14px. The logarithmic axes use the same geometry as the points, with fewer horizontal labels in narrow views. Exceptionally large byte labels use scientific notation and retain the exact value in their tooltip.
+
+Selecting a point or application name highlights the same record and opens its category and evidence breakdown in place. View files opens Explorer explicitly. Eligible cache review remains a separate action. The breakdown states when a record is outside the current page, outside the chart limit or missing a positive measurement for the plot. Filter, folder and analysis changes invalidate the selected record. Arrow keys move through the corresponding axis order, and the page controls have an owned focus return after each request.
+
+Eleven Svelte render fixtures cover current and captured evidence, coincident points, the 416px chart, extreme values, cancellation and replacement of scope and filters. The geometry and directional navigation functions were checked with exact fixture values. The integration gate retains nine behavior tests. Keyboard interaction, visual fit and Windows scaling remain manual checks. [Source verification](../benchmarks/workbench-applications-chart-source.json)
+
 ## Detailed and summary history
 
 History now offers an explicit choice between detailed and summary saves. The summary puts logical size first, followed by indexed counts, coverage, measurement time and save time. Trends and Diary are accessible from the summary. Indexed depth, exclusion count, known allocation and the engine revision sit under Measurement details. The selection and its type remain visible in the capture list.

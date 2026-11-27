@@ -6,10 +6,10 @@
   import { applicationQueries } from '../lib/queries';
   import { RANKED_PAINTS } from '../lib/chart-colors';
   import {
-    APPLICATION_CHART,
     applicationBytes,
     applicationFilters,
     applicationPlot,
+    applicationPointInDirection,
     readApplicationPage,
     type ApplicationPage,
     type ApplicationItem,
@@ -45,10 +45,15 @@
   let offset = $state(0),
     sort = $state<ApplicationQuery['sort']>('size'),
     retry = $state(0);
-  let active = $state<string | null>(null),
-    focusedPoint = $state(0);
+  let choice = $state.raw<{ context: string; id: string } | null>(null);
+  let hoveredPoint = $state<string | null>(null),
+    focusedPoint = $state<string | null>(null),
+    rovingPoint = $state<string | null>(null);
   let region: HTMLElement;
   let reload: HTMLButtonElement;
+  let plotWidth = $state(0);
+  let selectionHeading = $state<HTMLHeadingElement>();
+  let pageFocus: { owner: string; direction: 'previous' | 'next' } | null = null;
   let cancelRead = () => {};
   const applied = $derived(applicationFilters(filters));
   const context = $derived(JSON.stringify([indexId, scope, applied]));
@@ -56,10 +61,36 @@
   const page = $derived(
     !paused && model.kind === 'ready' && model.identity === identity ? model.page : null,
   );
-  const plot = $derived(applicationPlot(page?.chart ?? []));
-  const selected = $derived(plot.points.find((point) => point.app.id === active)?.app ?? null);
+  const canManageCache = $derived(manageable && page !== null && page.attribution !== 'captured');
+  const plot = $derived(applicationPlot(page?.chart ?? [], plotWidth));
+  const claims = $derived(
+    new Map([...(page?.chart ?? []), ...(page?.applications ?? [])].map((app) => [app.id, app])),
+  );
+  const selectedId = $derived(choice?.context === context ? choice.id : null);
+  const selected = $derived(selectedId ? (claims.get(selectedId) ?? null) : null);
+  const marker = $derived(plot.points.find((point) => point.app.id === selectedId));
+  const rowSelected = $derived(page?.applications.some((app) => app.id === selectedId));
+  const preview = $derived(
+    plot.points.find((point) => point.app.id === (focusedPoint ?? hoveredPoint))?.app,
+  );
+  const tabPoint = $derived(
+    plot.points.find((point) => point.app.id === rovingPoint)?.app.id ??
+      marker?.app.id ??
+      plot.points[0]?.app.id,
+  );
+  const atSelectedLocation = $derived(
+    marker ? plot.points.filter((point) => point.x === marker.x && point.y === marker.y).length : 0,
+  );
   const paints = (app: ApplicationItem) =>
     RANKED_PAINTS[parseInt(app.id.slice(0, 2), 16) % RANKED_PAINTS.length];
+  const fileTick = new Intl.NumberFormat(undefined, {
+    notation: 'compact',
+    maximumFractionDigits: 1,
+  });
+  const largeTick = new Intl.NumberFormat(undefined, {
+    notation: 'scientific',
+    maximumFractionDigits: 1,
+  });
   const percent = (value: string) =>
     page && BigInt(page.total.logical_bytes) > 0n
       ? Number((BigInt(value) * 10000n) / BigInt(page.total.logical_bytes)) / 100
@@ -76,13 +107,15 @@
     void context;
     untrack(() => {
       offset = 0;
-      active = null;
-      focusedPoint = 0;
+      choice = null;
+      hoveredPoint = focusedPoint = rovingPoint = null;
     });
   });
   $effect(() => {
     void retry;
     const owner = identity;
+    const restoreDirection = pageFocus?.owner === owner ? pageFocus.direction : null;
+    pageFocus = null;
     if (paused) {
       model = { kind: 'paused' };
       return;
@@ -103,15 +136,23 @@
           if (result.scope !== input.query.scope)
             throw Error('Application scope changed. Reload to retry.');
           model = { kind: 'ready', identity: owner, page: result };
-          active = null;
-          focusedPoint = 0;
+          hoveredPoint = focusedPoint = null;
         }
       } catch (problem) {
         if (alive) model = { kind: 'failed', message: String(problem) };
       } finally {
         await tick();
-        if (alive && heldFocus && document.activeElement === document.body)
-          reload?.focus({ preventScroll: true });
+        if (!alive || (!heldFocus && !restoreDirection) || document.activeElement !== document.body)
+          return;
+        const pagination = [
+          ...region.querySelectorAll<HTMLButtonElement>(
+            '.application-pagination button:not(:disabled)',
+          ),
+        ];
+        const target = pagination.find((button) => button.dataset.pageStep === restoreDirection);
+        (restoreDirection ? (target ?? pagination[0] ?? reload) : reload)?.focus({
+          preventScroll: true,
+        });
       }
     })();
     return () => {
@@ -119,26 +160,51 @@
       request.cancel();
     };
   });
-  function explore(app: ApplicationItem) {
-    if (model.kind === 'ready' && model.identity === identity && !paused) onopen(app.id);
+  async function choose(id: string, trigger?: HTMLElement): Promise<void> {
+    if (!page || !claims.has(id)) return;
+    const owner = context;
+    choice = { context: owner, id };
+    if (plot.points.some((point) => point.app.id === id)) rovingPoint = id;
+    if (!trigger) return;
+    await tick();
+    if (selected?.id === id && context === owner && document.activeElement === trigger)
+      selectionHeading?.focus();
+  }
+  function explore(id: string): void {
+    if (page && claims.has(id)) onopen(id);
+  }
+  function reviewCache(id: string): void {
+    const app = claims.get(id);
+    if (canManageCache && app && canReviewApplicationCache(app))
+      onreviewcache({ scope, application_id: id });
+  }
+  function paginate(nextOffset: number, direction: 'previous' | 'next', button: HTMLButtonElement) {
+    offset = nextOffset;
+    if (document.activeElement === button) pageFocus = { owner: identity, direction };
   }
   function movePoint(event: KeyboardEvent, index: number) {
-    let next = index;
-    if (event.key === 'ArrowRight' || event.key === 'ArrowUp') next++;
-    else if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') next--;
-    else if (event.key === 'Home') next = 0;
-    else if (event.key === 'End') next = plot.points.length - 1;
-    else if (event.key === 'Enter' || event.key === ' ') {
+    if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
-      explore(plot.points[index].app);
+      const point = plot.points[index];
+      if (point) void choose(point.app.id);
       return;
+    }
+    let target: number;
+    if (event.key === 'Home') target = 0;
+    else if (event.key === 'End') target = plot.points.length - 1;
+    else if (
+      event.key === 'ArrowLeft' ||
+      event.key === 'ArrowRight' ||
+      event.key === 'ArrowUp' ||
+      event.key === 'ArrowDown'
+    ) {
+      target = applicationPointInDirection(plot.points, index, event.key);
     } else return;
     event.preventDefault();
-    focusedPoint = Math.max(0, Math.min(plot.points.length - 1, next));
     if (event.currentTarget instanceof SVGCircleElement)
       event.currentTarget.ownerSVGElement
         ?.querySelectorAll<SVGCircleElement>('circle[data-point]')
-        [focusedPoint]?.focus();
+        [target]?.focus();
   }
 </script>
 
@@ -150,7 +216,11 @@
     </div>
     <div class="application-controls">
       <label
-        >Sort <select bind:value={sort}
+        >Sort <select
+          bind:value={sort}
+          onchange={() => {
+            offset = 0;
+          }}
           ><option value="size">Size</option><option value="files">File paths</option><option
             value="name">Name</option
           ></select
@@ -166,12 +236,6 @@
       {#if model.kind === 'loading'}<button onclick={() => cancelRead()}>Cancel read</button>{/if}
     </div>
   </header>
-  <p class="application-caption">
-    Registered locations matched to this index. Supported default Chrome and Edge profiles add data
-    and HTTP-cache categories; Chrome's documented debug log is separate. Filters match file
-    records. Use View files to explore an application's matching paths in this folder. Custom paths
-    and unsupported layouts remain unclassified.
-  </p>
   {#if model.kind === 'loading'}<p class="application-state" role="status">
       Reading application evidence and indexed sizes…
     </p>
@@ -199,90 +263,214 @@
     {#if page.partial_index}<p class="application-notice">
         Partial or provisional index. Totals describe observed records, not the whole disk.
       </p>{/if}
-    <section class="application-chart" aria-labelledby="application-chart-heading">
-      <div class="chart-heading">
-        <h3 id="application-chart-heading">Exclusive attribution · size and file count</h3>
-        <span>{plot.points.length} points · logarithmic axes</span>
-      </div>
-      {#if plot.points.length}
-        <div
-          class="application-chart-scroll"
-          role="region"
-          aria-label="Application chart, horizontally scrollable"
-        >
-          <svg
-            viewBox={`0 0 ${APPLICATION_CHART.width} ${APPLICATION_CHART.height}`}
-            aria-labelledby="application-chart-heading application-chart-help"
+    <div class="application-workspace">
+      <section class="application-chart" aria-labelledby="application-chart-heading">
+        <div class="chart-heading">
+          <h3 id="application-chart-heading">Indexed size and file count</h3>
+          <span>{plot.points.length.toLocaleString()} plotted · logarithmic axes</span>
+        </div>
+        {#if plot.points.length}
+          <div
+            class="application-plot"
+            role="region"
+            aria-label="Application chart"
+            bind:clientWidth={plotWidth}
           >
-            <desc id="application-chart-help"
-              >Each point is one available application claim. Use the arrow keys between points,
-              Enter to explore its indexed location. The list below provides the same measurements.
-              Positions use log of one plus the measured value.</desc
+            <svg
+              viewBox={`0 0 ${plot.chart.width} ${plot.chart.height}`}
+              height={plot.chart.height}
+              aria-labelledby="application-chart-heading application-chart-help"
             >
-            {#each [0, 1, 2, 3, 4] as line}
-              <line
-                x1={APPLICATION_CHART.left}
-                x2={APPLICATION_CHART.right}
-                y1={APPLICATION_CHART.top +
-                  (line * (APPLICATION_CHART.bottom - APPLICATION_CHART.top)) / 4}
-                y2={APPLICATION_CHART.top +
-                  (line * (APPLICATION_CHART.bottom - APPLICATION_CHART.top)) / 4}
-              />
-            {/each}
-            <text x={APPLICATION_CHART.left} y="18">Logical bytes</text><text
-              x={APPLICATION_CHART.left - 8}
-              y="33"
-              text-anchor="end">{applicationBytes(plot.maxBytes)}</text
-            >
-            <text x={APPLICATION_CHART.left - 8} y="238" text-anchor="end">0 B</text><text
-              x={APPLICATION_CHART.left}
-              y="255">0</text
-            >
-            <text x={APPLICATION_CHART.right} y="255" text-anchor="end"
-              >{plot.maxFiles.toLocaleString()}</text
-            ><text x="475" y="275" text-anchor="middle">Indexed file paths</text>
-            {#each plot.points as point, index (point.app.id)}
-              <circle
-                data-point
-                cx={point.x}
-                cy={point.y}
-                r={active === point.app.id ? 7 : 5}
-                fill={paints(point.app).fill}
-                role="button"
-                tabindex={focusedPoint === index ? 0 : -1}
-                aria-label={`${point.app.name}: ${point.app.exclusive.files} file paths, ${point.app.exclusive.logical_bytes} logical bytes. View matching files.`}
-                onpointerenter={() => {
-                  active = point.app.id;
-                }}
-                onfocus={(event) => {
-                  active = point.app.id;
-                  focusedPoint = index;
-                  event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-                }}
-                onkeydown={(event) => movePoint(event, index)}
-                onclick={() => explore(point.app)}
+              <desc id="application-chart-help"
+                >Each point shows one application's exclusive indexed file paths and logical bytes.
+                Use the arrow keys to move between points and Enter or Space to select an
+                application. View files opens the selected application's matching paths.</desc
               >
-                <title
-                  >{point.app.name} · {applicationBytes(point.app.exclusive.logical_bytes)} · {point.app.exclusive.files.toLocaleString()}
-                  paths</title
+              {#each plot.yTicks as tick (tick.value)}
+                {@const label = applicationBytes(tick.value)}
+                <line
+                  x1={plot.chart.left}
+                  x2={plot.chart.right}
+                  y1={tick.position}
+                  y2={tick.position}
+                />
+                <text x={plot.chart.left - 10} y={tick.position + 4} text-anchor="end"
+                  ><title>{tick.value} logical bytes</title>{label.length <= 12
+                    ? label
+                    : `${largeTick.format(BigInt(tick.value))} B`}</text
                 >
-              </circle>
+              {/each}
+              {#each plot.xTicks as tick (tick.value)}
+                <line
+                  x1={tick.position}
+                  x2={tick.position}
+                  y1={plot.chart.top}
+                  y2={plot.chart.bottom}
+                />
+                <text
+                  x={tick.position}
+                  y={plot.chart.bottom + 23}
+                  text-anchor={tick.value === 0
+                    ? 'start'
+                    : tick.value === plot.maxFiles
+                      ? 'end'
+                      : 'middle'}>{fileTick.format(tick.value)}</text
+                >
+              {/each}
+              <text x={plot.chart.left} y="18">Exclusive logical bytes</text>
+              <text x={plot.chart.width / 2} y={plot.chart.height - 6} text-anchor="middle"
+                >Exclusive indexed file paths</text
+              >
+              {#each plot.points as point, index (point.app.id)}
+                <circle
+                  data-point
+                  cx={point.x}
+                  cy={point.y}
+                  r={preview?.id === point.app.id ? 7 : 5}
+                  fill={paints(point.app).fill}
+                  role="button"
+                  tabindex={tabPoint === point.app.id ? 0 : -1}
+                  aria-current={selectedId === point.app.id ? 'true' : undefined}
+                  aria-controls="application-selection"
+                  aria-label={`Select ${point.app.name}, ${point.app.exclusive.files.toLocaleString()} exclusive file paths, ${applicationBytes(point.app.exclusive.logical_bytes)} logical.`}
+                  onpointerenter={() => {
+                    hoveredPoint = point.app.id;
+                  }}
+                  onpointerleave={() => {
+                    if (hoveredPoint === point.app.id) hoveredPoint = null;
+                  }}
+                  onfocus={(event) => {
+                    focusedPoint = rovingPoint = point.app.id;
+                    event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+                  }}
+                  onblur={() => {
+                    if (focusedPoint === point.app.id) focusedPoint = null;
+                  }}
+                  onkeydown={(event) => movePoint(event, index)}
+                  onclick={() => void choose(point.app.id)}
+                >
+                  <title
+                    >{point.app.name} · {applicationBytes(point.app.exclusive.logical_bytes)} · {point.app.exclusive.files.toLocaleString()}
+                    paths</title
+                  >
+                </circle>
+              {/each}
+              {#if marker}
+                <circle
+                  class="selected-point"
+                  aria-hidden="true"
+                  cx={marker.x}
+                  cy={marker.y}
+                  r="10"
+                />
+              {/if}
+            </svg>
+          </div>
+          <div class="application-tooltip" aria-hidden="true">
+            {#if preview}<strong>{preview.name}</strong><span
+                >{preview.exclusive.files.toLocaleString()} paths · {applicationBytes(
+                  preview.exclusive.logical_bytes,
+                )}</span
+              >{/if}
+          </div>
+        {:else}<p class="application-state">No exclusive application measurements to plot.</p>{/if}
+        <p class="application-caption">
+          The chart is limited to the 200 largest claims by exclusive size.{#if page.chart_omitted}
+            {page.chart_omitted.toLocaleString()} more in the paged list.{/if}{#if plot.omittedZero}
+            {plot.omittedZero.toLocaleString()} in this selection have no positive exclusive measurement.{/if}
+        </p>
+      </section>
+      <section class="application-inspector" aria-labelledby="application-selection">
+        {#if selected}
+          {@const selectedApplication = selected.id}
+          <h3 id="application-selection" bind:this={selectionHeading} tabindex="-1">
+            {selected.name}
+          </h3>
+          <p
+            class="application-selection-value"
+            title={`${selected.exclusive.logical_bytes} logical bytes`}
+          >
+            {applicationBytes(selected.exclusive.logical_bytes)} · {selected.exclusive.files.toLocaleString()}
+            exclusive paths
+          </p>
+          {#if selected.overlapping.files}
+            <p>{applicationBytes(selected.overlapping.logical_bytes)} in overlapping claims</p>
+          {/if}
+          {#if !marker}
+            <p>
+              {selected.exclusive.files === 0 || selected.exclusive.logical_bytes === '0'
+                ? 'No positive exclusive measurement to plot.'
+                : 'Outside the 200 claims used for the chart.'}
+            </p>
+          {:else if atSelectedLocation > 1}
+            <p>
+              {atSelectedLocation.toLocaleString()} claims share this position. Use arrow keys to inspect
+              each point.
+            </p>
+          {/if}
+          {#if !rowSelected}<p>Outside the current list page.</p>{/if}
+          <dl class="application-breakdown">
+            {#each categories as category}
+              {@const measure = selected.breakdown.find((part) => part.category === category)}
+              <div>
+                <dt>
+                  <span aria-hidden="true" style:background={categoryStyle[category].paint.fill}
+                  ></span>
+                  {categoryStyle[category].label}
+                </dt>
+                <dd>
+                  {#if measure}
+                    <strong title={`${measure.exclusive.logical_bytes} logical bytes`}
+                      >{applicationBytes(measure.exclusive.logical_bytes)}</strong
+                    >
+                    <small
+                      >{measure.exclusive.files.toLocaleString()} exclusive paths{#if measure.overlapping.files}
+                        · {applicationBytes(measure.overlapping.logical_bytes)} shared{/if}</small
+                    >
+                  {:else}
+                    <span>Not classified</span>
+                  {/if}
+                </dd>
+              </div>
             {/each}
-          </svg>
-        </div>
-        <div class="application-tooltip" aria-live="polite">
-          {#if selected}<strong>{selected.name}</strong><span
-              >{selected.exclusive.files.toLocaleString()} paths · {applicationBytes(
-                selected.exclusive.logical_bytes,
-              )}</span
-            >{:else}<span>Point to or focus an application to see its measurements.</span>{/if}
-        </div>
-      {:else}<p class="application-state">No exclusive application measurements to plot.</p>{/if}
-      {#if page.chart_omitted || plot.omittedZero}<p class="application-caption">
-          Largest 200 available matches at most. {page.chart_omitted} outside the chart selection; {plot.omittedZero}
-          with no positive exclusive bytes. Overlapping claims remain in the list.
-        </p>{/if}
-    </section>
+          </dl>
+          <p>
+            Location evidence · {selected.confidence === 'supplied'
+              ? 'supplied metadata'
+              : selected.confidence === 'ambiguous'
+                ? 'conflicting locations'
+                : 'contextual'} · {page.attribution === 'captured'
+              ? 'saved with snapshot'
+              : page.attribution === 'indexed'
+                ? 'recorded with analysis'
+                : 'current registrations'}
+          </p>
+          <div class="application-selection-actions">
+            <button class="quiet-action" onclick={() => explore(selectedApplication)}
+              >View files</button
+            >
+            {#if canReviewApplicationCache(selected)}
+              <button
+                class="quiet-action"
+                disabled={!canManageCache}
+                onclick={() => reviewCache(selectedApplication)}
+                >Review supported cache files</button
+              >
+            {/if}
+          </div>
+          {#if canManageCache && canReviewApplicationCache(selected)}
+            <p>Cache review keeps this folder scope and uses its own file criteria.</p>
+          {/if}
+        {:else}
+          <h3 id="application-selection">Application details</h3>
+          <p>
+            {selectedId
+              ? 'The selected claim is unavailable on this page or chart.'
+              : 'Select a point or an application name to see its location breakdown.'}
+          </p>
+        {/if}
+      </section>
+    </div>
     <div class="application-list-heading">
       <h3>Registered location claims</h3>
       <span role="status">{page.application_count.toLocaleString()} with matching file paths</span>
@@ -293,7 +481,7 @@
       </p>{/if}
     <ul class="application-list">
       {#each page.applications as app (app.id)}
-        <li>
+        <li class:selected-row={selectedId === app.id}>
           <span
             class="application-key"
             aria-hidden="true"
@@ -301,7 +489,13 @@
             style:color={paints(app).ink}>{Array.from(app.name.trim())[0]}</span
           >
           <div class="application-name">
-            <strong>{app.name}</strong><span
+            <button
+              class="application-choose"
+              aria-label={`Inspect ${app.name}`}
+              aria-current={selectedId === app.id ? 'true' : undefined}
+              aria-controls="application-selection"
+              onclick={(event) => void choose(app.id, event.currentTarget)}>{app.name}</button
+            ><span
               >{app.publisher ?? 'Publisher unavailable'}{app.version
                 ? ` · ${app.version}`
                 : ''}</span
@@ -324,60 +518,20 @@
           </div>
           <button
             class="quiet-action"
-            onclick={() => explore(app)}
+            onclick={() => explore(app.id)}
             disabled={paused}
+            aria-label={`View files for ${app.name}`}
             title="Show this application's matching files in the current folder">View files</button
           >
-          <details class="application-breakdown">
-            <summary
-              >Location breakdown · {app.confidence === 'supplied'
-                ? 'supplied metadata'
-                : app.confidence === 'ambiguous'
-                  ? 'conflicting locations'
-                  : 'contextual evidence'}</summary
-            >
-            <dl>
-              {#each categories as category}
-                {@const measure = app.breakdown.find((part) => part.category === category)}
-                <div>
-                  <dt>
-                    <span aria-hidden="true" style:background={categoryStyle[category].paint.fill}
-                    ></span>{categoryStyle[category].label}
-                  </dt>
-                  <dd>
-                    {#if measure}<strong title={`${measure.exclusive.logical_bytes} logical bytes`}
-                        >{applicationBytes(measure.exclusive.logical_bytes)}</strong
-                      >
-                      <small
-                        >{measure.exclusive.files.toLocaleString()} exclusive paths{#if measure.overlapping.files}
-                          · {applicationBytes(measure.overlapping.logical_bytes)} shared, not additive{/if}</small
-                      >
-                    {:else}<span>Not classified in this scope</span>{/if}
-                  </dd>
-                </div>
-              {/each}
-            </dl>
-            {#if canReviewApplicationCache(app)}<button
-                disabled={paused || !manageable}
-                onclick={() => {
-                  if (page && !paused && manageable)
-                    onreviewcache({ scope, application_id: app.id });
-                }}>Review supported cache files</button
-              >
-              <p class="application-caption">
-                Select supported old cache files in Cleanup. Folder scope is retained; file filters
-                are not applied to this review.
-              </p>{/if}
-          </details>
         </li>
       {/each}
     </ul>
     <div class="application-pagination">
       <button
+        data-page-step="previous"
         disabled={offset === 0}
-        onclick={() => {
-          offset = Math.max(0, offset - 50);
-        }}>Previous</button
+        onclick={(event) => paginate(Math.max(0, offset - 50), 'previous', event.currentTarget)}
+        >Previous</button
       ><span
         >{page.applications.length
           ? `${offset + 1}–${offset + page.applications.length} of ${page.application_count}`
@@ -385,10 +539,9 @@
             ? 'No matches on this page'
             : '0 matches'}</span
       ><button
+        data-page-step="next"
         disabled={offset + 50 >= page.application_count}
-        onclick={() => {
-          offset += 50;
-        }}>Next</button
+        onclick={(event) => paginate(offset + 50, 'next', event.currentTarget)}>Next</button
       >
     </div>
     {#if offset > 0 && !page.applications.length}<button
@@ -405,10 +558,10 @@
       </p>
       <p>
         Categories describe indexed locations, not verified file contents. Profile data includes
-        unclassified profile content; HTTP cache covers Cache folders in supported default profile
-        layouts. Missing categories are unavailable, not zero. Unknown marks conflicting location
-        claims. Bars show the exclusive share of all matching bytes, with the same category colors
-        as the breakdown. No category grants cleanup permission or promises reclaimable space.
+        unclassified profile content. The supported default Chrome and Edge layouts include HTTP
+        cache. Chrome's documented debug log is a separate category. Missing categories are
+        unavailable; Unknown marks conflicting location claims. Bars show the exclusive share of all
+        matching bytes and share category colors with the breakdown.
       </p>
       <p>
         Index measurement: {date(page.indexed_at)}. {page.attribution === 'captured'
@@ -522,18 +675,19 @@
     border-bottom: 1px solid var(--border);
     background: transparent;
   }
+  .application-workspace {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+    margin-block: 20px;
+  }
   .application-chart {
-    padding: 0;
-    margin-block: 28px;
-    background: transparent;
+    min-width: 0;
   }
   svg {
     display: block;
     width: 100%;
-    min-width: 780px;
-    min-height: 190px;
     margin-top: 14px;
-    overflow: visible;
   }
   svg line {
     stroke: var(--border);
@@ -545,19 +699,25 @@
       14px 'Segoe UI',
       sans-serif;
   }
-  .application-chart-scroll {
-    overflow-x: auto;
+  .application-plot {
     padding-bottom: 8px;
   }
-  circle {
+  circle[data-point] {
     cursor: pointer;
     stroke: var(--secondary);
     stroke-width: 1.25px;
   }
-  circle:focus-visible {
+  circle[data-point]:focus-visible {
     outline: none;
     stroke: var(--text);
     stroke-width: 3px;
+  }
+  .selected-point {
+    pointer-events: none;
+    fill: none;
+    stroke: var(--text);
+    stroke-width: 2px;
+    vector-effect: non-scaling-stroke;
   }
   .application-tooltip {
     min-height: 24px;
@@ -568,6 +728,29 @@
   }
   .application-tooltip span {
     color: var(--secondary);
+  }
+  .application-inspector {
+    min-width: 0;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-size: 12px;
+    overflow-wrap: anywhere;
+  }
+  .application-inspector p {
+    margin: 6px 0;
+    color: var(--secondary);
+    line-height: 1.4;
+  }
+  .application-inspector .application-selection-value {
+    color: var(--text);
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+  }
+  .application-selection-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px 12px;
+    margin-block: 8px 4px;
   }
   .application-list-heading {
     margin: 22px 0 12px;
@@ -581,9 +764,13 @@
     display: grid;
     grid-template-columns: 36px minmax(0, 1fr) minmax(140px, 180px) auto;
     align-items: center;
-    gap: 12px;
-    padding: 14px 0;
+    gap: 8px 12px;
+    padding: 10px 8px;
     border-bottom: 1px solid var(--border);
+  }
+  .application-list li.selected-row {
+    background: var(--selected);
+    box-shadow: inset 2px 0 var(--accent);
   }
   .application-key {
     width: 34px;
@@ -601,9 +788,20 @@
     gap: 5px;
     min-width: 0;
   }
-  .application-name strong {
+  .application-choose {
+    align-self: start;
+    min-height: 26px;
+    max-width: 100%;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    text-align: left;
     font-size: 14px;
+    font-weight: 600;
     overflow-wrap: anywhere;
+  }
+  .application-choose:hover {
+    text-decoration: underline;
   }
   .application-name > span,
   .application-name small,
@@ -632,24 +830,15 @@
     display: block;
   }
   .application-breakdown {
-    grid-column: 2 / -1;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(140px, 100%), 1fr));
+    gap: 9px 14px;
+    margin: 10px 0;
+    padding-block: 8px;
+    border-block: 1px solid var(--border);
     color: var(--secondary);
     min-width: 0;
     font-size: 12px;
-  }
-  .application-breakdown summary {
-    cursor: pointer;
-    padding-block: 6px;
-  }
-  .application-breakdown summary:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 3px;
-  }
-  .application-breakdown dl {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 14px 20px;
-    margin: 12px 0 4px;
   }
   .application-breakdown dt {
     display: flex;
@@ -695,6 +884,31 @@
     margin-top: 8px;
     line-height: 1.5;
     overflow-wrap: anywhere;
+  }
+  @media (min-width: 1450px) {
+    .application-workspace {
+      grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
+      gap: 22px;
+    }
+    .application-inspector {
+      border-top: 0;
+      border-inline-start: 1px solid var(--border);
+      padding: 0 0 0 17px;
+    }
+    .application-inspector .application-breakdown {
+      grid-template-columns: minmax(0, 1fr);
+      gap: 6px;
+    }
+    .application-inspector .application-breakdown > div {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 4px 8px;
+    }
+    .application-inspector .application-breakdown dd {
+      margin: 0;
+      text-align: end;
+    }
   }
   @media (max-width: 1000px) {
     .application-totals {

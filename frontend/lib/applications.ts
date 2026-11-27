@@ -335,13 +335,35 @@ export function applicationBytes(value: string): string {
 }
 export const APPLICATION_CHART = {
   width: 900,
-  height: 280,
-  left: 90,
-  right: 880,
-  top: 30,
-  bottom: 235,
+  height: 318,
+  left: 112,
+  right: 854,
+  top: 34,
+  bottom: 266,
 };
-export function applicationPlot(apps: ApplicationItem[]) {
+function logarithmicTicks(maximum: bigint, scale: number, spacing: number): bigint[] {
+  const ticks = [0n];
+  const minimumGap = scale * Math.max(0.15, spacing);
+  let lastPosition = 0;
+  for (let decade = 1n; decade < maximum; decade *= 10n) {
+    for (const digit of [1n, 2n, 5n]) {
+      const tick = digit * decade;
+      const position = Math.log1p(Number(tick));
+      if (
+        tick < maximum &&
+        position - lastPosition >= minimumGap &&
+        scale - position >= minimumGap
+      ) {
+        ticks.push(tick);
+        lastPosition = position;
+      }
+    }
+  }
+  if (maximum > 0n) ticks.push(maximum);
+  return ticks;
+}
+
+export function applicationPlot(apps: ApplicationItem[], availableWidth = APPLICATION_CHART.width) {
   const measured = apps.filter(
     (app) => app.exclusive.files > 0 && BigInt(app.exclusive.logical_bytes) > 0n,
   );
@@ -353,21 +375,58 @@ export function applicationPlot(apps: ApplicationItem[]) {
   );
   const xScale = Math.log1p(maxFiles) || 1,
     yScale = Math.log1p(Number(maxBytes)) || 1;
+  const width =
+    Number.isFinite(availableWidth) && availableWidth > 0
+      ? Math.max(1, Math.round(availableWidth))
+      : APPLICATION_CHART.width;
+  const height = Math.max(APPLICATION_CHART.height, Math.min(420, Math.round(width * 0.35)));
+  const left = Math.min(APPLICATION_CHART.left, Math.round(width * 0.26));
+  const chart = {
+    width,
+    height,
+    left,
+    right: Math.max(left + 1, width - Math.min(46, Math.round(width * 0.05 + 4))),
+    top: APPLICATION_CHART.top,
+    bottom: height - (APPLICATION_CHART.height - APPLICATION_CHART.bottom),
+  };
+  const chartWidth = chart.right - chart.left;
+  const chartHeight = chart.bottom - chart.top;
+  const x = (value: number) => chart.left + chartWidth * (Math.log1p(value) / xScale);
+  const y = (value: number) => chart.bottom - chartHeight * (Math.log1p(value) / yScale);
   return {
+    chart,
     maxFiles,
     maxBytes,
     omittedZero: apps.length - measured.length,
+    xTicks: logarithmicTicks(BigInt(maxFiles), xScale, 80 / chartWidth).map((value) => ({
+      value: Number(value),
+      position: x(Number(value)),
+    })),
+    yTicks: logarithmicTicks(BigInt(maxBytes), yScale, 34 / chartHeight).map((value) => ({
+      value: value.toString(),
+      position: y(Number(value)),
+    })),
     points: measured.map((app) => ({
       app,
-      x:
-        APPLICATION_CHART.left +
-        ((APPLICATION_CHART.right - APPLICATION_CHART.left) * Math.log1p(app.exclusive.files)) /
-          xScale,
-      y:
-        APPLICATION_CHART.bottom -
-        ((APPLICATION_CHART.bottom - APPLICATION_CHART.top) *
-          Math.log1p(Number(app.exclusive.logical_bytes))) /
-          yScale,
+      x: x(app.exclusive.files),
+      y: y(Number(app.exclusive.logical_bytes)),
     })),
   };
+}
+
+export function applicationPointInDirection(
+  points: readonly { x: number; y: number }[],
+  current: number,
+  key: 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown',
+): number {
+  const horizontal = key === 'ArrowLeft' || key === 'ArrowRight';
+  const forward = key === 'ArrowRight' || key === 'ArrowDown';
+  const order = points.map((point, slot) => ({ point, slot }));
+  order.sort((a, b) =>
+    horizontal
+      ? a.point.x - b.point.x || a.point.y - b.point.y
+      : a.point.y - b.point.y || a.point.x - b.point.x,
+  );
+  const position = order.findIndex(({ slot }) => slot === current);
+  return order[position + (forward ? 1 : -1)]?.slot ?? current;
 }

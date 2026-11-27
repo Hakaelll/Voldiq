@@ -1,0 +1,69 @@
+{
+  "checkedUtc": "2026-11-27T11:36:44.3965566Z",
+  "startedUtc": "2026-11-27T11:20:26.5579688Z",
+  "checkoutCommit": "8048141a38b1f98b3e9bee42fd25c55131325c86",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 8.991
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 23.451
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1.646
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 12.116
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 729.198
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 202.39
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "frontend/components/Applications.svelte",
+      "sha256": "E92E179EAEB51134B3F1B726E8E76D3007A36D57526C4988566DB6CD4EBA42A3"
+    },
+    {
+      "path": "frontend/lib/applications.ts",
+      "sha256": "507FF2AF318C81F40819F2877904C69AAD983F5120F9AD10E925E976B7D53AA9"
+    }
+  ],
+  "retainedBehaviorTests": 9,
+  "markupFixture": {
+    "scope": "Production Svelte Applications component with controlled query state. Tick geometry and directional order are checked against the production TypeScript functions.",
+    "results": {
+      "currentCacheOutsideList": true,
+      "historicalCache": true,
+      "listOutsideChart": true,
+      "missingPositiveMeasurement": true,
+      "narrowChart": true,
+      "largeAxisLabel": true,
+      "changedFilters": true,
+      "changedFolder": true,
+      "changedAnalysis": true,
+      "supersededResponse": true,
+      "cancelled": true
+    }
+  }
+}
