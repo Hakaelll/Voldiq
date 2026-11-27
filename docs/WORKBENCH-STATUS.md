@@ -8,6 +8,8 @@ Developer Storage distinguishes supported npm and Windows Python layouts associa
 
 The Windows rule test uses owned files and covers save, reopen, matching criteria, protected or excluded paths, Voldiq state, a stale prepared review and replacement of the bound folder. The routine suite keeps eight Rust behavior tests and one frontend flow. A disposable package fixture covered the supported layouts, excluded context, saved protection and changed identities. Svelte markup checks covered a populated rule, editing, an unscanned workspace and ephemeral mode. Native pointer, keyboard and scaling acceptance remain manual. [Source verification](../benchmarks/workbench-custom-rules-source.json)
 
+The Windows preview reached ready with zero TCP listeners. 10 embedded non-HTML assets matched the production web build. The unsigned NSIS installer measures 12,131,902 bytes. Cleanup removed 3,102,950,753 logical bytes of inactive release artifacts and 66,788,352 bytes of closed previews. The current preview and installer were preserved. [Startup](../benchmarks/native-custom-rules-preview.json) · [Default listener](../benchmarks/custom-rules-default-listener.json) · [Distribution](../benchmarks/distribution-custom-rules.json) · [Post-clean checks](../benchmarks/workspace-footprint-custom-rules.json)
+
 ## Console logo depth and color
 
 The ASCII mark uses three solid disks with recessed seams, a brighter rim and a wider view of the top face. Shadow tones distinguish the disk surfaces from the silver rim, while a blue sector and two radial lines remain visible throughout the turn. The home menu stays beside the mark when it fits. The rotation takes 14 seconds and starts at the idle prompt.
