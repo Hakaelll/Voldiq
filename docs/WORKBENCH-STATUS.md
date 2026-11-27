@@ -8,6 +8,8 @@ Selecting a point or application name highlights the same record and opens its c
 
 Eleven Svelte render fixtures cover current and captured evidence, coincident points, the 416px chart, extreme values, cancellation and replacement of scope and filters. The geometry and directional navigation functions were checked with exact fixture values. The integration gate retains nine behavior tests. Keyboard interaction, visual fit and Windows scaling remain manual checks. [Source verification](../benchmarks/workbench-applications-chart-source.json)
 
+The portable Windows preview reached ready with zero TCP listeners. The core reopened its owned detailed snapshot and confirmed 14 application measurements across 1856 file paths. 10 embedded non-HTML assets matched the production web build. The unsigned NSIS installer measures 12,147,892 bytes. Cleanup removed 3,110,072,883 logical bytes of inactive release artifacts and 0 bytes of closed previews. The current preview and installer were preserved. [Startup](../benchmarks/native-applications-chart-preview.json) · [Default listener](../benchmarks/applications-chart-default-listener.json) · [Distribution](../benchmarks/distribution-applications-chart.json) · [Post-clean checks](../benchmarks/workspace-footprint-applications-chart.json)
+
 ## Detailed and summary history
 
 History now offers an explicit choice between detailed and summary saves. The summary puts logical size first, followed by indexed counts, coverage, measurement time and save time. Trends and Diary are accessible from the summary. Indexed depth, exclusion count, known allocation and the engine revision sit under Measurement details. The selection and its type remain visible in the capture list.
