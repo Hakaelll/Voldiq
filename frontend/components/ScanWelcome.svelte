@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from './Icon.svelte';
+  import type { Snippet } from 'svelte';
   import { bytes, type Volume } from '../lib/types';
   import { volumeMeasurement, volumeCaller, volumeObservationLabel } from '../lib/volume-space';
   let {
@@ -13,6 +14,7 @@
     onchoose,
     onhelp,
     onskip,
+    scanOptions,
   }: {
     volume: Volume | null | undefined;
     busy: boolean;
@@ -24,6 +26,7 @@
     onchoose: () => void;
     onhelp: () => void;
     onskip: () => void;
+    scanOptions?: Snippet;
   } = $props();
   let heading: HTMLHeadingElement;
   const space = $derived(volumeMeasurement(volume));
@@ -57,6 +60,9 @@
         ><Icon name="folder" />Choose a folder</button
       >
     </div>
+    {#if scanOptions && !scanning}<div class="welcome-options">
+        {@render scanOptions()}
+      </div>{/if}
     {#if showGuide && native && !busy && !scanning}
       <section class="welcome-guide" aria-label="Getting started">
         <p>
@@ -145,17 +151,18 @@
     grid-template-columns: minmax(0, 1fr) minmax(266px, 370px);
     align-items: start;
     max-width: 1140px;
-    gap: clamp(28px, 5vw, 80px);
-    padding-block: 36px;
-    border-top: 1px solid var(--border);
+    gap: clamp(22px, 4vw, 66px);
+    padding-block: 10px 28px;
   }
   .scan-welcome:not(:has(.welcome-drive)) {
     grid-template-columns: minmax(0, 1fr);
   }
   .welcome-drive {
     min-width: 0;
-    border-inline-start: 1px solid var(--border);
-    padding-inline-start: 28px;
+    padding: 20px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--chart-violet) 5%, var(--surface));
   }
   header {
     display: flex;
@@ -164,6 +171,9 @@
   }
   header h2 {
     font-size: 21px;
+  }
+  header > :global(svg) {
+    color: var(--chart-violet);
   }
   header > div {
     min-width: 0;
@@ -270,6 +280,13 @@
     min-height: 42px;
     padding: 10px 16px;
   }
+  .welcome-options {
+    display: flex;
+    margin-top: 10px;
+  }
+  .welcome-options:empty {
+    display: none;
+  }
   .welcome-guide {
     margin-top: 20px;
     padding-top: 12px;
@@ -320,19 +337,17 @@
       opacity: 1;
     }
   }
-  @media (max-width: 850px) {
+  @media (max-width: 1000px) {
     .scan-welcome {
       grid-template-columns: minmax(0, 1fr);
       gap: 24px;
-      padding-block: 24px;
+      padding-block: 6px 24px;
     }
     .welcome-start > h2 {
       font-size: 31px;
     }
     .welcome-drive {
-      border-inline-start: 0;
-      padding: 24px 0 0;
-      border-top: 1px solid var(--border);
+      padding: 16px 18px;
     }
   }
 </style>

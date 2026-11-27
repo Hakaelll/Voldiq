@@ -70,29 +70,33 @@ pub(super) fn trend(
     connection: &Connection,
     root: i64,
     days: u16,
+    through: i64,
     cancel: &AtomicBool,
 ) -> Result<VolumeTrend> {
-    // The latest saved capture selects the device. Older captures cannot substitute for a missing observation.
+    // The last capture in the requested range selects the device; a missing observation stays unavailable.
     let mut statement = connection.prepare(
         "WITH latest AS (
            SELECT v.guid,v.serial,v.measured_at
            FROM snapshot_volume_samples v
-           WHERE v.snapshot_id=(SELECT s.id FROM snapshots s WHERE s.root_id=?1 ORDER BY s.id DESC LIMIT 1)
+           WHERE v.snapshot_id=(SELECT s.id FROM snapshots s WHERE s.root_id=?1 AND s.id<=?3 ORDER BY s.id DESC LIMIT 1)
          )
          SELECT v.measured_at,v.free,v.capacity
          FROM latest l JOIN snapshot_volume_samples v ON v.guid=l.guid AND v.serial=l.serial
-         WHERE v.measured_at BETWEEN MAX(0,l.measured_at-?2) AND l.measured_at
+         WHERE v.snapshot_id<=?3 AND v.measured_at BETWEEN MAX(0,l.measured_at-?2) AND l.measured_at
          AND v.snapshot_id=(SELECT x.snapshot_id FROM snapshot_volume_samples x
-           WHERE x.guid=v.guid AND x.serial=v.serial AND x.measured_at=v.measured_at ORDER BY x.snapshot_id DESC LIMIT 1)
+           WHERE x.guid=v.guid AND x.serial=v.serial AND x.measured_at=v.measured_at AND x.snapshot_id<=?3 ORDER BY x.snapshot_id DESC LIMIT 1)
          ORDER BY v.measured_at DESC,v.snapshot_id DESC LIMIT 240",
     )?;
-    let rows = statement.query_map(params![root, i64::from(days) * DAY as i64], |row| {
-        Ok(Sample {
-            at: unsigned(row, 0)?,
-            free: unsigned(row, 1)?,
-            capacity: unsigned(row, 2)?,
-        })
-    })?;
+    let rows = statement.query_map(
+        params![root, i64::from(days) * DAY as i64, through],
+        |row| {
+            Ok(Sample {
+                at: unsigned(row, 0)?,
+                free: unsigned(row, 1)?,
+                capacity: unsigned(row, 2)?,
+            })
+        },
+    )?;
     let mut samples = Vec::new();
     for row in rows {
         if cancel.load(Ordering::Relaxed) {

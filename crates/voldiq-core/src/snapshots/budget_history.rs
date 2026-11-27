@@ -1,4 +1,4 @@
-use super::{Data, Store, encode, encode_paths, integer, read_observation, unsigned};
+use super::{Data, Store, encode, integer, read_observation, unsigned};
 use crate::{
     NodeId, Result,
     index::{ACCOUNTING_VERSION, Index},
@@ -144,22 +144,7 @@ fn folder_key(
     index: &Index,
     node: NodeId,
 ) -> Result<Option<(i64, Option<i64>)>> {
-    let Some(identity) = index.root_identity else {
-        return Ok(None);
-    };
-
-    let root: Option<i64> = connection
-        .query_row(
-            "SELECT id FROM snapshot_roots WHERE path=?1 AND identity=?2 AND coverage=?3",
-            params![
-                encode(index.root.as_os_str()),
-                [identity.0.to_le_bytes(), identity.1.to_le_bytes()].concat(),
-                encode_paths(&index.exclusions)?
-            ],
-            |r| r.get(0),
-        )
-        .optional()?;
-    let Some(root) = root else {
+    let Some(root) = super::index_root_key(connection, index)? else {
         return Ok(None);
     };
     if node == NodeId(0) {

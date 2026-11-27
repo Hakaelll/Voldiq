@@ -17,7 +17,8 @@ pub use activity::{
 pub(crate) use budget_history::HistoryPoint;
 pub use retention::{RetentionPreview, RetentionResult, RetentionSettings};
 pub use trends::{
-    FolderTrend, TrendChanges, TrendPage, TrendPageRequest, TrendReport, TrendRequest,
+    DashboardTrend, DashboardTrendSummary, FolderTrend, TrendChanges, TrendPage, TrendPageRequest,
+    TrendReport, TrendRequest,
 };
 pub use visual::{Accounting, VisualFrame, VisualPair};
 #[cfg(windows)]
@@ -46,6 +47,23 @@ pub struct Scope {
     pub root: PathBuf,
     pub identity: (u64, u64),
     pub exclusions: Vec<PathBuf>,
+}
+
+fn index_root_key(connection: &Connection, index: &Index) -> Result<Option<i64>> {
+    let Some(identity) = index.root_identity else {
+        return Ok(None);
+    };
+    Ok(connection
+        .query_row(
+            "SELECT id FROM snapshot_roots WHERE path=?1 AND identity=?2 AND coverage=?3",
+            params![
+                encode(index.root.as_os_str()),
+                [identity.0.to_le_bytes(), identity.1.to_le_bytes()].concat(),
+                encode_paths(&index.exclusions)?,
+            ],
+            |row| row.get(0),
+        )
+        .optional()?)
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]

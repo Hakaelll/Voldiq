@@ -44,6 +44,8 @@ pub(crate) enum QueryFamily {
     SnapshotTrendChanges,
     EmptyFolders,
     CustomCleanupRule,
+    OverviewCleanup,
+    DashboardTrend,
 }
 
 #[derive(Default)]
@@ -60,7 +62,7 @@ pub(crate) struct Queries {
 #[derive(Default)]
 struct Session {
     epoch: u64,
-    slots: [Slot; 27],
+    slots: [Slot; 29],
 }
 
 impl QueryFamily {
@@ -93,6 +95,8 @@ impl QueryFamily {
             Self::SnapshotTrendChanges => 24,
             Self::EmptyFolders => 25,
             Self::CustomCleanupRule => 26,
+            Self::OverviewCleanup => 27,
+            Self::DashboardTrend => 28,
         }
     }
 }
@@ -270,6 +274,7 @@ pub(crate) async fn query_snapshot_diary(
 #[tauri::command]
 pub(crate) async fn query_snapshot_trend(
     query: voldiq_core::snapshots::TrendRequest,
+    through_anchor: Option<bool>,
     epoch: u64,
     request_id: u64,
     engine: State<'_, Arc<Engine>>,
@@ -281,7 +286,38 @@ pub(crate) async fn query_snapshot_trend(
         request_id,
         engine.inner().clone(),
         database.0.clone(),
-        move |store, cancel| store.trend(query, cancel),
+        move |store, cancel| {
+            if through_anchor == Some(true) {
+                store.trend_at(query, cancel)
+            } else {
+                store.trend(query, cancel)
+            }
+        },
+    )
+    .await
+}
+
+#[tauri::command]
+pub(crate) async fn query_dashboard_trend(
+    index_id: IndexId,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+    database: State<'_, crate::snapshot_commands::SnapshotDatabase>,
+) -> Result<Option<voldiq_core::snapshots::DashboardTrend>, String> {
+    let database = database.0.clone();
+    run_query(
+        index_id,
+        epoch,
+        QueryFamily::DashboardTrend,
+        request_id,
+        engine.inner().clone(),
+        move |index, cancel| {
+            database
+                .lock()?
+                .dashboard_trend(index, cancel)
+                .map_err(|error| error.to_string())
+        },
     )
     .await
 }
@@ -290,6 +326,7 @@ pub(crate) async fn query_snapshot_trend(
 pub(crate) async fn query_snapshot_trend_changes(
     before: i64,
     after: i64,
+    anchor: Option<i64>,
     epoch: u64,
     request_id: u64,
     engine: State<'_, Arc<Engine>>,
@@ -301,7 +338,10 @@ pub(crate) async fn query_snapshot_trend_changes(
         request_id,
         engine.inner().clone(),
         database.0.clone(),
-        move |store, cancel| store.trend_changes(before, after, cancel),
+        move |store, cancel| match anchor {
+            Some(anchor) => store.trend_changes_at(before, after, anchor, cancel),
+            None => store.trend_changes(before, after, cancel),
+        },
     )
     .await
 }
@@ -1036,6 +1076,82 @@ pub(crate) async fn query_application_cache(
                     .map(Some)
                     .map_err(|error: voldiq_core::Error| error.to_string())
             }
+        },
+    )
+    .await
+}
+
+#[derive(serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub(crate) enum OverviewCleanup {
+    Unavailable,
+    Observed {
+        root: String,
+        assessed_at: u64,
+        complete: bool,
+        total: usize,
+        logical: voldiq_core::space::Bytes,
+        risk: &'static str,
+    },
+}
+
+#[tauri::command]
+pub(crate) async fn query_overview_cleanup(
+    index_id: IndexId,
+    scope: NodeId,
+    epoch: u64,
+    request_id: u64,
+    engine: State<'_, Arc<Engine>>,
+) -> Result<Option<OverviewCleanup>, String> {
+    use voldiq_core::cleanup::{rules, score};
+    if scope != NodeId(0) {
+        return Err("Old files review applies to the scan root.".into());
+    }
+    engine.require_durable_state()?;
+    let engine = engine.inner().clone();
+    run_query(
+        index_id,
+        epoch,
+        QueryFamily::OverviewCleanup,
+        request_id,
+        engine.clone(),
+        move |index, cancelled| {
+            let protections = engine.protections()?;
+            let temporary = std::env::temp_dir();
+            let result = rules::query(
+                Some(index),
+                rules::RuleKind::OldFiles,
+                rules::Query {
+                    offset: 0,
+                    limit: 1,
+                    weights: score::Weights::default(),
+                },
+                &rules::Environment {
+                    temporary: &temporary,
+                    local_data: &temporary,
+                    caches: &[],
+                    now: rules::now().map_err(|error| error.to_string())?,
+                    protections: &protections,
+                    duplicates: None,
+                },
+                cancelled,
+            );
+            if cancelled.load(Ordering::Relaxed) {
+                return Ok(None);
+            }
+            let page = result.map_err(|error| error.to_string())?;
+            Ok(Some(if page.indexed {
+                OverviewCleanup::Observed {
+                    root: page.root,
+                    assessed_at: page.assessed_at,
+                    complete: page.complete,
+                    total: page.total,
+                    logical: voldiq_core::space::Bytes(page.logical),
+                    risk: page.rule.risk,
+                }
+            } else {
+                OverviewCleanup::Unavailable
+            }))
         },
     )
     .await

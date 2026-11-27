@@ -1,0 +1,155 @@
+{
+  "checkedUtc": "2026-11-27T13:10:31.7400324Z",
+  "startedUtc": "2026-11-27T12:43:01.3572043Z",
+  "checkoutCommit": "343c43ec318e1cbccfb9c2d06e99324f01ca4cba",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 3.131
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 18.105
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1.834
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 18.158
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1475.694
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 133.401
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/snapshots.rs",
+      "sha256": "DBB6A3A73A465CCD0D4AF44C3849B36BA100D6B0F2C1DAC0DB4A600B88CCA931"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/budget_history.rs",
+      "sha256": "2F689FEFE1740E89C0C555AC70301C5C6703930C3097EC7E8170F90B27CDCB7A"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/trends.rs",
+      "sha256": "F4118BF9653171DC7C4DCB59CD6C2F63A5A1DF21BD73423770E515C0C471077E"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/volume_history.rs",
+      "sha256": "5C718D07DC1355615AD05841A922A3674FCD5EE695A27CAD161DE8F9913F89CD"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots/capture_tier_fixture.rs",
+      "sha256": "6DA1619CEF98D45BD61B03BD15187E2662F0EA1B2DEC2BFA0915245D7D107831"
+    },
+    {
+      "path": "frontend/App.svelte",
+      "sha256": "195272E25B608C317EE6E019AC682562C913BD1856198D648A29FDA3828C82AD"
+    },
+    {
+      "path": "frontend/components/CleanupRules.svelte",
+      "sha256": "8036FB9565FB8828022ACCD1892394E3DA24A7EC63306108C41ADF6B69C336BF"
+    },
+    {
+      "path": "frontend/components/History.svelte",
+      "sha256": "17CCF0EE809C3F80BF4A5F267138CB21B9A3D87B5237611DE7F3572A3A6FA600"
+    },
+    {
+      "path": "frontend/components/HistoryTrends.svelte",
+      "sha256": "2B3FC9368EF1EA11CC63AE986A627FA2A1700E1C78B17F69955AE43CCF089591"
+    },
+    {
+      "path": "frontend/components/Icon.svelte",
+      "sha256": "428407F190DEF62B304896F4380557840E29160A607A66D1A3BB25E7A5F3B3AC"
+    },
+    {
+      "path": "frontend/components/Overview.svelte",
+      "sha256": "60492A3539D247F883B676BF1C7E586C8A7771EF1D16E77EA5543BE6CAE9A2AF"
+    },
+    {
+      "path": "frontend/components/OverviewCleanup.svelte",
+      "sha256": "5FF749729206B15140A2237682C537E457A22939CDE55C31C876EEC70A9DC42A"
+    },
+    {
+      "path": "frontend/components/OverviewTrend.svelte",
+      "sha256": "4D2E26B15A5E7964436AC9F56B1673B3BC5C80F4685C0C85CBB95D286BD4C3AD"
+    },
+    {
+      "path": "frontend/components/ScanWelcome.svelte",
+      "sha256": "5EBE1905E54E158D50B6BBD71CDEF0A0119ACB16DF499C73B18775C91F55A79F"
+    },
+    {
+      "path": "frontend/components/SharedScans.svelte",
+      "sha256": "B5E969CD67601809C677F8F7FF96B2F71255AA585F0307B0E332433D86D36CB7"
+    },
+    {
+      "path": "frontend/lib/history-trend.ts",
+      "sha256": "41D61A0FBA20E9AA960504D1A94D2265ACEAFC621E6FD91B9124413B1AE7040A"
+    },
+    {
+      "path": "frontend/lib/queries.ts",
+      "sha256": "DB71D2ADB987B4BF44C5CB67F9C8A485EAF150AB1A511A19708258AE2B70BAEC"
+    },
+    {
+      "path": "frontend/styles.css",
+      "sha256": "7454C8C50D243C4BA41AF11D76D3FC8F6E5E9BAE525AAA284705BB2B8E02F6EF"
+    },
+    {
+      "path": "src-tauri/src/main.rs",
+      "sha256": "566C782E8327DB6312B76E50EBC81A3722EC18C779279A7C93BCFCBFFA139E5E"
+    },
+    {
+      "path": "src-tauri/src/query_commands.rs",
+      "sha256": "C34128E526AF64AE419C2813FD69D5E911F443F4DC9BEE35ECF6ED703DEEBB76"
+    }
+  ],
+  "retainedBehaviorTests": 9,
+  "markupAndSql": {
+    "shell": {
+      "expandedOverview": true,
+      "collapsedOverview": true,
+      "unavailableDrive": true,
+      "railWidthsAndMotionPreference": true
+    },
+    "trend": {
+      "clientAndServerSyntax": true,
+      "exactSqlScopeAndCapture": true,
+      "signedGrowthAndOwnership": true,
+      "captureOutsideHistoryPage": true
+    },
+    "candidates": {
+      "clientSyntax": true,
+      "serverSyntax": true,
+      "idle": true,
+      "loading": true,
+      "cancelled": true,
+      "unavailable": true,
+      "observed": true,
+      "partialZero": true
+    }
+  },
+  "ownedFixtureCandidates": {
+    "candidates": 1,
+    "logicalBytes": "28000",
+    "risk": "review",
+    "complete": true
+  }
+}

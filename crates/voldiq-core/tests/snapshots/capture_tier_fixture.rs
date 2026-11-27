@@ -1,5 +1,7 @@
 use std::sync::atomic::AtomicBool;
-use voldiq_core::snapshots::{DiaryDetail, SnapshotTier, Store, TrendRequest, schedule::time_now};
+use voldiq_core::snapshots::{
+    DashboardTrend, DiaryDetail, SnapshotTier, Store, TrendRequest, schedule::time_now,
+};
 
 pub(super) fn verify() {
     let fixture = tempfile::tempdir().unwrap();
@@ -135,6 +137,75 @@ pub(super) fn verify() {
     assert_eq!(trend.folder.points[1].logical, "15");
     assert_eq!(trend.folder.points[1].delta.as_deref(), Some("3"));
 
+    let historical = store.load(first, &cancel).unwrap();
+    assert!(matches!(
+        store.dashboard_trend(&historical, &cancel).unwrap(),
+        Some(DashboardTrend::Recorded { summary })
+            if summary.capture.id == first && summary.latest.as_ref().is_some_and(|point| point.snapshot == first && point.delta.is_none())
+    ));
+    let mut live = capture(observed + 150);
+    live.exclusions.push(folder.join("excluded"));
+    let other_group = store.save_summary(&live, &cancel).unwrap();
+    assert!(matches!(
+        store.dashboard_trend(&live, &cancel).unwrap(),
+        Some(DashboardTrend::Recorded { summary }) if summary.capture.id == other_group
+    ));
+    live.exclusions.clear();
+    assert!(matches!(
+        store.dashboard_trend(&live, &cancel).unwrap(),
+        Some(DashboardTrend::Recorded { summary })
+            if summary.capture.id == last && summary.latest.as_ref().is_some_and(|point| point.delta.as_deref() == Some("6"))
+    ));
+    let native_identity = live.root_identity.unwrap();
+    live.root_identity = Some((native_identity.0, native_identity.1 ^ 1));
+    assert!(matches!(
+        store.dashboard_trend(&live, &cancel).unwrap(),
+        Some(DashboardTrend::Unavailable)
+    ));
+    assert!(
+        store
+            .dashboard_trend(&live, &AtomicBool::new(true))
+            .unwrap()
+            .is_none()
+    );
+    store.delete(other_group).unwrap();
+    // Two saves share one measurement instant. A later capture must not replace the anchor's counter.
+    {
+        let sqlite = rusqlite::Connection::open(&database).unwrap();
+        for (id, at, free) in [
+            (first, observed, 90),
+            (summary, observed + 60, 70),
+            (last, observed + 60, 99),
+        ] {
+            sqlite.execute(
+                "INSERT OR REPLACE INTO snapshot_volume_samples(snapshot_id,guid,serial,measured_at,capacity,free)
+                VALUES (?1,'fixture-volume','fixture-serial',?2,100,?3)",
+                (id, i64::try_from(at).unwrap(), free),
+            ).unwrap();
+        }
+    }
+    let through = store
+        .trend_at(
+            TrendRequest {
+                snapshot: summary,
+                days: 30,
+            },
+            &cancel,
+        )
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        through
+            .folder
+            .points
+            .iter()
+            .map(|point| point.snapshot)
+            .collect::<Vec<_>>(),
+        [first, summary]
+    );
+    assert_eq!(through.volume.points.last().unwrap().free, "70");
+    assert!(through.folder.forecast.is_none());
+
     let settings = store.retention_settings(last).unwrap();
     store
         .set_retention(last, &settings.version, Some(2))
@@ -156,6 +227,22 @@ pub(super) fn verify() {
     assert_eq!(path_rows(&store), stored_rows);
     assert_eq!(store.tier(summary).unwrap(), SnapshotTier::Summary);
     assert_eq!(store.load(last, &cancel).unwrap().entries[0].logical, 21);
+    assert!(matches!(
+        store.dashboard_trend(&historical, &cancel).unwrap(),
+        Some(DashboardTrend::Unavailable)
+    ));
+    assert!(
+        store
+            .trend_at(
+                TrendRequest {
+                    snapshot: first,
+                    days: 30
+                },
+                &cancel
+            )
+            .err()
+            .is_some_and(|error| error.to_string().contains("no longer retained"))
+    );
 
     let newest_summary = store
         .save_summary(&capture(observed + 180), &cancel)
@@ -192,7 +279,7 @@ pub(super) fn verify() {
         .unwrap();
     assert_eq!(path_rows(&store), (0, 0));
     drop(store);
-    let store = Store::open(&database).unwrap();
+    let mut store = Store::open(&database).unwrap();
     assert_eq!(store.summary(newest_summary).unwrap().unwrap().logical, 21);
     assert_eq!(
         store
@@ -209,5 +296,63 @@ pub(super) fn verify() {
             .points
             .len(),
         1
+    );
+
+    // A later save at the same earlier observation cannot replace a pinned pair.
+    let linked_root = fixture.path().join("Linked changes");
+    let linked_child = linked_root.join("Child");
+    std::fs::create_dir_all(&linked_child).unwrap();
+    let save_at = |store: &mut Store, when, bytes| {
+        std::fs::write(linked_child.join("changed.bin"), vec![1u8; bytes]).unwrap();
+        let mut index = super::capture(&linked_root);
+        index.observation.as_mut().unwrap().completed_at = when;
+        store.save(&index, &cancel, &[]).unwrap()
+    };
+    let before = save_at(&mut store, observed, 5);
+    let after = save_at(&mut store, observed + 60, 11);
+    let duplicate = save_at(&mut store, observed, 20);
+    let pinned = store
+        .trend_at(
+            TrendRequest {
+                snapshot: after,
+                days: 30,
+            },
+            &cancel,
+        )
+        .unwrap()
+        .unwrap();
+    assert_eq!(pinned.folder.points[1].previous, Some(before));
+    let changes = store
+        .trend_changes_at(before, after, after, &cancel)
+        .unwrap()
+        .unwrap();
+    assert_eq!((changes.before, changes.after), (before, after));
+    assert_eq!(changes.grew.len(), 1);
+    assert_eq!(
+        (&*changes.grew[0].name, &*changes.grew[0].delta),
+        ("Child", "6")
+    );
+    assert!(store.trend_changes(before, after, &cancel).is_err());
+    assert_eq!(
+        store
+            .trend_changes(duplicate, after, &cancel)
+            .unwrap()
+            .unwrap()
+            .shrank[0]
+            .delta,
+        "-9"
+    );
+    assert!(
+        store
+            .trend_changes_at(duplicate, after, after, &cancel)
+            .is_err()
+    );
+    let other_anchor = store
+        .save_summary(&capture(observed + 210), &cancel)
+        .unwrap();
+    assert!(
+        store
+            .trend_changes_at(duplicate, after, other_anchor, &cancel)
+            .is_err()
     );
 }

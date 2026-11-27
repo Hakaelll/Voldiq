@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { GraphicCapture } from '../lib/graphic-export';
   import StorageMap from './StorageMap.svelte';
+  import OverviewTrend from './OverviewTrend.svelte';
   import SpaceAccount from './SpaceAccount.svelte';
   import SystemStorage from './SystemStorage.svelte';
   import RecoveryCopies from './RecoveryCopies.svelte';
@@ -8,6 +9,7 @@
   import Applications from './Applications.svelte';
   import StorageCost from './StorageCost.svelte';
   import Libraries from './Libraries.svelte';
+  import OverviewCleanup from './OverviewCleanup.svelte';
   import type { ApplicationCleanupContext } from '../lib/applications';
   import type { Query } from '../lib/types';
   import type { IndexId } from '../lib/index-context';
@@ -19,6 +21,7 @@
     type FileType,
     type FileTypes,
     type Overview,
+    type Snapshot,
     type Volume,
     type CloudFilter,
   } from '../lib/types';
@@ -76,7 +79,10 @@
     scopeId,
     manageable,
     onreviewcache,
+    reviewCleanupAvailable,
+    onreviewcleanup,
     onapplication,
+    ontrend,
   }: {
     indexId: IndexId | null;
     paused: boolean;
@@ -123,7 +129,10 @@
     scopeId: number;
     manageable: boolean;
     onreviewcache: (context: ApplicationCleanupContext) => void;
+    reviewCleanupAvailable: boolean;
+    onreviewcleanup: (owner: IndexId) => void;
     onapplication: (id: string) => void;
+    ontrend: (snapshot: Snapshot, index: IndexId) => void;
   } = $props();
   let section = $state<'summary' | 'applications' | 'libraries' | 'cost'>('summary');
   let rankedKind = $state<'file' | 'directory'>('file');
@@ -357,6 +366,18 @@
       {/if}
       {#if !directory || directory.entry.id === 0}
         {@render indexedSummary()}
+      {/if}
+      {#if reviewCleanupAvailable && indexId !== null && scopeId === 0 && directory?.entry.id === 0 && !provisional}
+        {#key indexId}
+          <OverviewCleanup {indexId} {paused} onreview={onreviewcleanup} />
+        {/key}
+      {/if}
+      {#if indexId !== null && scopeId === 0 && directory?.entry.id === 0}
+        <OverviewTrend
+          {indexId}
+          paused={paused || provisional}
+          onopen={ontrend}
+        />
       {/if}
     </aside>
     <section class="type-panel">

@@ -25,6 +25,7 @@
     onadd,
     onerror,
     application = null,
+    initialRule,
     onclearapplication,
     weights,
     onweights,
@@ -37,6 +38,7 @@
     onadd: (source: TraySource, ids: readonly number[], owner: IndexId | null) => boolean;
     onerror: (problem: unknown) => void;
     application?: ApplicationCleanupContext | null;
+    initialRule?: 'old_files';
     onclearapplication: () => void;
     weights: ReviewWeights;
     onweights: (next: ReviewWeights) => void;
@@ -55,7 +57,7 @@
     { id: 'project_temp', name: 'Project temporary files' },
     { id: 'browser_cache', name: 'Browser HTTP cache' },
   ] as const;
-  let rule = $state<(typeof rules)[number]['id']>('user_temp');
+  let rule = $state<(typeof rules)[number]['id']>(untrack(() => initialRule ?? 'user_temp'));
   const activeRule = $derived(application ? 'browser_cache' : rule);
   let expandedPriority = $state<number | null>(null);
   let weightsProblem = $state('');

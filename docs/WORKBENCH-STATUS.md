@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Overview shell and operational summary
+
+The rail separates navigation groups through spacing and a short accent mark on the active destination. It keeps the original Voldiq mark and the expanded and collapsed widths. Overview combines the volume picker, scope heading and compact Scan activity disclosure. The first-scan controls keep the scan profile next to the action it affects.
+
+The analyzed root can display the latest comparable logical change and the core forecast when available. Opening History carries the exact saved capture as a cutoff for the folder, volume and detail queries. A newly saved measurement or removal of the anchor preserves the original scope. The optional Old files check shows observed logical size, coverage and review risk. It opens the existing rule without choosing files.
+
+The retained snapshot flow exercises compatible roots and exclusions, a historical cutoff, same-time measurements saved later, cancellation and retirement. Svelte and SQL fixtures cover the rail, scan controls, candidate states, signed growth and a capture outside the current History page. Scanning the owned sample and querying the cleanup rules found one 28,000-byte old-file candidate with review risk. The fixture used read-only scans and queries. Visual fit, interactive navigation and Windows scaling remain manual. [Source verification](../benchmarks/workbench-dashboard-shell-source.json)
+
 ## Cleanup space receipt
 
 The desktop cleanup dialog reports the reviewed selection, confirmed Recycle Bin or permanent outcomes, verified duplicate keepers linked to confirmed removals and potential single-link allocation. The report labels confirmed outcomes whose journal result is missing. Exact byte totals cross the native boundary as decimal strings.

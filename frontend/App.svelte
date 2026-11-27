@@ -245,6 +245,7 @@
   let applicationCleanup = $state<{ indexId: IndexId; context: ApplicationCleanupContext } | null>(
     null,
   );
+  let dashboardCleanupIndex = $state<IndexId | null>(null);
   let requestedPlanId = $state<string | null>(null);
   const cleanupSections = [
     { id: 'candidates', label: 'Candidates' },
@@ -257,6 +258,7 @@
   ] as const;
   let cleanupSection = $state<(typeof cleanupSections)[number]['id']>('candidates');
   let historical = $state<Snapshot | null>(null);
+  let startingTrend = $state.raw<Snapshot | null>(null);
   let exploration = $state.raw<Exploration>(emptyExploration(null));
   const explored = $derived(explorationIds(exploration, indexId));
   let trayGroups = $state.raw<readonly TrayGroup[]>([]);
@@ -432,12 +434,26 @@
   }
   function navigate(next: Destination): void {
     if (analysisBusy) return;
+    if (next !== 'cleanup') dashboardCleanupIndex = null;
+    startingTrend = null;
     invalidateInteraction();
     invalidateRefresh();
     view = next;
     text = '';
     if (ready && (next === 'overview' || next === 'explorer' || next === 'large'))
       void refresh(scope);
+  }
+  async function reviewDashboardCleanup(owner: IndexId): Promise<void> {
+    if (owner !== indexId || busy || !ready || historical || scope !== 0 || view !== 'overview')
+      return;
+    applicationCleanup = null;
+    dashboardCleanupIndex = owner;
+    cleanupSection = 'candidates';
+    navigate('cleanup');
+    const interaction = interactionToken;
+    await tick();
+    if (interaction === interactionToken && cleanupSection === 'candidates')
+      document.querySelector<HTMLElement>('.cleanup-rules')?.focus();
   }
   async function openSettings(): Promise<void> {
     if (analysisBusy || cleanupPreview || restoreReceipt !== null || showIssues || helpOpen) return;
@@ -834,6 +850,7 @@
     const next = setIndexContext(value);
     if (next === indexId) return;
     indexId = next;
+    dashboardCleanupIndex = null;
     liveObservation = null;
     invalidateInteraction();
     invalidateRefresh();
@@ -1674,7 +1691,7 @@
       aria-keyshortcuts="Control+K"
       title="Commands · Ctrl+K"
       aria-label="Open command palette"
-      ><Icon name="search" />{#if expanded}<span>Search & commands</span><kbd>Ctrl K</kbd
+      ><Icon name="search" />{#if expanded}<span>Commands</span><kbd>Ctrl K</kbd
         >{/if}</button
     >
     <div class="nav-scroll">
@@ -1682,6 +1699,7 @@
         {#each navigation as item}
           <button
             class:active={view === item.id}
+            class:section-start={item.id === 'duplicates'}
             title={item.label}
             disabled={analysisBusy}
             aria-label={item.label}
@@ -1735,7 +1753,7 @@
       >
     </div>
   </aside>
-  <div class="workspace" class:chart-expanded={chartFocused} class:explorer-map-shell={visualExplorer}>
+  <div class="workspace" class:overview-shell={view === 'overview'} class:chart-expanded={chartFocused} class:explorer-map-shell={visualExplorer}>
     <header class="toolbar">
       {#if indexedView || (view === 'cleanup' && cleanupSection === 'windows')}<div
           class="toolbar-location"
@@ -1750,7 +1768,7 @@
                   disabled={!drive.accessible}
                   >{drive.name || 'Local disk'} ({drive.path}) · {drive.filesystem}</option
                 >{/each}</select
-            ></label
+            ><span class="drive-select-arrow"><Icon name="chevron-down" size={14} /></span></label
           >{#if !chartFocused && operation?.phase !== 'scanning' && indexedView && (ready || view !== 'overview')}<button
               onclick={choose}
               disabled={busy || !isTauri()}><Icon name="folder" />Choose folder</button
@@ -1813,7 +1831,7 @@
           aria-expanded={savedOpen}
           aria-controls="saved-workspaces-panel"
           disabled={trayPreparing}
-          onclick={openSaved}>Saved</button
+          onclick={openSaved}><Icon name="bookmark" size={16} />Saved</button
         >
         <button
           bind:this={trayButton}
@@ -1826,7 +1844,7 @@
             else openTray();
           }}
         >
-          <Icon name="trash" size={16} />Review tray{#if selection.size}<span class="tray-count"
+          <Icon name="list" size={16} />Review tray{#if selection.size}<span class="tray-count"
               >{selection.size.toLocaleString()}</span
             >{/if}
         </button>
@@ -1896,7 +1914,7 @@
       class:file-view={ready && (view === 'explorer' || view === 'large')}
       class:visual-explorer={visualExplorer}
     >
-      <div class="page-heading">
+      <div class="page-heading" class:overview-heading={view === 'overview'}>
         <div class="workspace-location">
           <h1 id="workspace-title" tabindex="-1" class:sr-only={chartFocused}>
             {view === 'overview'
@@ -1971,7 +1989,7 @@
                 sourceKey={`${operation?.phase ?? 'saved'}:${operation?.analyzed_at ?? liveObservation?.measured_at ?? historical?.captured ?? 'undated'}`}
                 disabled={busy || historical !== null}
               />
-            {:else}<ScanProfileSelect
+            {:else if view !== 'overview'}<ScanProfileSelect
                 bind:profile={scanProfile}
                 disabled={busy}
                 compact
@@ -2011,6 +2029,9 @@
               ><Icon name="scan" />{ready ? 'Rescan' : 'Scan drive'}</button
             >{/if}
         </div>
+        {#if view === 'overview' && isTauri() && storageMode !== null && storageMode !== 'ephemeral'}
+          <SharedScans blocked={busy} onbusy={(value) => (analysisBusy = value)} onload={loadSnapshot} />
+        {/if}
       </div>
       {#if error}<div class="error" role="alert">
           <Icon name="warning" /><span>{error}</span><button
@@ -2107,9 +2128,6 @@
             >{/if}
         </div>{/if}
 
-      {#if view === 'overview' && isTauri() && storageMode !== null && storageMode !== 'ephemeral'}
-        <SharedScans blocked={busy} onbusy={(value) => (analysisBusy = value)} onload={loadSnapshot} />
-      {/if}
       {#if view === 'settings'}
         <section class="settings-panel">
           <section aria-labelledby="appearance-heading">
@@ -2338,6 +2356,9 @@
               </div>
             {:else}
               <CleanupRules
+                initialRule={dashboardCleanupIndex !== null && dashboardCleanupIndex === indexId
+                  ? 'old_files'
+                  : undefined}
                 weights={reviewWeights}
                 onweights={(next) => {
                   reviewWeights = next;
@@ -2373,6 +2394,7 @@
         {/key}
       {:else if view === 'history'}
         <History
+          {startingTrend}
           blocked={busy}
           enabled={ready && !busy && historical === null}
           onbusy={(value) => {
@@ -2401,7 +2423,13 @@
                 guideDismissed = true;
                 savePreferences();
               }}
-            />
+            >
+              {#snippet scanOptions()}
+                {#if view === 'overview' && operation?.phase !== 'scanning'}
+                  <ScanProfileSelect bind:profile={scanProfile} disabled={busy} compact onchange={savePreferences} />
+                {/if}
+              {/snippet}
+            </ScanWelcome>
           {:else}
             {#if indexedView && (explored.size || details)}
               <div class="exploration-bar" role="group" aria-label="Inspection selection">
@@ -2440,10 +2468,19 @@
             >
               {#if view === 'overview'}
                 <Overview
+                  ontrend={(capture, owner) => {
+                    if (owner !== indexId || !ready || busy || scope !== 0 || view !== 'overview')
+                      return;
+                    navigate('history');
+                    startingTrend = capture;
+                  }}
                   manageable={ready && !historical}
+                  reviewCleanupAvailable={ready && !historical && storageMode !== null && storageMode !== 'ephemeral' && isTauri()}
+                  onreviewcleanup={(owner) => void reviewDashboardCleanup(owner)}
                   onreviewcache={(context) => {
                     if (indexId === null || busy || historical || context.scope !== scope) return;
                     applicationCleanup = { indexId, context };
+                    dashboardCleanupIndex = null;
                     cleanupSection = 'candidates';
                     view = 'cleanup';
                     void tick().then(() =>

@@ -178,6 +178,23 @@ Amra informs the light workspace. White and graphite keep text and shared surfac
 
 Both themes use the supplied Voldiq mark and the Windows system font. Settings opens with Appearance and shows a swatch for each radio choice. The native Windows title bar follows the selected theme, including the preference restored when the desktop opens. The sidebar's dimensions, collapse behavior and Settings entry remain shared. Primary controls have a short press transition. The initial drive reading uses a 220 ms opacity reveal. Both Windows and Voldiq reduced-motion settings suppress these effects. The command palette and chart selector respond as soon as the user acts.
 
+## Desktop interface references
+
+### Shell and navigation
+
+- Group destinations by the task they serve. Give the current section a clear marker and distinguish the selected drive and folder from actions on the current view. [Linear design refresh](https://linear.app/now/behind-the-latest-design-refresh) · [Things for Mac](https://culturedcode.com/things/) · [Files for Windows](https://files.community/)
+- Give the chart or results most of the workspace. Put details and actions for the current selection in the inspector. Keep the inspector independently collapsible. [Nova workspace](https://help.nova.app/projects/workspace/) · [Sketch interface](https://www.sketch.com/docs/interface-and-settings/the-mac-app-interface/)
+
+### Storage and trends
+
+- Let the drive measurement anchor Overview beside the scan action. In Explorer, give the map the available height and keep paths, sizes, and view switching close to it. Use flat, aligned rankings when exact values carry more information than another chart. [DaisyDisk disk overview](https://web.daisydiskapp.com/guide/4/en/DisksOverview/) · [DaisyDisk map](https://daisydiskapp.com/guide/4/en/UnderstandingSunburst) · [TreeMap Disk Visualizer](https://github.com/Prithvi-Web/TreeMap-Disk-Visualizer#readme) · [TreeSize visual tour](https://www.jam-software.com/treesize/screens.shtml) · [GrandPerspective](https://grandperspectiv.sourceforge.net/)
+- Use a legible time axis, visible units and a row of recorded changes beneath the chart. Use the same category colors between a plot and its legend. [Grafana time series](https://grafana.com/docs/grafana/latest/visualizations/panels-visualizations/visualizations/time-series/) · [Vercel Query](https://vercel.com/docs/query)
+
+### Commands and evidence
+
+- Keep commands in a single left-aligned list below the input. Show the keyboard selection and shortcut alongside the command. Put selection-specific actions in the detail context. [Raycast Search Bar](https://manual.raycast.com/search-bar) · [PowerToys Command Palette](https://learn.microsoft.com/en-us/windows/powertoys/command-palette/overview)
+- Keep active filters above the results and make the current scope legible. Show what a review row represents and open the underlying evidence within its context. [Tailscale device filters](https://tailscale.com/docs/features/access-control/device-management/how-to/filter) · [Sentry issue details](https://sentry.io/changelog/new-issue-details-ui-now-available/)
+
 ## Overview
 
 The unscanned Overview leads with the drive scan and folder picker, followed by up to three recent paths. A divider separates scanning from the selected drive. The measured ring sits beside used, free and capacity values where the panel has room, with the observation below. The two sections stack below 850px in the same reading order. Missing measurements stay unavailable and scanning starts on request.
@@ -634,6 +651,12 @@ Transfers offers checkboxes for recorded published archive copies and holds the 
 ## Reading and control hierarchy
 
 The storage workbench uses open sections, aligned rows and separators instead of a framed card for every information group. Overview and application sections use plain secondary navigation with an active underline. Summary headings use sentence case and existing title sizes; list text uses 13px and supporting metadata generally 12px. The black theme, chart palette, original artwork and main sidebar behavior remain in place.
+
+The navigation rail uses a violet-tinted pearl surface in light mode and an obsidian surface with violet near the wordmark in dark mode. The original mark leads into the Commands launcher and its shortcut. A short accent stroke identifies the active destination. A quiet separator precedes Duplicates. Settings and the rail toggle stay together at the bottom. The expanded and collapsed rail keep their 224px and 64px widths.
+
+Overview pairs a compact drive toolbar with a lightly tinted title area. The title area groups the active path, scan state and existing scope actions. Scan activity is a compact disclosure inside that area and only requests records while open. Before the first analysis, the Scan profile control sits beside the scan actions. The volume reading uses its own tinted panel and the existing capacity colors.
+
+The root summary presents Storage change and Cleanup candidates as operational rows. A compatible history group supplies the latest comparable logical change and a forecast when supported. Open trends carries its saved capture into History, including when that capture falls outside the first page. Cleanup candidates checks Old files on request and presents the current logical total, risk, date and coverage. Its review action opens the existing rule without selecting files.
 
 The header groups location controls and scoped search. Search and its advanced editor appear in indexed-file views, where they apply. Saved views stay globally accessible. The first scan remains a primary action; Rescan is secondary after an index is available. Secondary header actions are quiet, with visible hover and keyboard focus.
 

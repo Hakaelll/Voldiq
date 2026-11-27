@@ -20,6 +20,17 @@ export interface TrendForecast {
   confidence: 'higher' | 'moderate';
 }
 
+export type DashboardTrend =
+  | { kind: 'unavailable' }
+  | {
+      kind: 'recorded';
+      summary: {
+        capture: Snapshot;
+        latest: TrendPoint | null;
+        forecast: TrendForecast | null;
+      };
+    };
+
 export interface TrendReport {
   anchor: number;
   root: string;

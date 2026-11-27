@@ -1,5 +1,5 @@
 import type { HistoryClip, HistoryClipRequest } from './history-clip';
-import type { TrendChanges, TrendReport } from './history-trend';
+import type { DashboardTrend, TrendChanges, TrendReport } from './history-trend';
 import type { IndexId } from './index-context';
 import type { SpaceReport } from './space-account';
 import type { SystemStorageReport } from './system-storage';
@@ -29,6 +29,33 @@ function querySession(): Promise<number> {
   session ??= invoke<number>('open_query_session');
   return session;
 }
+
+export type OverviewCleanupReport =
+  | { kind: 'unavailable' }
+  | {
+      kind: 'observed';
+      root: string;
+      assessed_at: number;
+      complete: boolean;
+      total: number;
+      logical: string;
+      risk: string;
+    };
+
+export const overviewCleanupQueries = createQueryRunner<
+  OverviewCleanupReport,
+  { indexId: IndexId; scope: 0 },
+  'overview_cleanup'
+>('overview_cleanup', {
+  run: async (_family, requestId, input) =>
+    invoke<OverviewCleanupReport | null>('query_overview_cleanup', {
+      ...input,
+      requestId,
+      epoch: await querySession(),
+    }),
+  cancel: async (family, requestId) =>
+    invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+});
 
 export type InspectionRequest = 'preview' | 'download_source' | 'download_url' | 'file_use';
 
@@ -424,12 +451,31 @@ export const diaryQueries = createQueryRunner<
     invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
 });
 
-export const trendQueries = createQueryRunner<TrendReport, { snapshot: number; days: number }>(
+export const dashboardTrendQueries = createQueryRunner<
+  DashboardTrend,
+  { indexId: IndexId },
+  'dashboard_trend'
+>('dashboard_trend', {
+  run: async (_family, requestId, { indexId }) =>
+    invoke<DashboardTrend | null>('query_dashboard_trend', {
+      indexId,
+      epoch: await querySession(),
+      requestId,
+    }),
+  cancel: async (family, requestId) =>
+    invoke<void>('cancel_query', { epoch: await querySession(), family, requestId }),
+});
+
+export const trendQueries = createQueryRunner<
+  TrendReport,
+  { snapshot: number; days: number; throughAnchor: boolean }
+>(
   'snapshot_trend',
   {
-    run: async (_family, requestId, query) =>
+    run: async (_family, requestId, { throughAnchor, ...query }) =>
       invoke<TrendReport | null>('query_snapshot_trend', {
         query,
+        throughAnchor,
         epoch: await querySession(),
         requestId,
       }),
@@ -438,7 +484,10 @@ export const trendQueries = createQueryRunner<TrendReport, { snapshot: number; d
   },
 );
 
-export const trendChangeQueries = createQueryRunner<TrendChanges, { before: number; after: number }>(
+export const trendChangeQueries = createQueryRunner<
+  TrendChanges,
+  { before: number; after: number; anchor: number | null }
+>(
   'snapshot_trend_changes',
   {
     run: async (_family, requestId, pair) =>

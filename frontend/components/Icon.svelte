@@ -29,6 +29,7 @@
     external: 'M14 3h7v7 M21 3l-11 11 M10 3H3v18h18v-7',
     list: 'M8 6h13 M8 12h13 M8 18h13 M3 6h1 M3 12h1 M3 18h1',
     history: 'M3 11a9 9 0 1 1 2 7 M3 3v8h8 M12 7v6l4 2',
+    bookmark: 'M6 3h12v18l-6-4-6 4z',
     trash: 'M3 6h18 M8 6V3h8v3 M5 6l1 15h12l1-15 M10 10v7 M14 10v7',
     duplicate: 'M8 8h13v13H8z M16 8V3H3v13h5',
   };

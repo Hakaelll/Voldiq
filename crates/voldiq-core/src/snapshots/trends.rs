@@ -1,9 +1,9 @@
-use super::{Store, decode, read_observation, unsigned};
+use super::{Snapshot, Store, decode, read_observation, unsigned};
 use crate::{
     Error, Result,
-    index::{ACCOUNTING_VERSION, Observation},
+    index::{ACCOUNTING_VERSION, Index, Observation},
 };
-use rusqlite::params;
+use rusqlite::{OptionalExtension, params};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -60,6 +60,20 @@ pub struct TrendReport {
     #[serde(flatten)]
     pub folder: FolderTrend,
     pub volume: super::volume_history::VolumeTrend,
+}
+
+#[derive(Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum DashboardTrend {
+    Unavailable,
+    Recorded { summary: Box<DashboardTrendSummary> },
+}
+
+#[derive(Serialize)]
+pub struct DashboardTrendSummary {
+    pub capture: Snapshot,
+    pub latest: Option<TrendPoint>,
+    pub forecast: Option<TrendForecast>,
 }
 
 #[derive(Serialize)]
@@ -146,12 +160,74 @@ fn inconsistent() -> Error {
 
 impl Store {
     pub fn trend(&self, request: TrendRequest, cancel: &AtomicBool) -> Result<Option<TrendReport>> {
+        self.read_trend(request, i64::MAX, cancel)
+    }
+
+    pub fn trend_at(
+        &self,
+        request: TrendRequest,
+        cancel: &AtomicBool,
+    ) -> Result<Option<TrendReport>> {
+        let through = request.snapshot;
+        self.read_trend(request, through, cancel)
+    }
+
+    fn read_trend(
+        &self,
+        request: TrendRequest,
+        through: i64,
+        cancel: &AtomicBool,
+    ) -> Result<Option<TrendReport>> {
         let tx = self.connection.unchecked_transaction()?;
-        let Some((root, folder)) = Self::read_folder_trend(&tx, &request, i64::MAX, cancel)? else {
+        let Some((root, folder)) = Self::read_folder_trend(&tx, &request, through, cancel)? else {
             return Ok(None);
         };
-        let volume = super::volume_history::trend(&tx, root, request.days, cancel)?;
+        let volume = super::volume_history::trend(&tx, root, request.days, through, cancel)?;
         Ok((!cancel.load(Ordering::Relaxed)).then_some(TrendReport { folder, volume }))
+    }
+
+    pub fn dashboard_trend(
+        &self,
+        index: &Index,
+        cancel: &AtomicBool,
+    ) -> Result<Option<DashboardTrend>> {
+        if cancel.load(Ordering::Relaxed) {
+            return Ok(None);
+        }
+        let tx = self.connection.unchecked_transaction()?;
+        let Some(root) = super::index_root_key(&tx, index)? else {
+            return Ok(Some(DashboardTrend::Unavailable));
+        };
+        let capture = tx
+            .query_row(
+                &format!(
+                    "{} WHERE s.id=COALESCE(?2, (SELECT MAX(x.id) FROM snapshots x WHERE x.root_id=?1)) AND s.root_id=?1",
+                    super::SNAPSHOT_SUMMARY
+                ),
+                params![root, index.snapshot_id],
+                super::read_summary,
+            )
+            .optional()?
+            .map(super::decode_summary)
+            .transpose()?;
+        let Some(capture) = capture else {
+            return Ok(Some(DashboardTrend::Unavailable));
+        };
+        let request = TrendRequest {
+            snapshot: capture.id,
+            days: default_trend_days(),
+        };
+        let Some((_, mut folder)) = Self::read_folder_trend(&tx, &request, capture.id, cancel)?
+        else {
+            return Ok(None);
+        };
+        Ok(Some(DashboardTrend::Recorded {
+            summary: Box::new(DashboardTrendSummary {
+                capture,
+                latest: folder.points.pop(),
+                forecast: folder.forecast,
+            }),
+        }))
     }
 
     pub(crate) fn folder_trend_through(
@@ -192,7 +268,7 @@ impl Store {
                     row.get::<_, bool>(3)?,
                 ))
             },
-        )?;
+        ).optional()?.ok_or_else(|| Error::Invalid("The trend capture is no longer retained.".into()))?;
         let mut report = FolderTrend {
             anchor: request.snapshot,
             root: decode(&path)?.to_string_lossy().into_owned(),
@@ -258,6 +334,30 @@ impl Store {
         after: i64,
         cancel: &AtomicBool,
     ) -> Result<Option<TrendChanges>> {
+        self.read_trend_changes(before, after, None, cancel)
+    }
+
+    pub fn trend_changes_at(
+        &self,
+        before: i64,
+        after: i64,
+        anchor: i64,
+        cancel: &AtomicBool,
+    ) -> Result<Option<TrendChanges>> {
+        self.read_trend_changes(before, after, Some(anchor), cancel)
+    }
+
+    fn read_trend_changes(
+        &self,
+        before: i64,
+        after: i64,
+        anchor: Option<i64>,
+        cancel: &AtomicBool,
+    ) -> Result<Option<TrendChanges>> {
+        let through = anchor.unwrap_or(i64::MAX);
+        if before > through || after > through {
+            return Err(inconsistent());
+        }
         let tx = self.connection.unchecked_transaction()?;
         let lookup = |id| -> Result<(i64, Measurement)> {
             let (root, point) = tx.query_row(
@@ -274,9 +374,25 @@ impl Store {
         }
         old.tier.require_detail()?;
         new.tier.require_detail()?;
+        let measured_at = super::integer(new.observation.completed_at)?;
+        if let Some(anchor) = anchor {
+            let matches_scope: bool = tx.query_row(
+                "SELECT EXISTS(
+                   SELECT 1 FROM snapshots s WHERE s.id=?1 AND s.root_id=?2
+                 ) AND NOT EXISTS(
+                   SELECT 1 FROM snapshots s
+                   WHERE s.root_id=?2 AND s.observed_at=?3 AND s.id>?4 AND s.id<=?1
+                 )",
+                params![anchor, root, measured_at, after],
+                |row| row.get(0),
+            )?;
+            if !matches_scope {
+                return Err(inconsistent());
+            }
+        }
         let previous: i64 = tx.query_row(
-            "SELECT id FROM snapshots WHERE root_id=?1 AND observed_at<?2 ORDER BY observed_at DESC,id DESC LIMIT 1",
-            params![root, super::integer(new.observation.completed_at)?],
+            "SELECT id FROM snapshots WHERE root_id=?1 AND observed_at<?2 AND id<=?3 ORDER BY observed_at DESC,id DESC LIMIT 1",
+            params![root, measured_at, through],
             |row| row.get(0),
         )?;
         if previous != before {

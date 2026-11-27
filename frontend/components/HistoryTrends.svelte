@@ -9,20 +9,26 @@
   let {
     captures,
     initialSnapshot,
+    linkedCapture = null,
     disabled,
   }: {
     captures: Snapshot[];
     initialSnapshot: number;
+    linkedCapture?: Snapshot | null;
     disabled: boolean;
   } = $props();
-  const groups = $derived([
-    ...new Map([...captures].reverse().map((item) => [item.root_key, item])).values(),
-  ]);
+  let pinned = $state.raw<Snapshot | null>(untrack(() => linkedCapture));
+  const groups = $derived.by(() => {
+    const current = new Map([...captures].reverse().map((item) => [item.root_key, item]));
+    if (pinned) current.set(pinned.root_key, pinned);
+    return [...current.values()];
+  });
   const initialGroup = untrack(
     () => captures.find((item) => item.id === initialSnapshot)?.root_key,
   );
-  let root = $state(initialGroup ?? untrack(() => groups.at(-1)?.root_key ?? 0));
+  let root = $state(untrack(() => pinned?.root_key ?? initialGroup ?? groups.at(-1)?.root_key ?? 0));
   const anchor = $derived(groups.find((item) => item.root_key === root)?.id ?? 0);
+  const throughAnchor = $derived(pinned?.id === anchor);
   let days = $state(30);
   let metric = $state<'folder' | 'volume'>('folder');
   let report = $state.raw<TrendReport | null>(null);
@@ -89,7 +95,7 @@
       active.delta !== null &&
       active.tier === 'detailed' &&
       previousTier === 'detailed'
-      ? { before: active.previous, after: active.snapshot }
+      ? { before: active.previous, after: active.snapshot, anchor: throughAnchor ? anchor : null }
       : null,
   );
   const visibleChanges = $derived(
@@ -111,7 +117,8 @@
     selected = 0;
     if (disabled || !anchor) return;
     let current = true;
-    void trendQueries.request({ snapshot: anchor, days }).result.then(
+    const request = trendQueries.request({ snapshot: anchor, days, throughAnchor });
+    void request.result.then(
       (value) => {
         if (!current) return;
         if (value?.anchor === anchor) report = value;
@@ -123,7 +130,7 @@
     );
     return () => {
       current = false;
-      trendQueries.cancel();
+      request.cancel();
     };
   });
 
@@ -133,11 +140,12 @@
     changeError = '';
     if (disabled || metric !== 'folder' || !route) return;
     let current = true;
-    const request = route;
-    void trendChangeQueries.request(request).result.then(
+    const pair = route;
+    const request = trendChangeQueries.request(pair);
+    void request.result.then(
       (value) => {
         if (!current) return;
-        if (value?.before === request.before && value.after === request.after) changes = value;
+        if (value?.before === pair.before && value.after === pair.after) changes = value;
         else changeError = 'Folder changes were cancelled. Try again.';
       },
       (problem: unknown) => {
@@ -146,14 +154,20 @@
     );
     return () => {
       current = false;
-      trendChangeQueries.cancel();
+      request.cancel();
     };
   });
 </script>
 
 <div class="activity-toolbar">
   <label
-    >Folder<select bind:value={root} {disabled}>
+    >Folder<select
+      bind:value={root}
+      {disabled}
+      onchange={(event) => {
+        if (pinned?.root_key !== Number(event.currentTarget.value)) pinned = null;
+      }}
+    >
       {#each groups as item (item.root_key)}
         <option value={item.root_key}>{item.root} · scope {item.root_key}</option>
       {/each}
@@ -176,6 +190,9 @@
     >
   </div>
 </div>
+{#if pinned}
+  <p class="activity-help">Through the selected capture · saved {utcDate(pinned.captured)}</p>
+{/if}
 
 {#snippet volumeTrend()}
   <section class="panel history-extended-trend" aria-labelledby="volume-trend-heading">

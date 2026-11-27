@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Channel, invoke } from '@tauri-apps/api/core';
   import { onMount, tick } from 'svelte';
+  import Icon from './Icon.svelte';
   import { formatStorageBytes } from '../lib/storage-units';
   import { date, type Snapshot } from '../lib/types';
 
@@ -162,8 +163,13 @@
   }
 </script>
 
-<details class="shared-scans overview-diagnostics" bind:open={expanded}>
-  <summary bind:this={summary}>Scan activity{#if expanded && activeScan}<span> · Active</span>{/if}</summary>
+<details class="shared-scans" bind:open={expanded}>
+  <summary bind:this={summary}>
+    <Icon name="history" size={16} />
+    Scan activity
+    {#if expanded && activeScan}<span>Active</span>{/if}
+    <Icon name="chevron-down" size={13} />
+  </summary>
   {#if expanded}
     {#if readError}<p role="alert">Scan activity is unavailable. <button class="quiet-action" onclick={() => (refresh += 1)}>Retry</button></p>{/if}
     {#if problem}<p role="alert">{problem}</p>{/if}

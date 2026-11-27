@@ -1,6 +1,6 @@
 <script lang="ts">
   import { invokeIndexed } from '../lib/index-context';
-  import { onMount, onDestroy, tick } from 'svelte';
+  import { onMount, onDestroy, tick, untrack } from 'svelte';
   import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
   import Icon from './Icon.svelte';
   import SnapshotChangeBars from './SnapshotChangeBars.svelte';
@@ -31,12 +31,14 @@
   let {
     enabled,
     blocked,
+    startingTrend = null,
     onbusy,
     onload,
     onerror,
   }: {
     enabled: boolean;
     blocked: boolean;
+    startingTrend?: Snapshot | null;
     onbusy: (busy: boolean) => void;
     onload: (snapshot: Snapshot, indexId: number) => Promise<void>;
     onerror: (problem: unknown) => void;
@@ -54,6 +56,8 @@
   let comparison = $state<SnapshotComparison | null>(null);
   let workspace = $state<HistoryWorkspace>({ kind: 'captures' });
   let activityAnchor = $state<number | null>(null);
+  let suggestedTrend = untrack(() => startingTrend);
+  let linkedTrend = $state.raw<Snapshot | null>(null);
   const summary = $derived.by(() => {
     const current = workspace;
     return current.kind === 'summary'
@@ -173,7 +177,9 @@
       offset = next;
       comparison = null;
       comparisonRequest += 1;
-      workspace = { kind: 'captures' };
+      linkedTrend = suggestedTrend;
+      suggestedTrend = null;
+      workspace = { kind: linkedTrend ? 'trends' : 'captures' };
       activityAnchor = null;
       comparisonLoading = false;
       comparisonProblem = '';
@@ -194,6 +200,8 @@
       if (token === request && retainFocus) {
         await tick();
         if (token === request) region.focus();
+      } else if (token === request && loadState === 'ready' && linkedTrend) {
+        await focusWorkspace('trends');
       }
     }
   }
@@ -379,6 +387,7 @@
   });
   async function showCaptures(): Promise<void> {
     if (comparisonLoading || comparisonContext?.returnTo) resetComparison();
+    linkedTrend = null;
     workspace = { kind: 'captures' };
     await tick();
     if (alive)
@@ -405,6 +414,7 @@
     )
       return;
     resetComparison();
+    linkedTrend = null;
     const diaryAnchor =
       activityBasis.tier === 'summary'
         ? activityBasis.id
@@ -554,7 +564,7 @@
           >Retry</button
         >{/if}
     </section>
-  {:else if snapshots.length === 0 && offset === 0}
+  {:else if snapshots.length === 0 && offset === 0 && !linkedTrend}
     <section class="panel history-empty">
       <Icon name="history" size={28} />
       <h2>No snapshots yet</h2>
@@ -855,6 +865,7 @@
           <HistoryTrends
             captures={snapshots}
             initialSnapshot={activityBasis?.id ?? 0}
+            linkedCapture={linkedTrend}
             disabled={locked}
           />
         {:else if workspace.kind === 'calendar'}
