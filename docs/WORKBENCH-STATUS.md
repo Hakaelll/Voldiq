@@ -6,6 +6,8 @@ A custom rule can apply the same search expression as indexed search and schedul
 
 Schema version 2 adds the optional expression with an empty default. Older rules keep their IDs, revisions and folder identities. Editing the filter creates a new revision and invalidates selections prepared under the previous one. The retained owned-file scenario verifies migration, syntax rejection, the filtered result and refusal of a file that meets the original criteria but fails the expression. Native interaction and scaling remain manual. [Source verification](../benchmarks/workbench-custom-rule-search-source.json)
 
+The portable Windows preview with the custom cleanup rule filters reached ready with zero TCP listeners. The preview was running after cleanup. 10 embedded non-HTML assets matched the production web build. The unsigned NSIS installer measures 12,183,487 bytes. Cleanup removed 3,102,415,474 logical bytes of inactive release artifacts and 0 bytes of closed previews. The current preview image and installer were preserved. [Startup](../benchmarks/native-custom-rule-search-preview.json) · [Default listener](../benchmarks/custom-rule-search-default-listener.json) · [Distribution](../benchmarks/distribution-custom-rule-search.json) · [Post-clean checks](../benchmarks/workspace-footprint-custom-rule-search.json)
+
 ## Signed change on historical maps
 
 Compare snapshots can color both maps by recorded change. A tile keeps the logical size recorded in its own capture. The color, legend, tile description and ranked table distinguish growth, reduction, unchanged bytes and unavailable change. No aggregate change is assigned to Other.
