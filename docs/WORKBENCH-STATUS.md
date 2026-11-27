@@ -8,6 +8,8 @@ The Svelte markup probe covers a missing assessment, an observed zero, a fractio
 
 The Windows copy fixture returned invalid handle during publication under filesystem redirection. The same test binary passed with fresh disposable files outside redirection. The copy implementation and fixture were unchanged.
 
+The portable Windows preview with the updated Cleanup UI reached ready with zero TCP listeners. The preview was running after cleanup. 10 embedded non-HTML assets matched the production web build. The unsigned NSIS installer measures 12,177,757 bytes. Cleanup removed 3,102,054,319 logical bytes of inactive release artifacts and 0 bytes of closed previews. The current preview image and installer were preserved. [Startup](../benchmarks/native-priority-bars-preview.json) · [Default listener](../benchmarks/priority-bars-default-listener.json) · [Distribution](../benchmarks/distribution-priority-bars.json) · [Post-clean checks](../benchmarks/workspace-footprint-priority-bars.json)
+
 ## Overview shell and operational summary
 
 The rail separates navigation groups through spacing and a short accent mark on the active destination. It keeps the original Voldiq mark and the expanded and collapsed widths. Overview combines the volume picker, scope heading and compact Scan activity disclosure. The first-scan controls keep the scan profile next to the action it affects.
