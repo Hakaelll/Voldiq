@@ -1,0 +1,66 @@
+{
+  "checkedUtc": "2026-11-27T15:26:24.1060836Z",
+  "startedUtc": "2026-11-27T15:05:24.6168563Z",
+  "checkoutCommit": "1ba208923223b47bb9ff6f6b6993468cc270751c",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 9.643
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 29.669
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.998
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 14.258
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1112.135
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 92.495
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/cleanup/rules.rs",
+      "sha256": "5DA8AA617F5B250DC3B0C92E2090F11C41930719CF0DF6DEEEDAABA8080C821C"
+    },
+    {
+      "path": "crates/voldiq-core/src/cleanup/rules/custom.rs",
+      "sha256": "9EBC7DEB01A283FAA49F501C3DEDE57760AB61BB1AE80EFA5703DCD9F5498EE3"
+    },
+    {
+      "path": "crates/voldiq-core/tests/custom_cleanup_rules.rs",
+      "sha256": "49FCF70CCE80F5B4B0CDC9F60CE734042CC8BB3B000B3E51093FA38E97F99161"
+    },
+    {
+      "path": "frontend/components/CustomCleanupRules.svelte",
+      "sha256": "D9260DFC9F0AAB4FEDEA586299B7E46EFF337C8EDF88D5693530C8764A323CA4"
+    },
+    {
+      "path": "frontend/lib/custom-cleanup.ts",
+      "sha256": "8467252F2800A072BAEC43FF2CD3EB4F868602E8CAF8F95073437EF56E0CDED6"
+    }
+  ],
+  "retainedBehaviorTests": 9,
+  "ruleFixture": "The retained owned-file test checks schema migration, syntax rejection, exact query results, plan preparation and stale revisions."
+}

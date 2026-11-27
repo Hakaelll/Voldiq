@@ -35,6 +35,7 @@ enum RuleSource<'a> {
     Custom {
         criteria: &'a custom::Criteria<'a>,
         state_scope: Option<NodeId>,
+        filter: Option<&'a crate::index::PreparedQuery<'a, 'a>>,
     },
 }
 
@@ -54,6 +55,7 @@ impl RuleSource<'_> {
             Self::Custom {
                 criteria,
                 state_scope,
+                ..
             } => {
                 criteria.matches_file(entry)
                     && !state_scope.is_some_and(|state| index.in_scope(entry.id, state))
@@ -403,7 +405,13 @@ fn rank_candidates<'a>(
     } else {
         HashSet::new()
     };
-    let mut candidates: Vec<_> = index
+    let filter = match source {
+        RuleSource::Custom { filter, .. } => filter,
+        _ => None,
+    };
+    let mut budget = crate::search::GLOB_WORK_LIMIT;
+    let mut candidates = Vec::new();
+    for entry in index
         .entries
         .iter()
         .take_while(|_| !cancel.load(Ordering::Relaxed))
@@ -419,18 +427,18 @@ fn rank_candidates<'a>(
                     .iter()
                     .any(|&protected| index.in_scope(entry.id, protected))
         })
-        .filter(|entry| {
-            let matches = source.candidate_evidence(entry, index.snapshot_id.is_some(), now);
-            page.unverified_files += usize::from(matches.is_none());
-            matches == Some(true)
-        })
-        .map(|entry| Ranked {
-            entry,
-            points: 0,
-            exact: false,
-            local_copy: false,
-        })
-        .collect();
+    {
+        let matches = source.candidate_evidence(entry, index.snapshot_id.is_some(), now);
+        page.unverified_files += usize::from(matches.is_none());
+        if matches == Some(true) && custom::matches_search(filter, entry.id, &mut budget, cancel)? {
+            candidates.push(Ranked {
+                entry,
+                points: 0,
+                exact: false,
+                local_copy: false,
+            });
+        }
+    }
     if cancel.load(Ordering::Relaxed) {
         return Err(Error::Invalid("Application cache query cancelled.".into()));
     }

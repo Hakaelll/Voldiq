@@ -11,6 +11,7 @@ export interface CustomRuleDraft {
   extension: string;
   minimum_age_days: number;
   minimum_logical: string;
+  expression: string;
 }
 
 export interface CustomRule extends CustomRuleDraft {

@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Shared search filters for custom cleanup rules
+
+A custom rule can apply the same search expression as indexed search and scheduled cleanup. The expression narrows the existing extension, modification age and minimum logical size criteria inside the saved native folder. Result ranking and plan preparation use the same compiled filter. Invalid syntax, missing evidence required by the query and interrupted evaluation produce explicit errors.
+
+Schema version 2 adds the optional expression with an empty default. Older rules keep their IDs, revisions and folder identities. Editing the filter creates a new revision and invalidates selections prepared under the previous one. The retained owned-file scenario verifies migration, syntax rejection, the filtered result and refusal of a file that meets the original criteria but fails the expression. Native interaction and scaling remain manual. [Source verification](../benchmarks/workbench-custom-rule-search-source.json)
+
 ## Signed change on historical maps
 
 Compare snapshots can color both maps by recorded change. A tile keeps the logical size recorded in its own capture. The color, legend, tile description and ranked table distinguish growth, reduction, unchanged bytes and unavailable change. No aggregate change is assigned to Other.

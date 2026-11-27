@@ -160,6 +160,8 @@ The home menu stays beside the logo on a standard 80-column terminal. Its right 
 
 Cleanup puts Custom rules beside Candidates. A compact list names saved rules and their folders. The active rule shows its revision and criteria above the matches. Creating a rule binds the current Explorer folder. Editing retains the saved binding. The form and a removal confirmation share the rule pane. Matches use a flat list with separate logical and allocated size labels, an evidence disclosure and an explicit selection for the common tray. The rule list stacks on narrower windows and the evidence uses the existing review weights.
 
+The optional search filter occupies one line below the rule's existing criteria. Its saved expression appears with the revision above the results. Editing uses the normal rule form, and parser errors retain the draft for correction.
+
 Developer Storage shows package context inside dependency rows. An evidence disclosure names the observed layout and date when available. Possible remnants have incomplete-use and recovery evidence and remain informational. These rows retain the existing method for opening the indexed folder in Explorer.
 
 The cleanup candidate menu opens a saved analysis by snapshot and rule. Results align recorded file sizes, IDs and priority scores. The summary states when the evidence is partial or the rule location is unavailable. Recoverable space requires live verification.

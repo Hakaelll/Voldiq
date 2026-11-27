@@ -33,6 +33,7 @@ fn saved_rules_recheck_scope_and_revision_before_cleanup() {
     let old = UNIX_EPOCH + Duration::from_secs(measured - 2 * 86_400);
     for (relative, size) in [
         ("Project/report.TMP", 9),
+        ("Project/trace.tmp", 7),
         ("Project/tiny.tmp", 2),
         ("Project/notes.log", 15),
         ("Project/Keep/protected.tmp", 16),
@@ -78,6 +79,7 @@ fn saved_rules_recheck_scope_and_revision_before_cleanup() {
         extension: ".TMP".into(),
         minimum_age_days: 1,
         minimum_logical: "5".into(),
+        expression: "name:report".into(),
     };
     let mut rules = Store::open(&state).unwrap();
     let invalid = Draft {
@@ -89,16 +91,36 @@ fn saved_rules_recheck_scope_and_revision_before_cleanup() {
             .save(&index, Some(scope), None, invalid, &cancel)
             .is_err()
     );
-    let created = rules
-        .save(&index, Some(scope), None, draft.clone(), &cancel)
+    let invalid_expression = Draft {
+        expression: "condition-that-does-not-exist:tmp".into(),
+        ..draft.clone()
+    };
+    assert!(
+        rules
+            .save(&index, Some(scope), None, invalid_expression, &cancel)
+            .is_err()
+    );
+    let old_draft = Draft {
+        expression: String::new(),
+        ..draft.clone()
+    };
+    let legacy = rules
+        .save(&index, Some(scope), None, old_draft, &cancel)
         .unwrap();
-    assert_eq!(created.reference.revision, 1);
+    assert_eq!(legacy.reference.revision, 1);
     drop(rules);
+    {
+        let previous = rusqlite::Connection::open(state.join("cleanup-rules.db")).unwrap();
+        previous
+            .execute_batch("ALTER TABLE rules DROP COLUMN expression; PRAGMA user_version=1;")
+            .unwrap();
+    }
     let mut rules = Store::open(&state).unwrap();
     let listed = rules.list().unwrap();
     assert_eq!(listed.len(), 1);
-    assert_eq!(listed[0].reference, created.reference);
+    assert_eq!(listed[0].reference, legacy.reference);
     assert_eq!(listed[0].criteria.extension, "tmp");
+    assert_eq!(listed[0].criteria.expression, "");
     let query = Query {
         offset: 0,
         limit: 1,
@@ -109,6 +131,15 @@ fn saved_rules_recheck_scope_and_revision_before_cleanup() {
         protections: &protections,
         duplicates: None,
     };
+    let old_page = rules
+        .query(&index, legacy.reference, query, &env, &cancel)
+        .unwrap();
+    assert_eq!((old_page.total, old_page.logical.as_str()), (2, "16"));
+    let created = rules
+        .save(&index, None, Some(legacy.reference), draft.clone(), &cancel)
+        .unwrap();
+    assert_eq!(created.reference.revision, 2);
+    assert_eq!(rules.list().unwrap()[0].criteria.expression, "name:report");
     let page = rules
         .query(&index, created.reference, query, &env, &cancel)
         .unwrap();
@@ -127,7 +158,13 @@ fn saved_rules_recheck_scope_and_revision_before_cleanup() {
     let source = Source::Custom {
         reference: created.reference,
     };
-    for wrong in ["outside.tmp", "protected.tmp", "state.tmp", "recent.tmp"] {
+    for wrong in [
+        "outside.tmp",
+        "protected.tmp",
+        "state.tmp",
+        "recent.tmp",
+        "trace.tmp",
+    ] {
         let group = Group {
             source: source.clone(),
             selection: vec![id(wrong)],
@@ -154,7 +191,7 @@ fn saved_rules_recheck_scope_and_revision_before_cleanup() {
             &cancel,
         )
         .unwrap();
-    assert_eq!(updated.reference.revision, 2);
+    assert_eq!(updated.reference.revision, 3);
     assert_eq!(updated.root, created.root);
     assert!(preview.plan.validate_protections().is_err());
     assert!(tray::prepare(&index, &[group], &tray_env, &cancel).is_err());

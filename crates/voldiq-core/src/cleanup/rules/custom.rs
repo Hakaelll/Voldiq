@@ -6,20 +6,26 @@ use crate::{
     cleanup::{Plan, score::Assessment},
     cloud::CloudState,
     duplicates::Analysis,
-    index::Index,
+    index::{Index, PreparedQuery, Query as SearchQuery},
     metadata::{Protections, Store as Metadata},
     operations::Coordinator,
+    search::CompiledQuery,
 };
 use rusqlite::{Connection, OpenFlags, OptionalExtension, Row, TransactionBehavior, params};
 use serde::{Deserialize, Serialize};
-use std::{fs, io::ErrorKind, path::Path, sync::atomic::AtomicBool};
+use std::{
+    fs,
+    io::ErrorKind,
+    path::Path,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 const MAX_RULES: i64 = 64;
 const MAX_AGE_DAYS: u16 = 36_500;
 pub(crate) const RECIPE: super::Rule = super::Rule {
     id: "custom-cleanup-rule",
     name: "Custom cleanup rule",
-    description: "Age, extension and logical size in a user-selected indexed folder.",
+    description: "Age, extension, logical size and an optional search filter in a user-selected indexed folder.",
     discovery: "A complete regular file under the saved native folder identity in the live analysis.",
     selection: "Explicit current selection that still matches the exact saved revision.",
     exclusions: "Protected locations, Voldiq state, incomplete files, unavailable identity or modified date, reparse points and recalled content.",
@@ -43,6 +49,8 @@ pub struct Draft {
     pub extension: String,
     pub minimum_age_days: u16,
     pub minimum_logical: String,
+    #[serde(default)]
+    pub expression: String,
 }
 
 #[derive(Serialize)]
@@ -106,8 +114,24 @@ impl Draft {
             .strip_prefix('.')
             .unwrap_or(extension)
             .to_ascii_lowercase();
-        self.criteria()?;
+        self.expression = self.expression.trim().to_owned();
+        self.validate()?;
         Ok(self)
+    }
+
+    fn validate(&self) -> Result<()> {
+        self.criteria()?;
+        self.search_query(None).compile()?;
+        Ok(())
+    }
+
+    fn search_query(&self, scope: Option<NodeId>) -> SearchQuery {
+        SearchQuery {
+            expression: self.expression.clone(),
+            files_only: true,
+            scope,
+            ..Default::default()
+        }
     }
 
     fn criteria(&self) -> Result<Criteria<'_>> {
@@ -192,11 +216,16 @@ impl Store {
                     revision INTEGER NOT NULL CHECK(revision > 0),
                     name TEXT NOT NULL, extension TEXT NOT NULL,
                     minimum_age_days INTEGER NOT NULL CHECK(minimum_age_days BETWEEN 1 AND 36500),
-                    minimum_logical TEXT NOT NULL, root TEXT NOT NULL, identity BLOB NOT NULL
+                    minimum_logical TEXT NOT NULL, root TEXT NOT NULL, identity BLOB NOT NULL,
+                    expression TEXT NOT NULL DEFAULT ''
                 );
-                PRAGMA user_version=1;",
+                PRAGMA user_version=2;",
             )?,
-            1 => {}
+            1 => tx.execute_batch(
+                "ALTER TABLE rules ADD COLUMN expression TEXT NOT NULL DEFAULT '';
+                 PRAGMA user_version=2;",
+            )?,
+            2 => {}
             _ => {
                 return Err(Error::Invalid(
                     "Unsupported custom cleanup rule schema.".into(),
@@ -212,7 +241,7 @@ impl Store {
 
     pub fn list(&self) -> Result<Vec<Rule>> {
         let mut statement = self.connection.prepare(
-            "SELECT id, revision, name, extension, minimum_age_days, minimum_logical, root, identity
+            "SELECT id, revision, name, extension, minimum_age_days, minimum_logical, root, identity, expression
              FROM rules ORDER BY id LIMIT ?1",
         )?;
         let saved = statement
@@ -226,7 +255,7 @@ impl Store {
         saved
             .into_iter()
             .map(|saved| {
-                saved.rule.criteria.criteria()?;
+                saved.rule.criteria.validate()?;
                 Ok(saved.rule)
             })
             .collect()
@@ -276,13 +305,14 @@ impl Store {
             let revision = expected.revision.checked_add(1).ok_or_else(stale)?;
             if tx.execute(
                 "UPDATE rules SET revision=?1, name=?2, extension=?3,
-                 minimum_age_days=?4, minimum_logical=?5 WHERE id=?6 AND revision=?7",
+                 minimum_age_days=?4, minimum_logical=?5, expression=?6 WHERE id=?7 AND revision=?8",
                 params![
                     revision,
                     draft.name,
                     draft.extension,
                     draft.minimum_age_days,
                     draft.minimum_logical,
+                    draft.expression,
                     expected.id,
                     expected.revision
                 ],
@@ -302,10 +332,10 @@ impl Store {
                 ));
             }
             tx.execute(
-                "INSERT INTO rules(revision, name, extension, minimum_age_days, minimum_logical, root, identity)
-                 VALUES(1, ?1, ?2, ?3, ?4, ?5, ?6)",
+                "INSERT INTO rules(revision, name, extension, minimum_age_days, minimum_logical, root, identity, expression)
+                 VALUES(1, ?1, ?2, ?3, ?4, ?5, ?6, ?7)",
                 params![draft.name, draft.extension, draft.minimum_age_days, draft.minimum_logical,
-                    root, identity],
+                    root, identity, draft.expression],
             )?;
             Revision {
                 id: tx.last_insert_rowid(),
@@ -333,7 +363,7 @@ impl Store {
 
     fn get(&self, reference: Revision) -> Result<Saved> {
         self.connection.query_row(
-            "SELECT id, revision, name, extension, minimum_age_days, minimum_logical, root, identity
+            "SELECT id, revision, name, extension, minimum_age_days, minimum_logical, root, identity, expression
              FROM rules WHERE id=?1 AND revision=?2",
             params![reference.id, reference.revision],
             read,
@@ -395,6 +425,9 @@ impl Store {
         let (binding, indexed) = Self::bind(index, &saved)?;
         self.check_state_path(&indexed)?;
         let criteria = saved.rule.criteria.criteria()?;
+        let search = saved.rule.criteria.search_query(Some(binding.id));
+        let compiled = search.compile()?;
+        let filter = prepare_search(index, &compiled, cancel)?;
         let ranked = rank_candidates(
             index,
             binding.id,
@@ -403,6 +436,7 @@ impl Store {
                 source: RuleSource::Custom {
                     criteria: &criteria,
                     state_scope: self.state_scope(index)?,
+                    filter: filter.as_ref(),
                 },
                 now: env.now,
                 protections: env.protections,
@@ -466,7 +500,11 @@ impl Store {
         self.check_state_path(&indexed)?;
         let state_scope = self.state_scope(index)?;
         let criteria = saved.rule.criteria.criteria()?;
+        let search = saved.rule.criteria.search_query(Some(binding.id));
+        let compiled = search.compile()?;
+        let filter = prepare_search(index, &compiled, cancel)?;
         let mask = protections.for_index(index, cancel)?;
+        let mut budget = crate::search::GLOB_WORK_LIMIT;
         for &id in selection {
             crate::cleanup::check_cancelled(cancel)?;
             let entry = index.entry(id)?;
@@ -476,6 +514,7 @@ impl Store {
                 || !criteria.matches_file(entry)
                 || !criteria.has_evidence(entry)
                 || !criteria.old_enough(entry, now)
+                || !matches_search(filter.as_ref(), id, &mut budget, cancel)?
             {
                 return Err(Error::Invalid(
                     "Selected file is outside the custom rule or is protected.".into(),
@@ -489,6 +528,38 @@ impl Store {
     }
 }
 
+fn prepare_search<'i, 'q>(
+    index: &'i Index,
+    compiled: &'q CompiledQuery<'q>,
+    cancel: &AtomicBool,
+) -> Result<Option<PreparedQuery<'i, 'q>>> {
+    if compiled.query.expression.is_empty() {
+        return Ok(None);
+    }
+    index
+        .prepare_query(compiled, None, &mut || cancel.load(Ordering::Relaxed))?
+        .ok_or_else(search_cancelled)
+        .map(Some)
+}
+
+pub(super) fn matches_search(
+    filter: Option<&PreparedQuery<'_, '_>>,
+    id: NodeId,
+    budget: &mut u64,
+    cancel: &AtomicBool,
+) -> Result<bool> {
+    match filter {
+        Some(filter) => filter
+            .matches(id, budget, &mut || cancel.load(Ordering::Relaxed))?
+            .ok_or_else(search_cancelled),
+        None => Ok(true),
+    }
+}
+
+fn search_cancelled() -> Error {
+    Error::Invalid("Custom rule search was cancelled.".into())
+}
+
 pub(crate) fn verify_persisted_revisions(
     directory: &Coordinator,
     revisions: &[Revision],
@@ -496,7 +567,7 @@ pub(crate) fn verify_persisted_revisions(
     let connection = open_connection(directory, OpenFlags::SQLITE_OPEN_READ_ONLY)?;
     connection.busy_timeout(std::time::Duration::from_secs(5))?;
     let version = connection.query_row("PRAGMA user_version", [], |row| row.get::<_, u32>(0))?;
-    if version != 1 {
+    if !matches!(version, 1 | 2) {
         return Err(Error::Invalid(
             "Unsupported custom cleanup rule schema.".into(),
         ));
@@ -554,6 +625,7 @@ fn read(row: &Row<'_>) -> rusqlite::Result<Saved> {
                 extension: row.get(3)?,
                 minimum_age_days: row.get(4)?,
                 minimum_logical: row.get(5)?,
+                expression: row.get(8)?,
             },
             root: row.get(6)?,
         },

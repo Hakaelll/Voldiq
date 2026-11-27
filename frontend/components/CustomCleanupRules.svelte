@@ -37,7 +37,13 @@
   } = $props();
 
   const limit = 50;
-  const initialDraft = { name: '', extension: '', minimum_age_days: 30, minimum_logical: '1' };
+  const initialDraft: CustomRuleDraft = {
+    name: '',
+    extension: '',
+    minimum_age_days: 30,
+    minimum_logical: '1',
+    expression: '',
+  };
   let rules = $state.raw<CustomRule[]>([]);
   let selectedId = $state<number | null>(null);
   const selected = $derived(rules.find((rule) => rule.reference.id === selectedId));
@@ -157,6 +163,7 @@
         extension: rule.extension,
         minimum_age_days: rule.minimum_age_days,
         minimum_logical: rule.minimum_logical,
+        expression: rule.expression,
       };
     } else if (scope) {
       form = { kind: 'create', index: indexId, scope };
@@ -334,6 +341,14 @@
                     disabled={mutation}
                   /></label
                 >
+                <label class="rule-expression">
+                  Additional search filter (optional) <input
+                    bind:value={draft.expression}
+                    spellcheck="false"
+                    placeholder="name:report"
+                    disabled={mutation}
+                  />
+                </label>
               </div>
               {#if indexId !== form.index}
                 <p role="status">The analysis changed. Close this form and start again.</p>
@@ -358,6 +373,7 @@
                     selected.minimum_logical,
                   )}+ · Revision {selected.reference.revision}
                 </p>
+                {#if selected.expression}<p class="rule-scope">Filter <code>{selected.expression}</code></p>{/if}
               </div>
               <div class="rule-actions">
                 <button
@@ -591,6 +607,9 @@
   }
   .form-fields input {
     min-width: 0;
+  }
+  .form-fields .rule-expression {
+    grid-column: 1 / -1;
   }
   .remove-rule {
     padding-block: 8px;
