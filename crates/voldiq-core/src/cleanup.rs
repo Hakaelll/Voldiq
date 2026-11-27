@@ -6,6 +6,8 @@ pub mod execute;
 #[cfg(windows)]
 pub mod helper;
 pub mod journal;
+#[cfg(windows)]
+pub mod receipt;
 pub(crate) mod record;
 #[cfg(windows)]
 pub mod recycle;

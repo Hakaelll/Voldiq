@@ -227,6 +227,8 @@ fn duplicate_plan(root: &std::path::Path, state: &std::path::Path) -> Plan {
 
 #[test]
 fn changed_keeper_aborts_before_intent_and_duplicate_cancellation_preserves_pending_files() {
+    use crate::cleanup::receipt::{PendingReceipt, ProtectedCopies};
+
     let fixture = tempfile::tempdir().unwrap();
     let state = tempfile::tempdir().unwrap();
     let plan = duplicate_plan(fixture.path(), state.path());
@@ -250,13 +252,30 @@ fn changed_keeper_aborts_before_intent_and_duplicate_cancellation_preserves_pend
     .unwrap();
     let plan = duplicate_plan(fixture.path(), state.path());
     let cancel = AtomicBool::new(false);
+    let without_confirmation = PendingReceipt::start(&plan).after_permanent(Report {
+        items: vec![],
+        cancelled: true,
+        journal_error: None,
+    });
+    assert!(matches!(
+        without_confirmation.receipt.protected,
+        ProtectedCopies::Unavailable
+    ));
+    let pending = PendingReceipt::start(&plan);
     let report = permanent(plan, &mut journal, &cancel, |completed| {
         if completed == 1 {
             cancel.store(true, Ordering::Relaxed);
         }
     })
     .unwrap();
-    assert!(report.cancelled && report.items.len() == 1 && report.items[0].removed);
+    let finished = pending.after_permanent(report);
+    assert!(
+        finished.report.cancelled
+            && finished.report.items.len() == 1
+            && finished.report.items[0].removed
+    );
+    assert!(matches!(finished.receipt.protected,
+        ProtectedCopies::VerifiedKeepers { files: 1, logical } if logical == "5"));
     assert!(fixture.path().join("a2").exists() && fixture.path().join("b1").exists());
     assert_eq!(
         std::fs::read(fixture.path().join("older.tmp")).unwrap(),
@@ -279,6 +298,11 @@ fn changed_keeper_aborts_before_intent_and_duplicate_cancellation_preserves_pend
 
 #[test]
 fn result_write_failure_preserves_partial_report_and_stops_before_next_file() {
+    use crate::cleanup::{
+        receipt::{Disposition, PendingReceipt, ProtectedCopies, VolumeChange},
+        recycle::batch::{self, Outcome as RecycleOutcome},
+    };
+
     let fixture = tempfile::tempdir().unwrap();
     for name in ["approved", "pending"] {
         std::fs::write(fixture.path().join(name), b"original").unwrap();
@@ -302,13 +326,86 @@ fn result_write_failure_preserves_partial_report_and_stops_before_next_file() {
         })
         .collect();
     let plan = Plan::manual(&index, &ids).unwrap();
+    let potential = plan.preview().reclaimable;
     let database = fixture.path().join("cleanup.sqlite");
     let mut journal = Journal::open(&database).unwrap();
     journal.reject_result_updates().unwrap();
+    let recycled_item = |id, outcome, recorded| batch::ItemResult {
+        id,
+        path: String::new(),
+        outcome,
+        recorded,
+        operation: None,
+        bin_path: None,
+        error: None,
+        cleanup_error: None,
+    };
+    let recycling = PendingReceipt::start(&plan).after_recycling(batch::Report {
+        items: vec![
+            recycled_item(ids[0], RecycleOutcome::Recycled, true),
+            recycled_item(ids[1], RecycleOutcome::Unknown, false),
+            recycled_item(ids[0], RecycleOutcome::Recycled, false),
+            recycled_item(NodeId(u32::MAX), RecycleOutcome::Recycled, true),
+        ],
+        cancelled: true,
+        journal_error: None,
+        helper_error: None,
+        preflight_error: None,
+    });
+    assert_eq!(recycling.receipt.disposition, Disposition::Recycled);
+    assert_eq!(recycling.receipt.selected.logical.0, 16);
+    assert_eq!(recycling.receipt.confirmed.files, 1);
+    assert_eq!(recycling.receipt.confirmed.logical.0, 8);
+    assert_eq!(recycling.receipt.unrecorded.logical.0, 0);
+    assert!(matches!(
+        recycling.receipt.protected,
+        ProtectedCopies::NotApplicable
+    ));
+
+    let pending = PendingReceipt::start(&plan);
     let report = permanent(plan, &mut journal, &AtomicBool::new(false), |_| {}).unwrap();
-    assert!(report.journal_error.is_some());
-    assert_eq!(report.items.len(), 1);
-    assert!(report.items[0].removed && !report.items[0].recorded);
+    let finished = pending.after_permanent(report);
+    assert!(finished.report.journal_error.is_some());
+    assert_eq!(finished.report.items.len(), 1);
+    assert!(finished.report.items[0].removed && !finished.report.items[0].recorded);
+    assert_eq!(
+        finished.receipt.disposition,
+        Disposition::PermanentlyRemoved
+    );
+    assert_eq!(finished.receipt.selected.files, 2);
+    assert_eq!(finished.receipt.selected.logical.0, 16);
+    assert_eq!(finished.receipt.confirmed.files, 1);
+    assert_eq!(finished.receipt.confirmed.logical.0, 8);
+    assert_eq!(finished.receipt.unrecorded.files, 1);
+    assert_eq!(finished.receipt.unrecorded.logical.0, 8);
+    assert_eq!(finished.receipt.potential_allocation.0, potential);
+    if let VolumeChange::Observed {
+        volume,
+        capacity,
+        before_free,
+        after_free,
+        before_at,
+        after_at,
+        delta,
+    } = &finished.receipt.volume_change
+    {
+        assert_eq!(
+            volume.serial,
+            format!("{:016x}", index.root_identity.unwrap().0)
+        );
+        assert!(before_at <= after_at && before_free.0 <= capacity.0 && after_free.0 <= capacity.0);
+        assert_eq!(
+            delta,
+            &(i128::from(after_free.0) - i128::from(before_free.0)).to_string()
+        );
+        println!("CLEANUP_RECEIPT_VOLUME_PROBE observed");
+    } else {
+        println!("CLEANUP_RECEIPT_VOLUME_PROBE unavailable");
+    }
+    let output = serde_json::to_value(&finished).unwrap();
+    assert_eq!(output["items"][0]["removed"], true);
+    assert_eq!(output["receipt"]["selected"]["logical"], "16");
+    assert_eq!(output["receipt"]["confirmed"]["logical"], "8");
     assert!(!fixture.path().join("approved").exists());
     assert_eq!(
         std::fs::read(fixture.path().join("pending")).unwrap(),
@@ -327,4 +424,57 @@ fn result_write_failure_preserves_partial_report_and_stops_before_next_file() {
             .iter()
             .any(|item| item.node == ids[1] && item.state == "cancelled")
     );
+    verify_receipt_volume_samples();
+}
+
+fn verify_receipt_volume_samples() {
+    use crate::{
+        cleanup::receipt::VolumeChange,
+        space::{AllocationUnits, Measurement, VolumeIdentity},
+    };
+
+    let measure = |guid: &str, serial: &str, total, free, observed_at| {
+        Measurement::from_units(
+            VolumeIdentity {
+                guid_root: guid.into(),
+                serial: serial.into(),
+            },
+            observed_at,
+            1,
+            AllocationUnits {
+                total,
+                free,
+                used: total - free,
+                caller_total: total,
+                caller_available: free,
+                reserved: 0,
+                storage_reserve: 0,
+                pool_unavailable: 0,
+            },
+        )
+        .unwrap()
+    };
+    let before = measure("volume-a", "a", 1000, 400, Some(12));
+    for (free, expected) in [(700, "300"), (135, "-265"), (400, "0")] {
+        let after = measure("VOLUME-A", "a", 1000, free, Some(12));
+        assert!(matches!(VolumeChange::between(&before, &after),
+            VolumeChange::Observed { delta, .. } if delta == expected));
+    }
+    for incompatible in [
+        measure("volume-b", "a", 1000, 700, Some(13)),
+        measure("volume-a", "b", 1000, 700, Some(13)),
+        measure("volume-a", "a", 2000, 700, Some(13)),
+        measure("volume-a", "a", 1000, 700, Some(11)),
+        measure("volume-a", "a", 1000, 700, None),
+    ] {
+        assert!(matches!(
+            VolumeChange::between(&before, &incompatible),
+            VolumeChange::Unavailable
+        ));
+    }
+    let huge = measure("volume-b", "b", u64::MAX, u64::MAX, Some(12));
+    let empty = measure("volume-b", "b", u64::MAX, 0, Some(13));
+    let change = serde_json::to_value(VolumeChange::between(&huge, &empty)).unwrap();
+    assert_eq!(change["before_free"], "18446744073709551615");
+    assert_eq!(change["delta"], "-18446744073709551615");
 }

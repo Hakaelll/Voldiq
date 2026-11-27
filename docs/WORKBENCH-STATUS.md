@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Cleanup space receipt
+
+The desktop cleanup dialog reports the reviewed selection, confirmed Recycle Bin or permanent outcomes, verified duplicate keepers linked to confirmed removals and potential single-link allocation. The report labels confirmed outcomes whose journal result is missing. Exact byte totals cross the native boundary as decimal strings.
+
+The core takes separate volume measurements around execution. It rechecks the frozen source identity and compares volume GUID, serial, capacity and observation order. A comparable pair includes two dated counters and their signed change. Missing or incompatible evidence is unavailable. Whole-volume changes include unrelated disk activity.
+
+The retained cleanup flows cover a real removal after a result-write failure, cancellation with unattempted files, distinct duplicate keepers and modeled recycle outcomes. The owned Windows fixture obtained comparable volume counters and checked their exact signed difference. Svelte markup covers selection, partial recycling and permanent deletion with unavailable measurements. Visual fit, interactive focus and Windows scaling remain manual. [Source verification](../benchmarks/workbench-cleanup-receipt-source.json)
+
 ## Applications chart and ranking
 
 Applications gives the scatter plot a 318px minimum height and keeps its axis labels at 14px. The logarithmic axes use the same geometry as the points, with fewer horizontal labels in narrow views. Exceptionally large byte labels use scientific notation and retain the exact value in their tooltip.

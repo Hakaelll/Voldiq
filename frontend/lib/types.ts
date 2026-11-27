@@ -11,10 +11,38 @@ export interface RestorationResult {
   journal_error: string | null;
 }
 export type NodeId = number;
+interface CleanupLogicalFiles {
+  files: number;
+  logical: string;
+}
+export interface CleanupReceipt {
+  disposition: 'recycled' | 'permanently_removed';
+  selected: CleanupLogicalFiles;
+  confirmed: CleanupLogicalFiles;
+  unrecorded: CleanupLogicalFiles;
+  potential_allocation: string;
+  protected:
+    | ({ kind: 'verified_keepers' } & CleanupLogicalFiles)
+    | { kind: 'unavailable' }
+    | { kind: 'not_applicable' };
+  volume_change:
+    | {
+        kind: 'observed';
+        volume: VolumeIdentity;
+        capacity: string;
+        before_free: string;
+        after_free: string;
+        before_at: number;
+        after_at: number;
+        delta: string;
+      }
+    | { kind: 'unavailable' };
+}
 export interface CleanupReport {
   items: { id: NodeId; path: string; removed: boolean; error: string | null; recorded: boolean }[];
   cancelled: boolean;
   journal_error: string | null;
+  receipt: CleanupReceipt;
 }
 export interface RecyclingReport {
   items: {
@@ -31,6 +59,7 @@ export interface RecyclingReport {
   journal_error: string | null;
   helper_error: string | null;
   preflight_error: string | null;
+  receipt: CleanupReceipt;
 }
 export interface CleanupPreview {
   id: number;

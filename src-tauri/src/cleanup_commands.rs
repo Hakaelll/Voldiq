@@ -4,7 +4,11 @@ use std::sync::{Arc, Mutex};
 use tauri::{Manager, State};
 use voldiq_core::{
     NodeId,
-    cleanup::{Plan, Preview, rules::custom},
+    cleanup::{
+        Plan, Preview,
+        receipt::{PendingReceipt, WithReceipt},
+        rules::custom,
+    },
     scanner::SharedIndex,
     snapshots::schedule::DraftRef,
 };
@@ -138,7 +142,7 @@ pub async fn execute_permanent_cleanup(
     engine: State<'_, Arc<Engine>>,
     plans: State<'_, CleanupPlans>,
     journal: State<'_, CleanupJournal>,
-) -> Result<voldiq_core::cleanup::execute::Report, String> {
+) -> Result<WithReceipt<voldiq_core::cleanup::execute::Report>, String> {
     engine.require_durable_state()?;
     let engine = engine.inner().clone();
     let operation = engine.begin()?;
@@ -154,8 +158,8 @@ pub async fn execute_permanent_cleanup(
     let journal = journal.0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = operation;
-        let mut journal = journal.lock().map_err(|error| error.to_string())?;
-        let journal = journal.as_mut().map_err(|error| error.clone())?;
+        let mut journal_guard = journal.lock().map_err(|error| error.to_string())?;
+        let journal = journal_guard.as_mut().map_err(|error| error.clone())?;
         session
             ._plan
             .validate_protections()
@@ -173,19 +177,27 @@ pub async fn execute_permanent_cleanup(
             .duplicates
             .lock()
             .map_err(|error| error.to_string())? = None;
-        voldiq_core::cleanup::execute::permanent(session._plan, journal, &cancel, |completed| {
-            if progress
-                .send(CleanupProgress {
-                    id: operation_id,
-                    completed,
-                    total,
-                })
-                .is_err()
-            {
-                cancel.store(true, std::sync::atomic::Ordering::Relaxed);
-            }
-        })
-        .map_err(|error| error.to_string())
+        let pending = PendingReceipt::start(&session._plan);
+        let report = voldiq_core::cleanup::execute::permanent(
+            session._plan,
+            journal,
+            &cancel,
+            |completed| {
+                if progress
+                    .send(CleanupProgress {
+                        id: operation_id,
+                        completed,
+                        total,
+                    })
+                    .is_err()
+                {
+                    cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+                }
+            },
+        )
+        .map_err(|error| error.to_string())?;
+        drop(journal_guard);
+        Ok(pending.after_permanent(report))
     })
     .await
     .map_err(|error| error.to_string())?
@@ -210,7 +222,7 @@ pub async fn execute_recycling_cleanup(
     plans: State<'_, CleanupPlans>,
     journal: State<'_, CleanupJournal>,
     app: tauri::AppHandle,
-) -> Result<voldiq_core::cleanup::recycle::batch::Report, String> {
+) -> Result<WithReceipt<voldiq_core::cleanup::recycle::batch::Report>, String> {
     engine.require_durable_state()?;
     let engine = engine.inner().clone();
     let operation = engine.begin()?;
@@ -221,8 +233,8 @@ pub async fn execute_recycling_cleanup(
     let database = app.state::<SnapshotDatabase>().0.clone();
     tauri::async_runtime::spawn_blocking(move || {
         let _operation = operation;
-        let mut journal = journal.lock().map_err(|error| error.to_string())?;
-        let journal = journal.as_mut().map_err(|error| error.clone())?;
+        let mut journal_guard = journal.lock().map_err(|error| error.to_string())?;
+        let journal = journal_guard.as_mut().map_err(|error| error.clone())?;
         session
             ._plan
             .validate_protections()
@@ -248,19 +260,27 @@ pub async fn execute_recycling_cleanup(
             .duplicates
             .lock()
             .map_err(|error| error.to_string())? = None;
-        voldiq_core::cleanup::recycle::batch::run(session._plan, journal, &cancel, |completed| {
-            if progress
-                .send(CleanupProgress {
-                    id: operation_id,
-                    completed,
-                    total,
-                })
-                .is_err()
-            {
-                cancel.store(true, std::sync::atomic::Ordering::Relaxed);
-            }
-        })
-        .map_err(|error| error.to_string())
+        let pending = PendingReceipt::start(&session._plan);
+        let report = voldiq_core::cleanup::recycle::batch::run(
+            session._plan,
+            journal,
+            &cancel,
+            |completed| {
+                if progress
+                    .send(CleanupProgress {
+                        id: operation_id,
+                        completed,
+                        total,
+                    })
+                    .is_err()
+                {
+                    cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+                }
+            },
+        )
+        .map_err(|error| error.to_string())?;
+        drop(journal_guard);
+        Ok(pending.after_recycling(report))
     })
     .await
     .map_err(|error| error.to_string())?
