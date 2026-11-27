@@ -231,9 +231,10 @@
               ><tr><th>Capture</th><th>Saved</th><th>Logical size</th><th>Coverage</th></tr></thead
             ><tbody
               >{#each review.value.captures as capture (capture.id)}<tr
-                  ><td>#{capture.id}</td><td>{date(capture.captured)}</td><td
-                    class="number"
-                    title={`${capture.logical} logical bytes`}>{bytes(Number(capture.logical))}</td
+                  ><td>#{capture.id} · {capture.tier === 'summary' ? 'Summary' : 'Detailed'}</td><td
+                    >{date(capture.captured)}</td
+                  ><td class="number" title={`${capture.logical} logical bytes`}
+                    >{bytes(Number(capture.logical))}</td
                   ><td>{capture.complete ? 'Complete' : 'Partial'}</td></tr
                 >{/each}</tbody
             >

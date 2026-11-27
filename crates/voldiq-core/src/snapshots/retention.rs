@@ -1,4 +1,4 @@
-use super::{Store, decode, unsigned};
+use super::{SnapshotTier, Store, decode, unsigned};
 use crate::{Error, Result};
 use rusqlite::{Connection, OptionalExtension, TransactionBehavior, params};
 use serde::Serialize;
@@ -31,6 +31,7 @@ pub struct RetentionSettings {
 #[derive(Serialize)]
 pub struct RetentionCapture {
     pub id: i64,
+    pub tier: SnapshotTier,
     pub captured: u64,
     pub logical: String,
     pub complete: bool,
@@ -94,7 +95,7 @@ fn preview(
     let mut captures = Vec::new();
     if eligible > 0 {
         let keep = settings.keep_latest.ok_or_else(invalid)?;
-        let mut statement = connection.prepare("SELECT id,captured,logical,(complete AND COALESCE(observed_complete,1)) FROM snapshots WHERE root_id=?1 AND id<(SELECT id FROM snapshots WHERE root_id=?1 ORDER BY id DESC LIMIT 1 OFFSET ?2) ORDER BY id LIMIT ?3")?;
+        let mut statement = connection.prepare("SELECT id,captured,logical,(complete AND COALESCE(observed_complete,1)),tier FROM snapshots WHERE root_id=?1 AND id<(SELECT id FROM snapshots WHERE root_id=?1 ORDER BY id DESC LIMIT 1 OFFSET ?2) ORDER BY id LIMIT ?3")?;
         let mut rows = statement.query(params![settings.root_key, keep - 1, BATCH_LIMIT])?;
         while let Some(row) = rows.next()? {
             if cancel.load(Ordering::Relaxed) {
@@ -102,6 +103,7 @@ fn preview(
             }
             captures.push(RetentionCapture {
                 id: row.get(0)?,
+                tier: SnapshotTier::read(row, 4)?,
                 captured: unsigned(row, 1)?,
                 logical: unsigned(row, 2)?.to_string(),
                 complete: row.get(3)?,
@@ -127,7 +129,7 @@ fn preview(
 pub(super) fn prune(connection: &Connection, cancel: &AtomicBool) -> Result<bool> {
     for sql in [
         "DELETE FROM snapshot_roots WHERE NOT EXISTS(SELECT 1 FROM snapshots s WHERE s.root_id=snapshot_roots.id)",
-        "DELETE FROM snapshot_versions WHERE NOT EXISTS (SELECT 1 FROM snapshots s JOIN snapshot_paths p ON p.root_id=s.root_id WHERE p.id=snapshot_versions.path_id AND s.id>=snapshot_versions.start_id AND (snapshot_versions.end_id IS NULL OR s.id<snapshot_versions.end_id))",
+        "DELETE FROM snapshot_versions WHERE NOT EXISTS (SELECT 1 FROM snapshots s JOIN snapshot_paths p ON p.root_id=s.root_id WHERE p.id=snapshot_versions.path_id AND s.tier='detailed' AND s.id>=snapshot_versions.start_id AND (snapshot_versions.end_id IS NULL OR s.id<snapshot_versions.end_id))",
     ] {
         if cancel.load(Ordering::Relaxed) {
             return Ok(false);

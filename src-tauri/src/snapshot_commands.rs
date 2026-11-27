@@ -7,7 +7,7 @@ use std::{
     },
 };
 use tauri::{State, ipc::Channel};
-use voldiq_core::snapshots::{Snapshot, Store};
+use voldiq_core::snapshots::{Snapshot, SnapshotTier, Store};
 
 #[derive(Clone)]
 pub struct SnapshotDatabase(pub(super) Arc<SnapshotStore>);
@@ -128,11 +128,13 @@ impl SnapshotDatabase {
 #[tauri::command]
 pub async fn save_snapshot(
     index_id: IndexId,
+    tier: Option<SnapshotTier>,
     operation: Channel<u64>,
     app: tauri::AppHandle,
     engine: State<'_, Arc<Engine>>,
     database: State<'_, SnapshotDatabase>,
 ) -> Result<Option<SavedSnapshot>, String> {
+    let tier = tier.unwrap_or(SnapshotTier::Detailed);
     let engine = engine.inner().clone();
     let active_operation = engine.begin()?;
     let id = active_operation.id;
@@ -146,22 +148,27 @@ pub async fn save_snapshot(
         if index.snapshot_id.is_some() {
             return Err("Rescan before saving a new snapshot.".into());
         }
-        let caches = crate::developer_commands::cache_locations(&app);
-        let evidence = voldiq_core::libraries::capture(&index, &cancel, |_| true)
-            .map_err(|error| error.to_string())?;
-        if cancel.load(Ordering::Relaxed) {
-            return Ok(None);
-        }
-        let saved = store
-            .lock()
-            .map_err(|error| error.to_string())?
-            .save_with_libraries(&index, &cancel, &caches, evidence.as_ref());
+        let saved = match tier {
+            SnapshotTier::Summary => store.lock()?.save_summary(&index, &cancel),
+            SnapshotTier::Detailed => {
+                let caches = crate::developer_commands::cache_locations(&app);
+                let evidence = voldiq_core::libraries::capture(&index, &cancel, |_| true)
+                    .map_err(|error| error.to_string())?;
+                if cancel.load(Ordering::Relaxed) {
+                    return Ok(None);
+                }
+                store
+                    .lock()?
+                    .save_with_libraries(&index, &cancel, &caches, evidence.as_ref())
+            }
+        };
         match saved {
             Ok(id) => Ok(Some(SavedSnapshot {
                 id,
-                activity_link_failed: analysis
-                    .desktop_capture
-                    .is_some_and(|capture| capture.link_snapshot(&_operation._lease, id).is_err()),
+                activity_link_failed: tier == SnapshotTier::Detailed
+                    && analysis.desktop_capture.is_some_and(|capture| {
+                        capture.link_snapshot(&_operation._lease, id).is_err()
+                    }),
             })),
             Err(_) if cancel.load(Ordering::Relaxed) => Ok(None),
             Err(error) => Err(error.to_string()),

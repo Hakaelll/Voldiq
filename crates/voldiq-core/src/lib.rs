@@ -44,6 +44,10 @@ pub enum Error {
     #[error("needs_human_approval")]
     NeedsHumanApproval,
     #[error(
+        "This snapshot is a summary. Choose a detailed snapshot to read file or folder records."
+    )]
+    SnapshotDetailsUnavailable,
+    #[error(
         "A restore output already exists. Choose keep_both to prepare a plan with a different name, or select other files."
     )]
     RestoreCollision,

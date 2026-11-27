@@ -20,7 +20,7 @@ impl Store {
         node: NodeId,
     ) -> Result<Option<(u64, u64)>> {
         let tx = self.connection.unchecked_transaction()?;
-        let Some((root, path)) = folder_key(&tx, index, node)? else {
+        let Some((root, Some(path))) = folder_key(&tx, index, node)? else {
             return Ok(None);
         };
         recorded_identity(&tx, root, path, index.snapshot_id)
@@ -37,12 +37,13 @@ impl Store {
         let Some((root, path)) = folder_key(&tx, index, node)? else {
             return Ok(Some(Vec::new()));
         };
-        let expected = match index.entry(node)?.file_state {
-            Some(state) => Some(state.identity),
-            None => recorded_identity(&tx, root, path, index.snapshot_id)?,
+        let expected = match (index.entry(node)?.file_state, path) {
+            (Some(state), _) => Some(state.identity),
+            (None, Some(path)) => recorded_identity(&tx, root, path, index.snapshot_id)?,
+            (None, None) => None,
         };
         let mut latest = tx.prepare("SELECT id,observed_at,observed_complete,engine_version,accounting_version,complete,logical FROM snapshots
-            WHERE root_id=?1 AND observed_at>=?2 AND observed_at<=?3 AND id<=?4 ORDER BY observed_at DESC,id DESC LIMIT 1")?;
+            WHERE root_id=?1 AND observed_at>=?2 AND observed_at<=?3 AND id<=?4 AND (?5 OR tier='detailed') ORDER BY observed_at DESC,id DESC LIMIT 1")?;
         let mut versions = tx.prepare("SELECT kind,logical,allocated,modified,files,known,incomplete,hard_link,native_state,cloud FROM snapshot_versions
             WHERE path_id=?1 AND start_id<=?2 AND (end_id IS NULL OR end_id>?2) LIMIT 2")?;
         let mut points = Vec::new();
@@ -62,7 +63,8 @@ impl Store {
                         root,
                         integer(start)?,
                         integer(end)?,
-                        index.snapshot_id.unwrap_or(i64::MAX)
+                        index.snapshot_id.unwrap_or(i64::MAX),
+                        path.is_none(),
                     ],
                     |r| {
                         Ok((
@@ -83,9 +85,7 @@ impl Store {
                 points.clear();
                 continue;
             };
-            let logical = if node == NodeId(0) {
-                Some(root_bytes)
-            } else {
+            let logical = if let Some(path) = path {
                 let mut rows = versions.query(params![path, snapshot])?;
                 let data = rows.next()?.map(Data::read).transpose()?;
                 if rows.next()?.is_some() {
@@ -99,6 +99,8 @@ impl Store {
                         && data.native_state.map(|state| state.identity) == expected
                 })
                 .map(|data| data.logical)
+            } else {
+                Some(root_bytes)
             };
             if let Some(logical) = logical {
                 points.push(HistoryPoint {
@@ -123,7 +125,7 @@ fn recorded_identity(
         return Ok(None);
     };
     let mut statement = connection.prepare("SELECT v.kind,v.logical,v.allocated,v.modified,v.files,v.known,v.incomplete,v.hard_link,v.native_state,v.cloud FROM snapshot_versions v JOIN snapshots s ON s.id=?1
-        WHERE s.root_id=?2 AND v.path_id=?3 AND v.start_id<=s.id AND (v.end_id IS NULL OR v.end_id>s.id) LIMIT 2")?;
+        WHERE s.root_id=?2 AND s.tier='detailed' AND v.path_id=?3 AND v.start_id<=s.id AND (v.end_id IS NULL OR v.end_id>s.id) LIMIT 2")?;
     let mut rows = statement.query(params![snapshot, root, path])?;
     let data = rows.next()?.map(Data::read).transpose()?;
     if rows.next()?.is_some() {
@@ -141,7 +143,7 @@ fn folder_key(
     connection: &rusqlite::Connection,
     index: &Index,
     node: NodeId,
-) -> Result<Option<(i64, i64)>> {
+) -> Result<Option<(i64, Option<i64>)>> {
     let Some(identity) = index.root_identity else {
         return Ok(None);
     };
@@ -160,6 +162,9 @@ fn folder_key(
     let Some(root) = root else {
         return Ok(None);
     };
+    if node == NodeId(0) {
+        return Ok(Some((root, None)));
+    }
     let mut path: Option<i64> = connection
         .query_row(
             "SELECT id FROM snapshot_paths WHERE root_id=?1 AND parent_id=0 AND name=?2",
@@ -200,5 +205,5 @@ fn folder_key(
     let Some(path) = path else {
         return Ok(None);
     };
-    Ok(Some((root, path)))
+    Ok(Some((root, Some(path))))
 }

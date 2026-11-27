@@ -700,6 +700,9 @@ fn operation() -> CliError {
 fn query_operation(error: voldiq_core::Error) -> CliError {
     match error {
         voldiq_core::Error::Query(error) => ("invalid_query", error.to_string(), 2),
+        error @ voldiq_core::Error::SnapshotDetailsUnavailable => {
+            ("snapshot_details_unavailable", error.to_string(), 4)
+        }
         error @ voldiq_core::Error::DuplicateVerificationLimit => {
             ("verification_limit", error.to_string(), 4)
         }

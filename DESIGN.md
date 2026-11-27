@@ -301,6 +301,8 @@ The populated overview follows `interface/01-overview-root.png` and `02-overview
 
 History uses a 12px control gap and 18px spacing below its toolbar. Snapshot rows have a 68px minimum height, medium vertical padding and panel-gap horizontal padding. Before and After selects wrap with a 180px minimum label width. Its recorded-size graphic is 110px high and uses the existing accent color.
 
+History offers Save detailed and Save summary. Each row identifies its capture type and any partial coverage. A summary opens a flat reading panel with the recorded logical size as the largest figure and the indexed counts, coverage, measured time and saved time as labelled fields. The panel exposes Trends and Diary beside the root. Measurement details expand in place for depth, exclusions, allocation and engine evidence. Calendar, playback and comparison use detailed captures.
+
 At 1100px and below, main padding becomes 20px and toolbar spacing tightens. The chosen sidebar width stays stable. At 840px the toolbar search occupies its own row and settings labels stack. Dashboard and welcome breakpoints are described above; long paths are bounded or wrapped, and totals retain explicit labels. Reduced-motion preferences continue to disable existing button transitions. Desktop resizing, Windows scaling and native focus remain manual acceptance checks.
 
 **The One Rail Rule.** Expand labels within the existing navigation rail. Keep the workspace as the adjacent main area.

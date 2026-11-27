@@ -1,5 +1,13 @@
 # Storage workbench status
 
+## Detailed and summary history
+
+History now offers an explicit choice between detailed and summary saves. The summary puts logical size first, followed by indexed counts, coverage, measurement time and save time. Trends and Diary are accessible from the summary. Indexed depth, exclusion count, known allocation and the engine revision sit under Measurement details. The selection and its type remain visible in the capture list.
+
+Schema 15 preserves existing path intervals and migrates earlier records as detailed. A detailed save accepts up to five million indexed entries. A summary saves the native root and exclusion group, capture and observation metadata, root totals and any available volume observation. It skips file and folder versions. Root trends and aggregate diary events use both tiers. Queries, calendar, path comparison and playback require detailed evidence. Retention preserves intervals used by any surviving detailed capture.
+
+The integration gate retains eight Rust cases and one frontend case. The snapshot fixture exercises a pre-tier database, a mixed capture sequence, cancellation, path-level guards and retention down to a summary alone. The CLI and MCP cases exercise the authorized History listing and detail requirements. Five Svelte render fixtures cover mixed capture rows, the summary, missing measurement metadata, the aggregate diary and root trends. The size and labels exceed 4.5:1 against the workspace tokens in both themes. Native interaction, visual fit and Windows scaling remain manual. [Source verification](../benchmarks/workbench-history-tiers-source.json)
+
 ## Explorer chart layout
 
 Explorer gives the chart the remaining workspace height. The compact heading combines title, path, coverage and actions. A completed observation without access issues appears in the heading. Active progress, pause and cancellation, access issues and the Live controls keep their distinct states. List, Grid, Export chart and Expand chart are visible at the top of the map. Map settings and Map tools retain the detailed options. Escape dismisses these disclosures and returns focus to their summary. The optional items list has its own bounded scroll area, and short windows can scroll the workspace.

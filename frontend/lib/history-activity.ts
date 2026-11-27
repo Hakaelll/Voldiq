@@ -10,6 +10,7 @@ export interface HistoricalComparison {
 }
 export type HistoryWorkspace =
   | { kind: 'captures' }
+  | { kind: 'summary'; snapshot: number }
   | ({ kind: 'comparison' } & HistoricalComparison)
   | { kind: 'playback' }
   | { kind: 'calendar' }

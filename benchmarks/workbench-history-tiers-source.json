@@ -1,0 +1,176 @@
+{
+  "checkedUtc": "2026-11-27T02:47:14.0027563Z",
+  "startedUtc": "2026-11-27T02:40:48.2040617Z",
+  "checkoutCommit": "9c1517ecb4717ac0410684e5d6bb8bb68b6702a0",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 1.251
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 11.822
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 0.74
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 7.778
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 250.521
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 113.658
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/lib.rs",
+      "sha256": "1B7A5BF8A5607737B66557CEFA6A472E2BC162403377F3B732D0536523D8FCFA"
+    },
+    {
+      "path": "crates/voldiq-core/src/scanner.rs",
+      "sha256": "C3C98C40A0ABA5D5F617C40AF7B55CF1A89F79839DD58379618EE829FAA8EC3D"
+    },
+    {
+      "path": "crates/voldiq-core/src/service.rs",
+      "sha256": "01F9386F79DD384FC30C68862370B799CC10F5375ABA3EA375E435401C602EF2"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots.rs",
+      "sha256": "C2F97499AAB850B78D683F980E8557547FA1FA434C8BEA274FE0CE33716FBB28"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/activity.rs",
+      "sha256": "E4EA3A9DF328331C2A1818175235E40B9EB57CAB607016F772ED941EFAE96D85"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/budget_history.rs",
+      "sha256": "0556B9BF68CB39965329D7945881D82E8A74F1536C01D454B51C7025B4AD3928"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/resume.rs",
+      "sha256": "048ECB08FBE86408D9F62186CB2F9DA9B297801B67022A77E241EDDDD56E2E82"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/retention.rs",
+      "sha256": "BE60BAE5DCB911B3982C11BA953CD9945B288399A4D6935EA6E87E34816A3299"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/schedule.rs",
+      "sha256": "59B81AF8D98AE5A564511C4638E7E6F2F262EC6ACAAB56329BA44996351FA68E"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/trends.rs",
+      "sha256": "14AB85D0A1C8CE8C43B285C34C459AAC83E6C7832ED3350539BDDB51D8CE54D1"
+    },
+    {
+      "path": "crates/voldiq-core/src/snapshots/visual.rs",
+      "sha256": "5F46D66A54190DE18C38EFF205F96A6A174FBD08CF0EB5A167E12FCCA1B2B439"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots.rs",
+      "sha256": "5ECAC356431BACA4D6418058761F8E6E90062938E86EA0B7A753EF820DB2F405"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots/capture_tier_fixture.rs",
+      "sha256": "88B6882A8CDC59C3F021ADCBA60675CE62AA8868C66670C8F295D2C65EE73D84"
+    },
+    {
+      "path": "crates/voldiq-headless/src/console.rs",
+      "sha256": "6029B0910113B15E33447CB01A2EF66F2CBBA5A2FB9BDAC8F341AD4240409E67"
+    },
+    {
+      "path": "crates/voldiq-headless/src/main.rs",
+      "sha256": "72E4B2D84AE9DF4307022E72BB8B6C818CD03AFDBB02E7A99F34CFD6B85045BE"
+    },
+    {
+      "path": "crates/voldiq-headless/src/mcp.rs",
+      "sha256": "472E4999039C291253D4875C46715299B5FD85D0D54C3705165712EE84ED8D85"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/headless.rs",
+      "sha256": "596D45723A2C99B543E64B7C06EA39CF112EA61EEEE3AADD2D89D0DF51F8B5AA"
+    },
+    {
+      "path": "crates/voldiq-headless/tests/mcp.rs",
+      "sha256": "CADC92B488FB2BDFA3A53E5A3E87A77B23A86D4F866258040CD064C43A96286C"
+    },
+    {
+      "path": "frontend/components/ActivityCaptureSummary.svelte",
+      "sha256": "9D5AF605131EE00E32C65881F88E30799B5C6B7CAC0C91A60BFE3BBBCC6B7B53"
+    },
+    {
+      "path": "frontend/components/History.svelte",
+      "sha256": "DD5E8D0C64C3C55F93124C2DA97723D00664513F9981D359637527A5BC5B2308"
+    },
+    {
+      "path": "frontend/components/HistoryDiary.svelte",
+      "sha256": "AFAEFC6D3C78B1378C36809FF4FF433F090DE3CEE9CD432F0BE42FCC2BAD8144"
+    },
+    {
+      "path": "frontend/components/HistoryTrends.svelte",
+      "sha256": "B60809F12903D1215B0738BF54B1173368D753D80B827D77A75DEE4F3079289A"
+    },
+    {
+      "path": "frontend/components/SnapshotRetention.svelte",
+      "sha256": "61ECCC3EF54F3136EC36BF89C6A4156AC35EEE35586AD845C1489B5D9EAC2A61"
+    },
+    {
+      "path": "frontend/lib/history-activity.ts",
+      "sha256": "7007E71A4CF4D8D08847A5CB7D51E1FD7073BE097997F9FD8324E239FD1F8093"
+    },
+    {
+      "path": "frontend/lib/history-trend.ts",
+      "sha256": "483CE91DC6903D6C9E55D9E262D06E58F0C0BCE3DBFD334CEE13B0C2BF62D112"
+    },
+    {
+      "path": "frontend/lib/types.ts",
+      "sha256": "3B3D4D10FAF28287CCCAB3D9BF11962355D69931A4F1363D9546AC9806939C73"
+    },
+    {
+      "path": "src-tauri/src/snapshot_commands.rs",
+      "sha256": "E48C1FA208157D96B098FD46896A15F9EC9177825AE53E4991C464DBBA017228"
+    }
+  ],
+  "retainedBehaviorTests": 9,
+  "summaryContrast": {
+    "scope": "Contrast ratios of the violet size, secondary labels and regular text against the existing workspace token",
+    "light": {
+      "logicalSize": 6.1,
+      "labels": 7.44,
+      "values": 18.42
+    },
+    "dark": {
+      "logicalSize": 8.38,
+      "labels": 11.08,
+      "values": 18.73
+    }
+  },
+  "markupFixture": {
+    "source": "Svelte History components rendered on the server with controlled persisted-capture props and state",
+    "results": {
+      "mixedRows": true,
+      "summaryPane": true,
+      "missingMeasurement": true,
+      "aggregateDiary": true,
+      "rootTrend": true
+    }
+  }
+}

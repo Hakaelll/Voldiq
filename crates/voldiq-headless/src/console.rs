@@ -574,6 +574,11 @@ fn show(out: &mut impl Write, terminal: &Terminal, choice: &str, result: &Value)
                 writeln!(out, "  No saved snapshots available to this connection.")?;
             }
             for row in rows {
+                let tier = if row["tier"] == "summary" {
+                    "  (summary)"
+                } else {
+                    ""
+                };
                 let coverage = if row["complete"].as_bool() == Some(true) {
                     ""
                 } else {
@@ -581,7 +586,7 @@ fn show(out: &mut impl Write, terminal: &Terminal, choice: &str, result: &Value)
                 };
                 writeln!(
                     out,
-                    "  #{:<7}  {:>10}  {}{coverage}",
+                    "  #{:<7}  {:>10}  {}{tier}{coverage}",
                     label(&row["id"]),
                     size_label(bytes(&row["logical"])),
                     label(&row["root"])

@@ -99,7 +99,14 @@
   }
   async function inspect(event: DiaryEvent, scope: string | null): Promise<void> {
     const before = event.before;
-    if (disabled || !before || !diary?.events.includes(event)) return;
+    if (
+      disabled ||
+      before?.tier !== 'detailed' ||
+      event.after.tier !== 'detailed' ||
+      event.detail.kind !== 'compared' ||
+      !diary?.events.includes(event)
+    )
+      return;
     await oncompare({
       before: before.id,
       after: event.after.id,
@@ -122,7 +129,9 @@
         onchange={(event) => onlocation({ snapshot: Number(event.currentTarget.value), offset: 0 })}
         {disabled}
         >{#each captures as capture}<option value={capture.id}
-            >#{capture.id} · {utcDate(capture.captured)}</option
+            >#{capture.id} · {utcDate(capture.captured)} · {capture.tier === 'summary'
+              ? 'Summary'
+              : 'Detailed'}</option
           >{/each}</select
       ></label
     >
@@ -159,8 +168,8 @@
         </div>
         <ActivityCaptureSummary capture={event.after} />
         {#if event.before}<p class="activity-help">
-            Earlier capture #{event.before.id} · saved {utcDate(event.before.captured)} · {event
-              .before.complete
+            Earlier {event.before.tier === 'summary' ? 'summary' : 'detailed capture'} #{event
+              .before.id} · saved {utcDate(event.before.captured)} · {event.before.complete
               ? 'recorded complete coverage'
               : 'partial coverage'}{event.before.accounting === 'unknown'
               ? ' · legacy accounting unverified'
@@ -188,45 +197,57 @@
                   : ''}</strong
             >
           </p>
-          {#if !event.detail.comparison.coverage_complete}<p class="activity-warning">
-              Partial coverage. Missing entries do not confirm deletion.
-            </p>{/if}
-          {#if event.detail.comparison.accounting === 'unknown'}<p class="activity-help">
-              Legacy accounting is unavailable; comparability is unverified.
-            </p>{/if}
-          <p class="activity-help">
-            {event.detail.comparison.total.toLocaleString()} recorded changes · up to five ranked paths
-            below. Folder totals overlap their descendants.
-          </p>
-          {#if event.before}<button
-              onclick={() => inspect(event, null)}
-              aria-label={`Compare captures ${event.before.id} and ${event.after.id}`}
-              {disabled}>Compare these captures</button
-            >{/if}
-          {#if !event.detail.comparison.changes.length}<p>No recorded changes.</p>{/if}
-          <ul class="diary-changes">
-            {#each event.detail.comparison.changes as change}<li>
-                <div>
-                  <strong>{describe(change)}</strong><span>{change.path}</span><small
-                    >{change.kind === 'added' || change.kind === 'newly_observed'
-                      ? change.kind === 'added'
-                        ? 'Not recorded'
-                        : 'Unavailable'
-                      : bytes(change.before)} → {change.kind === 'removed' ||
-                    change.kind === 'unobserved'
-                      ? change.kind === 'removed'
-                        ? 'Not recorded'
-                        : 'Unavailable'
-                      : bytes(change.after)}</small
-                  >
-                </div>
-                {#if event.before}<button
-                    onclick={() => inspect(event, change.path_id)}
-                    aria-label={`Inspect recorded context for ${change.path}`}
-                    {disabled}>Inspect context</button
-                  >{/if}
-              </li>{/each}
-          </ul>
+          {#if event.detail.kind === 'aggregate'}
+            <p class="activity-help">
+              Recorded totals only. Both captures need file records for path changes.
+            </p>
+            {#if !event.detail.coverage_complete}<p class="activity-warning">
+                Partial coverage. The difference reflects only the recorded totals.
+              </p>{/if}
+            {#if event.detail.accounting === 'unknown'}<p class="activity-help">
+                Legacy accounting is unavailable; comparability is unverified.
+              </p>{/if}
+          {:else}
+            {#if !event.detail.comparison.coverage_complete}<p class="activity-warning">
+                Partial coverage. Missing entries do not confirm deletion.
+              </p>{/if}
+            {#if event.detail.comparison.accounting === 'unknown'}<p class="activity-help">
+                Legacy accounting is unavailable; comparability is unverified.
+              </p>{/if}
+            <p class="activity-help">
+              {event.detail.comparison.total.toLocaleString()} recorded changes · up to five ranked paths
+              below. Folder totals overlap their descendants.
+            </p>
+            {#if event.before}<button
+                onclick={() => inspect(event, null)}
+                aria-label={`Compare captures ${event.before.id} and ${event.after.id}`}
+                {disabled}>Compare these captures</button
+              >{/if}
+            {#if !event.detail.comparison.changes.length}<p>No recorded changes.</p>{/if}
+            <ul class="diary-changes">
+              {#each event.detail.comparison.changes as change}<li>
+                  <div>
+                    <strong>{describe(change)}</strong><span>{change.path}</span><small
+                      >{change.kind === 'added' || change.kind === 'newly_observed'
+                        ? change.kind === 'added'
+                          ? 'Not recorded'
+                          : 'Unavailable'
+                        : bytes(change.before)} → {change.kind === 'removed' ||
+                      change.kind === 'unobserved'
+                        ? change.kind === 'removed'
+                          ? 'Not recorded'
+                          : 'Unavailable'
+                        : bytes(change.after)}</small
+                    >
+                  </div>
+                  {#if event.before}<button
+                      onclick={() => inspect(event, change.path_id)}
+                      aria-label={`Inspect recorded context for ${change.path}`}
+                      {disabled}>Inspect context</button
+                    >{/if}
+                </li>{/each}
+            </ul>
+          {/if}
         {/if}
       </article>
     {/each}

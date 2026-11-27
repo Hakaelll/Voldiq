@@ -1,7 +1,8 @@
-import type { Snapshot } from './types.ts';
+import type { CaptureTier, Snapshot } from './types.ts';
 
 export interface TrendPoint {
   snapshot: number;
+  tier: CaptureTier;
   measured_at: number;
   logical: string;
   complete: boolean;

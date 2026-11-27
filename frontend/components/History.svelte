@@ -15,11 +15,19 @@
     HistoricalComparison,
     DiaryLocation,
   } from '../lib/history-activity';
+  import { utcDate } from '../lib/history-activity';
   import type { SnapshotRetentionSettings, SnapshotRetentionResult } from '../lib/types';
   import { snapshotChangeQueries } from '../lib/queries';
   import { historyTrend } from '../lib/history-trend';
   import { updateSnapshotPair } from '../lib/snapshot-pair';
-  import { bytes, date, difference, type Snapshot, type SnapshotComparison } from '../lib/types';
+  import {
+    bytes,
+    date,
+    difference,
+    type CaptureTier,
+    type Snapshot,
+    type SnapshotComparison,
+  } from '../lib/types';
   let {
     enabled,
     blocked,
@@ -45,6 +53,15 @@
     changeOffset = $state(0);
   let comparison = $state<SnapshotComparison | null>(null);
   let workspace = $state<HistoryWorkspace>({ kind: 'captures' });
+  let activityAnchor = $state<number | null>(null);
+  const summary = $derived.by(() => {
+    const current = workspace;
+    return current.kind === 'summary'
+      ? snapshots.find(
+          (snapshot) => snapshot.id === current.snapshot && snapshot.tier === 'summary',
+        )
+      : undefined;
+  });
   const focusedComparison = $derived(workspace.kind === 'comparison');
   const playback = $derived(workspace.kind === 'playback');
   const comparisonContext = $derived(workspace.kind === 'comparison' ? workspace : null);
@@ -101,18 +118,43 @@
     unobserved: 'Not observed',
     newly_observed: 'Newly observed',
   };
-  let pair = $derived(snapshots.filter((s) => s.id === before || s.id === after));
-  let previous = $derived(snapshots.find((s) => s.id === (before || after)));
-  let compatible = $derived(snapshots.filter((s) => s.root_key === previous?.root_key));
-  let trend = $derived([...compatible].reverse());
+  const detailed = $derived(snapshots.filter((snapshot) => snapshot.tier === 'detailed'));
+  const pair = $derived(
+    detailed.filter((snapshot) => snapshot.id === before || snapshot.id === after),
+  );
+  const previous = $derived(detailed.find((snapshot) => snapshot.id === (before || after)));
+  const compareGroup = $derived(
+    detailed.filter((snapshot) => snapshot.root_key === previous?.root_key),
+  );
+  const activityBasis = $derived(
+    snapshots.find((snapshot) => snapshot.id === activityAnchor) ?? snapshots[0],
+  );
+  const compatible = $derived(
+    snapshots.filter((snapshot) => snapshot.root_key === activityBasis?.root_key),
+  );
+  const detailedActivity = $derived(compatible.filter((snapshot) => snapshot.tier === 'detailed'));
+  const preferredDetailedActivity = $derived(
+    detailedActivity.find((snapshot) => snapshot.id === after)?.id ?? detailedActivity[0]?.id ?? 0,
+  );
+  const trend = $derived.by(() => {
+    const dates = new Set<number>();
+    return compatible.flatMap((snapshot) => {
+      const measured = snapshot.observation?.completed_at;
+      if (measured === undefined || dates.has(measured)) return [];
+      dates.add(measured);
+      return [{ ...snapshot, captured: measured }];
+    });
+  });
   let chartWidth = $state(600);
   let chart = $derived(historyTrend(trend, chartWidth));
   function selectCapture(snapshot: Snapshot, selected: boolean): void {
+    if (snapshot.tier !== 'detailed') return;
     const next = updateSnapshotPair(pair, snapshot, selected);
     if (!next) return;
     resetComparison();
     before = next[0]?.id ?? 0;
     after = next[1]?.id ?? 0;
+    activityAnchor = snapshot.id;
   }
   async function refresh(next = offset): Promise<void> {
     const token = ++request;
@@ -132,11 +174,15 @@
       comparison = null;
       comparisonRequest += 1;
       workspace = { kind: 'captures' };
+      activityAnchor = null;
       comparisonLoading = false;
       comparisonProblem = '';
-      const latest = items[0];
+      const latest = items.find((snapshot) => snapshot.tier === 'detailed');
       const older =
-        latest && items.find((s) => s.root_key === latest.root_key && s.id !== latest.id);
+        latest &&
+        items.find(
+          (s) => s.tier === 'detailed' && s.root_key === latest.root_key && s.id !== latest.id,
+        );
       before = older?.id ?? latest?.id ?? 0;
       after = latest?.id ?? 0;
     } catch (problem) {
@@ -183,15 +229,22 @@
         trigger.focus();
     }
   }
-  async function save(): Promise<void> {
+  async function save(tier: CaptureTier): Promise<void> {
     await mutate(async () => {
       historyNotice = '';
-      const saved = await invokeIndexed<{ id: number; activity_link_failed: boolean } | null>('save_snapshot', {
-        operation: operationChannel(),
-      });
+      const saved = await invokeIndexed<{ id: number; activity_link_failed: boolean } | null>(
+        'save_snapshot',
+        {
+          tier,
+          operation: operationChannel(),
+        },
+      );
       finishOperation();
       if (saved !== null && alive) {
-        if (saved.activity_link_failed) historyNotice = 'Snapshot saved. Scan activity could not be updated.';
+        const receipt = tier === 'summary' ? 'Summary saved.' : 'Detailed snapshot saved.';
+        historyNotice = saved.activity_link_failed
+          ? `${receipt} Scan activity could not be updated.`
+          : receipt;
         await refresh(0);
       }
     }, true);
@@ -231,6 +284,7 @@
     }, true);
   }
   async function open(snapshot: Snapshot): Promise<void> {
+    if (snapshot.tier !== 'detailed') return;
     await mutate(async () => {
       const indexId = await invoke<number | null>('load_snapshot', {
         id: snapshot.id,
@@ -265,6 +319,14 @@
     const selected = explicit ??
       comparisonContext ?? { before, after, scope: null, returnTo: null };
     if (!selected.before || !selected.after || selected.before === selected.after || locked) return;
+    if (
+      snapshots.some(
+        (snapshot) =>
+          snapshot.tier === 'summary' &&
+          (snapshot.id === selected.before || snapshot.id === selected.after),
+      )
+    )
+      return;
     workspace = {
       kind: 'comparison',
       before: selected.before,
@@ -320,17 +382,39 @@
     workspace = { kind: 'captures' };
     await tick();
     if (alive)
-      (region.querySelector<HTMLInputElement>('.snapshot-row input:checked') ?? region).focus();
+      (
+        region.querySelector<HTMLButtonElement>(`[data-summary-capture="${activityAnchor}"]`) ??
+        region.querySelector<HTMLInputElement>('.snapshot-row input:checked') ??
+        region
+      ).focus();
+  }
+  async function viewSummary(snapshot: Snapshot): Promise<void> {
+    if (locked || snapshot.tier !== 'summary') return;
+    resetComparison();
+    activityAnchor = snapshot.id;
+    workspace = { kind: 'summary', snapshot: snapshot.id };
+    await tick();
+    if (alive && summary?.id === snapshot.id)
+      region.querySelector<HTMLElement>('[data-summary-title]')?.focus();
   }
   async function enterActivity(kind: 'playback' | 'calendar' | 'diary' | 'trends'): Promise<void> {
-    if (locked || !compatible.length) return;
+    if (
+      locked ||
+      !activityBasis ||
+      ((kind === 'calendar' || kind === 'playback') && !detailedActivity.length)
+    )
+      return;
     resetComparison();
+    const diaryAnchor =
+      activityBasis.tier === 'summary'
+        ? activityBasis.id
+        : (detailedActivity.find((capture) => capture.id === after)?.id ?? activityBasis.id);
     workspace =
       kind === 'diary'
         ? {
             kind,
             location: {
-              snapshot: compatible.find((capture) => capture.id === after)?.id ?? compatible[0].id,
+              snapshot: diaryAnchor,
               offset: 0,
             },
           }
@@ -383,7 +467,9 @@
     {#if loadState === 'ready' && (snapshots.length > 0 || offset > 0)}
       <div class="section-navigation" role="group" aria-label="History view">
         <button
-          aria-pressed={workspace.kind === 'captures' || focusedComparison}
+          aria-pressed={workspace.kind === 'captures' ||
+            workspace.kind === 'summary' ||
+            focusedComparison}
           onclick={showCaptures}
           disabled={locked}>Snapshots & compare</button
         >
@@ -395,7 +481,7 @@
         <button
           aria-pressed={workspace.kind === 'calendar'}
           onclick={() => enterActivity('calendar')}
-          disabled={locked || !compatible.length}>Calendar</button
+          disabled={locked || !detailedActivity.length}>Calendar</button
         >
         <button
           aria-pressed={workspace.kind === 'diary'}
@@ -405,7 +491,7 @@
         <button
           aria-pressed={playback}
           onclick={() => enterActivity('playback')}
-          disabled={locked || !compatible.length}>Playback</button
+          disabled={locked || !detailedActivity.length}>Playback</button
         >
       </div>
     {/if}
@@ -417,10 +503,17 @@
           >{cancelPending ? 'Cancelling…' : 'Cancel'}</button
         >{/if}
       <button
+        class="quiet-action"
+        title="Save totals for trends and diary"
+        onclick={() => save('summary')}
+        disabled={!enabled || locked || !isTauri()}>Save summary</button
+      >
+      <button
         bind:this={saveButton}
         class="primary"
-        onclick={save}
-        disabled={!enabled || locked || !isTauri()}><Icon name="history" />Save snapshot</button
+        title="Save file and folder records for comparison and playback"
+        onclick={() => save('detailed')}
+        disabled={!enabled || locked || !isTauri()}><Icon name="history" />Save detailed</button
       >
     </div>
   </div>
@@ -467,14 +560,21 @@
       <h2>No snapshots yet</h2>
     </section>
   {:else}
-    <div class="history-layout" class:comparing={workspace.kind !== 'captures'}>
+    <div
+      class="history-layout"
+      class:comparing={workspace.kind !== 'captures' && workspace.kind !== 'summary'}
+    >
       <div class="history-captures">
         {#if chart}
           {@const plotPoints = chart.points.map((point) => `${point.x},${point.y}`).join(' ')}
           <section class="panel history-trend" aria-label="Recorded logical size">
             <div class="panel-heading">
-              <h2>Logical size over time</h2>
-              <span>{bytes(trend[0]?.logical ?? 0)} → {bytes(trend.at(-1)?.logical ?? 0)}</span>
+              <h2>Measured logical size</h2>
+              <span
+                >{bytes(chart.points[0]?.logical ?? 0)} → {bytes(
+                  chart.points.at(-1)?.logical ?? 0,
+                )}</span
+              >
             </div>
             <div class="history-plot" bind:clientWidth={chartWidth}>
               <svg
@@ -516,7 +616,11 @@
                       ? 'var(--chart-violet)'
                       : 'var(--chart-blue)'}
                     stroke-width="2"
-                    ><title>{date(point.captured)} · {bytes(point.logical)}</title></circle
+                    ><title
+                      >{point.tier === 'summary' ? 'Summary' : 'Detailed'} · measured {date(
+                        point.captured,
+                      )} · {bytes(point.logical)}</title
+                    ></circle
                   >
                   {#if point.labelled}
                     <text
@@ -555,7 +659,7 @@
             </div>
             <div class="history-chart-legend">
               <span><i style:background="var(--chart-blue)"></i>Recorded logical size</span>
-              <span><i style:background="var(--chart-violet)"></i>Latest capture</span>
+              <span><i style:background="var(--chart-violet)"></i>Latest measurement</span>
             </div>
           </section>{/if}
         <h2>Snapshots</h2>
@@ -563,35 +667,57 @@
           {#each snapshots as snapshot (snapshot.id)}
             <article
               class="snapshot-row"
-              class:selected={snapshot.id === before || snapshot.id === after}
+              class:selected={snapshot.id === before ||
+                snapshot.id === after ||
+                summary?.id === snapshot.id}
             >
-              <input
-                class="snapshot-select"
-                type="checkbox"
-                aria-label={`Compare snapshot ${date(snapshot.captured)} · ${snapshot.root}`}
-                checked={snapshot.id === before || snapshot.id === after}
-                disabled={locked ||
-                  (!pair.some((s) => s.id === snapshot.id) &&
-                    (pair.length === 2 ||
-                      (pair.length === 1 && pair[0].root_key !== snapshot.root_key)))}
-                onchange={(event) => {
-                  selectCapture(snapshot, event.currentTarget.checked);
-                  event.currentTarget.checked = snapshot.id === before || snapshot.id === after;
-                }}
-              />
+              {#if snapshot.tier === 'detailed'}
+                <input
+                  class="snapshot-select"
+                  type="checkbox"
+                  aria-label={`Compare snapshot ${date(snapshot.captured)} · ${snapshot.root}`}
+                  checked={snapshot.id === before || snapshot.id === after}
+                  disabled={locked ||
+                    (!pair.some((s) => s.id === snapshot.id) &&
+                      (pair.length === 2 ||
+                        (pair.length === 1 && pair[0].root_key !== snapshot.root_key)))}
+                  onchange={(event) => {
+                    selectCapture(snapshot, event.currentTarget.checked);
+                    event.currentTarget.checked = snapshot.id === before || snapshot.id === after;
+                  }}
+                />
+              {/if}
               <div class="snapshot-name">
                 <strong title={date(snapshot.captured)}>{date(snapshot.captured)}</strong><small
                   title={snapshot.root}>{snapshot.root}</small
                 >
               </div>
-              {#if !snapshot.complete}<span class="snapshot-status">Partial</span>{/if}
+              <span class="snapshot-status"
+                >{snapshot.tier === 'summary' ? 'Summary' : 'Detailed'}{!snapshot.complete
+                  ? ' · Partial'
+                  : ''}</span
+              >
               <span class="number">{bytes(snapshot.logical)}</span>
               <span class="snapshot-entries" title="Indexed entries"
                 >{snapshot.entries.toLocaleString()}</span
               >
-              <button class="quiet-action" onclick={() => open(snapshot)} disabled={locked}
-                >Open</button
-              >
+              {#if snapshot.tier === 'detailed'}
+                <button
+                  class="quiet-action"
+                  aria-label={`Open detailed snapshot #${snapshot.id}`}
+                  onclick={() => open(snapshot)}
+                  disabled={locked}>Open</button
+                >
+              {:else}
+                <button
+                  class="quiet-action"
+                  data-summary-capture={snapshot.id}
+                  aria-label={`View summary #${snapshot.id}`}
+                  aria-current={summary?.id === snapshot.id ? 'true' : undefined}
+                  onclick={() => viewSummary(snapshot)}
+                  disabled={locked}>View summary</button
+                >
+              {/if}
               {#if deleting === snapshot.id}
                 <button
                   bind:this={cancelButton}
@@ -629,16 +755,18 @@
       </div>
       <div class="history-comparison">
         <div class="history-compare-heading">
-          <h2>
+          <h2 tabindex="-1" data-summary-title={summary ? '' : undefined}>
             {workspace.kind === 'calendar'
               ? 'Modification calendar'
               : workspace.kind === 'diary'
                 ? 'Observed diary'
                 : workspace.kind === 'trends'
                   ? 'Storage trends'
-                  : playback
-                  ? 'History playback'
-                  : 'Compare snapshots'}
+                  : workspace.kind === 'summary'
+                    ? 'Snapshot summary'
+                    : playback
+                      ? 'History playback'
+                      : 'Compare snapshots'}
           </h2>
           {#if comparisonContext?.returnTo}<button onclick={returnToDiary} disabled={locked}
               >Back to diary</button
@@ -646,12 +774,93 @@
           {#if workspace.kind !== 'captures'}<button onclick={showCaptures}>Back to captures</button
             >{/if}
         </div>
-        {#if workspace.kind === 'trends'}
-          <HistoryTrends captures={snapshots} initialSnapshot={after} disabled={locked} />
+        {#if summary}
+          <section class="capture-summary" aria-label="Saved storage summary">
+            <div class="summary-header">
+              <div>
+                <h3 title={summary.root}>{summary.root}</h3>
+                <span>Summary #{summary.id}</span>
+              </div>
+              <div class="summary-actions">
+                <button
+                  class="quiet-action"
+                  disabled={locked}
+                  onclick={() => enterActivity('trends')}>View trends</button
+                >
+                <button
+                  class="quiet-action"
+                  disabled={locked}
+                  onclick={() => enterActivity('diary')}>View diary</button
+                >
+              </div>
+            </div>
+            <dl class="summary-facts">
+              <div class="summary-size">
+                <dt>Root logical size</dt>
+                <dd>
+                  {#if !summary.complete}<span>At least</span>{' '}{/if}{bytes(summary.logical)}
+                </dd>
+              </div>
+              <div>
+                <dt>Indexed contents</dt>
+                <dd>
+                  {summary.files.toLocaleString()} indexed files · {summary.entries.toLocaleString()}
+                  indexed entries
+                </dd>
+              </div>
+              <div>
+                <dt>Measured</dt>
+                <dd>
+                  {summary.observation
+                    ? utcDate(summary.observation.completed_at)
+                    : 'Measurement date unavailable'}
+                </dd>
+              </div>
+              <div>
+                <dt>Saved</dt>
+                <dd>{utcDate(summary.captured)}</dd>
+              </div>
+              <div>
+                <dt>Coverage</dt>
+                <dd>
+                  {summary.complete ? 'Complete' : 'Partial coverage'}{summary.errors > 0
+                    ? ` · ${summary.errors.toLocaleString()} access issues`
+                    : ''}
+                </dd>
+              </div>
+            </dl>
+            <details>
+              <summary>Measurement details</summary>
+              <div class="activity-capture-summary">
+                <span>Indexed depth · {summary.indexed_depth ?? 'Unavailable'}</span>
+                <span>Configured exclusions · {summary.exclusion_count ?? 'Unavailable'}</span>
+                <span
+                  >Indexed allocation · {summary.allocation_complete === true
+                    ? bytes(summary.allocated)
+                    : 'Unavailable'}</span
+                >
+                {#if summary.observation}
+                  <span
+                    >Voldiq {summary.observation.engine_version} · Accounting revision {summary
+                      .observation.accounting_version}</span
+                  >
+                {/if}
+              </div>
+            </details>
+            <p class="activity-help">
+              File records, visual comparisons and playback require a detailed snapshot.
+            </p>
+          </section>
+        {:else if workspace.kind === 'trends'}
+          <HistoryTrends
+            captures={snapshots}
+            initialSnapshot={activityBasis?.id ?? 0}
+            disabled={locked}
+          />
         {:else if workspace.kind === 'calendar'}
-          {#key compatible.map((capture) => capture.id).join(':')}<HistoryCalendar
-              captures={compatible}
-              initialSnapshot={after}
+          {#key detailedActivity.map((capture) => capture.id).join(':')}<HistoryCalendar
+              captures={detailedActivity}
+              initialSnapshot={preferredDetailedActivity}
               disabled={locked}
               onopen={open}
             />{/key}
@@ -664,9 +873,9 @@
               oncompare={inspectDiary}
             />{/key}
         {:else if playback}
-          {#key compatible.map((snapshot) => snapshot.id).join(':')}
+          {#key detailedActivity.map((snapshot) => snapshot.id).join(':')}
             <HistoryPlayback
-              captures={compatible}
+              captures={detailedActivity}
               disabled={locked}
               onopen={open}
               onbusy={(value) => {
@@ -683,21 +892,25 @@
                 onclick={() => compare(0)}
                 disabled={locked || comparisonLoading}>Reload comparison</button
               >
-            </p>{:else}
+            </p>{:else if !detailed.length}
+            <p class="activity-help">Compare, calendar and playback require detailed snapshots.</p>
+          {:else}
             <div class="history-compare">
               <label
                 >Before<select
-                  bind:value={before}
-                  onchange={() => {
+                  value={before}
+                  onchange={(event) => {
+                    before = Number(event.currentTarget.value);
+                    activityAnchor = before || null;
                     resetComparison();
                     after =
-                      snapshots.find((s) => s.root_key === previous?.root_key && s.id !== before)
+                      detailed.find((s) => s.root_key === previous?.root_key && s.id !== before)
                         ?.id ?? before;
                   }}
                   disabled={locked}
                 >
                   <option value={0}>Select snapshot</option>
-                  {#each snapshots as s}<option value={s.id}
+                  {#each detailed as s}<option value={s.id}
                       >{s.root} · {date(s.captured)} · {bytes(s.logical)}</option
                     >{/each}
                 </select></label
@@ -705,7 +918,7 @@
               <label
                 >After<select bind:value={after} onchange={resetComparison} disabled={locked}>
                   <option value={0}>Select snapshot</option>
-                  {#each compatible as s}<option value={s.id}
+                  {#each compareGroup as s}<option value={s.id}
                       >{date(s.captured)} · {bytes(s.logical)}</option
                     >{/each}
                 </select></label
@@ -807,3 +1020,71 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .capture-summary {
+    border-block: 1px solid var(--border);
+    padding: 18px 0 12px;
+  }
+  .summary-header,
+  .summary-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 16px;
+  }
+  .summary-header {
+    justify-content: space-between;
+  }
+  .summary-header > div {
+    min-width: 0;
+  }
+  .summary-header h3 {
+    margin: 0 0 3px;
+    font-size: 16px;
+    overflow-wrap: anywhere;
+  }
+  .summary-header span,
+  .summary-facts dt {
+    color: var(--secondary);
+    font-size: 12px;
+  }
+  .summary-actions {
+    gap: 4px;
+  }
+  .summary-facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(188px, 100%), 1fr));
+    gap: 15px 22px;
+    margin: 22px 0 16px;
+    font-variant-numeric: tabular-nums;
+  }
+  .summary-facts dd {
+    margin: 3px 0 0;
+    font-size: 14px;
+    overflow-wrap: anywhere;
+  }
+  .summary-size {
+    grid-column: 1 / -1;
+  }
+  .summary-size dd {
+    color: var(--chart-violet);
+    font-size: clamp(28px, 3vw, 42px);
+    font-weight: 650;
+    line-height: 1.15;
+  }
+  .summary-size dd span {
+    color: var(--secondary);
+    font-size: 14px;
+    font-weight: 500;
+  }
+  .capture-summary details {
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+    font-size: 13px;
+  }
+  .capture-summary details summary {
+    cursor: pointer;
+    width: fit-content;
+  }
+</style>

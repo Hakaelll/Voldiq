@@ -404,6 +404,10 @@ impl AgentService {
             let store = Store::open(&self.directory.directory().join("snapshots.db"))?;
             let scope = store.scope(snapshot).map_err(|_| denied())?;
             let _guard = registry.authorize_snapshot(&self.principal, &scope)?;
+            store
+                .tier(snapshot)
+                .map_err(|_| denied())?
+                .require_detail()?;
             let mut index = store
                 .load_evidence(snapshot, cancel)
                 .map_err(|_| denied())?;

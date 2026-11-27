@@ -28,7 +28,7 @@ use crate::{
     index::{Index, Observation},
 };
 use rusqlite::{Connection, OptionalExtension, params};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, HashSet},
     ffi::{OsStr, OsString},
@@ -48,15 +48,54 @@ pub struct Scope {
     pub exclusions: Vec<PathBuf>,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SnapshotTier {
+    Detailed,
+    Summary,
+}
+
+impl SnapshotTier {
+    fn as_str(self) -> &'static str {
+        match self {
+            Self::Detailed => "detailed",
+            Self::Summary => "summary",
+        }
+    }
+
+    fn read(row: &rusqlite::Row<'_>, column: usize) -> rusqlite::Result<Self> {
+        match row.get::<_, String>(column)?.as_str() {
+            "detailed" => Ok(Self::Detailed),
+            "summary" => Ok(Self::Summary),
+            _ => Err(rusqlite::Error::FromSqlConversionFailure(
+                column,
+                rusqlite::types::Type::Text,
+                Box::new(Error::Invalid("Invalid snapshot tier.".into())),
+            )),
+        }
+    }
+
+    pub(crate) fn require_detail(self) -> Result<()> {
+        match self {
+            Self::Detailed => Ok(()),
+            Self::Summary => Err(Error::SnapshotDetailsUnavailable),
+        }
+    }
+}
+
 #[derive(Debug, Serialize)]
 pub struct Snapshot {
     pub observation: Option<Observation>,
     pub id: i64,
+    pub tier: SnapshotTier,
     pub root_key: i64,
     pub root: String,
     pub captured: u64,
     pub logical: u64,
     pub allocated: u64,
+    pub allocation_complete: Option<bool>,
+    pub indexed_depth: Option<u32>,
+    pub exclusion_count: Option<u64>,
     pub files: u64,
     pub entries: u64,
     pub complete: bool,
@@ -223,6 +262,49 @@ const NATIVE_STATE_SCHEMA: &str = "
 ALTER TABLE snapshot_versions ADD COLUMN native_state BLOB CHECK(native_state IS NULL OR length(native_state)=24);
 PRAGMA user_version=3;";
 
+const TIER_SCHEMA: &str = "
+ALTER TABLE snapshots ADD COLUMN tier TEXT NOT NULL DEFAULT 'detailed'
+    CHECK(tier IN ('detailed', 'summary'));
+ALTER TABLE snapshots ADD COLUMN indexed_depth INTEGER CHECK(indexed_depth >= 0);
+ALTER TABLE snapshots ADD COLUMN allocation_complete INTEGER CHECK(allocation_complete IN (0, 1));
+ALTER TABLE snapshots ADD COLUMN exclusion_count INTEGER CHECK(exclusion_count >= 0);
+PRAGMA user_version=15;";
+const SCHEMA_VERSION: u32 = 15;
+
+enum CaptureRequest<'a> {
+    Detailed {
+        caches: &'a [crate::developer::CacheLocation],
+        libraries: Option<&'a crate::libraries::Capture>,
+        scheduled: Option<&'a schedule::Claim>,
+    },
+    Summary,
+}
+
+fn indexed_depth(index: &Index, cancel: &AtomicBool) -> Result<u32> {
+    let invalid = || Error::Invalid("Invalid indexed ancestry for snapshot.".into());
+    let mut depths: Vec<u32> = Vec::with_capacity(index.entries.len());
+    let mut maximum = 0;
+    for (position, entry) in index.entries.iter().enumerate() {
+        if position % 1024 == 0 && cancel.load(Ordering::Relaxed) {
+            return Err(Error::Invalid("Snapshot capture cancelled.".into()));
+        }
+        if entry.id.0 as usize != position {
+            return Err(invalid());
+        }
+        let depth = match entry.parent {
+            Some(parent) => depths
+                .get(parent.0 as usize)
+                .and_then(|depth| depth.checked_add(1))
+                .ok_or_else(invalid)?,
+            None if position == 0 => 0,
+            None => return Err(invalid()),
+        };
+        maximum = maximum.max(depth);
+        depths.push(depth);
+    }
+    Ok(maximum)
+}
+
 const OBSERVATION_SCHEMA: &str = "
 ALTER TABLE snapshots ADD COLUMN observed_at INTEGER;
 ALTER TABLE snapshots ADD COLUMN observed_complete INTEGER;
@@ -259,12 +341,12 @@ impl Store {
         let mut connection = Connection::open(path)?;
         crate::database::configure(&connection)?;
         let version: u32 = connection.query_row("PRAGMA user_version", [], |r| r.get(0))?;
-        if version < 14 {
+        if version < SCHEMA_VERSION {
             let transaction =
                 connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
             let version: u32 =
                 transaction.query_row("PRAGMA user_version", [], |row| row.get(0))?;
-            if version > 14 {
+            if version > SCHEMA_VERSION {
                 return Err(Error::Invalid(
                     "Unsupported snapshot database version.".into(),
                 ));
@@ -311,8 +393,11 @@ impl Store {
             if version <= 13 {
                 transaction.execute_batch(volume_history::SCHEMA)?;
             }
+            if version <= 14 {
+                transaction.execute_batch(TIER_SCHEMA)?;
+            }
             transaction.commit()?;
-        } else if version != 14 {
+        } else if version != SCHEMA_VERSION {
             return Err(Error::Invalid(
                 "Unsupported snapshot database version.".into(),
             ));
@@ -351,7 +436,21 @@ impl Store {
         caches: &[crate::developer::CacheLocation],
         libraries: Option<&crate::libraries::Capture>,
     ) -> Result<i64> {
-        self.save_capture(index, cancel, caches, libraries, None)
+        self.save_capture(
+            index,
+            cancel,
+            CaptureRequest::Detailed {
+                caches,
+                libraries,
+                scheduled: None,
+            },
+        )
+        .map(|(snapshot, _)| snapshot)
+    }
+
+    /// Retain root measurements and provenance without an indexed path tree.
+    pub fn save_summary(&mut self, index: &Index, cancel: &AtomicBool) -> Result<i64> {
+        self.save_capture(index, cancel, CaptureRequest::Summary)
             .map(|(snapshot, _)| snapshot)
     }
 
@@ -359,23 +458,49 @@ impl Store {
         &mut self,
         index: &Index,
         cancel: &AtomicBool,
-        caches: &[crate::developer::CacheLocation],
-        libraries: Option<&crate::libraries::Capture>,
-        scheduled: Option<&schedule::Claim>,
+        request: CaptureRequest<'_>,
     ) -> Result<(i64, (bool, bool))> {
         if index.snapshot_id.is_some() {
             return Err(Error::Invalid(
                 "Rescan before saving a new snapshot.".into(),
             ));
         }
-        let cache_evidence = crate::developer::capture_caches(index, caches, cancel)?;
+        if cancel.load(Ordering::Relaxed) {
+            return Err(Error::Invalid("Snapshot capture cancelled.".into()));
+        }
+        if matches!(request, CaptureRequest::Detailed { .. })
+            && index.entries.len() > crate::scanner::DEFAULT_ENTRY_LIMIT
+        {
+            return Err(Error::Invalid(
+                "Detailed snapshots support up to 5,000,000 entries. Choose Save summary for this analysis.".into(),
+            ));
+        }
         let root = index.entry(NodeId(0))?;
+        let depth = indexed_depth(index, cancel)?;
+        let detailed = match request {
+            CaptureRequest::Detailed {
+                caches,
+                libraries,
+                scheduled,
+            } => Some((
+                crate::developer::capture_caches(index, caches, cancel)?,
+                libraries,
+                scheduled,
+            )),
+            CaptureRequest::Summary => None,
+        };
+        let tier = if detailed.is_some() {
+            SnapshotTier::Detailed
+        } else {
+            SnapshotTier::Summary
+        };
         let identity = index
             .root_identity
             .ok_or_else(|| Error::Invalid("The scan has no verified volume identity.".into()))?;
         #[cfg(windows)]
         let volume = crate::space::measure_index_volume(&index.root, identity);
-        if let Some(checkpoint) = index.ntfs_checkpoint
+        if tier == SnapshotTier::Detailed
+            && let Some(checkpoint) = index.ntfs_checkpoint
             && (checkpoint.volume != identity.0
                 || checkpoint.next < 0
                 || root.incomplete
@@ -394,7 +519,6 @@ impl Store {
         if observation.is_some_and(|o| !valid_observation(o)) {
             return Err(Error::Invalid("Invalid measurement provenance.".into()));
         }
-        self.connection.execute_batch("CREATE TEMP TABLE IF NOT EXISTS captured_paths(id INTEGER PRIMARY KEY); DELETE FROM captured_paths;")?;
         let transaction = self.connection.transaction()?;
         transaction.execute(
             "INSERT INTO snapshot_roots(path,identity,coverage) VALUES(?1,?2,?3) ON CONFLICT DO NOTHING",
@@ -405,15 +529,24 @@ impl Store {
             params![encode(index.root.as_os_str()), identity, coverage],
             |r| r.get(0),
         )?;
-        transaction.execute("INSERT INTO snapshots(root_id,captured,logical,allocated,files,entries,complete,errors,observed_at,observed_complete,engine_version,accounting_version)
-            VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12)", params![root_id, integer(captured)?, integer(root.logical)?, integer(root.allocated)?,
+        transaction.execute("INSERT INTO snapshots(root_id,captured,logical,allocated,files,entries,complete,errors,observed_at,observed_complete,engine_version,accounting_version,tier,indexed_depth,allocation_complete,exclusion_count)
+            VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14,?15,?16)", params![root_id, integer(captured)?, integer(root.logical)?, integer(root.allocated)?,
                 integer(root.files)?, position_integer(index.entries.len())?, !root.incomplete && index.error_count == 0, integer(index.error_count)?,
-                observation.map(|o| integer(o.completed_at)).transpose()?, observation.map(|o| o.complete), observation.map(|o| &o.engine_version), observation.map(|o| i64::from(o.accounting_version))])?;
+                observation.map(|o| integer(o.completed_at)).transpose()?, observation.map(|o| o.complete), observation.map(|o| &o.engine_version), observation.map(|o| i64::from(o.accounting_version)), tier.as_str(),
+                depth, root.allocation_known, position_integer(index.exclusions.len())?])?;
         let snapshot_id = transaction.last_insert_rowid();
         #[cfg(windows)]
         if let Some(volume) = volume {
             volume_history::record(&transaction, snapshot_id, &volume)?;
         }
+        let Some((cache_evidence, libraries, scheduled)) = detailed else {
+            if cancel.load(Ordering::Relaxed) {
+                return Err(Error::Invalid("Snapshot capture cancelled.".into()));
+            }
+            transaction.commit()?;
+            return Ok((snapshot_id, (false, false)));
+        };
+        transaction.execute_batch("CREATE TEMP TABLE IF NOT EXISTS captured_paths(id INTEGER PRIMARY KEY); DELETE FROM captured_paths;")?;
         let mut paths = Vec::<i64>::with_capacity(index.entries.len());
         {
             let mut lookup_path = transaction.prepare(
@@ -534,7 +667,7 @@ impl Store {
     pub fn checkpoint(&self, id: i64) -> Result<Option<crate::ntfs::Checkpoint>> {
         let row = self.connection.query_row(
             "SELECT j.volume,j.journal,j.next_usn,r.identity,s.complete,s.errors FROM snapshot_journals j
-             JOIN snapshots s ON s.id=j.snapshot_id JOIN snapshot_roots r ON r.id=s.root_id WHERE j.snapshot_id=?1",
+             JOIN snapshots s ON s.id=j.snapshot_id JOIN snapshot_roots r ON r.id=s.root_id WHERE j.snapshot_id=?1 AND s.tier='detailed'",
             [id], |row| Ok((row.get::<_, Vec<u8>>(0)?, row.get::<_, Vec<u8>>(1)?, row.get::<_, i64>(2)?,
                 row.get::<_, Vec<u8>>(3)?, row.get::<_, bool>(4)?, row.get::<_, i64>(5)?)),
         ).optional()?;
@@ -592,6 +725,14 @@ impl Store {
             .transpose()
     }
 
+    pub fn tier(&self, id: i64) -> Result<SnapshotTier> {
+        Ok(self
+            .connection
+            .query_row("SELECT tier FROM snapshots WHERE id=?1", [id], |row| {
+                SnapshotTier::read(row, 0)
+            })?)
+    }
+
     pub fn contains(&self, id: i64) -> Result<bool> {
         Ok(self.connection.query_row(
             "SELECT EXISTS(SELECT 1 FROM snapshots WHERE id=?1)",
@@ -620,9 +761,10 @@ impl Store {
             return Err(Error::Invalid("Snapshot loading cancelled.".into()));
         }
         let _read_transaction = self.connection.unchecked_transaction()?;
-        let (root_id, path, identity, coverage, errors, observation) = self.connection.query_row(
-            "SELECT s.root_id,r.path,r.identity,r.coverage,s.errors,s.observed_at,s.observed_complete,s.engine_version,s.accounting_version FROM snapshots s JOIN snapshot_roots r ON r.id=s.root_id WHERE s.id=?1",
-            [id], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Vec<u8>>(1)?, r.get::<_, Vec<u8>>(2)?, r.get::<_, Vec<u8>>(3)?, unsigned(r, 4)?, read_observation(r, 5)?)))?;
+        let (root_id, path, identity, coverage, errors, observation, tier) = self.connection.query_row(
+            "SELECT s.root_id,r.path,r.identity,r.coverage,s.errors,s.observed_at,s.observed_complete,s.engine_version,s.accounting_version,s.tier FROM snapshots s JOIN snapshot_roots r ON r.id=s.root_id WHERE s.id=?1",
+            [id], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, Vec<u8>>(1)?, r.get::<_, Vec<u8>>(2)?, r.get::<_, Vec<u8>>(3)?, unsigned(r, 4)?, read_observation(r, 5)?, SnapshotTier::read(r, 9)?)))?;
+        tier.require_detail()?;
         if identity.len() != 16 {
             return Err(Error::Invalid("Invalid snapshot volume identity.".into()));
         }
@@ -780,20 +922,22 @@ impl Store {
         limit: usize,
         cancel: &AtomicBool,
     ) -> Result<Option<Comparison>> {
-        let summary = |id| -> Result<(i64, u64, bool, Option<Observation>)> {
+        let summary = |id| -> Result<(i64, u64, bool, Option<Observation>, SnapshotTier)> {
             Ok(self.connection.query_row(
-                "SELECT root_id,logical,complete,observed_at,observed_complete,engine_version,accounting_version FROM snapshots WHERE id=?1",
+                "SELECT root_id,logical,complete,observed_at,observed_complete,engine_version,accounting_version,tier FROM snapshots WHERE id=?1",
                 [id],
-                |r| Ok((r.get(0)?, unsigned(r, 1)?, r.get(2)?, read_observation(r, 3)?)),
+                |r| Ok((r.get(0)?, unsigned(r, 1)?, r.get(2)?, read_observation(r, 3)?, SnapshotTier::read(r, 7)?)),
             )?)
         };
-        let (root, old_size, old_complete, old_observation) = summary(before)?;
-        let (new_root, new_size, new_complete, new_observation) = summary(after)?;
+        let (root, old_size, old_complete, old_observation, old_tier) = summary(before)?;
+        let (new_root, new_size, new_complete, new_observation, new_tier) = summary(after)?;
         if root != new_root {
             return Err(Error::Invalid(
                 "Compare snapshots from the same root, volume and exclusions.".into(),
             ));
         }
+        old_tier.require_detail()?;
+        new_tier.require_detail()?;
         let accounting = visual::accounting(old_observation.as_ref(), new_observation.as_ref())?;
         let old_complete = old_complete && old_observation.as_ref().is_none_or(|o| o.complete);
         let new_complete = new_complete && new_observation.as_ref().is_none_or(|o| o.complete);
@@ -1040,7 +1184,7 @@ fn read_observation(
     ))
 }
 
-const SNAPSHOT_SUMMARY: &str = "SELECT s.id,r.path,s.captured,s.logical,s.allocated,s.files,s.entries,s.complete,s.errors,s.root_id,s.observed_at,s.observed_complete,s.engine_version,s.accounting_version
+const SNAPSHOT_SUMMARY: &str = "SELECT s.id,r.path,s.captured,s.logical,s.allocated,s.files,s.entries,s.complete,s.errors,s.root_id,s.observed_at,s.observed_complete,s.engine_version,s.accounting_version,s.tier,s.indexed_depth,s.allocation_complete,s.exclusion_count
     FROM snapshots s JOIN snapshot_roots r ON r.id=s.root_id";
 
 fn read_summary(row: &rusqlite::Row<'_>) -> rusqlite::Result<(Snapshot, Vec<u8>)> {
@@ -1048,11 +1192,15 @@ fn read_summary(row: &rusqlite::Row<'_>) -> rusqlite::Result<(Snapshot, Vec<u8>)
         Snapshot {
             observation: read_observation(row, 10)?,
             id: row.get(0)?,
+            tier: SnapshotTier::read(row, 14)?,
             root_key: row.get(9)?,
             root: String::new(),
             captured: unsigned(row, 2)?,
             logical: unsigned(row, 3)?,
             allocated: unsigned(row, 4)?,
+            indexed_depth: row.get(15)?,
+            allocation_complete: row.get(16)?,
+            exclusion_count: optional_unsigned(row, 17)?,
             files: unsigned(row, 5)?,
             entries: unsigned(row, 6)?,
             complete: row.get(7)?,

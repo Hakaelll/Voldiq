@@ -254,6 +254,9 @@ fn unavailable<E>(_: E) -> Value {
 fn query_unavailable(error: voldiq_core::Error) -> Value {
     match error {
         voldiq_core::Error::Query(error) => super::failure("invalid_query", &error.to_string()),
+        error @ voldiq_core::Error::SnapshotDetailsUnavailable => {
+            super::failure("snapshot_details_unavailable", &error.to_string())
+        }
         error @ voldiq_core::Error::DuplicateVerificationLimit => {
             super::failure("verification_limit", &error.to_string())
         }
@@ -368,7 +371,7 @@ fn invoke(
             let args: ComparisonArgs = parse(args)?;
             let result = service
                 .compare_snapshots(args.before, args.after, args.offset, args.limit, cancel)
-                .map_err(unavailable)?
+                .map_err(query_unavailable)?
                 .ok_or_else(|| {
                     super::failure(
                         "comparison_cancelled",

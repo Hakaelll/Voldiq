@@ -362,6 +362,25 @@ fn cli_queues_exact_plans_but_never_accepts_agent_approval() {
     )
     .unwrap();
     assert_eq!(reversed["result"]["delta"], -5);
+    let summary_snapshot = voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db"))
+        .unwrap()
+        .save_summary(&index, &std::sync::atomic::AtomicBool::new(false))
+        .unwrap();
+    let summary_history: Value =
+        serde_json::from_slice(&run(&["history", "0", "1"]).stdout).unwrap();
+    assert_eq!(
+        summary_history["result"]["items"][0]["id"],
+        summary_snapshot
+    );
+    assert_eq!(summary_history["result"]["items"][0]["tier"], "summary");
+    let unavailable = run(&[
+        "compare",
+        &snapshot.to_string(),
+        &summary_snapshot.to_string(),
+    ]);
+    assert_eq!(unavailable.status.code(), Some(4));
+    let unavailable: Value = serde_json::from_slice(&unavailable.stdout).unwrap();
+    assert_eq!(unavailable["error"]["code"], "snapshot_details_unavailable");
     assert_eq!(
         run(&[
             "compare",

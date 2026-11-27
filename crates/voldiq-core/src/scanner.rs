@@ -20,6 +20,7 @@ use std::{
 };
 
 pub type SharedIndex = Arc<RwLock<Index>>;
+pub(crate) const DEFAULT_ENTRY_LIMIT: usize = 5_000_000;
 
 pub fn refresh_or_scan(
     root: &Path,
@@ -67,7 +68,7 @@ pub fn refresh_or_scan(
             });
             let limit = options
                 .max_entries
-                .unwrap_or(5_000_000)
+                .unwrap_or(DEFAULT_ENTRY_LIMIT)
                 .clamp(1, u32::MAX as usize);
             if let Ok(mut updated) = crate::ntfs::refresh(&index, limit, cancel, options.profile) {
                 updated.record_observation(cancel.load(Ordering::Relaxed));
@@ -202,7 +203,7 @@ pub fn scan_live(
     let start = Instant::now();
     let limit = options
         .max_entries
-        .unwrap_or(5_000_000)
+        .unwrap_or(DEFAULT_ENTRY_LIMIT)
         .clamp(1, u32::MAX as usize);
     #[cfg(windows)]
     if options.mode == crate::ScanMode::Auto

@@ -472,7 +472,15 @@ impl super::Store {
                         policy::prepare(cleanup, &measurement.index, run.profile, cancel)
                     });
                 }
-                match self.save_capture(&measurement.index, cancel, &[], None, Some(&run.claim)) {
+                match self.save_capture(
+                    &measurement.index,
+                    cancel,
+                    super::CaptureRequest::Detailed {
+                        caches: &[],
+                        libraries: None,
+                        scheduled: Some(&run.claim),
+                    },
+                ) {
                     Ok((snapshot, (growth_alert, cleanup_review))) => {
                         return Ok(Some(SavedScan {
                             snapshot,

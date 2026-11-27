@@ -6,6 +6,8 @@ use voldiq_core::{
     snapshots::Store,
 };
 
+#[path = "snapshots/capture_tier_fixture.rs"]
+mod capture_tier_fixture;
 #[path = "snapshots/git_fixture.rs"]
 mod git_fixture;
 #[cfg(windows)]
@@ -24,6 +26,7 @@ fn capture(path: &Path) -> Index {
 
 #[test]
 fn history_survives_restart_and_compares_actual_directory_changes() {
+    capture_tier_fixture::verify();
     git_fixture::compare_indexed_git_storage();
     let fixture = tempfile::tempdir().unwrap();
     let database = tempfile::tempdir().unwrap();
@@ -2518,7 +2521,11 @@ fn history_survives_restart_and_compares_actual_directory_changes() {
         .execute_batch("DROP TABLE snapshot_volume_samples; DROP TABLE scheduled_runs; DROP TABLE scan_schedules;")
         .unwrap();
     connection
-        .execute_batch("DROP TABLE snapshot_library_nodes; DROP TABLE snapshot_libraries; DROP TABLE snapshot_application_roots; DROP TABLE snapshot_applications; DROP TABLE snapshot_retention; DROP TRIGGER history_snapshot_insert; DROP TRIGGER history_snapshot_update; DROP TRIGGER history_snapshot_delete; DROP TABLE snapshot_history_revision; DROP INDEX snapshots_observed; ALTER TABLE snapshots DROP COLUMN observed_at; ALTER TABLE snapshots DROP COLUMN observed_complete; ALTER TABLE snapshots DROP COLUMN engine_version; ALTER TABLE snapshots DROP COLUMN accounting_version; ALTER TABLE snapshot_versions DROP COLUMN cloud; DROP TABLE duplicate_hashes; PRAGMA user_version=4;")
+        .execute_batch("DROP TABLE snapshot_library_nodes; DROP TABLE snapshot_libraries; DROP TABLE snapshot_application_roots; DROP TABLE snapshot_applications; DROP TABLE snapshot_retention; DROP TRIGGER history_snapshot_insert; DROP TRIGGER history_snapshot_update; DROP TRIGGER history_snapshot_delete; DROP TABLE snapshot_history_revision; DROP INDEX snapshots_observed; ALTER TABLE snapshots DROP COLUMN observed_at; ALTER TABLE snapshots DROP COLUMN observed_complete; ALTER TABLE snapshots DROP COLUMN engine_version; ALTER TABLE snapshots DROP COLUMN accounting_version; ALTER TABLE snapshot_versions DROP COLUMN cloud; DROP TABLE duplicate_hashes; ALTER TABLE snapshots DROP COLUMN tier;
+            ALTER TABLE snapshots DROP COLUMN indexed_depth;
+            ALTER TABLE snapshots DROP COLUMN allocation_complete;
+            ALTER TABLE snapshots DROP COLUMN exclusion_count;
+            PRAGMA user_version=4;")
         .unwrap();
     drop(connection);
     let mut store = Store::open(&db).unwrap();

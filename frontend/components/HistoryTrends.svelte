@@ -80,8 +80,15 @@
   const projected = $derived(chart?.points.find((point) => point.snapshot === 0));
   const currentMarker = $derived(measured.find((point) => point.snapshot === active?.snapshot));
   const deltaScale = $derived(Math.max(1, ...zoomed.map((point) => Math.abs(Number(point.delta)))));
+  const previousTier = $derived(
+    points.find((point) => point.snapshot === active?.previous)?.tier ??
+      captures.find((capture) => capture.id === active?.previous)?.tier,
+  );
   const route = $derived(
-    active?.previous && active.delta !== null
+    active?.previous &&
+      active.delta !== null &&
+      active.tier === 'detailed' &&
+      previousTier === 'detailed'
       ? { before: active.previous, after: active.snapshot }
       : null,
   );
@@ -385,7 +392,9 @@
       <dl class="folder-projection" aria-label="Folder size forecast">
         <div>
           <dt>Dashed line · {short(forecast.at)} UTC</dt>
-          <dd title={`${forecast.logical} logical bytes`}>{formatStorageBytes(forecast.logical)}</dd>
+          <dd title={`${forecast.logical} logical bytes`}>
+            {formatStorageBytes(forecast.logical)}
+          </dd>
         </div>
         <div>
           <dt>Observed-rate range</dt>
@@ -393,7 +402,9 @@
         </div>
         <div>
           <dt>Measurement basis</dt>
-          <dd>{forecast.samples} days · {forecast.confidence === 'higher' ? 'Higher' : 'Moderate'} confidence</dd>
+          <dd>
+            {forecast.samples} days · {forecast.confidence === 'higher' ? 'Higher' : 'Moderate'} confidence
+          </dd>
         </div>
       </dl>
     {:else}
@@ -450,7 +461,10 @@
           >
             {#each [...zoomed].reverse() as point (point.snapshot)}
               <option value={point.snapshot}
-                >{utcDate(point.measured_at)} · {bytes(Number(point.logical))}</option
+                >{utcDate(point.measured_at)} · {bytes(Number(point.logical))} · {point.tier ===
+                'summary'
+                  ? 'Summary'
+                  : 'Detailed'}</option
               >
             {/each}
           </select></label
@@ -501,6 +515,8 @@
           </div>
           <p class="activity-help">Largest changes in folders directly below the scan root.</p>
         {:else}<p role="status">Loading folder changes…</p>{/if}
+      {:else if active.previous && active.delta !== null}
+        <p class="activity-help">Folder changes require two detailed captures.</p>
       {/if}
     </section>
   {/if}

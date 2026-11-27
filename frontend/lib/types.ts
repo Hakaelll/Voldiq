@@ -312,7 +312,12 @@ export interface DuplicateItem {
   modified: number | null;
 }
 
+export type CaptureTier = 'detailed' | 'summary';
 export interface Snapshot {
+  tier: CaptureTier;
+  indexed_depth: number | null;
+  allocation_complete: boolean | null;
+  exclusion_count: number | null;
   observation: AnalysisObservation | null;
   id: number;
   root_key: number;
@@ -436,6 +441,7 @@ export interface SnapshotVisualPair {
 
 export interface ActivityCapture {
   id: number;
+  tier: CaptureTier;
   captured: number;
   logical: string;
   observation: Snapshot['observation'];
@@ -481,6 +487,12 @@ export interface DiaryEvent {
   detail:
     | { kind: 'baseline' }
     | { kind: 'incompatible' }
+    | {
+        kind: 'aggregate';
+        delta: string;
+        coverage_complete: boolean;
+        accounting: SnapshotComparison['accounting'];
+      }
     | { kind: 'compared'; delta: string; comparison: SnapshotComparison };
 }
 export interface DiaryPage {
@@ -502,7 +514,13 @@ export interface SnapshotRetentionPreview {
   revision: string;
   fingerprint: string;
   eligible: number;
-  captures: { id: number; captured: number; logical: string; complete: boolean }[];
+  captures: {
+    id: number;
+    tier: CaptureTier;
+    captured: number;
+    logical: string;
+    complete: boolean;
+  }[];
 }
 export interface SnapshotRetentionResult {
   removed: number;

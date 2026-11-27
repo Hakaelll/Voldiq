@@ -75,6 +75,7 @@ pub struct FolderTrend {
 #[derive(Serialize)]
 pub struct TrendPoint {
     pub snapshot: i64,
+    pub tier: super::SnapshotTier,
     pub measured_at: u64,
     pub logical: String,
     pub complete: bool,
@@ -85,6 +86,7 @@ pub struct TrendPoint {
 
 struct Measurement {
     id: i64,
+    tier: super::SnapshotTier,
     logical: u64,
     complete: bool,
     observation: Observation,
@@ -131,6 +133,7 @@ fn measurement(row: &rusqlite::Row<'_>, start: usize) -> rusqlite::Result<Option
     };
     Ok(Some(Measurement {
         id: row.get(start)?,
+        tier: super::SnapshotTier::read(row, start + 7)?,
         logical: unsigned(row, start + 1)?,
         complete: row.get::<_, bool>(start + 2)? && observation.complete,
         observation,
@@ -205,7 +208,7 @@ impl Store {
             return Ok(Some((root, report)));
         };
         let mut query = tx.prepare(
-            "SELECT s.id,s.logical,s.complete,s.observed_at,s.observed_complete,s.engine_version,s.accounting_version
+            "SELECT s.id,s.logical,s.complete,s.observed_at,s.observed_complete,s.engine_version,s.accounting_version,s.tier
              FROM snapshots s WHERE s.root_id=?1 AND s.observed_at BETWEEN ?2 AND ?3 AND s.id<=?4
              AND s.id=(SELECT x.id FROM snapshots x WHERE x.root_id=s.root_id AND x.observed_at=s.observed_at AND x.id<=?4 ORDER BY x.id DESC LIMIT 1)
              ORDER BY s.observed_at DESC,s.id DESC LIMIT ?5",
@@ -234,6 +237,7 @@ impl Store {
                 .filter(|other| point.comparable(other));
             report.points.push(TrendPoint {
                 snapshot: point.id,
+                tier: point.tier,
                 measured_at: point.observation.completed_at,
                 logical: point.logical.to_string(),
                 complete: point.complete,
@@ -257,7 +261,7 @@ impl Store {
         let tx = self.connection.unchecked_transaction()?;
         let lookup = |id| -> Result<(i64, Measurement)> {
             let (root, point) = tx.query_row(
-                "SELECT root_id,id,logical,complete,observed_at,observed_complete,engine_version,accounting_version FROM snapshots WHERE id=?1",
+                "SELECT root_id,id,logical,complete,observed_at,observed_complete,engine_version,accounting_version,tier FROM snapshots WHERE id=?1",
                 [id],
                 |row| Ok((row.get::<_, i64>(0)?, measurement(row, 1)?)),
             )?;
@@ -268,6 +272,8 @@ impl Store {
         if root != next_root || !new.comparable(&old) {
             return Err(inconsistent());
         }
+        old.tier.require_detail()?;
+        new.tier.require_detail()?;
         let previous: i64 = tx.query_row(
             "SELECT id FROM snapshots WHERE root_id=?1 AND observed_at<?2 ORDER BY observed_at DESC,id DESC LIMIT 1",
             params![root, super::integer(new.observation.completed_at)?],

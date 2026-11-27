@@ -1153,6 +1153,30 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
             "invalid_arguments"
         );
     }
+    let cancel = std::sync::atomic::AtomicBool::new(false);
+    let measured =
+        voldiq_core::scanner::scan(source.path(), &Default::default(), &cancel, |_| {}).unwrap();
+    let summary = voldiq_core::snapshots::Store::open(&state.path().join("snapshots.db"))
+        .unwrap()
+        .save_summary(&measured, &cancel)
+        .unwrap();
+    let history = call(&client, "voldiq_history", json!({}))
+        .await
+        .structured_content
+        .unwrap();
+    assert_eq!(history["result"]["items"][0]["id"], summary);
+    assert_eq!(history["result"]["items"][0]["tier"], "summary");
+    let detail = call(
+        &client,
+        "voldiq_compare",
+        json!({"before":snapshot,"after":summary}),
+    )
+    .await;
+    assert_eq!(
+        detail.structured_content.unwrap()["error"]["code"],
+        "snapshot_details_unavailable",
+    );
+
     registry.revoke(provisioned.id).unwrap();
     for (name, args) in [
         (
@@ -1164,6 +1188,10 @@ async fn official_sdk_client_negotiates_stdio_and_checks_authorization_on_every_
             json!({"snapshot_id":snapshot,"month":"invalid"}),
         ),
         ("voldiq_diary", json!({"snapshot_id":snapshot})),
+        (
+            "voldiq_calendar",
+            json!({"snapshot_id":summary,"month":"2026-01"}),
+        ),
     ] {
         let rejected = call(&client, name, args).await;
         assert_eq!(

@@ -42,6 +42,7 @@ pub enum CaptureAccounting {
 #[derive(Serialize)]
 pub struct ActivityCapture {
     pub id: i64,
+    pub tier: super::SnapshotTier,
     pub captured: u64,
     pub logical: String,
     pub observation: Option<Observation>,
@@ -94,6 +95,11 @@ pub enum DiaryDetail {
         delta: String,
         comparison: Box<Comparison>,
     },
+    Aggregate {
+        delta: String,
+        coverage_complete: bool,
+        accounting: super::Accounting,
+    },
     Incompatible,
 }
 #[derive(Serialize)]
@@ -117,14 +123,14 @@ fn source(connection: &Connection, snapshot: i64) -> Result<(i64, String, Activi
     if snapshot <= 0 {
         return Err(invalid());
     }
-    let (root, path, mut capture) = connection.query_row("SELECT s.root_id,r.path,s.captured,s.logical,s.complete,s.observed_at,s.observed_complete,s.engine_version,s.accounting_version FROM snapshots s JOIN snapshot_roots r ON r.id=s.root_id WHERE s.id=?1", [snapshot], |row| {
+    let (root, path, mut capture) = connection.query_row("SELECT s.root_id,r.path,s.captured,s.logical,s.complete,s.observed_at,s.observed_complete,s.engine_version,s.accounting_version,s.tier FROM snapshots s JOIN snapshot_roots r ON r.id=s.root_id WHERE s.id=?1", [snapshot], |row| {
         let observation = read_observation(row,5)?;
         let accounting = match &observation {
             Some(value) if value.accounting_version == ACCOUNTING_VERSION => CaptureAccounting::Supported,
             Some(_) => CaptureAccounting::Unsupported,
             None => CaptureAccounting::Unknown,
         };
-        Ok((row.get::<_,i64>(0)?, row.get::<_,Vec<u8>>(1)?, ActivityCapture { id:snapshot, captured:unsigned(row,2)?, logical:unsigned(row,3)?.to_string(), complete:row.get(4)?, observation, accounting }))
+        Ok((row.get::<_,i64>(0)?, row.get::<_,Vec<u8>>(1)?, ActivityCapture { id:snapshot, tier:super::SnapshotTier::read(row,9)?, captured:unsigned(row,2)?, logical:unsigned(row,3)?.to_string(), complete:row.get(4)?, observation, accounting }))
     })?;
     if root <= 0 {
         return Err(invalid());
@@ -209,6 +215,7 @@ impl Store {
         let month = Month::parse(month)?;
         let _read = self.history_read()?;
         let (root, path, capture) = source(&self.connection, snapshot)?;
+        capture.tier.require_detail()?;
         if capture.accounting == CaptureAccounting::Unsupported {
             return Err(invalid());
         }
@@ -280,6 +287,7 @@ impl Store {
         let (date, start, end) = Month::parse(month)?.date(day)?;
         let _read = self.history_read()?;
         let (root, _, capture) = source(&self.connection, snapshot)?;
+        capture.tier.require_detail()?;
         if capture.accounting == CaptureAccounting::Unsupported {
             return Err(invalid());
         }
@@ -384,6 +392,21 @@ impl Store {
                         .contains(&CaptureAccounting::Unsupported) =>
                 {
                     DiaryDetail::Incompatible
+                }
+                Some(before)
+                    if [before.tier, after.tier].contains(&super::SnapshotTier::Summary) =>
+                {
+                    let logical = |capture: &ActivityCapture| {
+                        capture.logical.parse::<i128>().map_err(|_| invalid())
+                    };
+                    DiaryDetail::Aggregate {
+                        delta: (logical(&after)? - logical(before)?).to_string(),
+                        coverage_complete: before.complete && after.complete,
+                        accounting: super::visual::accounting(
+                            before.observation.as_ref(),
+                            after.observation.as_ref(),
+                        )?,
+                    }
                 }
                 Some(before) => {
                     let Some(comparison) =

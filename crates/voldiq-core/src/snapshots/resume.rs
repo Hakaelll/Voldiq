@@ -85,7 +85,7 @@ impl Store {
         exclusions.dedup();
         let id: Option<i64> = self.connection.query_row(
             "SELECT s.id FROM snapshots s JOIN snapshot_roots r ON r.id=s.root_id JOIN snapshot_journals j ON j.snapshot_id=s.id
-             WHERE r.path=?1 AND r.identity=?2 AND r.coverage=?3 AND s.complete=1 AND s.errors=0 ORDER BY s.id DESC LIMIT 1",
+             WHERE r.path=?1 AND r.identity=?2 AND r.coverage=?3 AND s.complete=1 AND s.errors=0 AND s.tier='detailed' ORDER BY s.id DESC LIMIT 1",
             params![encode(root.as_os_str()), identity, encode_paths(&exclusions)?], |row| row.get(0),
         ).optional()?;
         let Some(id) = id else {

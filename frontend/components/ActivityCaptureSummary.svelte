@@ -5,7 +5,11 @@
 </script>
 
 <div class="activity-capture-summary">
-  <span>Capture #{capture.id} · saved {utcDate(capture.captured)}</span>
+  <span
+    >{capture.tier === 'summary' ? 'Summary' : 'Detailed'} #{capture.id} · saved {utcDate(
+      capture.captured,
+    )}</span
+  >
   <span
     >{capture.observation
       ? `Measured ${utcDate(capture.observation.completed_at)}`

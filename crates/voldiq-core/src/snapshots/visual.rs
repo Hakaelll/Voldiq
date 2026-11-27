@@ -1,4 +1,4 @@
-use super::{Store, decode, read_observation, unsigned};
+use super::{SnapshotTier, Store, decode, read_observation, unsigned};
 use crate::{
     Error, Kind, Result,
     index::{ACCOUNTING_VERSION, Observation},
@@ -166,9 +166,11 @@ impl Store {
     }
 
     fn visual_source(&self, id: i64) -> Result<Source> {
-        Ok(self.connection.query_row("SELECT root_id,captured,complete,observed_at,observed_complete,engine_version,accounting_version FROM snapshots WHERE id=?1", [id], |r| Ok(Source {
+        let (source, tier) = self.connection.query_row("SELECT root_id,captured,complete,observed_at,observed_complete,engine_version,accounting_version,tier FROM snapshots WHERE id=?1", [id], |r| Ok((Source {
             id, root: r.get(0)?, captured: unsigned(r, 1)?, complete: r.get(2)?, observation: read_observation(r, 3)?,
-        }))?)
+        }, SnapshotTier::read(r, 7)?)))?;
+        tier.require_detail()?;
+        Ok(source)
     }
 
     /// Bounded map summaries and a keyset folder page; never loads or publishes an Index.
