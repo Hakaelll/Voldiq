@@ -186,7 +186,9 @@
   <HistoryMapColors
     {color}
     hasRemainder={frame?.remainder != null}
-    onchange={(value) => (color = value)}
+    onchange={(value) => {
+      if (value !== 'change') color = value;
+    }}
   />
   {#if disabled}<p role="status">Playback paused during the current operation.</p>
   {:else if current?.kind === 'failed'}<p role="alert">

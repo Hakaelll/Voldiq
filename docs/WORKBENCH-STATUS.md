@@ -1,5 +1,11 @@
 # Storage workbench status
 
+## Signed change on historical maps
+
+Compare snapshots can color both maps by recorded change. A tile keeps the logical size recorded in its own capture. The color, legend, tile description and ranked table distinguish growth, reduction, unchanged bytes and unavailable change. No aggregate change is assigned to Other.
+
+The shared core checks the exact path IDs of up to 160 tiles per capture against both recorded versions. It computes differences with integer arithmetic. A path omitted by the visual limit still has a measured difference when both versions are known. Absence contributes zero only when the scope has complete coverage. Unknown accounting and incomplete entries leave the affected changes unavailable. Populated Windows rendering, keyboard navigation and scaling remain manual. [Source verification](../benchmarks/workbench-historical-change-source.json)
+
 ## Cleanup priority bars
 
 Built-in rules, application-cache review and custom rules display the shared score on a fixed 0–100 bar. Evidence coverage appears beside the score. A weighted observation that rounds down to zero displays as less than one percent. A row with no weighted evidence shows a distinct label. The evidence disclosure and file selection remain independent.

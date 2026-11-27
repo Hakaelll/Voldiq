@@ -4,7 +4,7 @@
   import { snapshotVisualQueries } from '../lib/queries';
   import HistoricalMap from './HistoricalMap.svelte';
   import HistoryMapColors from './HistoryMapColors.svelte';
-  import type { HistoricalMapColor } from '../lib/history-geometry';
+  import { formatHistoricalDelta, type ComparisonMapColor } from '../lib/history-geometry';
   import { formatStorageBytes } from '../lib/storage-units';
   import { date, type SnapshotVisualPair, type SnapshotVisualFrame } from '../lib/types';
 
@@ -21,7 +21,7 @@
   let divider = $state(50),
     width = $state(800),
     height = $state(320);
-  let color = $state<HistoricalMapColor>('size');
+  let color = $state<ComparisonMapColor>('size');
   let plot = $state<HTMLDivElement>();
   let region = $state<HTMLElement>();
   let dragging: number | null = null;
@@ -195,6 +195,7 @@
   </div>
   <HistoryMapColors
     {color}
+    compare
     hasRemainder={frames.some((frame) => frame.remainder !== null)}
     onchange={(value) => (color = value)}
   />
@@ -268,11 +269,12 @@
           {maximum}
           {width}
           {height}
-          {color}
+          color={color === 'change' ? 'type' : color}
+          tileDeltas={color === 'change' ? pair.tile_deltas : undefined}
           id={i === 0 ? 'snapshot-map-before' : 'snapshot-map-after'}
           front={i === 0}
           reveal={divider}
-          label={`${i === 0 ? 'Before' : 'After'} recorded logical sizes in ${pair.path}`}
+          label={`${i === 0 ? 'Before' : 'After'} recorded logical sizes${color === 'change' ? ' colored by change' : ''} in ${pair.path}`}
         />
       {/each}
       <div class="snapshot-visual-line" style:left={`${divider}%`} aria-hidden="true"></div>
@@ -332,7 +334,7 @@
         aria-label="Ranked historical map entries"
       >
         <table>
-          <thead><tr><th>Name</th><th>Before</th><th>After</th></tr></thead><tbody
+          <thead><tr><th>Name</th><th>Before</th><th>After</th>{#if color === 'change'}<th>Change</th>{/if}</tr></thead><tbody
             >{#each listed as row}<tr
                 ><td
                   >{#if row.directory}<button onclick={() => navigate(row.path_id)}
@@ -340,7 +342,7 @@
                     >{:else}{row.name}{/if}</td
                 ><td>{row.before === null ? 'Not listed' : formatStorageBytes(row.before)}</td><td
                   >{row.after === null ? 'Not listed' : formatStorageBytes(row.after)}</td
-                ></tr
+                >{#if color === 'change'}<td>{formatHistoricalDelta(pair.tile_deltas[row.path_id])}</td>{/if}</tr
               >{/each}</tbody
           >
         </table>

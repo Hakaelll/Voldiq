@@ -1,8 +1,32 @@
 import { layout, type WeightedNode } from './treemap.ts';
 import { categoryPaint, visualPaint } from './storage-map.ts';
+import { CHART_PAINTS } from './chart-colors.ts';
+import { formatStorageBytes } from './storage-units.ts';
 import type { SnapshotVisualFrame } from './types.ts';
 
 export type HistoricalMapColor = 'size' | 'type';
+export type ComparisonMapColor = HistoricalMapColor | 'change';
+
+export const historicalChanges = {
+  grew: { label: 'Grew', paint: CHART_PAINTS.video },
+  shrank: { label: 'Shrank', paint: CHART_PAINTS.code },
+  same: { label: 'Unchanged', paint: CHART_PAINTS.neutral },
+  unavailable: { label: 'Change unavailable', paint: CHART_PAINTS.unknown },
+} as const;
+
+export function historicalChange(delta: string | undefined) {
+  if (delta === undefined) return historicalChanges.unavailable;
+  if (delta === '0') return historicalChanges.same;
+  return delta.startsWith('-') ? historicalChanges.shrank : historicalChanges.grew;
+}
+
+export function formatHistoricalDelta(delta: string | undefined): string {
+  if (delta === undefined) return 'Unavailable';
+  if (delta === '0') return formatStorageBytes(delta);
+  return delta.startsWith('-')
+    ? `−${formatStorageBytes(delta.slice(1))}`
+    : `+${formatStorageBytes(delta)}`;
+}
 
 export function historicalRects(
   frame: SnapshotVisualFrame,

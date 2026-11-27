@@ -102,6 +102,43 @@ pub(super) fn verify() {
     assert_eq!(compare.delta, 9);
     assert_eq!(compare.file_changes.added.logical, 19);
     assert_eq!(compare.file_changes.removed.logical, 10);
+    let tiles = store
+        .visual_pair(first, last, None, None, false, &cancel)
+        .unwrap()
+        .unwrap();
+    for (frame, name, change) in [
+        (&tiles.before, "old.txt", "-10"),
+        (&tiles.after, "replacement.txt", "19"),
+        (&tiles.after, "kept.txt", "0"),
+    ] {
+        let tile = frame
+            .entries
+            .iter()
+            .find(|entry| entry.name == name)
+            .unwrap();
+        assert_eq!(tiles.tile_deltas[&tile.path_id], change);
+    }
+    let replacement = &tiles
+        .after
+        .entries
+        .iter()
+        .find(|entry| entry.name == "replacement.txt")
+        .unwrap()
+        .path_id;
+    {
+        let sqlite = rusqlite::Connection::open(&database).unwrap();
+        sqlite
+            .execute("UPDATE snapshots SET complete=0 WHERE id=?1", [first])
+            .unwrap();
+        let partial = store
+            .visual_pair(first, last, None, None, false, &cancel)
+            .unwrap()
+            .unwrap();
+        assert!(!partial.tile_deltas.contains_key(replacement));
+        sqlite
+            .execute("UPDATE snapshots SET complete=1 WHERE id=?1", [first])
+            .unwrap();
+    }
     assert!(
         store
             .load(first, &cancel)
@@ -355,4 +392,34 @@ pub(super) fn verify() {
             .trend_changes_at(duplicate, after, other_anchor, &cancel)
             .is_err()
     );
+
+    for id in 0..160 {
+        std::fs::write(linked_child.join(format!("larger-{id:03}.bin")), [8u8; 25]).unwrap();
+    }
+    let saturated = save_at(&mut store, observed + 210, 20);
+    let root = store
+        .visual_pair(before, saturated, None, None, false, &cancel)
+        .unwrap()
+        .unwrap();
+    let child = &root.folders.items[0].path_id;
+    let ranked = store
+        .visual_pair(before, saturated, Some(child), None, false, &cancel)
+        .unwrap()
+        .unwrap();
+    assert_eq!(ranked.after.entries.len(), 160);
+    assert!(
+        !ranked
+            .after
+            .entries
+            .iter()
+            .any(|entry| entry.name == "changed.bin")
+    );
+    let changed = &ranked
+        .before
+        .entries
+        .iter()
+        .find(|entry| entry.name == "changed.bin")
+        .unwrap()
+        .path_id;
+    assert_eq!(ranked.tile_deltas[changed], "15");
 }

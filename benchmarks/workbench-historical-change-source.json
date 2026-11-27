@@ -1,0 +1,91 @@
+{
+  "checkedUtc": "2026-11-27T14:42:17.9462018Z",
+  "startedUtc": "2026-11-27T14:08:13.4007672Z",
+  "checkoutCommit": "34a1f8a74e7b8e218f5511c1bbba449c0492d8e2",
+  "rustProfile": "release",
+  "cargoOffline": true,
+  "nativeFeature": "voldiq/production",
+  "verificationScriptSha256": "A6BD1001EF7909A25DB87843F74BDF1AB7A24428999F2A0BFBE4B12CC5C37025",
+  "scope": "Source checks, automated behavior tests and frontend build. Native UI, performance targets and installer acceptance are separate.",
+  "checks": [
+    {
+      "name": "Rust formatting",
+      "exitCode": 0,
+      "elapsedSeconds": 14.603
+    },
+    {
+      "name": "Frontend types and accessibility diagnostics",
+      "exitCode": 0,
+      "elapsedSeconds": 92.592
+    },
+    {
+      "name": "Frontend behavior tests",
+      "exitCode": 0,
+      "elapsedSeconds": 8.571
+    },
+    {
+      "name": "Production frontend build",
+      "exitCode": 0,
+      "elapsedSeconds": 43.967
+    },
+    {
+      "name": "Workspace Rust tests",
+      "exitCode": 0,
+      "elapsedSeconds": 1745.993
+    },
+    {
+      "name": "Strict workspace Clippy",
+      "exitCode": 0,
+      "elapsedSeconds": 137.99
+    }
+  ],
+  "sourceInputs": [
+    {
+      "path": "crates/voldiq-core/src/snapshots/visual.rs",
+      "sha256": "D77D7E3531BA9B05F385E892AD1760151ED84EAA3DE5300C8D00D69BE6DC28A4"
+    },
+    {
+      "path": "crates/voldiq-core/tests/snapshots/capture_tier_fixture.rs",
+      "sha256": "21675135A009309D5AD04DEF84999AC5D1F1CE335BBB658073BD5CE78AA56AD2"
+    },
+    {
+      "path": "frontend/components/HistoricalMap.svelte",
+      "sha256": "7BB5D798F80F9B695F880E218C72615AEFE41B313174D9C83998B83E3F16CAE6"
+    },
+    {
+      "path": "frontend/components/HistoryMapColors.svelte",
+      "sha256": "79F35D23752CD17DA8071DCC5AB9E142E29D27FD3A78F117CAE31AA3EF7EE396"
+    },
+    {
+      "path": "frontend/components/HistoryPlayback.svelte",
+      "sha256": "0268C30E8B295DB39BA9FE7CC59EE04EEAE610569BAB2C1ADE72F0332717DFBD"
+    },
+    {
+      "path": "frontend/components/SnapshotVisualCompare.svelte",
+      "sha256": "98FF24F0C1C0368A313623A9EA02001C6EC2665A9DDFC5D77513CDEA945CF280"
+    },
+    {
+      "path": "frontend/lib/history-geometry.ts",
+      "sha256": "D6B6194FD75F74CAEC6207A10BAEC903F78297E283DA4EDA15DD137C1DDD097C"
+    },
+    {
+      "path": "frontend/lib/types.ts",
+      "sha256": "6AC29A26603C8E558295166B59274E22DBF40DDD46C45879D604F1E76CF85BBD"
+    }
+  ],
+  "retainedBehaviorTests": 9,
+  "markup": {
+    "unchangedGeometry": true,
+    "tileCount": 4,
+    "distinctPaints": 4,
+    "states": [
+      "growth",
+      "reduction",
+      "unchanged",
+      "unavailable"
+    ],
+    "remainderInLegend": true,
+    "selectorLimitedToComparison": true,
+    "scope": "Production Svelte server markup with synthetic recorded values. Native layout and interaction remain manual."
+  }
+}

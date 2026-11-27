@@ -461,6 +461,7 @@ export interface SnapshotVisualPair {
   after: SnapshotVisualFrame;
   delta: string | null;
   relative_percent: number | null;
+  tile_deltas: Partial<Record<string, string>>;
   folders: {
     items: { path_id: string; name: string }[];
     previous: string | null;

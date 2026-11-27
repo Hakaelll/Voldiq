@@ -7,7 +7,7 @@ use rusqlite::params;
 use serde::Serialize;
 use std::{
     cmp::Reverse,
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     sync::atomic::{AtomicBool, Ordering},
 };
 
@@ -101,6 +101,7 @@ pub struct VisualPair {
     pub after: VisualFrame,
     pub delta: Option<String>,
     pub relative_percent: Option<f64>,
+    pub tile_deltas: BTreeMap<String, String>,
     pub folders: FolderChoices,
 }
 
@@ -229,6 +230,14 @@ impl Store {
         if before.logical.is_none() && after.logical.is_none() {
             return Err(invalid());
         }
+        let tile_deltas = if accounting == Accounting::Compatible {
+            let Some(deltas) = self.visual_tile_deltas(&old, &new, &before, &after, cancel)? else {
+                return Ok(None);
+            };
+            deltas
+        } else {
+            BTreeMap::new()
+        };
         let Some(folders) =
             self.visual_folders(&old, &new, scope, folder_cursor, reverse, cancel)?
         else {
@@ -254,10 +263,62 @@ impl Store {
             relative_percent: sizes
                 .filter(|(a, _)| *a != 0)
                 .map(|(a, b)| (b as f64 - a as f64) / a as f64 * 100.0),
+            tile_deltas,
             before,
             after,
             folders,
         }))
+    }
+
+    fn visual_tile_deltas(
+        &self,
+        old: &Source,
+        new: &Source,
+        before: &VisualFrame,
+        after: &VisualFrame,
+        cancel: &AtomicBool,
+    ) -> Result<Option<BTreeMap<String, String>>> {
+        let displayed = before
+            .entries
+            .iter()
+            .chain(&after.entries)
+            .map(|entry| path_id(&entry.path_id))
+            .collect::<Result<BTreeSet<_>>>()?;
+        // Read both versions even if only one of them ranked among the displayed tiles.
+        let mut statement = self.connection.prepare(
+            "SELECT v.logical,v.incomplete FROM snapshot_paths p
+             JOIN snapshot_versions v ON v.path_id=p.id
+             WHERE p.root_id=?1 AND p.id=?2 AND v.start_id<=?3
+             AND (v.end_id IS NULL OR v.end_id>?3) LIMIT 2",
+        )?;
+        let mut load = |id: i64, snapshot: i64, partial: bool| -> Result<Option<u64>> {
+            let mut rows = statement.query(params![old.root, id, snapshot])?;
+            let Some(row) = rows.next()? else {
+                return Ok((!partial).then_some(0));
+            };
+            let logical = unsigned(row, 0)?;
+            let incomplete: bool = row.get(1)?;
+            if rows.next()?.is_some() {
+                return Err(invalid());
+            }
+            Ok((!incomplete).then_some(logical))
+        };
+        let mut deltas = BTreeMap::new();
+        for id in displayed {
+            if cancel.load(Ordering::Relaxed) {
+                return Ok(None);
+            }
+            if let (Some(previous), Some(current)) = (
+                load(id, old.id, before.incomplete)?,
+                load(id, new.id, after.incomplete)?,
+            ) {
+                deltas.insert(
+                    id.to_string(),
+                    (i128::from(current) - i128::from(previous)).to_string(),
+                );
+            }
+        }
+        Ok(Some(deltas))
     }
 
     fn visual_frame(
