@@ -1,0 +1,121 @@
+{
+  "checkedUtc": "2026-11-27T12:35:29.4215929Z",
+  "sourceCommit": "1202d6a9b92732a7e5bc185e03531404d754c6dd",
+  "executableSha256": "2558C139B933EC0102DD96C9D260CD8C78DD44A6E29F4C0BA1B2FCBBD3D064D7",
+  "executableBytes": 33750528,
+  "preview": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\preview\\2558C139B933EC0102DD96C9D260CD8C78DD44A6E29F4C0BA1B2FCBBD3D064D7\\voldiq.exe",
+  "processId": 7092,
+  "mainWindowHandle": 1836552,
+  "observation": "ready",
+  "startupEvents": [
+    {
+      "event": "process-start",
+      "pid": 7092,
+      "unixMs": 1795782924463
+    },
+    {
+      "event": "setup-start",
+      "pid": 7092,
+      "unixMs": 1795782924468
+    },
+    {
+      "event": "snapshot-open-start",
+      "pid": 7092,
+      "unixMs": 1795782924472
+    },
+    {
+      "event": "snapshot-open-end",
+      "pid": 7092,
+      "unixMs": 1795782924790
+    },
+    {
+      "event": "profile-portable",
+      "pid": 7092,
+      "unixMs": 1795782926443
+    },
+    {
+      "event": "setup-end",
+      "pid": 7092,
+      "unixMs": 1795782926443
+    },
+    {
+      "event": "ready",
+      "pid": 7092,
+      "unixMs": 1795782926443
+    },
+    {
+      "event": "page-finished",
+      "pid": 7092,
+      "unixMs": 1795782929242
+    }
+  ],
+  "storageMode": "portable",
+  "fixture": {
+    "path": "C:\\Users\\yagol\\Documents\\GitHub\\Voldiq\\target\\probes\\cleanup-receipt-demo-98b4b0b14c3a429ea9df90e0754ddadc",
+    "files": 2,
+    "logicalBytes": 2097152,
+    "matchingHashes": true
+  },
+  "embeddedUi": {
+    "probe": "VOLDIQ_EMBEDDED_UI_V1",
+    "development": false,
+    "assets": [
+      {
+        "path": "assets/history-export-BwJsgSfc.js",
+        "bytes": 4059,
+        "sha256": "732F2650074D98049ACEC2E5657616F8BF8FB2D6D36F5E33B1480B2FB00C4983"
+      },
+      {
+        "path": "symbol.png",
+        "bytes": 22602,
+        "sha256": "5FB3AC0B0DF1C1E3375E30763E3852A748C9014C24E89B5D0E8E2D07FD60F256"
+      },
+      {
+        "path": "assets/history-video-CLIspoUK.js",
+        "bytes": 2865,
+        "sha256": "8ACE32DC71EF555EE90A0D87E4B7784BBD706455F6CBEC1A07AB0AB29BA4CF36"
+      },
+      {
+        "path": "index.html",
+        "bytes": 438,
+        "sha256": "4C571E85AC5FF25C9F4596E0579FDB762044ADCFECF1F9092AB3198B5EBF3ADF"
+      },
+      {
+        "path": "wordmark.png",
+        "bytes": 362444,
+        "sha256": "B60CA1CC83C1A3A0EEF166CC31B833FC0D95E0DACF5D3C1CF09D7F63A411A0D1"
+      },
+      {
+        "path": "assets/index-BR0Ue2DP.js",
+        "bytes": 716056,
+        "sha256": "B9C5D810DB43DCCD682BC89CF215651DBD83A05FCC65E0C4F915B72A91E31CB4"
+      },
+      {
+        "path": "assets/index-BrkRBBUK.css",
+        "bytes": 142168,
+        "sha256": "79FFB4D2806F42804751183357A6F38836AC3D881EDCE08A79547C60706D67C3"
+      },
+      {
+        "path": "assets/256x256-BkkuVpWj.png",
+        "bytes": 69723,
+        "sha256": "BE1C9BFF0E4D3E5E88FDFAA71B0A97A9C99EFA625CD062DB6A3F74DB633B0974"
+      },
+      {
+        "path": "assets/voronoi.worker-DwJ2QmrW.js",
+        "bytes": 5606,
+        "sha256": "C6FC25FEE9277AE80BD385E23D8D8F1813C042C71F52B46BB878A8C088947014"
+      },
+      {
+        "path": "assets/svg-surface-D3Yw6xZb.js",
+        "bytes": 6995,
+        "sha256": "16031B0D00F7998ED47803E71C5F769269D4295083881302DD52A7B7F3A450AA"
+      },
+      {
+        "path": "assets/city.worker-DLxzT0Wm.js",
+        "bytes": 2879,
+        "sha256": "97CCEB4C907C9A84374A7687A0D59B33B777C1701DE77989BBBA60FED3AD177B"
+      }
+    ]
+  },
+  "scope": "Production native startup and embedded payload/reference checks. Windows rendering, pointer and keyboard interaction, and scaling for the Cleanup receipt remain manual."
+}

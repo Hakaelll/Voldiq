@@ -8,6 +8,8 @@ The core takes separate volume measurements around execution. It rechecks the fr
 
 The retained cleanup flows cover a real removal after a result-write failure, cancellation with unattempted files, distinct duplicate keepers and modeled recycle outcomes. The owned Windows fixture obtained comparable volume counters and checked their exact signed difference. Svelte markup covers selection, partial recycling and permanent deletion with unavailable measurements. Visual fit, interactive focus and Windows scaling remain manual. [Source verification](../benchmarks/workbench-cleanup-receipt-source.json)
 
+The portable Windows preview reached ready with zero TCP listeners. Two matching owned sample files are available for manual review. 10 embedded non-HTML assets matched the production web build. The unsigned NSIS installer measures 12,153,572 bytes. Cleanup removed 3,101,642,704 logical bytes of inactive release artifacts and 0 bytes of closed previews. The current preview and installer were preserved. [Startup](../benchmarks/native-cleanup-receipt-preview.json) · [Default listener](../benchmarks/cleanup-receipt-default-listener.json) · [Distribution](../benchmarks/distribution-cleanup-receipt.json) · [Post-clean checks](../benchmarks/workspace-footprint-cleanup-receipt.json)
+
 ## Applications chart and ranking
 
 Applications gives the scatter plot a 318px minimum height and keeps its axis labels at 14px. The logarithmic axes use the same geometry as the points, with fewer horizontal labels in narrow views. Exceptionally large byte labels use scientific notation and retain the exact value in their tooltip.
